@@ -43,7 +43,7 @@ const SEPARATOR = (
     aria-hidden
     style={{
       width: 0.5,
-      height: 18,
+      height: 22,
       background: "#e5e7eb",
       flexShrink: 0,
       alignSelf: "center",
@@ -79,7 +79,7 @@ export function Topbar() {
     <header
       className="hidden md:flex justify-center sticky top-0 z-50"
       style={{
-        padding: "10px 40px",
+        padding: "14px 40px",
         /* Transparent pour laisser le gradient de page traverser.
            backdrop-filter empêche le contenu scrollant d'être lisible
            dans la zone de padding autour de la pill. */
@@ -88,11 +88,11 @@ export function Topbar() {
         WebkitBackdropFilter: "blur(8px)",
       }}
     >
-      {/* Pill — même max-width que le contenu hero (840px) */}
+      {/* Pill — alignée sur la colonne de contenu (840px - 2×40px padding = 760px) */}
       <div
         style={{
           width: "100%",
-          maxWidth: 840,
+          maxWidth: 760,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -101,23 +101,23 @@ export function Topbar() {
           borderRadius: 9999,
           boxShadow:
             "0 2px 16px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04)",
-          padding: "8px 8px 8px 18px",
+          padding: "10px 10px 10px 22px",
         }}
       >
         {/* ── Gauche : logo + séparateur + nav ── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <Image
             src={LOGO_SRC}
             alt="Notion Club"
-            width={88}
-            height={30}
+            width={120}
+            height={40}
             priority
-            style={{ height: 24, width: "auto", display: "block", flexShrink: 0 }}
+            style={{ height: 32, width: "auto", display: "block", flexShrink: 0 }}
           />
 
           {SEPARATOR}
 
-          <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <nav style={{ display: "flex", alignItems: "center", gap: 4 }}>
             {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
               const isActive = pathname === href;
               return (
@@ -127,10 +127,10 @@ export function Topbar() {
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: 6,
-                    padding: "7px 14px",
+                    gap: 7,
+                    padding: "9px 16px",
                     borderRadius: 999,
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: isActive ? 600 : 400,
                     color: "#000",
                     background: isActive ? "rgba(0,0,0,0.07)" : "transparent",
@@ -140,7 +140,7 @@ export function Topbar() {
                   }}
                   className={!isActive ? "hover:bg-[rgba(0,0,0,0.04)]" : ""}
                 >
-                  <Icon size={14} strokeWidth={isActive ? 2.5 : 2} style={{ flexShrink: 0 }} />
+                  <Icon size={16} strokeWidth={isActive ? 2.5 : 2} style={{ flexShrink: 0 }} />
                   {label}
                 </Link>
               );
@@ -149,14 +149,14 @@ export function Topbar() {
         </div>
 
         {/* ── Droite : cloche + avatar ── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {/* Cloche */}
           <button
             type="button"
             aria-label="Notifications"
             style={{
-              width: 36,
-              height: 36,
+              width: 40,
+              height: 40,
               borderRadius: "50%",
               border: "none",
               background: "transparent",
@@ -171,7 +171,7 @@ export function Topbar() {
             }}
             className="hover:bg-[rgba(0,0,0,0.04)]"
           >
-            <Bell size={16} />
+            <Bell size={18} />
             <span
               style={{
                 position: "absolute",
@@ -203,15 +203,15 @@ export function Topbar() {
             aria-label="Menu compte"
             onClick={() => setAvatarOpen((o) => !o)}
             style={{
-              width: 30,
-              height: 30,
+              width: 36,
+              height: 36,
               borderRadius: "50%",
               background: "#e0625a",
               color: "#fff",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: 700,
               letterSpacing: "0.02em",
               border: "none",
