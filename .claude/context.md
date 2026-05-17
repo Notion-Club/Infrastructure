@@ -166,15 +166,38 @@ Remplacée par `Topbar.tsx` pour desktop.
 
 ## Décisions d'architecture actées
 
-1. **Desktop (≥ md / 768px)** : Topbar horizontale sticky — PAS de sidebar verticale
-2. **Mobile (< md)** : MobileHeader fixe top + BottomNav pill fixe bottom
+1. **Desktop (≥ md / 768px)** : Topbar horizontale **fixed** — PAS de sidebar verticale
+2. **Mobile (< md)** : MobileTopActions fixe top-right + BottomNav pill fixe bottom
 3. **Breakpoint unique** : `md:` (768px) pour basculer desktop/mobile. Pas de `lg:` ou `xl:` dans cette session
-4. **Sticky topbar** : doit être enfant direct du `flex flex-col` container pour que `sticky top-0` fonctionne sur toute la hauteur du scroll
-5. **`hidden md:flex`** sur le `<header>` de Topbar directement (pas de wrapper div intermédiaire) pour préserver la sticky
-6. **Nav items** : 4 items seulement — Accueil, Formation, Communauté, Coaching. "Ressources" et "Bibliothèque" supprimés
-7. **État actif nav** : gris léger `rgba(0,0,0,0.07)` + texte noir (pas fond noir)
-8. **Topbar fond** : transparent + `backdropFilter: blur(8px)` — pas de bande colorée
-9. **Pill topbar** : `max-width: 840px` = largeur du contenu hero
+4. **`hidden md:flex`** sur le `<header>` de Topbar directement
+5. **Nav items** : Accueil, Formation, Communauté, Coaching, Ressources
+6. **État actif nav** : gris léger `rgba(0,0,0,0.07)` + texte noir (pas fond noir)
+7. **Topbar fond** : transparent + `backdropFilter: blur(8px)` — pas de bande colorée
+8. **Pill topbar** : `max-width: 920px`
+
+### Règle de positionnement — toutes les pages
+
+> **La cloche de notifications et l'avatar utilisateur ne doivent JAMAIS suivre le scroll.**
+> - Desktop : `Topbar` en `position: fixed; top: 0; left: 0; right: 0` — la cloche et l'avatar sont dans cette topbar fixe.
+> - Mobile : `MobileTopActions` en `position: fixed; top: 12px; right: 12px` — boutons flottants indépendants du scroll.
+> - Conséquence : tout contenu de page doit compenser avec `md:pt-[96px]` (desktop) et `pt-[72px]` (mobile).
+
+### Pattern de page standard
+
+```tsx
+<div className="nc-page-halo flex flex-col" style={{ minHeight: "100dvh" }}>
+  <Topbar />                          {/* position: fixed desktop */}
+  <div className="md:hidden">
+    <MobileTopActions />              {/* position: fixed top-right mobile */}
+    <BottomNav />                     {/* position: fixed bottom mobile */}
+  </div>
+  <main style={{ flex: 1, position: "relative", zIndex: 1 }}>
+    <div className="px-4 pt-[72px] pb-[100px] md:px-10 md:pt-[96px] md:pb-10">
+      {/* contenu */}
+    </div>
+  </main>
+</div>
+```
 
 ---
 
