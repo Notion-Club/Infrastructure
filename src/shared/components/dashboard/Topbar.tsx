@@ -79,123 +79,125 @@ export function Topbar() {
     <header
       className="hidden md:flex justify-center sticky top-0 z-50"
       style={{
-        padding: "10px 24px",
-        background: "var(--color-surface-page)",
+        padding: "10px 40px",
+        /* Transparent pour laisser le gradient de page traverser.
+           backdrop-filter empêche le contenu scrollant d'être lisible
+           dans la zone de padding autour de la pill. */
+        background: "transparent",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
       }}
     >
-      {/* Pill flottante — largeur déterminée par son contenu */}
+      {/* Pill — même max-width que le contenu hero (840px) */}
       <div
         style={{
-          display: "inline-flex",
+          width: "100%",
+          maxWidth: 840,
+          display: "flex",
           alignItems: "center",
-          gap: 10,
+          justifyContent: "space-between",
           background: "#ffffff",
           border: "0.5px solid #e5e7eb",
           borderRadius: 9999,
           boxShadow:
-            "0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)",
-          padding: "5px 6px 5px 12px",
+            "0 2px 16px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04)",
+          padding: "8px 8px 8px 18px",
         }}
       >
-        {/* Logo */}
-        <Image
-          src={LOGO_SRC}
-          alt="Notion Club"
-          width={88}
-          height={30}
-          priority
-          style={{ height: 22, width: "auto", display: "block", flexShrink: 0 }}
-        />
+        {/* ── Gauche : logo + séparateur + nav ── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Image
+            src={LOGO_SRC}
+            alt="Notion Club"
+            width={88}
+            height={30}
+            priority
+            style={{ height: 24, width: "auto", display: "block", flexShrink: 0 }}
+          />
 
-        {SEPARATOR}
+          {SEPARATOR}
 
-        {/* Nav pills */}
-        <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
-          {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
-            const isActive = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "6px 13px",
-                  borderRadius: 999,
-                  fontSize: 13,
-                  fontWeight: isActive ? 600 : 400,
-                  color: "#000",
-                  background: isActive
-                    ? "rgba(0,0,0,0.07)"
-                    : "transparent",
-                  textDecoration: "none",
-                  transition: "background 150ms ease",
-                  whiteSpace: "nowrap",
-                }}
-                className={!isActive ? "hover:bg-[rgba(0,0,0,0.04)]" : ""}
-              >
-                <Icon
-                  size={14}
-                  strokeWidth={isActive ? 2.5 : 2}
-                  style={{ flexShrink: 0 }}
-                />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
+          <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
+            {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
+              const isActive = pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "7px 14px",
+                    borderRadius: 999,
+                    fontSize: 13,
+                    fontWeight: isActive ? 600 : 400,
+                    color: "#000",
+                    background: isActive ? "rgba(0,0,0,0.07)" : "transparent",
+                    textDecoration: "none",
+                    transition: "background 150ms ease",
+                    whiteSpace: "nowrap",
+                  }}
+                  className={!isActive ? "hover:bg-[rgba(0,0,0,0.04)]" : ""}
+                >
+                  <Icon size={14} strokeWidth={isActive ? 2.5 : 2} style={{ flexShrink: 0 }} />
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
 
-        {SEPARATOR}
-
-        {/* Cloche */}
-        <button
-          type="button"
-          aria-label="Notifications"
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            border: "none",
-            background: "transparent",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            color: "#52525b",
-            position: "relative",
-            flexShrink: 0,
-            transition: "background 150ms ease",
-          }}
-          className="hover:bg-[rgba(0,0,0,0.04)]"
-        >
-          <Bell size={15} />
-          <span
+        {/* ── Droite : cloche + avatar ── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Cloche */}
+          <button
+            type="button"
+            aria-label="Notifications"
             style={{
-              position: "absolute",
-              top: 1,
-              right: 1,
-              minWidth: 15,
-              height: 15,
-              background: "#e0625a",
-              color: "white",
-              borderRadius: 9999,
-              fontSize: 9,
-              fontWeight: 700,
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              border: "none",
+              background: "transparent",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              border: "1.5px solid white",
-              padding: "0 3px",
-              lineHeight: 1,
+              cursor: "pointer",
+              color: "#52525b",
+              position: "relative",
+              flexShrink: 0,
+              transition: "background 150ms ease",
             }}
+            className="hover:bg-[rgba(0,0,0,0.04)]"
           >
-            {UNREAD_COUNT}
-          </span>
-        </button>
+            <Bell size={16} />
+            <span
+              style={{
+                position: "absolute",
+                top: 2,
+                right: 2,
+                minWidth: 15,
+                height: 15,
+                background: "#e0625a",
+                color: "white",
+                borderRadius: 9999,
+                fontSize: 9,
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "1.5px solid white",
+                padding: "0 3px",
+                lineHeight: 1,
+              }}
+            >
+              {UNREAD_COUNT}
+            </span>
+          </button>
 
-        {/* Avatar + dropdown */}
-        <div ref={avatarRef} style={{ position: "relative" }}>
+          {/* Avatar + dropdown */}
+          <div ref={avatarRef} style={{ position: "relative" }}>
           <button
             type="button"
             aria-label="Menu compte"
@@ -269,8 +271,9 @@ export function Topbar() {
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </div>{/* fin avatarRef */}
+        </div>{/* fin groupe droite */}
+      </div>{/* fin pill */}
     </header>
   );
 }
