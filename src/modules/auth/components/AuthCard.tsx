@@ -63,8 +63,6 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
           )}
 
           <SubmitButton mode={mode} loading={isLoading} />
-
-          <Footer mode={mode} onSwitch={setMode} />
         </div>
       </div>
     </div>
@@ -286,37 +284,3 @@ function SubmitButton({
   );
 }
 
-function Footer({
-  mode,
-  onSwitch,
-}: {
-  mode: AuthMode;
-  onSwitch: (mode: AuthMode) => void;
-}) {
-  if (mode === "login") {
-    return (
-      <p className="text-center text-[14px] text-[var(--color-text-muted)]">
-        Pas encore de compte ?{" "}
-        <button
-          type="button"
-          onClick={() => onSwitch("signup")}
-          className="font-semibold text-[var(--color-brand)] hover:underline"
-        >
-          Créer un compte
-        </button>
-      </p>
-    );
-  }
-  return (
-    <p className="text-center text-[14px] text-[var(--color-text-muted)]">
-      Déjà un compte ?{" "}
-      <button
-        type="button"
-        onClick={() => onSwitch("login")}
-        className="font-semibold text-[var(--color-brand)] hover:underline"
-      >
-        Se connecter
-      </button>
-    </p>
-  );
-}

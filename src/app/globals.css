@@ -69,7 +69,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sf-pro-display);
   --font-mono: var(--font-geist-mono);
 
   /* Notion Club brand tokens (mockup — design system v1) */
