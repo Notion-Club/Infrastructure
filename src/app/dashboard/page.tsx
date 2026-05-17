@@ -41,7 +41,7 @@ export default function DashboardPage() {
             flexDirection: "column",
             gap: 24,
           }}
-          className="px-4 pt-[72px] pb-[100px] md:px-10 md:py-10"
+          className="px-4 pt-[72px] pb-[100px] md:px-10 md:pt-[96px] md:pb-10"
         >
           {/* Greeting + search — desktop uniquement */}
           <div className="hidden md:flex flex-col gap-5">

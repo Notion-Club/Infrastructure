@@ -72,19 +72,15 @@ export function Topbar() {
   const initials = getInitials(MOCK_USER.prenom, MOCK_USER.nom);
 
   return (
-    /*
-     * Outer header : transparent + couleur de page → le contenu qui scroll
-     * dessous ne transperce pas. sticky top-0 sur l'élément racine (enfant
-     * direct du flex-col) pour que le scroll-container soit la page entière.
-     * hidden md:flex justify-center → pill centrée, pas full-width.
-     */
     <header
-      className="hidden md:flex justify-center sticky top-0 z-50"
+      className="hidden md:flex justify-center"
       style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 50,
         padding: "14px 40px",
-        /* Transparent pour laisser le gradient de page traverser.
-           backdrop-filter empêche le contenu scrollant d'être lisible
-           dans la zone de padding autour de la pill. */
         background: "transparent",
         backdropFilter: "blur(8px)",
         WebkitBackdropFilter: "blur(8px)",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { SlidersHorizontal, Check } from "lucide-react";
+import { SlidersHorizontal, Check, ChevronDown } from "lucide-react";
 import type { Resource, ResourceType } from "../types";
 import { ResourceCard } from "./ResourceCard";
 
@@ -15,6 +15,134 @@ const TYPE_FILTERS: { value: "all" | ResourceType; label: string }[] = [
 type Props = {
   resources: Resource[];
 };
+
+function FilterSection({
+  label,
+  items,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  items: string[];
+  selected: Set<string>;
+  onToggle: (item: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div>
+      {/* Section header — toggle */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          padding: "10px 16px",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          gap: 8,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            color: "var(--color-text-secondary)",
+          }}
+        >
+          {label}
+          {selected.size > 0 && (
+            <span
+              style={{
+                marginLeft: 8,
+                fontSize: 10,
+                fontWeight: 700,
+                color: "var(--color-brand)",
+                background: "rgba(224,98,90,0.1)",
+                borderRadius: 9999,
+                padding: "1px 6px",
+              }}
+            >
+              {selected.size}
+            </span>
+          )}
+        </span>
+        <ChevronDown
+          size={14}
+          strokeWidth={2.5}
+          style={{
+            color: "var(--color-text-muted)",
+            flexShrink: 0,
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 200ms ease",
+          }}
+        />
+      </button>
+
+      {/* Items */}
+      {open && (
+        <div style={{ padding: "0 8px 8px" }}>
+          {items.map((item) => {
+            const checked = selected.has(item);
+            return (
+              <button
+                key={item}
+                type="button"
+                onClick={() => onToggle(item)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  width: "100%",
+                  padding: "7px 10px",
+                  borderRadius: 10,
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "background 120ms ease",
+                }}
+                className="hover:bg-[var(--color-surface-raised)]"
+              >
+                <span
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: 5,
+                    border: checked ? "none" : "1.5px solid var(--color-border-default)",
+                    background: checked ? "var(--color-brand)" : "transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    transition: "all 120ms ease",
+                  }}
+                >
+                  {checked && <Check size={10} strokeWidth={3} color="white" />}
+                </span>
+                <span
+                  style={{
+                    fontSize: 13,
+                    color: "var(--color-text-primary)",
+                    fontWeight: checked ? 500 : 400,
+                  }}
+                >
+                  {item}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ResourcesGrid({ resources }: Props) {
   const [activeType, setActiveType] = useState<"all" | ResourceType>("all");
@@ -168,7 +296,7 @@ export function ResourcesGrid({ resources }: Props) {
                 position: "absolute",
                 top: "calc(100% + 8px)",
                 right: 0,
-                width: 260,
+                width: 240,
                 background: "white",
                 border: "1px solid var(--color-border-default)",
                 borderRadius: 16,
@@ -177,7 +305,7 @@ export function ResourcesGrid({ resources }: Props) {
                 overflow: "hidden",
               }}
             >
-              {/* Header */}
+              {/* Dropdown header */}
               <div
                 style={{
                   display: "flex",
@@ -215,150 +343,23 @@ export function ResourcesGrid({ resources }: Props) {
                 )}
               </div>
 
-              {/* Section Sujets */}
-              <div style={{ padding: "10px 8px 4px" }}>
-                <p
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    color: "var(--color-text-muted)",
-                    margin: "0 0 4px 8px",
-                  }}
-                >
-                  Sujets
-                </p>
-                {allTags.map((tag) => {
-                  const checked = selectedTags.has(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => toggleTag(tag)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        width: "100%",
-                        padding: "8px 10px",
-                        borderRadius: 10,
-                        background: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        textAlign: "left",
-                        transition: "background 120ms ease",
-                      }}
-                      className="hover:bg-[var(--color-surface-raised)]"
-                    >
-                      <span
-                        style={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: 5,
-                          border: checked
-                            ? "none"
-                            : "1.5px solid var(--color-border-default)",
-                          background: checked ? "var(--color-brand)" : "transparent",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                          transition: "all 120ms ease",
-                        }}
-                      >
-                        {checked && <Check size={10} strokeWidth={3} color="white" />}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 13,
-                          color: "var(--color-text-primary)",
-                          fontWeight: checked ? 500 : 400,
-                        }}
-                      >
-                        {tag}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Divider */}
-              <div
-                style={{
-                  height: 1,
-                  background: "var(--color-border-default)",
-                  margin: "4px 0",
-                }}
+              {/* Accordion — Sujets */}
+              <FilterSection
+                label="Sujets"
+                items={allTags}
+                selected={selectedTags}
+                onToggle={toggleTag}
               />
 
-              {/* Section Modules */}
-              <div style={{ padding: "4px 8px 10px" }}>
-                <p
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    color: "var(--color-text-muted)",
-                    margin: "6px 0 4px 8px",
-                  }}
-                >
-                  Module de formation
-                </p>
-                {allFormations.map((formation) => {
-                  const checked = selectedFormations.has(formation);
-                  return (
-                    <button
-                      key={formation}
-                      type="button"
-                      onClick={() => toggleFormation(formation)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        width: "100%",
-                        padding: "8px 10px",
-                        borderRadius: 10,
-                        background: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        textAlign: "left",
-                        transition: "background 120ms ease",
-                      }}
-                      className="hover:bg-[var(--color-surface-raised)]"
-                    >
-                      <span
-                        style={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: 5,
-                          border: checked
-                            ? "none"
-                            : "1.5px solid var(--color-border-default)",
-                          background: checked ? "var(--color-brand)" : "transparent",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                          transition: "all 120ms ease",
-                        }}
-                      >
-                        {checked && <Check size={10} strokeWidth={3} color="white" />}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 13,
-                          color: "var(--color-text-primary)",
-                          fontWeight: checked ? 500 : 400,
-                        }}
-                      >
-                        {formation}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <div style={{ height: 1, background: "var(--color-border-default)" }} />
+
+              {/* Accordion — Modules */}
+              <FilterSection
+                label="Module de formation"
+                items={allFormations}
+                selected={selectedFormations}
+                onToggle={toggleFormation}
+              />
             </div>
           )}
         </div>

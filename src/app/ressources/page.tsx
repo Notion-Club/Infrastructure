@@ -120,7 +120,7 @@ export default function RessourcesPage() {
             flexDirection: "column",
             gap: 28,
           }}
-          className="px-4 pt-[72px] pb-[100px] md:px-10 md:py-10"
+          className="px-4 pt-[72px] pb-[100px] md:px-10 md:pt-[96px] md:pb-10"
         >
           {/* Page header */}
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
