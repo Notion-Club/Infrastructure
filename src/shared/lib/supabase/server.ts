@@ -21,7 +21,9 @@ export async function createSupabaseServerClient() {
             );
           } catch {
             // Appelé depuis un Server Component : on ne peut pas écrire de
-            // cookies. La session sera rafraîchie par le middleware.
+            // cookies. La session sera rafraîchie au prochain Server Action
+            // ou Route Handler (pas de middleware Supabase actuellement,
+            // cf. bug __dirname Next.js 16 Turbopack + Edge runtime).
           }
         },
       },
