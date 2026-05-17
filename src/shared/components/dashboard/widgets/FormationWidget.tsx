@@ -58,6 +58,7 @@ export function FormationWidget() {
       />
       <span
         style={{
+          position: "relative",
           fontSize: 11,
           fontWeight: 600,
           letterSpacing: "0.06em",
@@ -68,7 +69,7 @@ export function FormationWidget() {
         Formation en cours
       </span>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 4 }}>
         <h2
           style={{
             fontSize: 16,
@@ -86,7 +87,7 @@ export function FormationWidget() {
         </p>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 6 }}>
         <ProgressBar percent={MOCK_FORMATION.progressPercent} />
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>
           {MOCK_FORMATION.modulesCompleted} modules complétés ·{" "}
@@ -94,7 +95,7 @@ export function FormationWidget() {
         </p>
       </div>
 
-      <div>
+      <div style={{ position: "relative" }}>
         <button
           type="button"
           onClick={(e) => {

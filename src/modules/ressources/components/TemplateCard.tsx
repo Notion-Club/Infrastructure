@@ -63,14 +63,14 @@ export function TemplateCard({ template, currentCapability }: TemplateCardProps)
         }}
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <ResourceBadge variant="template" label="Template" />
         {isLocked && (
           <ResourceBadge variant="neutral" label={template.visibilite} icon={<Lock size={10} />} />
         )}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
         <h3
           style={{
             fontSize: 15,
@@ -98,7 +98,7 @@ export function TemplateCard({ template, currentCapability }: TemplateCardProps)
         </p>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <ResourceBadge variant="type" label={template.type} />
       </div>
     </div>

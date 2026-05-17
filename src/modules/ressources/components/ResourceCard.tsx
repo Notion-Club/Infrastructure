@@ -63,14 +63,14 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
         }}
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <ResourceBadge variant="ressource" label="Ressource" />
         {isLocked && (
           <ResourceBadge variant="neutral" label={resource.visibilite} icon={<Lock size={10} />} />
         )}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
         <h3
           style={{
             fontSize: 15,
@@ -98,7 +98,7 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
         </p>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <ResourceBadge variant="formation" label={resource.formation} />
         <ResourceBadge variant="type" label={resource.type} />
       </div>
