@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { Lock } from 'lucide-react';
 import type { Template, UserCapability } from '../types';
+import { canAccess } from '../lib/access';
 import { ResourceBadge } from './shared/ResourceBadge';
 
 interface TemplateCardProps {
@@ -12,7 +13,7 @@ interface TemplateCardProps {
 
 export function TemplateCard({ template, currentCapability }: TemplateCardProps) {
   const router = useRouter();
-  const isLocked = currentCapability === 'challenge';
+  const isLocked = !canAccess(currentCapability, template.visibilite);
 
   return (
     <div
@@ -57,7 +58,7 @@ export function TemplateCard({ template, currentCapability }: TemplateCardProps)
             }}
           >
             <Lock size={10} />
-            Membres
+            {template.visibilite}
           </span>
         )}
       </div>

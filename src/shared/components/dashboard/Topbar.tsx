@@ -82,8 +82,6 @@ export function Topbar() {
         zIndex: 50,
         padding: "14px 40px",
         background: "transparent",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
       }}
     >
       {/* Pill — élargie pour respirer avec 5 items de nav + groupe droit */}

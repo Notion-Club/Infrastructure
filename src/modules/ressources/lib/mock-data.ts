@@ -8,6 +8,7 @@ export const mockResources: Resource[] = [
     description: 'Apprenez à construire un système de veille informationnelle complet dans Notion pour rester à jour dans votre domaine sans perdre de temps.',
     formation: 'Notion Architecte',
     type: 'Production',
+    visibilite: 'Challenge Gratuit',
     dateCreation: '2026-01-15T10:00:00.000Z',
     content: [
       { type: 'heading', level: 2, text: 'Pourquoi une veille structurée dans Notion ?' },
@@ -32,6 +33,7 @@ export const mockResources: Resource[] = [
     description: 'Découvrez comment définir et présenter votre offre de services en tant que consultant Notion pour attirer les bons clients et maximiser votre valeur perçue.',
     formation: 'Notion Architecte',
     type: 'Relation Client',
+    visibilite: 'Formation',
     dateCreation: '2026-01-22T10:00:00.000Z',
     content: [
       { type: 'heading', level: 2, text: 'Définir son positionnement de consultant Notion' },
@@ -53,6 +55,7 @@ export const mockResources: Resource[] = [
     description: 'Utilisez les automatisations natives de Notion et les intégrations Zapier/Make pour créer des flux de travail client qui tournent sans intervention manuelle.',
     formation: 'Notion Architecte',
     type: 'Acquisition',
+    visibilite: 'Accompagnement',
     dateCreation: '2026-02-03T10:00:00.000Z',
     content: [
       { type: 'heading', level: 2, text: 'L\'automatisation au service de l\'acquisition client' },
@@ -76,6 +79,7 @@ export const mockResources: Resource[] = [
     description: 'Créez un tableau de bord central pour suivre vos finances, vos projets clients et vos objectifs de croissance depuis un seul espace Notion.',
     formation: 'Notion Business',
     type: 'Business',
+    visibilite: 'Formation',
     dateCreation: '2026-02-14T10:00:00.000Z',
     content: [
       { type: 'heading', level: 2, text: 'Un OS pour votre business dans Notion' },
@@ -98,6 +102,7 @@ export const mockResources: Resource[] = [
     description: 'Implémentez un système de management commercial dans Notion pour suivre les performances, aligner l\'équipe et atteindre vos objectifs de vente.',
     formation: 'Notion Business',
     type: 'Sales',
+    visibilite: 'Accompagnement',
     dateCreation: '2026-02-28T10:00:00.000Z',
     content: [
       { type: 'heading', level: 2, text: 'Pourquoi Notion pour le management commercial ?' },
@@ -121,6 +126,7 @@ export const mockResources: Resource[] = [
     description: 'Guide complet pour créer un CRM sur mesure dans Notion qui centralise toutes les informations clients et facilite le suivi des relations commerciales.',
     formation: 'Notion Business',
     type: 'Relation Client',
+    visibilite: 'Challenge Gratuit',
     dateCreation: '2026-03-10T10:00:00.000Z',
     content: [
       { type: 'heading', level: 2, text: 'Les fondations d\'un CRM Notion efficace' },
@@ -146,6 +152,7 @@ export const mockTemplates: Template[] = [
     titre: 'Template Suivi de Mission',
     description: 'Un espace complet pour piloter une mission de conseil Notion : brief client, livrables, suivi des heures et reporting final.',
     type: 'Pour les consultants Notion',
+    visibilite: 'Accompagnement',
     urlTella: 'https://www.tella.tv/video/mock-template-1',
     urlNotionPublicPage: 'https://notion.so/templates/suivi-mission',
     dateCreation: '2026-01-10T10:00:00.000Z',
@@ -156,6 +163,7 @@ export const mockTemplates: Template[] = [
     titre: 'Template CRM Client',
     description: 'Un CRM léger et efficace pour gérer vos prospects et clients : pipeline de vente, fiches contact et suivi des interactions.',
     type: 'Pour les consultants Notion',
+    visibilite: 'Formation',
     urlTella: 'https://www.tella.tv/video/mock-template-2',
     urlNotionPublicPage: 'https://notion.so/templates/crm-client',
     dateCreation: '2026-01-20T10:00:00.000Z',
@@ -166,6 +174,7 @@ export const mockTemplates: Template[] = [
     titre: 'Template Second Cerveau',
     description: 'Un système de gestion des connaissances inspiré de la méthode PARA pour capturer, organiser et retrouver toutes vos informations.',
     type: 'Système Généraliste',
+    visibilite: 'Challenge Gratuit',
     urlNotionPublicPage: 'https://notion.so/templates/second-cerveau',
     dateCreation: '2026-02-05T10:00:00.000Z',
   },
@@ -175,6 +184,7 @@ export const mockTemplates: Template[] = [
     titre: 'Template Dashboard Personnel',
     description: 'Un tableau de bord de vie pour suivre vos objectifs, habitudes, finances et projets personnels depuis un seul endroit.',
     type: 'Système Généraliste',
+    visibilite: 'Formation',
     urlTella: 'https://www.tella.tv/video/mock-template-3',
     urlNotionPublicPage: 'https://notion.so/templates/dashboard-perso',
     dateCreation: '2026-02-18T10:00:00.000Z',

@@ -116,16 +116,16 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                   padding: '8px 16px',
                   borderRadius: 9999,
                   fontSize: 13,
-                  fontWeight: isActive ? 600 : 400,
-                  color: isActive ? '#000' : 'var(--color-text-secondary)',
-                  background: isActive ? 'rgba(0,0,0,0.07)' : 'transparent',
+                  fontWeight: isActive ? 600 : 500,
+                  color: isActive ? '#ffffff' : 'var(--color-text-primary)',
+                  background: isActive ? 'var(--color-brand)' : 'var(--color-surface-raised)',
                   border: '1px solid',
-                  borderColor: isActive ? 'rgba(0,0,0,0.12)' : 'var(--color-border-default)',
+                  borderColor: isActive ? 'var(--color-brand)' : 'var(--color-border-default)',
                   cursor: 'pointer',
                   transition: 'all 150ms ease',
                   whiteSpace: 'nowrap',
                 }}
-                className={!isActive ? 'hover:bg-[rgba(0,0,0,0.04)]' : ''}
+                className={!isActive ? 'hover:bg-[#eaeaea]' : 'hover:opacity-90'}
               >
                 {filter}
               </button>
@@ -146,16 +146,16 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 padding: '8px 14px',
                 borderRadius: 9999,
                 fontSize: 13,
-                fontWeight: 400,
-                color: hasActiveFilters ? 'var(--color-brand)' : 'var(--color-text-secondary)',
-                background: hasActiveFilters ? 'rgba(224,98,90,0.06)' : 'transparent',
+                fontWeight: 500,
+                color: hasActiveFilters ? '#ffffff' : 'var(--color-text-primary)',
+                background: hasActiveFilters ? 'var(--color-brand)' : 'var(--color-surface-raised)',
                 border: '1px solid',
-                borderColor: hasActiveFilters ? 'rgba(224,98,90,0.25)' : 'var(--color-border-default)',
+                borderColor: hasActiveFilters ? 'var(--color-brand)' : 'var(--color-border-default)',
                 cursor: 'pointer',
                 transition: 'all 150ms ease',
                 whiteSpace: 'nowrap',
               }}
-              className={!hasActiveFilters ? 'hover:bg-[rgba(0,0,0,0.04)]' : ''}
+              className={!hasActiveFilters ? 'hover:bg-[#eaeaea]' : 'hover:opacity-90'}
             >
               <SlidersHorizontal size={13} />
               Filtres
@@ -168,8 +168,8 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                     width: 16,
                     height: 16,
                     borderRadius: '50%',
-                    background: 'var(--color-brand)',
-                    color: 'white',
+                    background: '#ffffff',
+                    color: 'var(--color-brand)',
                     fontSize: 9,
                     fontWeight: 700,
                     lineHeight: 1,

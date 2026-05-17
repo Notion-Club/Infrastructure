@@ -1,7 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Lock } from 'lucide-react';
 import type { Resource, UserCapability } from '../types';
+import { canAccess } from '../lib/access';
 import { ResourceBadge } from './shared/ResourceBadge';
 
 interface ResourceCardProps {
@@ -9,8 +11,9 @@ interface ResourceCardProps {
   currentCapability: UserCapability;
 }
 
-export function ResourceCard({ resource }: ResourceCardProps) {
+export function ResourceCard({ resource, currentCapability }: ResourceCardProps) {
   const router = useRouter();
+  const isLocked = !canAccess(currentCapability, resource.visibilite);
 
   return (
     <div
@@ -37,8 +40,27 @@ export function ResourceCard({ resource }: ResourceCardProps) {
         transition: 'transform 150ms ease, box-shadow 150ms ease',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <ResourceBadge variant="ressource" label="Ressource" />
+        {isLocked && (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '4px 10px',
+              borderRadius: 9999,
+              fontSize: 11,
+              fontWeight: 600,
+              background: 'var(--color-surface-raised)',
+              border: '1px solid var(--color-border-default)',
+              color: 'var(--color-text-muted)',
+            }}
+          >
+            <Lock size={10} />
+            {resource.visibilite}
+          </span>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>

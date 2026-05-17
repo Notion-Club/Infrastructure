@@ -2,7 +2,9 @@ export type ResourceCategory = 'resource' | 'template';
 export type ResourceFormation = 'Notion Business' | 'Notion Architecte';
 export type ResourceMetierType = 'Relation Client' | 'Production' | 'Acquisition' | 'Sales' | 'Business';
 export type TemplateType = 'Pour les consultants Notion' | 'Système Généraliste';
-export type UserCapability = 'challenge' | 'architecte' | 'business';
+
+export type UserCapability = 'challenge' | 'formation' | 'accompagnement';
+export type ResourceVisibility = 'Challenge Gratuit' | 'Formation' | 'Accompagnement';
 
 export type ContentBlock =
   | { type: 'paragraph'; text: string }
@@ -18,6 +20,7 @@ export interface Resource {
   description: string;
   formation: ResourceFormation;
   type: ResourceMetierType;
+  visibilite: ResourceVisibility;
   dateCreation: string;
   content: ContentBlock[];
 }
@@ -28,6 +31,7 @@ export interface Template {
   titre: string;
   description: string;
   type: TemplateType;
+  visibilite: ResourceVisibility;
   urlNotionPublicPage: string;
   urlTella?: string;
   dateCreation: string;

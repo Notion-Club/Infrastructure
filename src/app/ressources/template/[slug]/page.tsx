@@ -8,15 +8,11 @@ import { ResourceBreadcrumb } from '@/modules/ressources/components/shared/Resou
 import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBadge';
 import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
 import { CapabilityLock } from '@/modules/ressources/components/shared/CapabilityLock';
-import type { UserCapability } from '@/modules/ressources/types';
+import { canAccess } from '@/modules/ressources/lib/access';
 import { DuplicateButton } from './DuplicateButton';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-}
-
-function canAccessTemplate(capability: UserCapability): boolean {
-  return capability !== 'challenge';
 }
 
 const MONTHS_FR = [
@@ -37,7 +33,7 @@ export default async function TemplateDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const hasAccess = canAccessTemplate(mockCurrentUser.capability);
+  const hasAccess = canAccess(mockCurrentUser.capability, template.visibilite);
 
   return (
     <>
@@ -63,10 +59,6 @@ export default async function TemplateDetailPage({ params }: PageProps) {
 
               {/* Header */}
               <header style={{ marginBottom: 32 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-                  <ResourceBadge variant="template" label="Template" />
-                  <ResourceBadge variant="type" label={template.type} />
-                </div>
                 <h1
                   style={{
                     fontSize: 'clamp(36px, 5vw, 52px)',
@@ -83,20 +75,25 @@ export default async function TemplateDetailPage({ params }: PageProps) {
                   style={{
                     fontSize: 16,
                     color: 'var(--color-text-secondary)',
-                    margin: '0 0 12px',
+                    margin: '0 0 16px',
                     lineHeight: 1.6,
                   }}
                 >
                   {template.description}
                 </p>
-                <span
+                <div
                   style={{
                     fontSize: 13,
                     color: 'var(--color-text-muted)',
+                    marginBottom: 16,
                   }}
                 >
                   {formatDate(template.dateCreation)}
-                </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <ResourceBadge variant="template" label="Template" />
+                  <ResourceBadge variant="type" label={template.type} />
+                </div>
               </header>
 
               {/* Tella video preview */}
@@ -119,9 +116,9 @@ export default async function TemplateDetailPage({ params }: PageProps) {
                 <DuplicateButton url={template.urlNotionPublicPage} />
               ) : (
                 <CapabilityLock
-                  title="Template réservé aux membres"
-                  description="Ce template est accessible aux membres actifs de NotionClub. Rejoins la communauté pour dupliquer ce template et tous les autres."
-                  ctaLabel="Rejoindre NotionClub"
+                  title={`Template réservé aux membres ${template.visibilite}`}
+                  description={`Ce template est accessible à partir de l'offre ${template.visibilite}. Rejoins le programme pour le dupliquer dans ton espace Notion.`}
+                  ctaLabel="Découvrir les offres"
                   ctaHref="/offres"
                 />
               )}

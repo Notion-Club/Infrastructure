@@ -8,17 +8,12 @@ import { ResourceBreadcrumb } from '@/modules/ressources/components/shared/Resou
 import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBadge';
 import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
 import { CapabilityLock } from '@/modules/ressources/components/shared/CapabilityLock';
-import type { ContentBlock, ResourceFormation, UserCapability } from '@/modules/ressources/types';
+import { canAccess } from '@/modules/ressources/lib/access';
+import type { ContentBlock } from '@/modules/ressources/types';
 import { MarkAsSeenButton } from './MarkAsSeenButton';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-}
-
-function canAccessResource(capability: UserCapability, formation: ResourceFormation): boolean {
-  if (formation === 'Notion Business') return capability === 'business';
-  if (formation === 'Notion Architecte') return capability === 'architecte' || capability === 'business';
-  return false;
 }
 
 const MONTHS_FR = [
@@ -143,7 +138,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const hasAccess = canAccessResource(mockCurrentUser.capability, resource!.formation);
+  const hasAccess = canAccess(mockCurrentUser.capability, resource!.visibilite);
 
   return (
     <>
@@ -169,10 +164,6 @@ export default async function ResourceDetailPage({ params }: PageProps) {
 
               {/* Header */}
               <header style={{ marginBottom: 32 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-                  <ResourceBadge variant="ressource" label="Ressource" />
-                  <ResourceBadge variant="formation" label={resource.formation} />
-                </div>
                 <h1
                   style={{
                     fontSize: 'clamp(36px, 5vw, 52px)',
@@ -189,20 +180,25 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                   style={{
                     fontSize: 16,
                     color: 'var(--color-text-secondary)',
-                    margin: '0 0 12px',
+                    margin: '0 0 16px',
                     lineHeight: 1.6,
                   }}
                 >
                   {resource.description}
                 </p>
-                <span
+                <div
                   style={{
                     fontSize: 13,
                     color: 'var(--color-text-muted)',
+                    marginBottom: 16,
                   }}
                 >
                   {resource.type} · {formatDate(resource.dateCreation)}
-                </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <ResourceBadge variant="ressource" label="Ressource" />
+                  <ResourceBadge variant="formation" label={resource.formation} />
+                </div>
               </header>
 
               <hr
@@ -219,14 +215,14 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                   <div>
                     {resource.content.map((block, idx) => renderBlock(block, idx))}
                   </div>
-                  <div style={{ marginTop: 40 }}>
+                  <div style={{ marginTop: 48 }}>
                     <MarkAsSeenButton />
                   </div>
                 </>
               ) : (
                 <CapabilityLock
-                  title="Contenu réservé aux membres"
-                  description={`Cette ressource fait partie de la formation "${resource.formation}" et n'est accessible qu'aux membres correspondants.`}
+                  title={`Contenu réservé aux membres ${resource.visibilite}`}
+                  description={`Cette ressource est accessible à partir de l'offre ${resource.visibilite}. Rejoins le programme pour la débloquer ainsi que toute la bibliothèque correspondante.`}
                   ctaLabel="Découvrir les offres"
                   ctaHref="/offres"
                 />
