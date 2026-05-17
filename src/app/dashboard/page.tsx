@@ -14,25 +14,17 @@ const MOCK_USER = { prenom: "Théo" };
 
 export default function DashboardPage() {
   return (
-    <div
-      className="nc-page-halo flex flex-col"
-      style={{ minHeight: "100dvh" }}
-    >
-      {/*
-       * Topbar — enfant direct du flex-col pour que sticky top-0
-       * fonctionne sur toute la hauteur du scroll.
-       * Le hidden md:flex est géré par le composant lui-même.
-       */}
+    <>
+      {/* Éléments fixed hors de nc-page-halo pour éviter que isolation:isolate
+          casse position:fixed dans certains navigateurs */}
       <Topbar />
-
-      {/* Mobile components — position: fixed, masqués sur desktop */}
       <div className="md:hidden">
         <MobileTopActions />
         <BottomNav />
       </div>
 
-      {/* Contenu principal */}
-      <main style={{ flex: 1, position: "relative", zIndex: 1 }}>
+      <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+      <main style={{ position: "relative", zIndex: 1 }}>
         <div
           style={{
             maxWidth: 840,
@@ -182,6 +174,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
-    </div>
+      </div>
+    </>
   );
 }

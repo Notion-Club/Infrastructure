@@ -184,19 +184,25 @@ Remplacée par `Topbar.tsx` pour desktop.
 
 ### Pattern de page standard
 
+⚠️ **Règle critique** : `Topbar`, `MobileTopActions` et `BottomNav` doivent être rendus **en dehors** du div `nc-page-halo`. En effet, `nc-page-halo` a `isolation: isolate` qui peut casser `position: fixed` dans certains navigateurs.
+
 ```tsx
-<div className="nc-page-halo flex flex-col" style={{ minHeight: "100dvh" }}>
-  <Topbar />                          {/* position: fixed desktop */}
+<>
+  {/* Éléments fixed HORS de nc-page-halo */}
+  <Topbar />
   <div className="md:hidden">
-    <MobileTopActions />              {/* position: fixed top-right mobile */}
-    <BottomNav />                     {/* position: fixed bottom mobile */}
+    <MobileTopActions />
+    <BottomNav />
   </div>
-  <main style={{ flex: 1, position: "relative", zIndex: 1 }}>
-    <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
-      {/* contenu */}
-    </div>
-  </main>
-</div>
+
+  <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+    <main style={{ position: "relative", zIndex: 1 }}>
+      <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
+        {/* contenu */}
+      </div>
+    </main>
+  </div>
+</>
 ```
 
 ---

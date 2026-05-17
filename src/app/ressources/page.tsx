@@ -99,19 +99,15 @@ const MOCK_RESOURCES: Resource[] = [
 
 export default function RessourcesPage() {
   return (
-    <div
-      className="nc-page-halo flex flex-col"
-      style={{ minHeight: "100dvh" }}
-    >
+    <>
       <Topbar />
-
-      {/* Mobile components — position: fixed, masqués sur desktop */}
       <div className="md:hidden">
         <MobileTopActions />
         <BottomNav />
       </div>
 
-      <main style={{ flex: 1, position: "relative", zIndex: 1 }}>
+      <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+      <main style={{ position: "relative", zIndex: 1 }}>
         <div
           style={{
             maxWidth: 1040,
@@ -150,6 +146,7 @@ export default function RessourcesPage() {
           <ResourcesGrid resources={MOCK_RESOURCES} />
         </div>
       </main>
-    </div>
+      </div>
+    </>
   );
 }
