@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import { LogoutButton } from "@/modules/auth";
 
 export const metadata = {
   title: "Dashboard — Notion Club",
@@ -12,7 +13,7 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/signup");
+    redirect("/login");
   }
 
   return (
@@ -22,6 +23,7 @@ export default async function DashboardPage() {
       <p className="text-xs text-muted-foreground">
         Placeholder — sera remplacé par le dashboard de la Brique 2.
       </p>
+      <LogoutButton />
     </main>
   );
 }
