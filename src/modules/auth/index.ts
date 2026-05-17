@@ -4,6 +4,14 @@ export { SignupForm } from "./components/SignupForm";
 export { LoginForm } from "./components/LoginForm";
 export { LogoutButton } from "./components/LogoutButton";
 export { GoogleSignInButton } from "./components/GoogleSignInButton";
+
+// Mockup statique (étape 1 — zéro logique Supabase).
+export { AuthCard, type AuthCardState } from "./components/AuthCard";
+export { AuthMockup } from "./components/AuthMockup";
+export { BrandingPanel } from "./components/BrandingPanel";
+export { BrandPill } from "./components/BrandPill";
+export { GoogleButton } from "./components/GoogleButton";
+
 export {
   signUpAction,
   signInAction,
