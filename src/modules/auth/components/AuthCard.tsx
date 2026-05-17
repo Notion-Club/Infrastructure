@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 
@@ -19,29 +20,60 @@ type AuthCardProps = {
   onStateChange?: (state: AuthCardState) => void;
 };
 
+// Délai du mock submit (donne le temps de voir l'état loading).
+const MOCK_AUTH_DELAY_MS = 600;
+
+// Cible post-auth — sera remplacée par la vraie redirection à l'étape Supabase.
+const HOME_PATH = "/dashboard";
+
 export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps) {
+  const router = useRouter();
   const mode: AuthMode = state.startsWith("signup") ? "signup" : "login";
-  const isLoading = state === "signup-loading";
-  const hasError = state === "login-error";
   const [showPassword, setShowPassword] = useState(false);
+  const [pending, setPending] = useState(false);
+
+  const isLoading = pending || state === "signup-loading";
+  const hasError = state === "login-error";
 
   function setMode(next: AuthMode) {
-    if (next === mode) return;
+    if (next === mode || pending) return;
     onStateChange?.(next === "signup" ? "signup-empty" : "login-empty");
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending) return;
+    setPending(true);
+    await new Promise((resolve) => setTimeout(resolve, MOCK_AUTH_DELAY_MS));
+    router.push(HOME_PATH);
+  }
+
+  async function handleGoogle() {
+    if (pending) return;
+    setPending(true);
+    await new Promise((resolve) => setTimeout(resolve, MOCK_AUTH_DELAY_MS));
+    router.push(HOME_PATH);
   }
 
   return (
     <div className="nc-shine-card w-full max-w-[420px]">
       <div className="nc-shine-card__inner flex flex-col gap-6">
-        <ModeToggle mode={mode} onChange={setMode} />
+        <ModeToggle mode={mode} onChange={setMode} disabled={pending} />
 
-        <div key={mode} className="nc-mode-in flex flex-col gap-5">
+        <form
+          key={mode}
+          onSubmit={handleSubmit}
+          className="nc-mode-in flex flex-col gap-5"
+          noValidate
+        >
           <GoogleButton
             label={
               mode === "login"
                 ? "Continuer avec Google"
                 : "S'inscrire avec Google"
             }
+            loading={isLoading}
+            onClick={handleGoogle}
           />
 
           <Divider />
@@ -52,18 +84,20 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
 
           {mode === "login" ? (
             <LoginFields
+              disabled={isLoading}
               showPassword={showPassword}
               onTogglePassword={() => setShowPassword((v) => !v)}
             />
           ) : (
             <SignupFields
+              disabled={isLoading}
               showPassword={showPassword}
               onTogglePassword={() => setShowPassword((v) => !v)}
             />
           )}
 
           <SubmitButton mode={mode} loading={isLoading} />
-        </div>
+        </form>
       </div>
     </div>
   );
@@ -74,9 +108,11 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
 function ModeToggle({
   mode,
   onChange,
+  disabled,
 }: {
   mode: AuthMode;
   onChange: (mode: AuthMode) => void;
+  disabled?: boolean;
 }) {
   return (
     <div
@@ -92,9 +128,10 @@ function ModeToggle({
             type="button"
             role="tab"
             aria-selected={active}
+            disabled={disabled}
             onClick={() => onChange(value)}
             className={cn(
-              "relative z-10 rounded-full px-4 py-2 text-[14px] font-semibold transition-all duration-200 ease-out",
+              "relative z-10 rounded-full px-4 py-2 text-[14px] font-semibold transition-all duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60",
               active
                 ? "bg-white text-[var(--color-text-primary)] shadow-[var(--nc-shadow-3)]"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
@@ -128,21 +165,32 @@ function ErrorPill({ message }: { message: string }) {
 }
 
 function LoginFields({
+  disabled,
   showPassword,
   onTogglePassword,
 }: {
+  disabled: boolean;
   showPassword: boolean;
   onTogglePassword: () => void;
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <Field id="email" label="Email" type="email" placeholder="toi@exemple.com" autoComplete="email" />
+      <Field
+        id="email"
+        label="Email"
+        type="email"
+        placeholder="toi@exemple.com"
+        autoComplete="email"
+        required
+        disabled={disabled}
+      />
       <PasswordField
         id="password"
         label="Mot de passe"
         autoComplete="current-password"
         show={showPassword}
         onToggle={onTogglePassword}
+        disabled={disabled}
         rightAction={
           <Link
             href="#"
@@ -157,22 +205,41 @@ function LoginFields({
 }
 
 function SignupFields({
+  disabled,
   showPassword,
   onTogglePassword,
 }: {
+  disabled: boolean;
   showPassword: boolean;
   onTogglePassword: () => void;
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <Field id="firstName" label="Prénom" type="text" placeholder="Théo" autoComplete="given-name" />
-      <Field id="email" label="Email" type="email" placeholder="toi@exemple.com" autoComplete="email" />
+      <Field
+        id="firstName"
+        label="Prénom"
+        type="text"
+        placeholder="Théo"
+        autoComplete="given-name"
+        required
+        disabled={disabled}
+      />
+      <Field
+        id="email"
+        label="Email"
+        type="email"
+        placeholder="toi@exemple.com"
+        autoComplete="email"
+        required
+        disabled={disabled}
+      />
       <PasswordField
         id="password"
         label="Mot de passe"
         autoComplete="new-password"
         show={showPassword}
         onToggle={onTogglePassword}
+        disabled={disabled}
         hint="8 caractères minimum"
       />
     </div>
@@ -185,12 +252,16 @@ function Field({
   type,
   placeholder,
   autoComplete,
+  required,
+  disabled,
 }: {
   id: string;
   label: string;
   type: string;
   placeholder?: string;
   autoComplete?: string;
+  required?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <label htmlFor={id} className="flex flex-col gap-2">
@@ -203,7 +274,9 @@ function Field({
         type={type}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className="nc-input"
+        required={required}
+        disabled={disabled}
+        className="nc-input disabled:cursor-not-allowed disabled:opacity-60"
       />
     </label>
   );
@@ -217,6 +290,7 @@ function PasswordField({
   onToggle,
   hint,
   rightAction,
+  disabled,
 }: {
   id: string;
   label: string;
@@ -225,6 +299,7 @@ function PasswordField({
   onToggle: () => void;
   hint?: string;
   rightAction?: React.ReactNode;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -243,14 +318,18 @@ function PasswordField({
           name={id}
           type={show ? "text" : "password"}
           autoComplete={autoComplete}
-          className="nc-input pr-12"
+          required
+          disabled={disabled}
+          minLength={1}
+          className="nc-input pr-12 disabled:cursor-not-allowed disabled:opacity-60"
           placeholder="••••••••"
         />
         <button
           type="button"
           onClick={onToggle}
+          disabled={disabled}
           aria-label={show ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-          className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]"
+          className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
         </button>
@@ -269,18 +348,18 @@ function SubmitButton({
   mode: AuthMode;
   loading: boolean;
 }) {
-  const label = mode === "login" ? "Se connecter" : "Créer mon compte";
+  const idleLabel = mode === "login" ? "Se connecter" : "Créer mon compte";
+  const loadingLabel = mode === "login" ? "Connexion…" : "Création en cours…";
   return (
     <button
-      type="button"
+      type="submit"
       disabled={loading}
       className="nc-btn-shine group flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-5 py-3.5 text-[15px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(224,98,90,0.55)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_14px_32px_-10px_rgba(224,98,90,0.65)] active:translate-y-0 active:shadow-[0_6px_16px_-6px_rgba(224,98,90,0.55)] disabled:cursor-not-allowed disabled:opacity-80"
     >
       <span className="relative z-10 flex items-center gap-2">
         {loading && <LoaderCircle className="size-4 animate-spin" />}
-        {loading ? "Création en cours…" : label}
+        {loading ? loadingLabel : idleLabel}
       </span>
     </button>
   );
 }
-
