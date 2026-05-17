@@ -1,5 +1,9 @@
 import type { NextRequest } from "next/server";
-import { updateSupabaseSession } from "@/shared/lib/supabase/session";
+// Import RELATIF (et non `@/shared/...`) : le bundler de Vercel pour le
+// middleware Node.js n'inline pas les alias TS et fait planter le runtime
+// avec "Cannot find package '@/shared'". Cf. ERR_MODULE_NOT_FOUND constaté
+// sur le déploiement preview de la branche feat/auth-login.
+import { updateSupabaseSession } from "./src/shared/lib/supabase/session";
 
 export async function middleware(request: NextRequest) {
   return await updateSupabaseSession(request);
