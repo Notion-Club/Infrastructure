@@ -2,28 +2,28 @@
 
 import { useRouter } from 'next/navigation';
 import { Lock } from 'lucide-react';
-import type { Resource, UserCapability } from '../types';
+import type { Template, UserCapability } from '../types';
 import { canAccess } from '../lib/access';
 import { ResourceBadge } from './shared/ResourceBadge';
 
-interface ResourceCardProps {
-  resource: Resource;
+interface TemplateCardProps {
+  template: Template;
   currentCapability: UserCapability;
 }
 
-export function ResourceCard({ resource, currentCapability }: ResourceCardProps) {
+export function TemplateCard({ template, currentCapability }: TemplateCardProps) {
   const router = useRouter();
-  const isLocked = !canAccess(currentCapability, resource.visibilite);
+  const isLocked = !canAccess(currentCapability, template.visibilite);
 
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={() => router.push('/ressources/ressource/' + resource.slug)}
+      onClick={() => router.push('/ressources/template/' + template.slug)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          router.push('/ressources/ressource/' + resource.slug);
+          router.push('/ressources/template/' + template.slug);
         }
       }}
       className="group hover:border-[rgba(224,98,90,0.32)]"
@@ -40,7 +40,7 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
         transition: 'border-color 350ms cubic-bezier(0.22, 1, 0.36, 1)',
         position: 'relative',
         overflow: 'hidden',
-        viewTransitionName: `card-${resource.slug}`,
+        viewTransitionName: `card-${template.slug}`,
       }}
     >
       <div
@@ -64,9 +64,9 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
       />
 
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-        <ResourceBadge variant="ressource" label="Ressource" />
+        <ResourceBadge variant="template" label="Template" />
         {isLocked && (
-          <ResourceBadge variant="neutral" label={resource.visibilite} icon={<Lock size={10} />} />
+          <ResourceBadge variant="neutral" label={template.visibilite} icon={<Lock size={10} />} />
         )}
       </div>
 
@@ -80,7 +80,7 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
             lineHeight: 1.4,
           }}
         >
-          {resource.titre}
+          {template.titre}
         </h3>
         <p
           style={{
@@ -94,13 +94,12 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
             overflow: 'hidden',
           }}
         >
-          {resource.description}
+          {template.description}
         </p>
       </div>
 
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <ResourceBadge variant="formation" label={resource.formation} />
-        <ResourceBadge variant="type" label={resource.type} />
+        <ResourceBadge variant="type" label={template.type} />
       </div>
     </div>
   );

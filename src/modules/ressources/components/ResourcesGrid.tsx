@@ -1,395 +1,371 @@
-"use client";
+'use client';
 
-import { useState, useMemo, useRef, useEffect } from "react";
-import { SlidersHorizontal, Check, ChevronDown } from "lucide-react";
-import type { Resource, ResourceType } from "../types";
-import { ResourceCard } from "./ResourceCard";
+import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { SlidersHorizontal } from 'lucide-react';
+import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
+import { mockCurrentUser } from '@/shared/lib/mock/current-user';
+import { ResourceCard } from './ResourceCard';
+import { TemplateCard } from './TemplateCard';
 
-const TYPE_FILTERS: { value: "all" | ResourceType; label: string }[] = [
-  { value: "all", label: "Tout" },
-  { value: "template", label: "Templates" },
-  { value: "guide", label: "Guides" },
-  { value: "redif", label: "Redifs" },
+type PrimaryFilter = 'Tout' | 'Ressources' | 'Templates';
+
+const PRIMARY_FILTERS: PrimaryFilter[] = ['Tout', 'Ressources', 'Templates'];
+
+const METIER_TYPES: ResourceMetierType[] = [
+  'Relation Client',
+  'Production',
+  'Acquisition',
+  'Sales',
+  'Business',
 ];
 
-type Props = {
-  resources: Resource[];
-};
-
-function FilterSection({
-  label,
-  items,
-  selected,
-  onToggle,
-}: {
-  label: string;
-  items: string[];
-  selected: Set<string>;
-  onToggle: (item: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div>
-      {/* Section header — toggle */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          padding: "10px 16px",
-          background: "transparent",
-          border: "none",
-          cursor: "pointer",
-          gap: 8,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            color: "var(--color-text-secondary)",
-          }}
-        >
-          {label}
-          {selected.size > 0 && (
-            <span
-              style={{
-                marginLeft: 8,
-                fontSize: 10,
-                fontWeight: 700,
-                color: "var(--color-brand)",
-                background: "rgba(224,98,90,0.1)",
-                borderRadius: 9999,
-                padding: "1px 6px",
-              }}
-            >
-              {selected.size}
-            </span>
-          )}
-        </span>
-        <ChevronDown
-          size={14}
-          strokeWidth={2.5}
-          style={{
-            color: "var(--color-text-muted)",
-            flexShrink: 0,
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 200ms ease",
-          }}
-        />
-      </button>
-
-      {/* Items */}
-      {open && (
-        <div style={{ padding: "0 8px 8px" }}>
-          {items.map((item) => {
-            const checked = selected.has(item);
-            return (
-              <button
-                key={item}
-                type="button"
-                onClick={() => onToggle(item)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  width: "100%",
-                  padding: "7px 10px",
-                  borderRadius: 10,
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  transition: "background 120ms ease",
-                }}
-                className="hover:bg-[var(--color-surface-raised)]"
-              >
-                <span
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 5,
-                    border: checked ? "none" : "1.5px solid var(--color-border-default)",
-                    background: checked ? "var(--color-brand)" : "transparent",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                    transition: "all 120ms ease",
-                  }}
-                >
-                  {checked && <Check size={10} strokeWidth={3} color="white" />}
-                </span>
-                <span
-                  style={{
-                    fontSize: 13,
-                    color: "var(--color-text-primary)",
-                    fontWeight: checked ? 500 : 400,
-                  }}
-                >
-                  {item}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+interface ResourcesGridProps {
+  items: ResourceItem[];
 }
 
-export function ResourcesGrid({ resources }: Props) {
-  const [activeType, setActiveType] = useState<"all" | ResourceType>("all");
-  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
-  const [selectedFormations, setSelectedFormations] = useState<Set<string>>(new Set());
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+function pluralizeCount(count: number, primaryFilter: PrimaryFilter): string {
+  if (primaryFilter === 'Ressources') {
+    return count <= 1 ? `${count} ressource` : `${count} ressources`;
+  }
+  if (primaryFilter === 'Templates') {
+    return count <= 1 ? `${count} template` : `${count} templates`;
+  }
+  // Tout — mix
+  if (count <= 1) return `${count} élément`;
+  return `${count} éléments`;
+}
 
-  const allTags = useMemo(
-    () => Array.from(new Set(resources.flatMap((r) => r.tags))).sort(),
-    [resources]
-  );
+export function ResourcesGrid({ items }: ResourcesGridProps) {
+  const searchParams = useSearchParams();
+  const catParam = searchParams.get('cat');
+  const typeParam = searchParams.get('type');
 
-  const allFormations = useMemo(
-    () => Array.from(new Set(resources.map((r) => r.formation))).sort(),
-    [resources]
-  );
+  const [primaryFilter, setPrimaryFilter] = useState<PrimaryFilter>(() => {
+    if (catParam === 'template') return 'Templates';
+    if (catParam === 'resource') return 'Ressources';
+    return 'Tout';
+  });
+  const [selectedTypes, setSelectedTypes] = useState<Set<ResourceMetierType>>(() => {
+    if (typeParam && (METIER_TYPES as readonly string[]).includes(typeParam)) {
+      return new Set([typeParam as ResourceMetierType]);
+    }
+    return new Set();
+  });
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
+  const filterRef = useRef<HTMLDivElement>(null);
 
-  const activeFilterCount = selectedTags.size + selectedFormations.size;
+  const currentCapability: UserCapability = mockCurrentUser.capability;
 
   useEffect(() => {
-    if (!dropdownOpen) return;
+    if (!filterOpen) return;
     function onClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setFilterOpen(false);
       }
     }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [dropdownOpen]);
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [filterOpen]);
 
-  function toggleTag(tag: string) {
-    setSelectedTags((prev) => {
+  const filteredItems = items.filter((item) => {
+    if (primaryFilter === 'Ressources' && item.category !== 'resource') return false;
+    if (primaryFilter === 'Templates' && item.category !== 'template') return false;
+    if (selectedTypes.size > 0 && item.category === 'resource') {
+      if (!selectedTypes.has(item.type)) return false;
+    }
+    return true;
+  });
+
+  const hasActiveFilters = selectedTypes.size > 0;
+
+  function toggleType(type: ResourceMetierType) {
+    setSelectedTypes((prev) => {
       const next = new Set(prev);
-      next.has(tag) ? next.delete(tag) : next.add(tag);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
       return next;
     });
   }
 
-  function toggleFormation(formation: string) {
-    setSelectedFormations((prev) => {
-      const next = new Set(prev);
-      next.has(formation) ? next.delete(formation) : next.add(formation);
-      return next;
-    });
+  function resetFilters() {
+    setSelectedTypes(new Set());
   }
 
-  function clearFilters() {
-    setSelectedTags(new Set());
-    setSelectedFormations(new Set());
-  }
-
-  const filtered = useMemo(
-    () =>
-      resources.filter((r) => {
-        if (activeType !== "all" && r.type !== activeType) return false;
-        if (selectedTags.size > 0 && !r.tags.some((t) => selectedTags.has(t))) return false;
-        if (selectedFormations.size > 0 && !selectedFormations.has(r.formation)) return false;
-        return true;
-      }),
-    [resources, activeType, selectedTags, selectedFormations]
-  );
+  const showTypeFilter = primaryFilter === 'Tout' || primaryFilter === 'Ressources';
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Filter bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        {/* Type pills */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, flexWrap: "wrap" }}>
-          {TYPE_FILTERS.map(({ value, label }) => {
-            const isActive = activeType === value;
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          flexWrap: 'wrap',
+        }}
+      >
+        {/* Primary filter pills */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+          {PRIMARY_FILTERS.map((filter) => {
+            const isActive = primaryFilter === filter;
             return (
               <button
-                key={value}
+                key={filter}
                 type="button"
-                onClick={() => setActiveType(value)}
+                onClick={() => {
+                  setPrimaryFilter(filter);
+                  if (filter === 'Templates') {
+                    setSelectedTypes(new Set());
+                    setFilterOpen(false);
+                  }
+                }}
                 style={{
-                  padding: "7px 16px",
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '8px 16px',
                   borderRadius: 9999,
                   fontSize: 13,
                   fontWeight: isActive ? 600 : 500,
-                  border: isActive
-                    ? "1px solid var(--color-brand)"
-                    : "1px solid var(--color-border-default)",
-                  background: isActive ? "var(--color-brand)" : "white",
-                  color: isActive ? "white" : "var(--color-text-secondary)",
-                  cursor: "pointer",
-                  transition: "all 150ms ease",
-                  boxShadow: isActive ? "var(--nc-shadow-3)" : "none",
+                  color: isActive ? '#ffffff' : 'var(--color-text-primary)',
+                  background: isActive ? 'var(--color-brand)' : 'var(--color-surface-raised)',
+                  border: '1px solid',
+                  borderColor: isActive ? 'var(--color-brand)' : 'var(--color-border-default)',
+                  cursor: 'pointer',
+                  transition: 'all 150ms ease',
+                  whiteSpace: 'nowrap',
                 }}
+                className={!isActive ? 'hover:bg-[#eaeaea]' : 'hover:opacity-90'}
               >
-                {label}
+                {filter}
               </button>
             );
           })}
         </div>
 
-        {/* Filter dropdown trigger */}
-        <div ref={dropdownRef} style={{ position: "relative", flexShrink: 0 }}>
-          <button
-            type="button"
-            onClick={() => setDropdownOpen((o) => !o)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              padding: "7px 14px",
-              borderRadius: 9999,
-              fontSize: 13,
-              fontWeight: 500,
-              border:
-                activeFilterCount > 0
-                  ? "1px solid var(--color-brand)"
-                  : "1px solid var(--color-border-default)",
-              background: activeFilterCount > 0 ? "rgba(224,98,90,0.06)" : "white",
-              color:
-                activeFilterCount > 0 ? "var(--color-brand)" : "var(--color-text-secondary)",
-              cursor: "pointer",
-              transition: "all 150ms ease",
-            }}
-          >
-            <SlidersHorizontal size={14} strokeWidth={2} />
-            Filtres
-            {activeFilterCount > 0 && (
-              <span
-                style={{
-                  minWidth: 18,
-                  height: 18,
-                  background: "var(--color-brand)",
-                  color: "white",
-                  borderRadius: 9999,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "0 4px",
-                  lineHeight: 1,
-                  marginLeft: 2,
-                }}
-              >
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
-
-          {/* Dropdown */}
-          {dropdownOpen && (
-            <div
+        {/* Type filter button */}
+        {showTypeFilter && (
+          <div ref={filterRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setFilterOpen((o) => !o)}
               style={{
-                position: "absolute",
-                top: "calc(100% + 8px)",
-                right: 0,
-                width: 240,
-                background: "white",
-                border: "1px solid var(--color-border-default)",
-                borderRadius: 16,
-                boxShadow: "var(--nc-shadow-2)",
-                zIndex: 50,
-                overflow: "hidden",
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: 9999,
+                fontSize: 13,
+                fontWeight: 500,
+                color: hasActiveFilters ? '#ffffff' : 'var(--color-text-primary)',
+                background: hasActiveFilters ? 'var(--color-brand)' : 'var(--color-surface-raised)',
+                border: '1px solid',
+                borderColor: hasActiveFilters ? 'var(--color-brand)' : 'var(--color-border-default)',
+                cursor: 'pointer',
+                transition: 'all 150ms ease',
+                whiteSpace: 'nowrap',
               }}
+              className={!hasActiveFilters ? 'hover:bg-[#eaeaea]' : 'hover:opacity-90'}
             >
-              {/* Dropdown header */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 16px 10px",
-                  borderBottom: "1px solid var(--color-border-default)",
-                }}
-              >
+              <SlidersHorizontal size={13} />
+              Filtres
+              {hasActiveFilters && (
                 <span
                   style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--color-text-primary)",
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    background: '#ffffff',
+                    color: 'var(--color-brand)',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    lineHeight: 1,
                   }}
                 >
-                  Filtres
+                  {selectedTypes.size}
                 </span>
-                {activeFilterCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
+              )}
+            </button>
+
+            {filterOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  left: 0,
+                  minWidth: 220,
+                  background: 'white',
+                  border: '1px solid var(--color-border-default)',
+                  borderRadius: 16,
+                  boxShadow: 'var(--nc-shadow-2)',
+                  zIndex: 20,
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Accordion header */}
+                <button
+                  type="button"
+                  onClick={() => setTypeAccordionOpen((o) => !o)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--color-text-primary)',
+                    borderBottom: typeAccordionOpen ? '1px solid var(--color-border-default)' : 'none',
+                  }}
+                >
+                  Type métier
+                  <span
                     style={{
-                      fontSize: 12,
-                      color: "var(--color-brand)",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: 0,
-                      fontWeight: 500,
+                      fontSize: 11,
+                      color: 'var(--color-text-muted)',
+                      transform: typeAccordionOpen ? 'rotate(180deg)' : 'none',
+                      transition: 'transform 150ms ease',
+                      display: 'inline-block',
                     }}
                   >
-                    Tout effacer
-                  </button>
+                    ▾
+                  </span>
+                </button>
+
+                {typeAccordionOpen && (
+                  <div style={{ padding: '8px 0' }}>
+                    {METIER_TYPES.map((type) => {
+                      const checked = selectedTypes.has(type);
+                      return (
+                        <label
+                          key={type}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '8px 14px',
+                            cursor: 'pointer',
+                            fontSize: 13,
+                            color: 'var(--color-text-primary)',
+                          }}
+                          className="hover:bg-[var(--color-surface-raised)]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleType(type)}
+                            style={{ accentColor: 'var(--color-brand)', width: 14, height: 14 }}
+                          />
+                          {type}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {hasActiveFilters && (
+                  <div
+                    style={{
+                      borderTop: '1px solid var(--color-border-default)',
+                      padding: '8px 14px',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetFilters();
+                        setFilterOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: 'var(--color-brand)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '6px 0',
+                        textAlign: 'left',
+                      }}
+                    >
+                      Réinitialiser
+                    </button>
+                  </div>
                 )}
               </div>
+            )}
+          </div>
+        )}
 
-              {/* Accordion — Sujets */}
-              <FilterSection
-                label="Sujets"
-                items={allTags}
-                selected={selectedTags}
-                onToggle={toggleTag}
-              />
-
-              <div style={{ height: 1, background: "var(--color-border-default)" }} />
-
-              {/* Accordion — Modules */}
-              <FilterSection
-                label="Module de formation"
-                items={allFormations}
-                selected={selectedFormations}
-                onToggle={toggleFormation}
-              />
-            </div>
-          )}
-        </div>
+        {/* Count */}
+        <span
+          style={{
+            fontSize: 13,
+            color: 'var(--color-text-muted)',
+            marginLeft: 'auto',
+          }}
+        >
+          {pluralizeCount(filteredItems.length, primaryFilter)}
+        </span>
       </div>
 
-      {/* Results count */}
-      <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>
-        {filtered.length} ressource{filtered.length !== 1 ? "s" : ""}
-      </p>
-
       {/* Grid */}
-      {filtered.length > 0 ? (
+      {filteredItems.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((resource) => (
-            <ResourceCard key={resource.id} resource={resource} />
-          ))}
+          {filteredItems.map((item) =>
+            item.category === 'resource' ? (
+              <ResourceCard
+                key={item.slug}
+                resource={item}
+                currentCapability={currentCapability}
+              />
+            ) : (
+              <TemplateCard
+                key={item.slug}
+                template={item}
+                currentCapability={currentCapability}
+              />
+            )
+          )}
         </div>
       ) : (
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 8,
-            padding: "48px 0",
-            color: "var(--color-text-muted)",
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '64px 24px',
+            gap: 12,
+            color: 'var(--color-text-muted)',
           }}
         >
-          <span style={{ fontSize: 32 }}>🔍</span>
-          <p style={{ fontSize: 14, margin: 0 }}>Aucune ressource pour ces filtres.</p>
+          <p style={{ fontSize: 14, margin: 0 }}>Aucun élément ne correspond à ces filtres.</p>
+          <button
+            type="button"
+            onClick={resetFilters}
+            style={{
+              fontSize: 13,
+              fontWeight: 500,
+              color: 'var(--color-brand)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            Réinitialiser les filtres
+          </button>
         </div>
       )}
     </div>

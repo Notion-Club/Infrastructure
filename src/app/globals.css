@@ -253,3 +253,28 @@
   border-color: var(--color-brand);
   box-shadow: 0 0 0 3px rgba(224, 98, 90, 0.12);
 }
+
+/* ──────────────────────────────────────────────────────────────
+   View transitions (Next.js experimental.viewTransition)
+   ────────────────────────────────────────────────────────────── */
+
+/* Toutes les morphs card → header durent 350ms avec un léger blur */
+::view-transition-group(*) {
+  animation-duration: 350ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 350ms;
+}
+
+/* Reduce motion : on désactive l'animation */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
