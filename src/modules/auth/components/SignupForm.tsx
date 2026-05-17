@@ -10,7 +10,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 
 import { signupSchema } from "@/modules/auth/lib/validation";
-import { signUpAction } from "@/modules/auth/server/signup";
+import { signUpAction } from "@/modules/auth/server/actions";
 
 export function SignupForm() {
   const router = useRouter();
