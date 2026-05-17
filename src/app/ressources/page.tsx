@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { Sidebar } from "@/shared/components/dashboard/Sidebar";
-import { MobileHeader } from "@/shared/components/dashboard/mobile/MobileHeader";
+import { Topbar } from "@/shared/components/dashboard/Topbar";
+import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { ResourcesGrid } from "@/modules/ressources/components/ResourcesGrid";
 import type { Resource } from "@/modules/ressources/types";
@@ -99,62 +99,57 @@ const MOCK_RESOURCES: Resource[] = [
 
 export default function RessourcesPage() {
   return (
-    <>
-      {/* Mobile overlays */}
+    <div
+      className="nc-page-halo flex flex-col"
+      style={{ minHeight: "100dvh" }}
+    >
+      <Topbar />
+
+      {/* Mobile components — position: fixed, masqués sur desktop */}
       <div className="md:hidden">
-        <MobileHeader />
+        <MobileTopActions />
         <BottomNav />
       </div>
 
-      <div
-        className="nc-page-halo flex overflow-hidden"
-        style={{ height: "100dvh" }}
-      >
-        <Sidebar />
-
-        <main
-          style={{ flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}
+      <main style={{ flex: 1, position: "relative", zIndex: 1 }}>
+        <div
+          style={{
+            maxWidth: 1040,
+            margin: "0 auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 28,
+          }}
+          className="px-4 pt-[72px] pb-[100px] md:px-10 md:py-10"
         >
-          <div
-            style={{
-              maxWidth: 1040,
-              margin: "0 auto",
-              display: "flex",
-              flexDirection: "column",
-              gap: 28,
-            }}
-            className="px-4 pt-[80px] pb-[100px] md:px-10 md:py-12"
-          >
-            {/* Page header */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "var(--color-text-muted)",
-                  margin: 0,
-                }}
-              >
-                Bibliothèque
-              </p>
-              <h1
-                style={{
-                  fontSize: "clamp(24px, 3vw, 36px)",
-                  fontWeight: 700,
-                  letterSpacing: "-0.025em",
-                  color: "var(--color-text-primary)",
-                  margin: 0,
-                  lineHeight: 1.15,
-                }}
-              >
-                Ressources
-              </h1>
-            </div>
-
-            {/* Grid + filtres */}
-            <ResourcesGrid resources={MOCK_RESOURCES} />
+          {/* Page header */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <p
+              style={{
+                fontSize: 13,
+                color: "var(--color-text-muted)",
+                margin: 0,
+              }}
+            >
+              Bibliothèque
+            </p>
+            <h1
+              style={{
+                fontSize: "clamp(24px, 3vw, 36px)",
+                fontWeight: 700,
+                letterSpacing: "-0.025em",
+                color: "var(--color-text-primary)",
+                margin: 0,
+                lineHeight: 1.15,
+              }}
+            >
+              Ressources
+            </h1>
           </div>
-        </main>
-      </div>
-    </>
+
+          <ResourcesGrid resources={MOCK_RESOURCES} />
+        </div>
+      </main>
+    </div>
   );
 }
