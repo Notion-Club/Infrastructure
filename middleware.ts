@@ -1,22 +1,32 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Tout est inline ici, car le bundler middleware de Vercel a 2 limitations :
-//   - en runtime Node.js : il ne bundle PAS les imports, ce qui fait planter
-//     Node.js ESM (ERR_MODULE_NOT_FOUND) sur tout import non-extension.
-//   - en runtime Edge : l'analyseur de modules rejette tout fichier
-//     personnalisé importé qui ne déclare pas explicitement sa compatibilité
-//     Edge.
-// Solution : runtime Edge (compatible avec @supabase/ssr, qui est conçu pour),
-// et zéro fichier custom importé — uniquement des packages npm.
+// Tout est inline ici : le bundler middleware de Vercel a des limitations
+// qui rendent fragiles les imports custom (cf. PR OPS-15). Ici on n'importe
+// que des packages npm Edge-safe.
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+  // Garde-fou : si les env vars Supabase manquent, on log et on laisse
+  // passer la requête. Bloquer ici ferait crasher le site entier (sur
+  // toutes les routes, y compris /login) en cas de mauvaise config.
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error(
+      "[middleware] env vars Supabase manquantes — refresh session skip.",
+      {
+        hasUrl: !!supabaseUrl,
+        hasAnonKey: !!supabaseAnonKey,
+      },
+    );
+    return NextResponse.next({ request });
+  }
+
+  try {
+    let supabaseResponse = NextResponse.next({ request });
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -31,14 +41,19 @@ export async function middleware(request: NextRequest) {
           );
         },
       },
-    },
-  );
+    });
 
-  // IMPORTANT : ne rien exécuter entre createServerClient et getUser,
-  // sinon la session peut désynchroniser (cf. doc Supabase SSR).
-  await supabase.auth.getUser();
+    // IMPORTANT : ne rien exécuter entre createServerClient et getUser,
+    // sinon la session peut désynchroniser (cf. doc Supabase SSR).
+    await supabase.auth.getUser();
 
-  return supabaseResponse;
+    return supabaseResponse;
+  } catch (err) {
+    // On capture pour ne pas casser le site sur 100% des routes.
+    // Visible dans Vercel → Runtime Logs.
+    console.error("[middleware] refresh session failed:", err);
+    return NextResponse.next({ request });
+  }
 }
 
 export const config = {
