@@ -71,6 +71,31 @@
   --color-ring: var(--ring);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Notion Club brand tokens (mockup — design system v1) */
+  --color-brand: #e0625a;
+  --color-text-primary: #000000;
+  --color-text-secondary: #52525b;
+  --color-text-muted: #64748b;
+  --color-surface-page: #f5f2f2;
+  --color-surface-raised: #f5f5f5;
+  --color-border-default: #e5e7eb;
+}
+
+:root {
+  --nc-radius-xs: 12px;
+  --nc-radius-sm: 16px;
+  --nc-radius-md: 24px;
+  --nc-radius-xl: 100px;
+  --nc-radius-2xl: 9999px;
+  --nc-shadow-2: rgba(0, 0, 0, 0.03) 0 -2px 16px -4px,
+    rgba(0, 0, 0, 0.08) 0 16px 40px -8px, rgba(0, 0, 0, 0.04) 0 1px 3px 0;
+  --nc-shadow-3: rgba(0, 0, 0, 0.06) 0 4px 24px 0,
+    rgba(0, 0, 0, 0.04) 0 1px 2px 0;
+  --nc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nc-duration-fast: 200ms;
+  --nc-duration-normal: 250ms;
+  --nc-duration-slow: 300ms;
 }
 
 @layer base {
@@ -80,4 +105,151 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ---------- Notion Club — auth mockup utilities ---------- */
+
+@property --nc-shine-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes nc-shine-rotate {
+  to {
+    --nc-shine-angle: 360deg;
+  }
+}
+
+@keyframes nc-btn-shine {
+  0% {
+    left: -50%;
+  }
+  60%,
+  100% {
+    left: 120%;
+  }
+}
+
+@keyframes nc-blink {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(224, 98, 90, 0.6);
+  }
+  50% {
+    opacity: 0.4;
+    box-shadow: 0 0 0 5px rgba(224, 98, 90, 0);
+  }
+}
+
+@keyframes nc-mode-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nc-page-halo {
+  background-color: var(--color-surface-page);
+  position: relative;
+  isolation: isolate;
+}
+
+.nc-page-halo::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(224, 99, 90, 0.28) 0%, transparent 35%),
+    radial-gradient(circle at 100% 0%, rgba(224, 99, 90, 0.24) 0%, transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(224, 99, 90, 0.22) 0%, transparent 34%),
+    radial-gradient(circle at 100% 100%, rgba(224, 99, 90, 0.26) 0%, transparent 35%),
+    radial-gradient(ellipse at 0% 50%, rgba(224, 99, 90, 0.12) 0%, transparent 20%),
+    radial-gradient(ellipse at 100% 50%, rgba(224, 99, 90, 0.12) 0%, transparent 20%);
+}
+
+.nc-shine-card {
+  --nc-shine-angle: 0deg;
+  position: relative;
+  border-radius: var(--nc-radius-md);
+  padding: 2px;
+  background: conic-gradient(
+    from var(--nc-shine-angle),
+    rgba(224, 98, 90, 0.08),
+    rgba(224, 98, 90, 0.85) 25%,
+    rgba(224, 98, 90, 0.08) 50%,
+    rgba(224, 98, 90, 0.08) 100%
+  );
+  animation: nc-shine-rotate 4s linear infinite;
+  box-shadow: var(--nc-shadow-2);
+}
+
+.nc-shine-card__inner {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 32px;
+}
+
+.nc-btn-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.nc-btn-shine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 50%;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 80%
+  );
+  animation: nc-btn-shine 3.5s ease-in-out infinite;
+}
+
+.nc-blink-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-brand);
+  animation: nc-blink 1.4s ease-in-out infinite;
+}
+
+.nc-mode-in {
+  animation: nc-mode-in var(--nc-duration-normal) var(--nc-ease) both;
+}
+
+.nc-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--nc-radius-xs);
+  font-size: 16px;
+  background: #ffffff;
+  color: var(--color-text-primary);
+  transition: border-color var(--nc-duration-fast) ease,
+    box-shadow var(--nc-duration-fast) ease;
+}
+
+.nc-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.nc-input:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(224, 98, 90, 0.12);
 }

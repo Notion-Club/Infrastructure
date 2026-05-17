@@ -1,23 +1,25 @@
-import { Suspense } from "react";
-import { LoginForm } from "@/modules/auth";
+import { AuthMockup, BrandingPanel, BrandPill } from "@/modules/auth";
 
 export const metadata = {
   title: "Connexion — Notion Club",
 };
 
 export default function LoginPage() {
+  const isDev = process.env.NODE_ENV === "development";
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Connexion</h1>
-        <p className="text-sm text-muted-foreground">
-          Connecte-toi pour accéder à la plateforme.
-        </p>
+    <main className="nc-page-halo relative flex min-h-[100dvh] flex-col">
+      <header className="absolute top-6 left-6 z-10 md:top-8 md:left-8">
+        <BrandPill />
+      </header>
+
+      <div className="relative z-[1] mx-auto grid w-full max-w-[1280px] flex-1 grid-cols-1 items-center gap-12 px-4 py-24 md:grid-cols-2 md:gap-16 md:px-10 md:py-16">
+        <section className="flex w-full justify-center md:justify-end">
+          <AuthMockup initialState="login-empty" showDevPanel={isDev} />
+        </section>
+
+        <BrandingPanel />
       </div>
-      {/* useSearchParams() impose un Suspense boundary en App Router. */}
-      <Suspense>
-        <LoginForm />
-      </Suspense>
     </main>
   );
 }
