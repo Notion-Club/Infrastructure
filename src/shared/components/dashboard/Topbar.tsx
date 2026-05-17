@@ -90,14 +90,15 @@ export function Topbar() {
         WebkitBackdropFilter: "blur(8px)",
       }}
     >
-      {/* Pill — alignée sur la colonne de contenu (840px - 2×40px padding = 760px) */}
+      {/* Pill — élargie pour respirer avec 5 items de nav + groupe droit */}
       <div
         style={{
           width: "100%",
-          maxWidth: 760,
+          maxWidth: 920,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 32,
           background: "#ffffff",
           border: "0.5px solid #e5e7eb",
           borderRadius: 9999,
@@ -119,7 +120,7 @@ export function Topbar() {
 
           {SEPARATOR}
 
-          <nav style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
             {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
               const isActive = pathname === href;
               return (
