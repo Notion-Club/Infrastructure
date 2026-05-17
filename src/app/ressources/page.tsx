@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { Topbar } from '@/shared/components/dashboard/Topbar';
 import { MobileTopActions } from '@/shared/components/dashboard/mobile/MobileTopActions';
 import { BottomNav } from '@/shared/components/dashboard/mobile/BottomNav';
@@ -52,7 +53,9 @@ export default function RessourcesPage() {
               </div>
 
               {/* Grid */}
-              <ResourcesGrid items={items} />
+              <Suspense fallback={null}>
+                <ResourcesGrid items={items} />
+              </Suspense>
             </div>
           </div>
         </main>

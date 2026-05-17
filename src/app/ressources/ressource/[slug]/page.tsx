@@ -155,7 +155,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
               <div style={{ marginBottom: 32 }}>
                 <ResourceBreadcrumb
                   items={[
-                    { label: resource.type },
+                    { label: resource.type, href: `/ressources?type=${encodeURIComponent(resource.type)}` },
                     { label: resource.titre },
                   ]}
                 />

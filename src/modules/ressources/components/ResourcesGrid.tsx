@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { SlidersHorizontal } from 'lucide-react';
 import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
@@ -36,8 +37,21 @@ function pluralizeCount(count: number, primaryFilter: PrimaryFilter): string {
 }
 
 export function ResourcesGrid({ items }: ResourcesGridProps) {
-  const [primaryFilter, setPrimaryFilter] = useState<PrimaryFilter>('Tout');
-  const [selectedTypes, setSelectedTypes] = useState<Set<ResourceMetierType>>(new Set());
+  const searchParams = useSearchParams();
+  const catParam = searchParams.get('cat');
+  const typeParam = searchParams.get('type');
+
+  const [primaryFilter, setPrimaryFilter] = useState<PrimaryFilter>(() => {
+    if (catParam === 'template') return 'Templates';
+    if (catParam === 'resource') return 'Ressources';
+    return 'Tout';
+  });
+  const [selectedTypes, setSelectedTypes] = useState<Set<ResourceMetierType>>(() => {
+    if (typeParam && (METIER_TYPES as readonly string[]).includes(typeParam)) {
+      return new Set([typeParam as ResourceMetierType]);
+    }
+    return new Set();
+  });
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
   const filterRef = useRef<HTMLDivElement>(null);

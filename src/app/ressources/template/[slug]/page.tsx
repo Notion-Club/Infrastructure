@@ -50,7 +50,7 @@ export default async function TemplateDetailPage({ params }: PageProps) {
               <div style={{ marginBottom: 32 }}>
                 <ResourceBreadcrumb
                   items={[
-                    { label: 'Templates' },
+                    { label: 'Templates', href: '/ressources?cat=template' },
                     { label: template.titre },
                   ]}
                 />
