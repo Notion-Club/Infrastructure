@@ -4,8 +4,6 @@ import {
   BookOpen,
   Users,
   Calendar,
-  Files,
-  Library,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -23,13 +21,12 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Formation", icon: BookOpen, href: "/formation" },
   { label: "Communauté", icon: Users, href: "/communaute" },
   { label: "Coaching", icon: Calendar, href: "/coaching" },
-  { label: "Ressources", icon: Files, href: "/ressources" },
-  { label: "Bibliothèque", icon: Library, href: "/bibliotheque" },
 ];
 
 export function Sidebar() {
   return (
     <aside
+      className="hidden md:flex flex-col"
       style={{
         width: 220,
         flexShrink: 0,
@@ -38,8 +35,6 @@ export function Sidebar() {
         top: 0,
         background: "white",
         borderRight: "1px solid var(--color-border-default)",
-        display: "flex",
-        flexDirection: "column",
         zIndex: 10,
       }}
     >
