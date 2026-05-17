@@ -1,49 +1,58 @@
-type BadgeVariant = 'ressource' | 'template' | 'formation' | 'type';
+import type { ReactNode } from 'react';
+
+type BadgeVariant = 'ressource' | 'template' | 'formation' | 'type' | 'neutral';
 
 interface ResourceBadgeProps {
   variant: BadgeVariant;
   label: string;
+  icon?: ReactNode;
 }
 
-const VARIANT_STYLES: Record<BadgeVariant, React.CSSProperties> = {
-  ressource: {
-    background: 'rgba(37,99,235,0.08)',
-    border: '1px solid rgba(37,99,235,0.2)',
-    color: '#2563eb',
-  },
-  template: {
-    background: 'rgba(124,58,237,0.08)',
-    border: '1px solid rgba(124,58,237,0.2)',
-    color: '#7c3aed',
-  },
-  formation: {
-    background: 'rgba(224,98,90,0.08)',
-    border: '1px solid rgba(224,98,90,0.2)',
-    color: 'var(--color-brand)',
-  },
-  type: {
-    background: 'var(--color-surface-raised)',
-    border: '1px solid var(--color-border-default)',
-    color: 'var(--color-text-secondary)',
-  },
+interface BadgeStyle {
+  background: string;
+  color: string;
+}
+
+const STYLES: Record<Exclude<BadgeVariant, 'formation'>, BadgeStyle> = {
+  ressource: { background: '#5B6B7D', color: '#ffffff' },
+  template: { background: '#7C5F94', color: '#ffffff' },
+  type: { background: '#787774', color: '#ffffff' },
+  neutral: { background: '#9B9A97', color: '#ffffff' },
 };
 
-export function ResourceBadge({ variant, label }: ResourceBadgeProps) {
+const FORMATION_STYLES: Record<string, BadgeStyle> = {
+  'Notion Business': { background: '#4A78A8', color: '#ffffff' },
+  'Notion Architecte': { background: '#A85248', color: '#ffffff' },
+};
+
+function getStyle(variant: BadgeVariant, label: string): BadgeStyle {
+  if (variant === 'formation') {
+    return FORMATION_STYLES[label] ?? STYLES.neutral;
+  }
+  return STYLES[variant];
+}
+
+export function ResourceBadge({ variant, label, icon }: ResourceBadgeProps) {
+  const style = getStyle(variant, label);
   return (
     <span
       style={{
-        ...VARIANT_STYLES[variant],
         display: 'inline-flex',
         alignItems: 'center',
-        padding: '4px 10px',
-        borderRadius: 9999,
-        fontSize: 11,
-        fontWeight: 600,
+        gap: icon ? 5 : 0,
+        padding: '3px 8px',
+        borderRadius: 4,
+        fontSize: 12,
+        fontWeight: 500,
         lineHeight: 1.4,
         whiteSpace: 'nowrap',
         flexShrink: 0,
+        background: style.background,
+        color: style.color,
+        border: 'none',
       }}
     >
+      {icon}
       {label}
     </span>
   );

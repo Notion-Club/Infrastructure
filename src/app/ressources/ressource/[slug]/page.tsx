@@ -155,7 +155,6 @@ export default async function ResourceDetailPage({ params }: PageProps) {
               <div style={{ marginBottom: 32 }}>
                 <ResourceBreadcrumb
                   items={[
-                    { label: 'Ressources', href: '/ressources' },
                     { label: resource.type },
                     { label: resource.titre },
                   ]}
@@ -163,7 +162,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
               </div>
 
               {/* Header */}
-              <header style={{ marginBottom: 32 }}>
+              <header style={{ marginBottom: 32, viewTransitionName: `card-${resource.slug}` }}>
                 <h1
                   style={{
                     fontSize: 'clamp(36px, 5vw, 52px)',

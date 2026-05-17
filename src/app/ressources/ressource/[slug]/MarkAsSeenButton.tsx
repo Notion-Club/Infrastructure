@@ -3,8 +3,22 @@
 import { useState } from 'react';
 import { Check } from 'lucide-react';
 
+const MONTHS_FR = [
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+];
+
+function formatSeenDate(d: Date): string {
+  return `${d.getDate()} ${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// TODO(backend) : persister la date de vu côté Supabase quand l'auth réelle
+// sera branchée. Pour l'instant, l'état est local au composant et perdu au
+// rafraîchissement. La date affichée doit être celle stockée en base, pas
+// celle calculée à l'affichage. Cf. commentaire sur la PR.
 export function MarkAsSeenButton() {
-  const [seen, setSeen] = useState(false);
+  const [seenAt, setSeenAt] = useState<Date | null>(null);
+  const seen = seenAt !== null;
 
   return (
     <div>
@@ -18,7 +32,7 @@ export function MarkAsSeenButton() {
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <button
           type="button"
-          onClick={() => setSeen(true)}
+          onClick={() => setSeenAt(new Date())}
           disabled={seen}
           style={{
             display: 'inline-flex',
@@ -38,10 +52,10 @@ export function MarkAsSeenButton() {
           }}
           className={!seen ? 'hover:opacity-90' : ''}
         >
-          {seen ? (
+          {seen && seenAt ? (
             <>
               <Check size={16} />
-              Marquée comme vue
+              Vu le {formatSeenDate(seenAt)}
             </>
           ) : (
             'Marquer comme vue'

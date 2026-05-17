@@ -38,28 +38,13 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
         gap: 12,
         cursor: 'pointer',
         transition: 'transform 150ms ease, box-shadow 150ms ease',
+        viewTransitionName: `card-${resource.slug}`,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <ResourceBadge variant="ressource" label="Ressource" />
         {isLocked && (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              padding: '4px 10px',
-              borderRadius: 9999,
-              fontSize: 11,
-              fontWeight: 600,
-              background: 'var(--color-surface-raised)',
-              border: '1px solid var(--color-border-default)',
-              color: 'var(--color-text-muted)',
-            }}
-          >
-            <Lock size={10} />
-            {resource.visibilite}
-          </span>
+          <ResourceBadge variant="neutral" label={resource.visibilite} icon={<Lock size={10} />} />
         )}
       </div>
 

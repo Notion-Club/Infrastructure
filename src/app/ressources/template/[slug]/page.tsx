@@ -50,15 +50,14 @@ export default async function TemplateDetailPage({ params }: PageProps) {
               <div style={{ marginBottom: 32 }}>
                 <ResourceBreadcrumb
                   items={[
-                    { label: 'Ressources', href: '/ressources' },
-                    { label: 'Templates', href: '/ressources' },
+                    { label: 'Templates' },
                     { label: template.titre },
                   ]}
                 />
               </div>
 
               {/* Header */}
-              <header style={{ marginBottom: 32 }}>
+              <header style={{ marginBottom: 32, viewTransitionName: `card-${template.slug}` }}>
                 <h1
                   style={{
                     fontSize: 'clamp(36px, 5vw, 52px)',

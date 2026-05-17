@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  experimental: {
+    viewTransition: true,
+  },
   images: {
     remotePatterns: [
       {
