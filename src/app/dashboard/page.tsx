@@ -15,9 +15,11 @@ const MOCK_USER = { prenom: "Théo" };
 export default function DashboardPage() {
   return (
     <>
-      {/* ── Mobile layout ───────────────────────────────────────── */}
-      <MobileHeader />
-      <BottomNav />
+      {/* ── Mobile-only overlays (hidden on desktop) ────────────── */}
+      <div className="md:hidden">
+        <MobileHeader />
+        <BottomNav />
+      </div>
 
       {/* ── Shell flex (desktop sidebar + main) ─────────────────── */}
       <div
@@ -44,29 +46,72 @@ export default function DashboardPage() {
                Desktop: symmetric padding. */
             className="px-4 pt-[80px] pb-[100px] md:px-10 md:py-12"
           >
-            {/* Greeting — desktop only (mobile header shows the greeting) */}
-            <div className="hidden md:flex flex-col gap-1">
-              <p
+            {/* Greeting + search — desktop only */}
+            <div className="hidden md:flex flex-col gap-5">
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "var(--color-text-muted)",
+                    margin: 0,
+                  }}
+                >
+                  Bon retour
+                </p>
+                <h1
+                  style={{
+                    fontSize: "clamp(24px, 3vw, 36px)",
+                    fontWeight: 700,
+                    letterSpacing: "-0.025em",
+                    color: "var(--color-text-primary)",
+                    margin: 0,
+                    lineHeight: 1.15,
+                  }}
+                >
+                  Salut {MOCK_USER.prenom}&nbsp;👋
+                </h1>
+              </div>
+
+              {/* Search bar — desktop */}
+              <div
                 style={{
-                  fontSize: 13,
-                  color: "var(--color-text-muted)",
-                  margin: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  background: "white",
+                  border: "1px solid var(--color-border-default)",
+                  borderRadius: 9999,
+                  padding: "11px 20px",
+                  maxWidth: 480,
+                  cursor: "pointer",
+                  boxShadow: "var(--nc-shadow-3)",
+                  transition: "box-shadow 200ms ease, border-color 200ms ease",
                 }}
+                className="hover:border-[var(--color-text-muted)] hover:shadow-[rgba(0,0,0,0.08)_0px_4px_24px_0px]"
               >
-                Bon retour
-              </p>
-              <h1
-                style={{
-                  fontSize: "clamp(24px, 3vw, 36px)",
-                  fontWeight: 700,
-                  letterSpacing: "-0.025em",
-                  color: "var(--color-text-primary)",
-                  margin: 0,
-                  lineHeight: 1.15,
-                }}
-              >
-                Salut {MOCK_USER.prenom}&nbsp;👋
-              </h1>
+                <Search
+                  size={15}
+                  style={{ color: "var(--color-text-muted)", flexShrink: 0 }}
+                />
+                <span style={{ fontSize: 14, color: "var(--color-text-muted)", flex: 1 }}>
+                  Rechercher un cours, une ressource…
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "var(--color-text-muted)",
+                    background: "var(--color-surface-raised)",
+                    border: "1px solid var(--color-border-default)",
+                    borderRadius: 6,
+                    padding: "2px 6px",
+                    fontWeight: 500,
+                    flexShrink: 0,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  ⌘K
+                </span>
+              </div>
             </div>
 
             {/* Greeting — mobile only */}
