@@ -11,18 +11,43 @@ interface ResourceBadgeProps {
 interface BadgeStyle {
   background: string;
   color: string;
+  dot: string;
 }
 
 const STYLES: Record<Exclude<BadgeVariant, 'formation'>, BadgeStyle> = {
-  ressource: { background: '#5B6B7D', color: '#ffffff' },
-  template: { background: '#7C5F94', color: '#ffffff' },
-  type: { background: '#787774', color: '#ffffff' },
-  neutral: { background: '#9B9A97', color: '#ffffff' },
+  ressource: {
+    background: 'rgba(37, 99, 235, 0.10)',
+    color: '#1d4ed8',
+    dot: '#3b82f6',
+  },
+  template: {
+    background: 'rgba(124, 58, 237, 0.10)',
+    color: '#6d28d9',
+    dot: '#8b5cf6',
+  },
+  type: {
+    background: 'var(--color-surface-raised)',
+    color: 'var(--color-text-secondary)',
+    dot: '#9b9a97',
+  },
+  neutral: {
+    background: 'var(--color-surface-raised)',
+    color: 'var(--color-text-muted)',
+    dot: '#9b9a97',
+  },
 };
 
 const FORMATION_STYLES: Record<string, BadgeStyle> = {
-  'Notion Business': { background: '#4A78A8', color: '#ffffff' },
-  'Notion Architecte': { background: '#A85248', color: '#ffffff' },
+  'Notion Business': {
+    background: 'rgba(37, 99, 235, 0.10)',
+    color: '#1d4ed8',
+    dot: '#3b82f6',
+  },
+  'Notion Architecte': {
+    background: 'rgba(224, 98, 90, 0.10)',
+    color: 'var(--color-brand)',
+    dot: 'var(--color-brand)',
+  },
 };
 
 function getStyle(variant: BadgeVariant, label: string): BadgeStyle {
@@ -39,9 +64,9 @@ export function ResourceBadge({ variant, label, icon }: ResourceBadgeProps) {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: icon ? 5 : 0,
-        padding: '3px 8px',
-        borderRadius: 4,
+        gap: 6,
+        padding: '4px 12px 4px 10px',
+        borderRadius: 9999,
         fontSize: 12,
         fontWeight: 500,
         lineHeight: 1.4,
@@ -52,7 +77,18 @@ export function ResourceBadge({ variant, label, icon }: ResourceBadgeProps) {
         border: 'none',
       }}
     >
-      {icon}
+      {icon ?? (
+        <span
+          aria-hidden
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: '50%',
+            background: style.dot,
+            flexShrink: 0,
+          }}
+        />
+      )}
       {label}
     </span>
   );
