@@ -5,10 +5,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
+  Home,
   BookOpen,
   Users,
   Calendar,
+  Library,
   Bell,
   type LucideIcon,
 } from "lucide-react";
@@ -19,10 +20,11 @@ const LOGO_SRC =
   "https://res.cloudinary.com/dceobxyts/image/upload/v1777034233/Notion_Club_-_Black_-_Sans_BG_hcvk9k.png";
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Accueil", icon: LayoutDashboard, href: "/dashboard" },
+  { label: "Accueil", icon: Home, href: "/dashboard" },
   { label: "Formation", icon: BookOpen, href: "/formation" },
   { label: "Communauté", icon: Users, href: "/communaute" },
   { label: "Coaching", icon: Calendar, href: "/coaching" },
+  { label: "Ressources", icon: Library, href: "/ressources" },
 ];
 
 const MOCK_USER = { prenom: "Théo", nom: "Martin" };

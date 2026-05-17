@@ -41,14 +41,13 @@ export function ProfilWidget() {
         Mon profil
       </span>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <Trophy size={18} style={{ color: "var(--color-brand)", flexShrink: 0 }} />
+      <div>
         <span
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 6,
-            padding: "5px 12px",
+            gap: 7,
+            padding: "5px 12px 5px 10px",
             background: "rgba(224,98,90,0.08)",
             border: "1px solid rgba(224,98,90,0.2)",
             borderRadius: 9999,
@@ -57,6 +56,7 @@ export function ProfilWidget() {
             color: "var(--color-brand)",
           }}
         >
+          <Trophy size={14} style={{ flexShrink: 0 }} />
           Niveau {niveau}
           <span style={{ opacity: 0.4, margin: "0 1px" }}>|</span>
           {niveauLabel}
@@ -84,9 +84,7 @@ export function ProfilWidget() {
             lineHeight: 1.6,
           }}
         >
-          Il te reste <strong style={{ color: "var(--color-text-primary)" }}>{modulesRestants} modules</strong>
-          <br />
-          pour atteindre <strong style={{ color: "var(--color-text-primary)" }}>{niveauSuivant}</strong>.
+          Il te reste <strong style={{ color: "var(--color-text-primary)" }}>{modulesRestants} modules</strong> pour atteindre <strong style={{ color: "var(--color-text-primary)" }}>{niveauSuivant}</strong>.
         </p>
       )}
 
