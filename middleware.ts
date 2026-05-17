@@ -1,12 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// IMPORTANT — pourquoi tout est inliné ici, et pas dans un helper @/shared/... :
-// Le bundler Vercel pour le middleware Node.js NE bundle PAS les imports
-// relatifs ou TS — il pose middleware.js brut et tente de les résoudre à
-// runtime, ce qui plante (ERR_MODULE_NOT_FOUND). Inliner garantit que
-// seuls les imports npm package (@supabase/ssr, next/server) restent,
-// et eux sont correctement résolus depuis node_modules.
+// Tout est inline ici, car le bundler middleware de Vercel a 2 limitations :
+//   - en runtime Node.js : il ne bundle PAS les imports, ce qui fait planter
+//     Node.js ESM (ERR_MODULE_NOT_FOUND) sur tout import non-extension.
+//   - en runtime Edge : l'analyseur de modules rejette tout fichier
+//     personnalisé importé qui ne déclare pas explicitement sa compatibilité
+//     Edge.
+// Solution : runtime Edge (compatible avec @supabase/ssr, qui est conçu pour),
+// et zéro fichier custom importé — uniquement des packages npm.
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -40,9 +42,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Runtime Node.js (et non Edge) : @supabase/ssr tire indirectement
-  // des modules incompatibles Edge sur Vercel (build error sinon).
-  runtime: "nodejs",
   matcher: [
     // Tout sauf les assets statiques et l'API Next interne.
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
