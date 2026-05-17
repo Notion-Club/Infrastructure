@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -13,6 +14,9 @@ import {
 } from "lucide-react";
 
 type NavItem = { label: string; icon: LucideIcon; href: string };
+
+const LOGO_SRC =
+  "https://res.cloudinary.com/dceobxyts/image/upload/v1777034233/Notion_Club_-_Black_-_Sans_BG_hcvk9k.png";
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Accueil", icon: LayoutDashboard, href: "/dashboard" },
@@ -34,6 +38,19 @@ function getInitials(prenom: string, nom: string) {
   return `${prenom[0] ?? ""}${nom[0] ?? ""}`.toUpperCase();
 }
 
+const SEPARATOR = (
+  <div
+    aria-hidden
+    style={{
+      width: 0.5,
+      height: 18,
+      background: "#e5e7eb",
+      flexShrink: 0,
+      alignSelf: "center",
+    }}
+  />
+);
+
 export function Topbar() {
   const pathname = usePathname();
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -54,56 +71,43 @@ export function Topbar() {
 
   return (
     /*
-     * hidden md:flex — gère le responsive directement sur l'élément racine
-     * pour que sticky top-0 fonctionne depuis le conteneur flex-col parent,
-     * sans div wrapper intermédiaire qui briserait le scroll-container.
+     * Outer header : transparent + couleur de page → le contenu qui scroll
+     * dessous ne transperce pas. sticky top-0 sur l'élément racine (enfant
+     * direct du flex-col) pour que le scroll-container soit la page entière.
+     * hidden md:flex justify-center → pill centrée, pas full-width.
      */
     <header
-      className="hidden md:flex items-center justify-between sticky top-0 z-50"
+      className="hidden md:flex justify-center sticky top-0 z-50"
       style={{
-        height: 56,
-        background: "#ffffff",
-        borderBottom: "0.5px solid #e5e7eb",
-        borderRadius: "0 0 20px 20px",
-        boxShadow:
-          "0 2px 12px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.03)",
-        padding: "0 24px",
+        padding: "10px 24px",
+        background: "var(--color-surface-page)",
       }}
     >
-      {/* ── Gauche : logo + séparateur + nav ── */}
-      <div style={{ display: "flex", alignItems: "center" }}>
-        {/* Logo pill */}
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 7,
-            padding: "5px 11px 5px 9px",
-            background: "#000",
-            color: "#fff",
-            borderRadius: 999,
-            fontSize: 12,
-            fontWeight: 600,
-            flexShrink: 0,
-          }}
-        >
-          Notion Club
-          <span
-            className="nc-blink-dot"
-            style={{ width: 6, height: 6, flexShrink: 0 }}
-          />
-        </div>
-
-        {/* Séparateur vertical */}
-        <div
-          style={{
-            width: 0.5,
-            height: 20,
-            background: "#e5e7eb",
-            margin: "0 12px",
-            flexShrink: 0,
-          }}
+      {/* Pill flottante — largeur déterminée par son contenu */}
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 10,
+          background: "#ffffff",
+          border: "0.5px solid #e5e7eb",
+          borderRadius: 9999,
+          boxShadow:
+            "0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)",
+          padding: "5px 6px 5px 12px",
+        }}
+      >
+        {/* Logo */}
+        <Image
+          src={LOGO_SRC}
+          alt="Notion Club"
+          width={88}
+          height={30}
+          priority
+          style={{ height: 22, width: "auto", display: "block", flexShrink: 0 }}
         />
+
+        {SEPARATOR}
 
         {/* Nav pills */}
         <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -117,17 +121,19 @@ export function Topbar() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 6,
-                  padding: "6px 14px",
+                  padding: "6px 13px",
                   borderRadius: 999,
                   fontSize: 13,
                   fontWeight: isActive ? 600 : 400,
-                  color: isActive ? "#fff" : "#52525b",
-                  background: isActive ? "#000" : "transparent",
+                  color: "#000",
+                  background: isActive
+                    ? "rgba(0,0,0,0.07)"
+                    : "transparent",
                   textDecoration: "none",
-                  transition: "background 150ms ease, color 150ms ease",
+                  transition: "background 150ms ease",
                   whiteSpace: "nowrap",
                 }}
-                className={!isActive ? "hover:bg-[#f5f5f5] hover:text-black" : ""}
+                className={!isActive ? "hover:bg-[rgba(0,0,0,0.04)]" : ""}
               >
                 <Icon
                   size={14}
@@ -139,10 +145,9 @@ export function Topbar() {
             );
           })}
         </nav>
-      </div>
 
-      {/* ── Droite : cloche + avatar ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {SEPARATOR}
+
         {/* Cloche */}
         <button
           type="button"
@@ -151,8 +156,8 @@ export function Topbar() {
             width: 32,
             height: 32,
             borderRadius: "50%",
-            border: "0.5px solid #e5e7eb",
-            background: "white",
+            border: "none",
+            background: "transparent",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -162,14 +167,14 @@ export function Topbar() {
             flexShrink: 0,
             transition: "background 150ms ease",
           }}
-          className="hover:bg-[#f5f5f5]"
+          className="hover:bg-[rgba(0,0,0,0.04)]"
         >
-          <Bell size={14} />
+          <Bell size={15} />
           <span
             style={{
               position: "absolute",
-              top: -2,
-              right: -2,
+              top: 1,
+              right: 1,
               minWidth: 15,
               height: 15,
               background: "#e0625a",
@@ -196,15 +201,15 @@ export function Topbar() {
             aria-label="Menu compte"
             onClick={() => setAvatarOpen((o) => !o)}
             style={{
-              width: 32,
-              height: 32,
+              width: 30,
+              height: 30,
               borderRadius: "50%",
               background: "#e0625a",
               color: "#fff",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: 700,
               letterSpacing: "0.02em",
               border: "none",
@@ -212,7 +217,7 @@ export function Topbar() {
               flexShrink: 0,
               transition: "opacity 150ms ease",
             }}
-            className="hover:opacity-90"
+            className="hover:opacity-85"
           >
             {initials}
           </button>
@@ -222,7 +227,7 @@ export function Topbar() {
               role="menu"
               style={{
                 position: "absolute",
-                top: "calc(100% + 8px)",
+                top: "calc(100% + 10px)",
                 right: 0,
                 minWidth: 168,
                 borderRadius: 16,
@@ -236,7 +241,6 @@ export function Topbar() {
             >
               {DROPDOWN_ITEMS.map((item, idx) => (
                 <div key={item.href}>
-                  {/* Séparateur avant "Se déconnecter" */}
                   {idx === DROPDOWN_ITEMS.length - 1 && (
                     <div
                       style={{
