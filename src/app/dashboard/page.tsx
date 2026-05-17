@@ -21,18 +21,15 @@ export default function DashboardPage() {
 
       {/* ── Shell flex (desktop sidebar + main) ─────────────────── */}
       <div
-        className="nc-page-halo md:flex md:overflow-hidden"
-        style={{ minHeight: "100dvh" }}
+        className="nc-page-halo flex overflow-hidden"
+        style={{ height: "100dvh" }}
       >
-        {/* Sidebar — desktop only */}
-        <div className="hidden md:block">
-          <Sidebar />
-        </div>
+        {/* Sidebar — hidden on mobile via its own className */}
+        <Sidebar />
 
         {/* Main content */}
         <main
-          className="md:flex-1 md:overflow-y-auto"
-          style={{ position: "relative", zIndex: 1 }}
+          style={{ flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}
         >
           <div
             style={{
