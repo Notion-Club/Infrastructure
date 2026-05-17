@@ -49,11 +49,9 @@ function FilterSection({
       >
         <span
           style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            color: "var(--color-text-secondary)",
+            fontSize: 13,
+            fontWeight: 500,
+            color: "var(--color-text-muted)",
           }}
         >
           {label}
@@ -257,7 +255,7 @@ export function ResourcesGrid({ resources }: Props) {
                 activeFilterCount > 0
                   ? "1px solid var(--color-brand)"
                   : "1px solid var(--color-border-default)",
-              background: activeFilterCount > 0 ? "rgba(224,98,90,0.06)" : "white",
+              background: "white",
               color:
                 activeFilterCount > 0 ? "var(--color-brand)" : "var(--color-text-secondary)",
               cursor: "pointer",

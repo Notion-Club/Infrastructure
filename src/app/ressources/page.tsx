@@ -120,7 +120,7 @@ export default function RessourcesPage() {
             flexDirection: "column",
             gap: 28,
           }}
-          className="px-4 pt-[72px] pb-[100px] md:px-10 md:pt-[96px] md:pb-10"
+          className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10"
         >
           {/* Page header */}
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -135,12 +135,12 @@ export default function RessourcesPage() {
             </p>
             <h1
               style={{
-                fontSize: "clamp(24px, 3vw, 36px)",
+                fontSize: "clamp(42px, 6vw, 64px)",
                 fontWeight: 700,
-                letterSpacing: "-0.025em",
+                letterSpacing: "-0.03em",
                 color: "var(--color-text-primary)",
                 margin: 0,
-                lineHeight: 1.15,
+                lineHeight: 1.1,
               }}
             >
               Ressources

@@ -192,7 +192,7 @@ Remplacée par `Topbar.tsx` pour desktop.
     <BottomNav />                     {/* position: fixed bottom mobile */}
   </div>
   <main style={{ flex: 1, position: "relative", zIndex: 1 }}>
-    <div className="px-4 pt-[72px] pb-[100px] md:px-10 md:pt-[96px] md:pb-10">
+    <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
       {/* contenu */}
     </div>
   </main>

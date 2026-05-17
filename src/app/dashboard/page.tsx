@@ -41,7 +41,7 @@ export default function DashboardPage() {
             flexDirection: "column",
             gap: 24,
           }}
-          className="px-4 pt-[72px] pb-[100px] md:px-10 md:pt-[96px] md:pb-10"
+          className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10"
         >
           {/* Greeting + search — desktop uniquement */}
           <div className="hidden md:flex flex-col gap-5">
@@ -57,12 +57,12 @@ export default function DashboardPage() {
               </p>
               <h1
                 style={{
-                  fontSize: "clamp(24px, 3vw, 36px)",
+                  fontSize: "clamp(42px, 5vw, 64px)",
                   fontWeight: 700,
-                  letterSpacing: "-0.025em",
+                  letterSpacing: "-0.03em",
                   color: "var(--color-text-primary)",
                   margin: 0,
-                  lineHeight: 1.15,
+                  lineHeight: 1.1,
                 }}
               >
                 Salut {MOCK_USER.prenom}&nbsp;👋
@@ -121,12 +121,12 @@ export default function DashboardPage() {
           <div className="md:hidden flex flex-col gap-1">
             <h1
               style={{
-                fontSize: "clamp(22px, 5vw, 28px)",
+                fontSize: "clamp(36px, 9vw, 48px)",
                 fontWeight: 700,
-                letterSpacing: "-0.025em",
+                letterSpacing: "-0.03em",
                 color: "var(--color-text-primary)",
                 margin: 0,
-                lineHeight: 1.15,
+                lineHeight: 1.1,
               }}
             >
               Salut {MOCK_USER.prenom}&nbsp;👋
