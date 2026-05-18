@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 import { AlignJustify, X } from "lucide-react";
 import type { MockCall } from "@/shared/lib/mock/coaching";
@@ -54,6 +54,7 @@ interface CallCardProps {
 export function CallCard({ call, archived = false }: CallCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const isUpcoming = call.status === "upcoming";
   const isExpandable = !isUpcoming;
@@ -63,7 +64,14 @@ export function CallCard({ call, archived = false }: CallCardProps) {
 
   function handleToggle() {
     if (!isExpandable) return;
-    if (isOpen) setSummaryExpanded(false);
+    if (isOpen) {
+      setSummaryExpanded(false);
+    } else {
+      // Wait for the expand animation (400ms) then scroll card bottom into view
+      setTimeout(() => {
+        cardRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 420);
+    }
     setIsOpen((o) => !o);
   }
 
@@ -75,6 +83,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
   return (
     // Clic sur le fond/bords de l'encadré ferme l'accordéon
     <div
+      ref={cardRef}
       onClick={() => { if (isOpen) closeCard(); }}
       style={{
         background: "#ffffff",
