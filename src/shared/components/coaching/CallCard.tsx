@@ -67,8 +67,15 @@ export function CallCard({ call, archived = false }: CallCardProps) {
     setIsOpen((o) => !o);
   }
 
+  function closeCard() {
+    setIsOpen(false);
+    setSummaryExpanded(false);
+  }
+
   return (
+    // Clic sur le fond/bords de l'encadré ferme l'accordéon
     <div
+      onClick={() => { if (isOpen) closeCard(); }}
       style={{
         background: "#ffffff",
         border: `1px solid ${isOpen ? "rgba(224,98,90,0.25)" : "var(--color-border-default)"}`,
@@ -79,13 +86,14 @@ export function CallCard({ call, archived = false }: CallCardProps) {
         boxShadow: isOpen
           ? "0 4px 24px rgba(224,98,90,0.07), 0 1px 3px rgba(0,0,0,0.04)"
           : "none",
+        cursor: isOpen && isExpandable ? "pointer" : "default",
       }}
     >
       {/* ── Header ─────────────────────────────────────────────── */}
       <div
         role={isExpandable ? "button" : undefined}
         tabIndex={isExpandable ? 0 : undefined}
-        onClick={handleToggle}
+        onClick={(e) => { e.stopPropagation(); handleToggle(); }}
         onKeyDown={(e) => e.key === "Enter" && handleToggle()}
         style={{
           display: "flex",
@@ -291,78 +299,8 @@ export function CallCard({ call, archived = false }: CallCardProps) {
 
             {hasSummary ? (
               <>
-                {/* Section résumé */}
-                <p
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "var(--color-text-muted)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    margin: "0 0 8px",
-                  }}
-                >
-                  Résumé du coaching
-                </p>
-
-                <div
-                  style={{
-                    overflow: "hidden",
-                    maxHeight: summaryExpanded ? 600 : 76,
-                    transition: "max-height 350ms cubic-bezier(0.22,1,0.36,1)",
-                  }}
-                >
-                  <p
-                    style={{
-                      fontSize: 14,
-                      color: "var(--color-text-secondary)",
-                      lineHeight: 1.65,
-                      margin: 0,
-                    }}
-                  >
-                    {call.ai_summary}
-                  </p>
-                </div>
-
-                {call.ai_summary!.length > 280 && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSummaryExpanded((s) => !s);
-                    }}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: "5px 0 0",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "var(--color-brand)",
-                      cursor: "pointer",
-                      display: "block",
-                    }}
-                  >
-                    {summaryExpanded ? "Voir moins ↑" : "Voir plus →"}
-                  </button>
-                )}
-
-                {/* Warning IA */}
-                <p
-                  style={{
-                    fontSize: 11,
-                    color: "#6b7280",
-                    margin: "10px 0 14px",
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 4,
-                  }}
-                >
-                  <span>⚠️</span>
-                  <span>Résumé généré par IA, peut contenir des imprécisions</span>
-                </p>
-
-                {/* Ask AI buttons */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {/* Ask AI buttons — en premier pour ne pas avoir à scroller le résumé */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
                   <a
                     href={`https://chatgpt.com/?q=${encodeURIComponent(
                       buildAIPrompt(call.host, call.ai_summary!)
@@ -429,6 +367,79 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                     Demander à Claude
                   </a>
                 </div>
+
+                {/* Séparateur */}
+                <div style={{ height: 1, background: "var(--color-border-default)", marginBottom: 14 }} />
+
+                {/* Section résumé */}
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--color-text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    margin: "0 0 8px",
+                  }}
+                >
+                  Résumé du coaching
+                </p>
+
+                <div
+                  style={{
+                    overflow: "hidden",
+                    maxHeight: summaryExpanded ? 600 : 76,
+                    transition: "max-height 350ms cubic-bezier(0.22,1,0.36,1)",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 14,
+                      color: "var(--color-text-secondary)",
+                      lineHeight: 1.65,
+                      margin: 0,
+                    }}
+                  >
+                    {call.ai_summary}
+                  </p>
+                </div>
+
+                {call.ai_summary!.length > 280 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSummaryExpanded((s) => !s);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: "5px 0 0",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--color-brand)",
+                      cursor: "pointer",
+                      display: "block",
+                    }}
+                  >
+                    {summaryExpanded ? "Voir moins ↑" : "Voir plus →"}
+                  </button>
+                )}
+
+                {/* Warning IA */}
+                <p
+                  style={{
+                    fontSize: 11,
+                    color: "#6b7280",
+                    margin: "10px 0 0",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 4,
+                  }}
+                >
+                  <span>⚠️</span>
+                  <span>Résumé généré par IA, peut contenir des imprécisions</span>
+                </p>
               </>
             ) : (
               <p
