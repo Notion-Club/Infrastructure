@@ -28,7 +28,7 @@ function formatDateLong(iso: string): string {
     month: "long",
     year: "numeric",
   });
-  return "Le " + datePart;
+  return datePart.charAt(0).toUpperCase() + datePart.slice(1);
 }
 
 function getUpcomingLabel(iso: string): string {
@@ -110,36 +110,18 @@ export function CallCard({ call, archived = false }: CallCardProps) {
       >
         {/* Left — title + date + host */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <h2
-              style={{
-                fontSize: 15,
-                fontWeight: 700,
-                color: "var(--color-text-primary)",
-                margin: 0,
-                lineHeight: 1.3,
-                letterSpacing: "-0.01em",
-              }}
-            >
-              {call.subject}
-            </h2>
-            {archived && (
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: "#6b7280",
-                  background: "#f3f4f6",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 9999,
-                  padding: "1px 7px",
-                  flexShrink: 0,
-                }}
-              >
-                Archivé
-              </span>
-            )}
-          </div>
+          <h2
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              color: "var(--color-text-primary)",
+              margin: 0,
+              lineHeight: 1.3,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {call.subject}
+          </h2>
 
           {/* Date + host avatar */}
           <div
@@ -302,7 +284,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
             {hasSummary ? (
               <>
                 {/* Ask AI buttons — en premier pour ne pas avoir à scroller le résumé */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
                   <a
                     href={`https://chatgpt.com/?q=${encodeURIComponent(
                       buildAIPrompt(call.host, call.ai_summary!)
@@ -313,8 +295,9 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
+                      justifyContent: "center",
                       gap: 7,
-                      padding: "7px 14px",
+                      padding: "8px 12px",
                       background: "#ffffff",
                       border: "1px solid var(--color-border-default)",
                       borderRadius: 9999,
@@ -322,9 +305,9 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                       fontWeight: 500,
                       color: "var(--color-text-primary)",
                       textDecoration: "none",
-                      transition: "background 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease",
+                      transition: "background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
                     }}
-                    className="hover:bg-[#f5f5f5] hover:border-[#d4d4d8] hover:shadow-[0_2px_10px_rgba(0,0,0,0.09)] hover:-translate-y-px"
+                    className="hover:bg-[#f0fdf4] hover:border-[#86efac] hover:shadow-[0_2px_8px_rgba(34,197,94,0.12)]"
                   >
                     <Image
                       src={CHATGPT_LOGO}
@@ -346,8 +329,9 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
+                      justifyContent: "center",
                       gap: 7,
-                      padding: "7px 14px",
+                      padding: "8px 12px",
                       background: "#ffffff",
                       border: "1px solid var(--color-border-default)",
                       borderRadius: 9999,
@@ -355,9 +339,9 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                       fontWeight: 500,
                       color: "var(--color-text-primary)",
                       textDecoration: "none",
-                      transition: "background 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease",
+                      transition: "background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
                     }}
-                    className="hover:bg-[#f5f5f5] hover:border-[#d4d4d8] hover:shadow-[0_2px_10px_rgba(0,0,0,0.09)] hover:-translate-y-px"
+                    className="hover:bg-[#fff8f7] hover:border-[rgba(224,98,90,0.35)] hover:shadow-[0_2px_8px_rgba(224,98,90,0.12)]"
                   >
                     <Image
                       src={CLAUDE_LOGO}

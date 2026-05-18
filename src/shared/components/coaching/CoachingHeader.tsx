@@ -72,10 +72,11 @@ export function CoachingHeader({
               fontSize: 13,
               fontWeight: 500,
               color: "#e0625a",
-              background: "#fef3f2",
+              background: "#ffffff",
               borderRadius: 9999,
               padding: "5px 14px",
-              border: "1px solid rgba(224,98,90,0.2)",
+              border: "1px solid rgba(224,98,90,0.25)",
+              boxShadow: "0 1px 4px rgba(224,98,90,0.08)",
             }}
           >
             <Calendar size={13} style={{ flexShrink: 0 }} />

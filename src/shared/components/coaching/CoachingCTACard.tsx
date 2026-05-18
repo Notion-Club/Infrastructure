@@ -31,11 +31,9 @@ export function CoachingCTACard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        transform: hovered ? "translateY(-2px)" : "translateY(0)",
-        transition:
-          "transform 280ms cubic-bezier(0.22,1,0.36,1), box-shadow 280ms cubic-bezier(0.22,1,0.36,1)",
+        transition: "box-shadow 280ms cubic-bezier(0.22,1,0.36,1)",
         boxShadow: hovered
-          ? "0 16px 48px rgba(224,98,90,0.2), 0 4px 16px rgba(0,0,0,0.08)"
+          ? "0 0 0 3px rgba(224,98,90,0.18), 0 8px 32px rgba(224,98,90,0.14)"
           : undefined,
       }}
     >
