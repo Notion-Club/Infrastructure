@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
+
+import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
+import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 
 const MOCK_USER = {
   prenom: "Théo",
@@ -10,18 +15,6 @@ const MOCK_USER = {
 };
 
 const UNREAD_COUNT = 2;
-
-type DropdownItem = {
-  label: string;
-  href: string;
-  danger?: boolean;
-};
-
-const DROPDOWN_ITEMS: DropdownItem[] = [
-  { label: "Mon profil", href: "/profil" },
-  { label: "Réglages", href: "/reglages" },
-  { label: "Déconnexion", href: "/login", danger: true },
-];
 
 function getInitials(prenom: string, nom: string) {
   return `${prenom[0] ?? ""}${nom[0] ?? ""}`.toUpperCase();
@@ -45,7 +38,9 @@ const CIRCLE: React.CSSProperties = {
 };
 
 export function MobileTopActions() {
+  const router = useRouter();
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
   const initials = getInitials(MOCK_USER.prenom, MOCK_USER.nom);
 
@@ -59,6 +54,19 @@ export function MobileTopActions() {
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [avatarOpen]);
+
+  async function handleSignOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Ignore — fall through to the login redirect.
+    } finally {
+      router.push("/login");
+    }
+  }
 
   return (
     <div
@@ -148,7 +156,7 @@ export function MobileTopActions() {
               position: "absolute",
               top: "calc(100% + 8px)",
               right: 0,
-              minWidth: 168,
+              minWidth: 220,
               borderRadius: 16,
               boxShadow:
                 "rgba(0,0,0,0.03) 0px -2px 16px -4px, rgba(0,0,0,0.08) 0px 16px 40px -8px, rgba(0,0,0,0.04) 0px 1px 3px 0px",
@@ -156,36 +164,76 @@ export function MobileTopActions() {
               border: "1px solid var(--color-border-default)",
               overflow: "hidden",
               zIndex: 60,
+              padding: 6,
             }}
           >
-            {DROPDOWN_ITEMS.map((item, idx) => (
-              <div key={item.href}>
-                {idx === DROPDOWN_ITEMS.length - 1 && (
-                  <div
-                    style={{
-                      height: 1,
-                      background: "var(--color-border-default)",
-                      margin: "4px 0",
-                    }}
-                  />
-                )}
-                <a
-                  href={item.href}
-                  role="menuitem"
-                  style={{
-                    display: "block",
-                    padding: "10px 14px",
-                    fontSize: 14,
-                    color: item.danger ? "var(--color-brand)" : "var(--color-text-primary)",
-                    textDecoration: "none",
-                    transition: "background 150ms ease",
-                  }}
-                  className="hover:bg-[var(--color-surface-raised)]"
-                >
-                  {item.label}
-                </a>
-              </div>
-            ))}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "8px 10px",
+              }}
+            >
+              <span style={{ fontSize: 14, color: "var(--color-text-primary)" }}>
+                Mode sombre
+              </span>
+              <ThemeToggle />
+            </div>
+            <div
+              style={{
+                height: 1,
+                background: "var(--color-border-default)",
+                margin: "4px 0",
+              }}
+            />
+            <Link
+              href="/settings"
+              role="menuitem"
+              onClick={() => setAvatarOpen(false)}
+              style={{
+                display: "block",
+                padding: "10px 10px",
+                fontSize: 14,
+                color: "var(--color-text-primary)",
+                textDecoration: "none",
+                borderRadius: 10,
+                transition: "background 150ms ease",
+              }}
+              className="hover:bg-[var(--color-surface-raised)]"
+            >
+              Réglages
+            </Link>
+            <div
+              style={{
+                height: 1,
+                background: "var(--color-border-default)",
+                margin: "4px 0",
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleSignOut}
+              disabled={signingOut}
+              role="menuitem"
+              style={{
+                width: "100%",
+                textAlign: "left",
+                padding: "10px 10px",
+                fontSize: 14,
+                color: "var(--color-brand)",
+                background: "transparent",
+                border: "none",
+                borderRadius: 10,
+                cursor: signingOut ? "wait" : "pointer",
+                opacity: signingOut ? 0.6 : 1,
+                transition: "background 150ms ease",
+              }}
+              className="hover:bg-[var(--color-surface-raised)]"
+            >
+              {signingOut ? "Déconnexion…" : "Se déconnecter"}
+            </button>
           </div>
         )}
       </div>
