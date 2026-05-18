@@ -34,7 +34,9 @@ export function SuggestTemplateCard({ variant }: SuggestCardProps) {
   return (
     <div
       style={{
-        background: 'rgba(224,98,90,0.03)',
+        background: 'rgba(255,255,255,0.82)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
         border: '2px dashed var(--color-border-default)',
         borderRadius: 16,
         padding: 28,
@@ -44,6 +46,7 @@ export function SuggestTemplateCard({ variant }: SuggestCardProps) {
         alignItems: 'flex-start',
         justifyContent: 'center',
         minHeight: 180,
+        boxShadow: 'var(--nc-shadow-3)',
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
