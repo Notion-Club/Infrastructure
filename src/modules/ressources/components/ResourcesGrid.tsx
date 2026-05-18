@@ -7,6 +7,7 @@ import type { ResourceItem, ResourceMetierType, UserCapability } from '../types'
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceCard } from './ResourceCard';
 import { TemplateCard } from './TemplateCard';
+import { SuggestTemplateCard } from './SuggestTemplateCard';
 
 type PrimaryFilter = 'Tout' | 'Ressources' | 'Templates';
 
@@ -337,6 +338,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               />
             )
           )}
+          <SuggestTemplateCard variant={primaryFilter} />
         </div>
       ) : (
         <div
