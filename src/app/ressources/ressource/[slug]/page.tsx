@@ -2,15 +2,15 @@ import { notFound } from 'next/navigation';
 import { Topbar } from '@/shared/components/dashboard/Topbar';
 import { MobileTopActions } from '@/shared/components/dashboard/mobile/MobileTopActions';
 import { BottomNav } from '@/shared/components/dashboard/mobile/BottomNav';
-import { getResourceBySlug } from '@/modules/ressources/lib/fetch';
+import { getResourceBySlug, getRelatedResources } from '@/modules/ressources/lib/fetch';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceBreadcrumb } from '@/modules/ressources/components/shared/ResourceBreadcrumb';
 import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBadge';
 import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
 import { CapabilityLock } from '@/modules/ressources/components/shared/CapabilityLock';
+import { ResourcePageFooter } from '@/modules/ressources/components/shared/ResourcePageFooter';
 import { canAccess } from '@/modules/ressources/lib/access';
 import type { ContentBlock } from '@/modules/ressources/types';
-import { MarkAsSeenButton } from './MarkAsSeenButton';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -139,6 +139,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
 
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const hasAccess = canAccess(mockCurrentUser.capability, resource!.visibilite);
+  const relatedResources = getRelatedResources(resource.relatedSlugs ?? []);
 
   return (
     <>
@@ -161,8 +162,18 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                 />
               </div>
 
-              {/* Header */}
-              <header style={{ marginBottom: 32, viewTransitionName: `card-${resource.slug}` }}>
+              {/* Encadré blanc : header + contenu complet */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  borderRadius: 20,
+                  padding: '32px',
+                  boxShadow: 'var(--nc-shadow-3)',
+                  marginBottom: 32,
+                  viewTransitionName: `card-${resource.slug}`,
+                }}
+              >
+                {/* Header */}
                 <h1
                   style={{
                     fontSize: 'clamp(36px, 5vw, 52px)',
@@ -199,34 +210,36 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                   <ResourceBadge variant="formation" label={resource.formation} />
                   <ResourceBadge variant="type" label={resource.type} />
                 </div>
-              </header>
 
-              <hr
-                style={{
-                  border: 'none',
-                  borderTop: '1px solid var(--color-border-default)',
-                  margin: '0 0 32px',
-                }}
-              />
+                {/* Séparateur */}
+                <hr
+                  style={{
+                    border: 'none',
+                    borderTop: '1px solid var(--color-border-default)',
+                    margin: '28px 0',
+                  }}
+                />
 
-              {/* Content */}
-              {hasAccess ? (
-                <>
+                {/* Contenu */}
+                {hasAccess ? (
                   <div>
                     {resource.content.map((block, idx) => renderBlock(block, idx))}
                   </div>
-                  <div style={{ marginTop: 48 }}>
-                    <MarkAsSeenButton />
-                  </div>
-                </>
-              ) : (
-                <CapabilityLock
-                  title={`Contenu réservé aux membres ${resource.visibilite}`}
-                  description={`Cette ressource est accessible à partir de l'offre ${resource.visibilite}. Rejoins le programme pour la débloquer ainsi que toute la bibliothèque correspondante.`}
-                  ctaLabel="Découvrir les offres"
-                  ctaHref="/offres"
-                />
-              )}
+                ) : (
+                  <CapabilityLock
+                    title={`Contenu réservé aux membres ${resource.visibilite}`}
+                    description={`Cette ressource est accessible à partir de l'offre ${resource.visibilite}. Rejoins le programme pour la débloquer ainsi que toute la bibliothèque correspondante.`}
+                    ctaLabel="Découvrir les offres"
+                    ctaHref="/offres"
+                  />
+                )}
+              </div>
+
+              {/* Footer unifié : bouton vu + ressources liées (conditionnel) */}
+              <ResourcePageFooter
+                relatedResources={relatedResources}
+                currentCapability={mockCurrentUser.capability}
+              />
             </div>
           </div>
         </main>

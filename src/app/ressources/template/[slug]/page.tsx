@@ -2,14 +2,13 @@ import { notFound } from 'next/navigation';
 import { Topbar } from '@/shared/components/dashboard/Topbar';
 import { MobileTopActions } from '@/shared/components/dashboard/mobile/MobileTopActions';
 import { BottomNav } from '@/shared/components/dashboard/mobile/BottomNav';
-import { getTemplateBySlug } from '@/modules/ressources/lib/fetch';
+import { getTemplateBySlug, getRelatedTemplates } from '@/modules/ressources/lib/fetch';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceBreadcrumb } from '@/modules/ressources/components/shared/ResourceBreadcrumb';
 import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBadge';
 import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
-import { CapabilityLock } from '@/modules/ressources/components/shared/CapabilityLock';
+import { TemplatePageFooter } from '@/modules/ressources/components/shared/TemplatePageFooter';
 import { canAccess } from '@/modules/ressources/lib/access';
-import { DuplicateButton } from './DuplicateButton';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -34,6 +33,7 @@ export default async function TemplateDetailPage({ params }: PageProps) {
   }
 
   const hasAccess = canAccess(mockCurrentUser.capability, template.visibilite);
+  const relatedTemplates = getRelatedTemplates(template.relatedSlugs ?? []);
 
   return (
     <>
@@ -56,8 +56,17 @@ export default async function TemplateDetailPage({ params }: PageProps) {
                 />
               </div>
 
-              {/* Header */}
-              <header style={{ marginBottom: 32, viewTransitionName: `card-${template.slug}` }}>
+              {/* Header card — title, description, badges, video */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  borderRadius: 20,
+                  padding: '32px',
+                  boxShadow: 'var(--nc-shadow-3)',
+                  marginBottom: 32,
+                  viewTransitionName: `card-${template.slug}`,
+                }}
+              >
                 <h1
                   style={{
                     fontSize: 'clamp(36px, 5vw, 52px)',
@@ -89,38 +98,20 @@ export default async function TemplateDetailPage({ params }: PageProps) {
                 >
                   {formatDate(template.dateCreation)}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: template.urlTella ? 24 : 0 }}>
                   <ResourceBadge variant="template" label="Template" />
                   <ResourceBadge variant="type" label={template.type} />
                 </div>
-              </header>
+                {template.urlTella && <TellaEmbed url={template.urlTella} />}
+              </div>
 
-              {/* Tella video preview */}
-              {template.urlTella && (
-                <div style={{ marginBottom: 32 }}>
-                  <TellaEmbed url={template.urlTella} />
-                </div>
-              )}
-
-              <hr
-                style={{
-                  border: 'none',
-                  borderTop: '1px solid var(--color-border-default)',
-                  margin: '0 0 32px',
-                }}
+              {/* Footer unifié : bouton dupliquer + templates liés (conditionnel) */}
+              <TemplatePageFooter
+                template={template}
+                hasAccess={hasAccess}
+                relatedTemplates={relatedTemplates}
+                currentCapability={mockCurrentUser.capability}
               />
-
-              {/* CTA or lock */}
-              {hasAccess ? (
-                <DuplicateButton url={template.urlNotionPublicPage} />
-              ) : (
-                <CapabilityLock
-                  title={`Template réservé aux membres ${template.visibilite}`}
-                  description={`Ce template est accessible à partir de l'offre ${template.visibilite}. Rejoins le programme pour le dupliquer dans ton espace Notion.`}
-                  ctaLabel="Découvrir les offres"
-                  ctaHref="/offres"
-                />
-              )}
             </div>
           </div>
         </main>
