@@ -23,6 +23,9 @@ export interface Resource {
   visibilite: ResourceVisibility;
   dateCreation: string;
   content: ContentBlock[];
+  // Slugs des ressources liées — relation Notion self-referencing.
+  // TODO(backend): alimenter depuis resources.related_resource_ids uuid[] en Supabase.
+  relatedSlugs?: string[];
 }
 
 export interface Template {
@@ -35,6 +38,9 @@ export interface Template {
   urlNotionPublicPage: string;
   urlTella?: string;
   dateCreation: string;
+  // Slugs des templates liés — relation Notion self-referencing.
+  // TODO(backend): alimenter depuis templates.related_template_ids uuid[] en Supabase.
+  relatedSlugs?: string[];
 }
 
 export type ResourceItem = Resource | Template;

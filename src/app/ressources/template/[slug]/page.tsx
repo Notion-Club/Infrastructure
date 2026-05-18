@@ -2,14 +2,13 @@ import { notFound } from 'next/navigation';
 import { Topbar } from '@/shared/components/dashboard/Topbar';
 import { MobileTopActions } from '@/shared/components/dashboard/mobile/MobileTopActions';
 import { BottomNav } from '@/shared/components/dashboard/mobile/BottomNav';
-import { getTemplateBySlug } from '@/modules/ressources/lib/fetch';
+import { getTemplateBySlug, getRelatedTemplates } from '@/modules/ressources/lib/fetch';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceBreadcrumb } from '@/modules/ressources/components/shared/ResourceBreadcrumb';
 import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBadge';
 import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
-import { CapabilityLock } from '@/modules/ressources/components/shared/CapabilityLock';
+import { TemplatePageFooter } from '@/modules/ressources/components/shared/TemplatePageFooter';
 import { canAccess } from '@/modules/ressources/lib/access';
-import { DuplicateButton } from './DuplicateButton';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -34,6 +33,7 @@ export default async function TemplateDetailPage({ params }: PageProps) {
   }
 
   const hasAccess = canAccess(mockCurrentUser.capability, template.visibilite);
+  const relatedTemplates = getRelatedTemplates(template.relatedSlugs ?? []);
 
   return (
     <>
@@ -110,17 +110,13 @@ export default async function TemplateDetailPage({ params }: PageProps) {
                 }}
               />
 
-              {/* CTA or lock */}
-              {hasAccess ? (
-                <DuplicateButton url={template.urlNotionPublicPage} />
-              ) : (
-                <CapabilityLock
-                  title={`Template réservé aux membres ${template.visibilite}`}
-                  description={`Ce template est accessible à partir de l'offre ${template.visibilite}. Rejoins le programme pour le dupliquer dans ton espace Notion.`}
-                  ctaLabel="Découvrir les offres"
-                  ctaHref="/offres"
-                />
-              )}
+              {/* Footer unifié : bouton dupliquer + templates liés (conditionnel) */}
+              <TemplatePageFooter
+                template={template}
+                hasAccess={hasAccess}
+                relatedTemplates={relatedTemplates}
+                currentCapability={mockCurrentUser.capability}
+              />
             </div>
           </div>
         </main>

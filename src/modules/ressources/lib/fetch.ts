@@ -12,3 +12,17 @@ export function getResourceBySlug(slug: string): Resource | undefined {
 export function getTemplateBySlug(slug: string): Template | undefined {
   return mockTemplates.find((t) => t.slug === slug);
 }
+
+// TODO(backend): remplacer par Supabase .from('resources').select().in('slug', slugs)
+// La colonne attendue : resources.related_resource_ids uuid[]
+export function getRelatedResources(slugs: string[]): Resource[] {
+  if (!slugs.length) return [];
+  return mockResources.filter((r) => slugs.includes(r.slug));
+}
+
+// TODO(backend): remplacer par Supabase .from('templates').select().in('slug', slugs)
+// La colonne attendue : templates.related_template_ids uuid[]
+export function getRelatedTemplates(slugs: string[]): Template[] {
+  if (!slugs.length) return [];
+  return mockTemplates.filter((t) => slugs.includes(t.slug));
+}
