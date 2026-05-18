@@ -1,16 +1,17 @@
 import { CallCard } from "@/shared/components/coaching/CallCard";
 import type { MockCall } from "@/shared/lib/mock/coaching";
 
+const EYES_URL =
+  "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Telegram-Animated-Emojis/e2eb0709f7ba004d73ce96e041865c95deeaf80a/People/Eyes.webp";
+
 interface PastCallsSectionProps {
   calls: MockCall[];
-  emptyMessage?: string;
   bannerText?: string;
   archived?: boolean;
 }
 
 export function PastCallsSection({
   calls,
-  emptyMessage = "Ton historique apparaîtra ici après ton premier coaching.",
   bannerText,
   archived = false,
 }: PastCallsSectionProps) {
@@ -46,18 +47,41 @@ export function PastCallsSection({
       )}
 
       {calls.length === 0 ? (
-        <p
+        <div
           style={{
-            fontSize: 14,
-            color: "var(--color-text-muted)",
-            margin: 0,
-            padding: "16px 0",
+            textAlign: "center",
+            padding: "40px 16px",
           }}
         >
-          {emptyMessage}
-        </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={EYES_URL}
+            alt=""
+            width={72}
+            height={72}
+            style={{ display: "block", margin: "0 auto 16px" }}
+          />
+          <p
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: "var(--color-text-secondary)",
+              margin: 0,
+              lineHeight: 1.45,
+            }}
+          >
+            On s&apos;est jamais appelé,<br />ça serait peut-être l&apos;occasion
+          </p>
+        </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, 1fr)",
+            gap: 12,
+            alignItems: "start",
+          }}
+        >
           {calls.map((call) => (
             <CallCard key={call.id} call={call} archived={archived} />
           ))}
