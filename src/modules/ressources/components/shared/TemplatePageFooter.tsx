@@ -1,12 +1,7 @@
 import type { Template, UserCapability } from '../../types';
 import { TemplateCard } from '../TemplateCard';
 
-const NotionIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 100 100" fill="none" aria-hidden="true">
-    <rect width="100" height="100" rx="14" fill="white" />
-    <path d="M24 20h52v8L48 72H76v8H24v-8l28-44H24V20z" fill="black" />
-  </svg>
-);
+const NOTION_LOGO = 'https://res.cloudinary.com/dceobxyts/image/upload/v1776790487/Logo_Notion_fgou5g.png';
 
 interface TemplatePageFooterProps {
   template: Template;
@@ -57,7 +52,8 @@ export function TemplatePageFooter({
           }}
           className="hover:opacity-85"
         >
-          <NotionIcon />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={NOTION_LOGO} alt="" width={18} height={18} style={{ borderRadius: 3 }} />
           Dupliquer dans Notion ✓
         </a>
       ) : (

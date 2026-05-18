@@ -41,7 +41,7 @@ export function BadgeWithDot({ type, color, children }: BadgeWithDotProps) {
       <span
         style={{
           ...baseStyle,
-          borderRadius: 9999,
+          borderRadius: 8,
           background: p.bg,
           color: p.text,
           border: 'none',

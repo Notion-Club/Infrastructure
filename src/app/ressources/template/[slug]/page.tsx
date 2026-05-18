@@ -56,8 +56,17 @@ export default async function TemplateDetailPage({ params }: PageProps) {
                 />
               </div>
 
-              {/* Header */}
-              <header style={{ marginBottom: 32, viewTransitionName: `card-${template.slug}` }}>
+              {/* Header card — title, description, badges, video */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  borderRadius: 20,
+                  padding: '32px',
+                  boxShadow: 'var(--nc-shadow-3)',
+                  marginBottom: 32,
+                  viewTransitionName: `card-${template.slug}`,
+                }}
+              >
                 <h1
                   style={{
                     fontSize: 'clamp(36px, 5vw, 52px)',
@@ -89,26 +98,12 @@ export default async function TemplateDetailPage({ params }: PageProps) {
                 >
                   {formatDate(template.dateCreation)}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: template.urlTella ? 24 : 0 }}>
                   <ResourceBadge variant="template" label="Template" />
                   <ResourceBadge variant="type" label={template.type} />
                 </div>
-              </header>
-
-              {/* Tella video preview */}
-              {template.urlTella && (
-                <div style={{ marginBottom: 32 }}>
-                  <TellaEmbed url={template.urlTella} />
-                </div>
-              )}
-
-              <hr
-                style={{
-                  border: 'none',
-                  borderTop: '1px solid var(--color-border-default)',
-                  margin: '0 0 32px',
-                }}
-              />
+                {template.urlTella && <TellaEmbed url={template.urlTella} />}
+              </div>
 
               {/* Footer unifié : bouton dupliquer + templates liés (conditionnel) */}
               <TemplatePageFooter

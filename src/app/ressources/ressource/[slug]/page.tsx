@@ -162,8 +162,17 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                 />
               </div>
 
-              {/* Header */}
-              <header style={{ marginBottom: 32, viewTransitionName: `card-${resource.slug}` }}>
+              {/* Header card */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  borderRadius: 20,
+                  padding: '32px',
+                  boxShadow: 'var(--nc-shadow-3)',
+                  marginBottom: 32,
+                  viewTransitionName: `card-${resource.slug}`,
+                }}
+              >
                 <h1
                   style={{
                     fontSize: 'clamp(36px, 5vw, 52px)',
@@ -200,15 +209,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                   <ResourceBadge variant="formation" label={resource.formation} />
                   <ResourceBadge variant="type" label={resource.type} />
                 </div>
-              </header>
-
-              <hr
-                style={{
-                  border: 'none',
-                  borderTop: '1px solid var(--color-border-default)',
-                  margin: '0 0 32px',
-                }}
-              />
+              </div>
 
               {/* Content */}
               {hasAccess ? (
