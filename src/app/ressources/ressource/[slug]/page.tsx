@@ -192,11 +192,12 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                     marginBottom: 16,
                   }}
                 >
-                  {resource.type} · {formatDate(resource.dateCreation)}
+                  {formatDate(resource.dateCreation)}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <ResourceBadge variant="ressource" label="Ressource" />
                   <ResourceBadge variant="formation" label={resource.formation} />
+                  <ResourceBadge variant="type" label={resource.type} />
                 </div>
               </header>
 
