@@ -8,7 +8,7 @@ import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import { SettingsCard, SettingsDivider } from "./SettingsCard";
 import type { UserOffer } from "./types";
 
-type Channel = "email" | "in_app" | "sms";
+type Channel = "email" | "in_app" | "whatsapp";
 
 type CategoryKey =
   | "new_modules"
@@ -39,7 +39,7 @@ const CATEGORIES: Category[] = [
 const CHANNELS: { key: Channel; label: string }[] = [
   { key: "email", label: "Email" },
   { key: "in_app", label: "In-app" },
-  { key: "sms", label: "SMS" },
+  { key: "whatsapp", label: "WhatsApp" },
 ];
 
 type PreferenceMap = Record<CategoryKey, Record<Channel, boolean>>;
@@ -48,7 +48,7 @@ const DEFAULT_PREFERENCES: PreferenceMap = CATEGORIES.reduce((acc, cat) => {
   acc[cat.key] = {
     email: true,
     in_app: true,
-    sms: false,
+    whatsapp: false,
   };
   return acc;
 }, {} as PreferenceMap);
@@ -69,7 +69,7 @@ export function NotificationsSection({
   isMocked,
 }: NotificationsSectionProps) {
   const [channels, setChannels] = useState<Record<Channel, boolean>>(
-    initialChannelDefaults ?? { email: true, in_app: true, sms: false },
+    initialChannelDefaults ?? { email: true, in_app: true, whatsapp: false },
   );
   const [prefs, setPrefs] = useState<PreferenceMap>(
     initialPreferences ?? DEFAULT_PREFERENCES,

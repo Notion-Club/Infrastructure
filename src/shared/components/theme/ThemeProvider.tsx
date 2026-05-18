@@ -8,11 +8,15 @@ import {
   type ReactNode,
 } from "react";
 
+// User-facing preference. "system" follows prefers-color-scheme.
+export type ThemePreference = "light" | "dark" | "system";
+// Effective theme applied to <html>.
 export type Theme = "light" | "dark";
 
 type ThemeContextValue = {
+  preference: ThemePreference;
   theme: Theme;
-  setTheme: (next: Theme) => void;
+  setPreference: (next: ThemePreference) => void;
   toggleTheme: () => void;
 };
 
@@ -27,19 +31,47 @@ function applyTheme(theme: Theme) {
   else root.classList.remove("dark");
 }
 
-function readTheme(): Theme {
+function systemTheme(): Theme {
   if (typeof window === "undefined") return "light";
+  if (typeof window.matchMedia !== "function") return "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
+
+function readPreference(): ThemePreference {
+  if (typeof window === "undefined") return "system";
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "dark" || stored === "light") return stored;
-  // The init script in layout.tsx already added/removed the `dark` class
-  // from <html>; trust that instead of querying matchMedia again.
-  return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  if (stored === "dark" || stored === "light" || stored === "system") {
+    return stored;
+  }
+  return "system";
+}
+
+function resolveTheme(pref: ThemePreference): Theme {
+  return pref === "system" ? systemTheme() : pref;
 }
 
 const listeners = new Set<() => void>();
 
 function subscribe(cb: () => void): () => void {
   listeners.add(cb);
+  // Also react to OS-level theme changes while "system" is active.
+  let media: MediaQueryList | null = null;
+  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+    media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => {
+      if (readPreference() === "system") {
+        applyTheme(systemTheme());
+        emit();
+      }
+    };
+    media.addEventListener("change", onChange);
+    return () => {
+      listeners.delete(cb);
+      media?.removeEventListener("change", onChange);
+    };
+  }
   return () => {
     listeners.delete(cb);
   };
@@ -49,34 +81,51 @@ function emit() {
   listeners.forEach((cb) => cb());
 }
 
-function writeTheme(theme: Theme) {
-  applyTheme(theme);
+function writePreference(pref: ThemePreference) {
+  applyTheme(resolveTheme(pref));
   try {
-    window.localStorage.setItem(STORAGE_KEY, theme);
+    window.localStorage.setItem(STORAGE_KEY, pref);
   } catch {
     // localStorage may be unavailable (private mode, quota); ignore.
   }
   emit();
 }
 
+function readSnapshot(): { preference: ThemePreference; theme: Theme } {
+  const preference = readPreference();
+  return { preference, theme: resolveTheme(preference) };
+}
+
+const SERVER_SNAPSHOT: { preference: ThemePreference; theme: Theme } = {
+  preference: "system",
+  theme: "light",
+};
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const theme = useSyncExternalStore<Theme>(
+  const snapshot = useSyncExternalStore(
     subscribe,
-    readTheme,
-    () => "light",
+    readSnapshot,
+    () => SERVER_SNAPSHOT,
   );
 
-  const setTheme = useCallback((next: Theme) => {
-    writeTheme(next);
+  const setPreference = useCallback((next: ThemePreference) => {
+    writePreference(next);
   }, []);
 
   const toggleTheme = useCallback(() => {
-    writeTheme(readTheme() === "dark" ? "light" : "dark");
+    // Toggle treats current effective theme: light ↔ dark, ignores system.
+    const current = readSnapshot().theme;
+    writePreference(current === "dark" ? "light" : "dark");
   }, []);
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ theme, setTheme, toggleTheme }),
-    [theme, setTheme, toggleTheme],
+    () => ({
+      preference: snapshot.preference,
+      theme: snapshot.theme,
+      setPreference,
+      toggleTheme,
+    }),
+    [snapshot.preference, snapshot.theme, setPreference, toggleTheme],
   );
 
   return (

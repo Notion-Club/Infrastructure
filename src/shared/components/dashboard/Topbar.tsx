@@ -94,6 +94,11 @@ export function Topbar() {
         zIndex: 50,
         padding: "14px 40px",
         background: "transparent",
+        // Force a fresh stacking context + GPU layer so `position: fixed`
+        // survives any parent that creates `isolation: isolate` or filters.
+        transform: "translateZ(0)",
+        willChange: "transform",
+        contain: "layout paint",
       }}
     >
       {/* Pill — élargie pour respirer avec 5 items de nav + groupe droit */}

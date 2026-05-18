@@ -6,13 +6,14 @@ import { LoaderCircle } from "lucide-react";
 import { Topbar } from "@/shared/components/dashboard/Topbar";
 import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
-import { SettingsHeader } from "@/shared/components/settings/SettingsHeader";
+import { ProfileHero } from "@/shared/components/settings/ProfileHero";
 import { ProfileSection } from "@/shared/components/settings/ProfileSection";
 import { SecuritySection } from "@/shared/components/settings/SecuritySection";
 import { SubscriptionSection } from "@/shared/components/settings/SubscriptionSection";
 import { NotificationsSection } from "@/shared/components/settings/NotificationsSection";
 import { AppearanceSection } from "@/shared/components/settings/AppearanceSection";
 import { DangerZone } from "@/shared/components/settings/DangerZone";
+import { DevPanel } from "@/shared/components/settings/DevPanel";
 import type {
   AuthIdentity,
   AuthUserShape,
@@ -21,12 +22,10 @@ import type {
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import {
   MOCK_AUTH_USER,
-  MOCK_PAYMENT_HISTORY,
-  MOCK_PAYMENT_METHOD,
   MOCK_PROFILE,
-  MOCK_SUBSCRIPTION,
   MOCK_USER_OFFER,
 } from "@/shared/lib/settings/mock-data";
+import { findScenario, type ScenarioId } from "@/shared/lib/settings/scenarios";
 
 type LoadState =
   | { status: "loading" }
@@ -39,6 +38,7 @@ type LoadState =
 
 export function SettingsClient() {
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [scenarioId, setScenarioId] = useState<ScenarioId>("default");
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +86,16 @@ export function SettingsClient() {
     };
   }, []);
 
+  const scenario = findScenario(scenarioId);
+
+  function patchAvatar(url: string) {
+    setState((prev) =>
+      prev.status === "ready"
+        ? { ...prev, profile: { ...prev.profile, avatar_url: url } }
+        : prev,
+    );
+  }
+
   return (
     <>
       <Topbar />
@@ -120,10 +130,13 @@ export function SettingsClient() {
               </div>
             ) : (
               <>
-                <SettingsHeader
+                <ProfileHero
+                  userId={state.user.id}
                   avatarUrl={state.profile.avatar_url}
                   displayName={state.profile.display_name}
                   email={state.user.email}
+                  isMocked={state.isMocked}
+                  onAvatarChange={patchAvatar}
                 />
                 {state.isMocked && (
                   <div
@@ -143,13 +156,14 @@ export function SettingsClient() {
                 )}
                 <ProfileSection
                   profile={state.profile}
+                  accountEmail={state.user.email}
                   isMocked={state.isMocked}
                 />
                 <SecuritySection user={state.user} isMocked={state.isMocked} />
                 <SubscriptionSection
-                  subscription={MOCK_SUBSCRIPTION}
-                  history={MOCK_PAYMENT_HISTORY}
-                  paymentMethod={MOCK_PAYMENT_METHOD}
+                  subscription={scenario.subscription}
+                  history={scenario.history}
+                  paymentMethod={scenario.paymentMethod}
                 />
                 <NotificationsSection
                   userId={state.user.id}
@@ -163,6 +177,8 @@ export function SettingsClient() {
           </div>
         </main>
       </div>
+
+      <DevPanel scenarioId={scenarioId} onScenarioChange={setScenarioId} />
     </>
   );
 }

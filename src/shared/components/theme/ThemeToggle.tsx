@@ -1,9 +1,20 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "@/shared/lib/hooks/useTheme";
+import type { ThemePreference } from "./ThemeProvider";
 
 type Variant = "compact" | "segmented";
+
+const SEGMENTED_OPTIONS: Array<{
+  value: ThemePreference;
+  label: string;
+  icon: typeof Sun;
+}> = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "system", label: "Système", icon: Monitor },
+  { value: "dark", label: "Dark", icon: Moon },
+];
 
 export function ThemeToggle({
   variant = "compact",
@@ -12,7 +23,7 @@ export function ThemeToggle({
   variant?: Variant;
   ariaLabel?: string;
 }) {
-  const { theme, setTheme, toggleTheme } = useTheme();
+  const { preference, theme, setPreference, toggleTheme } = useTheme();
   const isDark = theme === "dark";
 
   if (variant === "segmented") {
@@ -29,14 +40,13 @@ export function ThemeToggle({
           border: "1px solid var(--color-border-default)",
         }}
       >
-        {(["light", "dark"] as const).map((value) => {
-          const active = theme === value;
-          const Icon = value === "light" ? Sun : Moon;
+        {SEGMENTED_OPTIONS.map(({ value, label, icon: Icon }) => {
+          const active = preference === value;
           return (
             <button
               key={value}
               type="button"
-              onClick={() => setTheme(value)}
+              onClick={() => setPreference(value)}
               aria-pressed={active}
               style={{
                 display: "inline-flex",
@@ -57,7 +67,7 @@ export function ThemeToggle({
               }}
             >
               <Icon size={14} strokeWidth={active ? 2.5 : 2} />
-              {value === "light" ? "Light" : "Dark"}
+              {label}
             </button>
           );
         })}

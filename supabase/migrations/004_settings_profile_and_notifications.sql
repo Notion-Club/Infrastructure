@@ -35,7 +35,7 @@ create table if not exists public.notification_preferences (
                'billing'
              )),
   channel    text not null
-             check (channel in ('email', 'in_app', 'sms')),
+             check (channel in ('email', 'in_app', 'whatsapp')),
   enabled    boolean not null default true,
   updated_at timestamptz not null default now(),
   primary key (user_id, category, channel)

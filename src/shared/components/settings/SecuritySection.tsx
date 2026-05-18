@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
-import { Eye, EyeOff, LoaderCircle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { ChevronDown, Eye, EyeOff, KeyRound, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
+import { GoogleLogo } from "@/shared/components/ui/GoogleButton";
+import { GoogleButton } from "@/shared/components/ui/GoogleButton";
 import { SettingsCard, SettingsDivider } from "./SettingsCard";
 import type { AuthIdentity, AuthUserShape } from "./types";
 
@@ -31,7 +33,7 @@ export function SecuritySection({ user, isMocked }: SecuritySectionProps) {
     >
       {emailIdentity && (
         <>
-          <PasswordChangeForm isMocked={isMocked} />
+          <PasswordChangeBlock isMocked={isMocked} />
           <SettingsDivider />
         </>
       )}
@@ -44,9 +46,124 @@ export function SecuritySection({ user, isMocked }: SecuritySectionProps) {
   );
 }
 
-/* ------------------------- Password change ------------------------- */
+/* ------------------------- Password change (collapsible) ------------------------- */
 
-function PasswordChangeForm({ isMocked }: { isMocked: boolean }) {
+function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
+  const [open, setOpen] = useState(false);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [innerHeight, setInnerHeight] = useState(0);
+
+  useEffect(() => {
+    if (!innerRef.current) return;
+    const el = innerRef.current;
+    const update = () => setInnerHeight(el.scrollHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "12px 14px",
+          borderRadius: 12,
+          border: "1px solid var(--color-border-default)",
+          background: open ? "var(--color-surface-raised)" : "white",
+          cursor: "pointer",
+          width: "100%",
+          textAlign: "left",
+          transition: "background 150ms ease",
+        }}
+      >
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+          <span
+            aria-hidden
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              background: "var(--color-surface-raised)",
+              border: "1px solid var(--color-border-default)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-text-secondary)",
+            }}
+          >
+            <KeyRound size={14} />
+          </span>
+          <span
+            style={{
+              display: "inline-flex",
+              flexDirection: "column",
+              gap: 0,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "var(--color-text-primary)",
+              }}
+            >
+              Changer mon mot de passe
+            </span>
+            <span
+              style={{
+                fontSize: 12,
+                color: "var(--color-text-muted)",
+              }}
+            >
+              Minimum {MIN_PASSWORD_LENGTH} caractères.
+            </span>
+          </span>
+        </span>
+        <ChevronDown
+          size={16}
+          style={{
+            color: "var(--color-text-muted)",
+            transition: "transform 220ms ease",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        />
+      </button>
+
+      <div
+        style={{
+          overflow: "hidden",
+          transition:
+            "max-height 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease",
+          maxHeight: open ? innerHeight + 8 : 0,
+          opacity: open ? 1 : 0,
+        }}
+      >
+        <div ref={innerRef} style={{ paddingTop: 4 }}>
+          <PasswordChangeForm
+            isMocked={isMocked}
+            onSuccess={() => setOpen(false)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PasswordChangeForm({
+  isMocked,
+  onSuccess,
+}: {
+  isMocked: boolean;
+  onSuccess: () => void;
+}) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -93,6 +210,7 @@ function PasswordChangeForm({ isMocked }: { isMocked: boolean }) {
       setCurrent("");
       setNext("");
       setConfirm("");
+      onSuccess();
     } catch (err) {
       const message =
         err instanceof Error
@@ -107,18 +225,16 @@ function PasswordChangeForm({ isMocked }: { isMocked: boolean }) {
   return (
     <form
       onSubmit={handleSubmit}
-      style={{ display: "flex", flexDirection: "column", gap: 14 }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        padding: 14,
+        borderRadius: 12,
+        border: "1px solid var(--color-border-default)",
+        background: "white",
+      }}
     >
-      <h3
-        style={{
-          margin: 0,
-          fontSize: 14,
-          fontWeight: 600,
-          color: "var(--color-text-primary)",
-        }}
-      >
-        Changer mon mot de passe
-      </h3>
       <PasswordField
         id="current-password"
         label="Ancien mot de passe"
@@ -136,7 +252,6 @@ function PasswordChangeForm({ isMocked }: { isMocked: boolean }) {
         show={show}
         onToggleShow={() => setShow((s) => !s)}
         autoComplete="new-password"
-        hint={`Minimum ${MIN_PASSWORD_LENGTH} caractères`}
       />
       <PasswordField
         id="confirm-password"
@@ -168,13 +283,13 @@ function PasswordChangeForm({ isMocked }: { isMocked: boolean }) {
             display: "inline-flex",
             alignItems: "center",
             gap: 8,
-            padding: "10px 20px",
+            padding: "10px 18px",
             borderRadius: 9999,
             border: "none",
             background: "var(--color-brand)",
             color: "white",
             fontWeight: 600,
-            fontSize: 14,
+            fontSize: 13,
             cursor: canSubmit ? "pointer" : "not-allowed",
             opacity: canSubmit ? 1 : 0.5,
             transition: "opacity 150ms ease",
@@ -197,7 +312,6 @@ function PasswordField({
   show,
   onToggleShow,
   autoComplete,
-  hint,
 }: {
   id: string;
   label: string;
@@ -206,7 +320,6 @@ function PasswordField({
   show: boolean;
   onToggleShow: () => void;
   autoComplete?: string;
-  hint?: string;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -251,51 +364,11 @@ function PasswordField({
           {show ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
       </div>
-      {hint && (
-        <p
-          style={{
-            margin: 0,
-            fontSize: 12,
-            color: "var(--color-text-muted)",
-          }}
-        >
-          {hint}
-        </p>
-      )}
     </div>
   );
 }
 
 /* ------------------------- Google identity ------------------------- */
-
-function GoogleLogo({ size = 18 }: { size?: number }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      width={size}
-      height={size}
-      aria-hidden
-    >
-      <path
-        fill="#4285F4"
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.75h3.57c2.08-1.92 3.28-4.74 3.28-8.07z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.75c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.84 14.12a6.6 6.6 0 0 1 0-4.24V7.04H2.18a11.07 11.07 0 0 0 0 9.92l3.66-2.84z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 5.38c1.62 0 3.07.56 4.21 1.65l3.16-3.16C17.45 2.14 14.97 1 12 1 7.69 1 3.99 3.47 2.18 7.04l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"
-      />
-    </svg>
-  );
-}
 
 function getGoogleEmail(identity: AuthIdentity): string | null {
   const data = identity.identity_data;
@@ -353,7 +426,6 @@ function GoogleIdentityBlock({
         return;
       }
       const supabase = createSupabaseBrowserClient();
-      // unlinkIdentity expects a UserIdentity record from getUserIdentities.
       const { error } = await supabase.auth.unlinkIdentity(
         googleIdentity as Parameters<typeof supabase.auth.unlinkIdentity>[0],
       );
@@ -384,35 +456,11 @@ function GoogleIdentityBlock({
         >
           Connexion avec Google
         </h3>
-        <button
-          type="button"
+        <GoogleButton
+          label="Connecter avec Google"
+          loading={pending}
           onClick={linkGoogle}
-          disabled={pending}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-            width: "100%",
-            padding: "12px 20px",
-            borderRadius: 12,
-            border: "1px solid var(--color-border-default)",
-            background: "white",
-            color: "var(--color-text-primary)",
-            fontSize: 14,
-            fontWeight: 500,
-            cursor: pending ? "not-allowed" : "pointer",
-            opacity: pending ? 0.6 : 1,
-            transition: "background 150ms ease",
-          }}
-        >
-          {pending ? (
-            <LoaderCircle size={16} className="animate-spin" />
-          ) : (
-            <GoogleLogo />
-          )}
-          Connecter avec Google
-        </button>
+        />
       </div>
     );
   }
@@ -438,11 +486,11 @@ function GoogleIdentityBlock({
           gap: 12,
           padding: 14,
           borderRadius: 12,
-          border: "1px solid var(--color-border-default)",
+          border: "1px dashed var(--color-border-default)",
           background: "var(--color-surface-raised)",
         }}
       >
-        <GoogleLogo size={22} />
+        <GoogleLogo className="size-5" />
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
           <p
             style={{

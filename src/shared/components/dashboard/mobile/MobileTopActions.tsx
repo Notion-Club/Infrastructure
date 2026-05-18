@@ -78,6 +78,9 @@ export function MobileTopActions() {
         display: "flex",
         alignItems: "center",
         gap: 8,
+        // Force GPU layer so position:fixed isn't broken by ancestor filters.
+        transform: "translateZ(0)",
+        willChange: "transform",
       }}
     >
       {/* Notifications */}

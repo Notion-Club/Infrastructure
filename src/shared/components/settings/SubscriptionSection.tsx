@@ -11,7 +11,7 @@ import type {
 type SubscriptionSectionProps = {
   subscription: SubscriptionData;
   history: PaymentHistoryItem[];
-  paymentMethod: PaymentMethod;
+  paymentMethod: PaymentMethod | null;
 };
 
 const STATUS_LABEL: Record<SubscriptionStatus, string> = {
@@ -157,6 +157,18 @@ export function SubscriptionSection({
             background: "white",
           }}
         >
+          {history.length === 0 && (
+            <div
+              style={{
+                padding: "20px 14px",
+                fontSize: 13,
+                color: "var(--color-text-muted)",
+                textAlign: "center",
+              }}
+            >
+              Aucun paiement pour le moment.
+            </div>
+          )}
           {history.map((item, idx) => (
             <div
               key={item.id}
@@ -250,6 +262,21 @@ export function SubscriptionSection({
         >
           Moyen de paiement
         </h3>
+        {!paymentMethod ? (
+          <div
+            style={{
+              padding: "20px 14px",
+              fontSize: 13,
+              color: "var(--color-text-muted)",
+              textAlign: "center",
+              border: "1px dashed var(--color-border-default)",
+              borderRadius: 12,
+              background: "var(--color-surface-raised)",
+            }}
+          >
+            Aucun moyen de paiement enregistré.
+          </div>
+        ) : (
         <div
           style={{
             display: "flex",
@@ -328,6 +355,7 @@ export function SubscriptionSection({
             Modifier
           </button>
         </div>
+        )}
       </div>
     </SettingsCard>
   );
