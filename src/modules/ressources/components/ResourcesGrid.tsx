@@ -338,9 +338,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               />
             )
           )}
-          {(primaryFilter === 'Templates' || primaryFilter === 'Tout') && (
-            <SuggestTemplateCard />
-          )}
+          <SuggestTemplateCard variant={primaryFilter} />
         </div>
       ) : (
         <div

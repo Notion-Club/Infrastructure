@@ -4,7 +4,33 @@ import { Lightbulb } from 'lucide-react';
 
 const FILLOUT_FORM_URL = '#';
 
-export function SuggestTemplateCard() {
+type SuggestVariant = 'Tout' | 'Ressources' | 'Templates';
+
+const COPY: Record<SuggestVariant, { title: string; subtitle: string; button: string }> = {
+  Tout: {
+    title: 'Tu cherches une ressource ?',
+    subtitle: 'Nous développons les ressources dont tu as besoin. Clique pour renseigner ton idée.',
+    button: 'Suggérer une ressource',
+  },
+  Ressources: {
+    title: 'Tu cherches une ressource ?',
+    subtitle: 'Nous développons les ressources dont tu as besoin. Clique pour renseigner ton idée.',
+    button: 'Suggérer une ressource',
+  },
+  Templates: {
+    title: 'Tu cherches un template ?',
+    subtitle: 'Nous développons les templates dont tu as besoin. Clique pour renseigner ton idée.',
+    button: 'Suggérer un template',
+  },
+};
+
+interface SuggestCardProps {
+  variant: SuggestVariant;
+}
+
+export function SuggestTemplateCard({ variant }: SuggestCardProps) {
+  const copy = COPY[variant];
+
   return (
     <div
       style={{
@@ -31,7 +57,7 @@ export function SuggestTemplateCard() {
             letterSpacing: '-0.01em',
           }}
         >
-          Tu cherches un template ?
+          {copy.title}
         </h3>
         <p
           style={{
@@ -41,8 +67,7 @@ export function SuggestTemplateCard() {
             lineHeight: 1.6,
           }}
         >
-          Nous développons les templates dont tu as besoin.{' '}
-          Clique pour renseigner ton idée.
+          {copy.subtitle}
         </p>
       </div>
 
@@ -75,7 +100,7 @@ export function SuggestTemplateCard() {
         }}
       >
         <Lightbulb size={13} />
-        Suggérer un template
+        {copy.button}
       </a>
     </div>
   );
