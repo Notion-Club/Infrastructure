@@ -232,6 +232,17 @@
   animation: nc-mode-in var(--nc-duration-normal) var(--nc-ease) both;
 }
 
+@keyframes nc-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .nc-input {
   width: 100%;
   padding: 12px 16px;
