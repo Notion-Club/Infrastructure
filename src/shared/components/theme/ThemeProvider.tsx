@@ -13,6 +13,8 @@ export type ThemePreference = "light" | "dark" | "system";
 // Effective theme applied to <html>.
 export type Theme = "light" | "dark";
 
+type Snapshot = { preference: ThemePreference; theme: Theme };
+
 type ThemeContextValue = {
   preference: ThemePreference;
   theme: Theme;
@@ -41,9 +43,13 @@ function systemTheme(): Theme {
 
 function readPreference(): ThemePreference {
   if (typeof window === "undefined") return "system";
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "dark" || stored === "light" || stored === "system") {
-    return stored;
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === "dark" || stored === "light" || stored === "system") {
+      return stored;
+    }
+  } catch {
+    // localStorage may throw (private mode, sandboxed iframe); fall through.
   }
   return "system";
 }
@@ -52,33 +58,53 @@ function resolveTheme(pref: ThemePreference): Theme {
   return pref === "system" ? systemTheme() : pref;
 }
 
+// ── Store ────────────────────────────────────────────────────────────────
+// useSyncExternalStore requires getSnapshot() to be cached: if it returned
+// a fresh object every call, React would detect an infinite loop and abort
+// rendering ("This page couldn't load" on Vercel).
+const SERVER_SNAPSHOT: Snapshot = { preference: "system", theme: "light" };
+let currentSnapshot: Snapshot = SERVER_SNAPSHOT;
+
+function computeSnapshot(): Snapshot {
+  const preference = readPreference();
+  const theme = resolveTheme(preference);
+  // Reuse the cached object when nothing changed — Object.is identity matters.
+  if (
+    currentSnapshot.preference === preference &&
+    currentSnapshot.theme === theme
+  ) {
+    return currentSnapshot;
+  }
+  currentSnapshot = { preference, theme };
+  return currentSnapshot;
+}
+
 const listeners = new Set<() => void>();
+
+function emit() {
+  computeSnapshot();
+  listeners.forEach((cb) => cb());
+}
 
 function subscribe(cb: () => void): () => void {
   listeners.add(cb);
-  // Also react to OS-level theme changes while "system" is active.
+  // Track OS-level theme changes only when "system" is active.
   let media: MediaQueryList | null = null;
+  let onChange: (() => void) | null = null;
   if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
     media = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => {
+    onChange = () => {
       if (readPreference() === "system") {
         applyTheme(systemTheme());
         emit();
       }
     };
     media.addEventListener("change", onChange);
-    return () => {
-      listeners.delete(cb);
-      media?.removeEventListener("change", onChange);
-    };
   }
   return () => {
     listeners.delete(cb);
+    if (media && onChange) media.removeEventListener("change", onChange);
   };
-}
-
-function emit() {
-  listeners.forEach((cb) => cb());
 }
 
 function writePreference(pref: ThemePreference) {
@@ -86,26 +112,26 @@ function writePreference(pref: ThemePreference) {
   try {
     window.localStorage.setItem(STORAGE_KEY, pref);
   } catch {
-    // localStorage may be unavailable (private mode, quota); ignore.
+    // localStorage may be unavailable; ignore.
   }
   emit();
 }
 
-function readSnapshot(): { preference: ThemePreference; theme: Theme } {
-  const preference = readPreference();
-  return { preference, theme: resolveTheme(preference) };
+function getClientSnapshot(): Snapshot {
+  // Recompute the cached snapshot once per read so first-render-after-mount
+  // sees the real client value (localStorage / matchMedia).
+  return computeSnapshot();
 }
 
-const SERVER_SNAPSHOT: { preference: ThemePreference; theme: Theme } = {
-  preference: "system",
-  theme: "light",
-};
+function getServerSnapshot(): Snapshot {
+  return SERVER_SNAPSHOT;
+}
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const snapshot = useSyncExternalStore(
     subscribe,
-    readSnapshot,
-    () => SERVER_SNAPSHOT,
+    getClientSnapshot,
+    getServerSnapshot,
   );
 
   const setPreference = useCallback((next: ThemePreference) => {
@@ -113,8 +139,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleTheme = useCallback(() => {
-    // Toggle treats current effective theme: light ↔ dark, ignores system.
-    const current = readSnapshot().theme;
+    // Toggle works on the effective theme (light ↔ dark), persisting an
+    // explicit preference rather than leaving "system" mode untouched.
+    const current = computeSnapshot().theme;
     writePreference(current === "dark" ? "light" : "dark");
   }, []);
 
