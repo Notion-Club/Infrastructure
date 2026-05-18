@@ -20,73 +20,68 @@ interface ResourcePageFooterProps {
 }
 
 // TODO(backend): transmettre la date "vu le" depuis Supabase (table
-// user_resource_views) et persister le clic via un INSERT upsert.
+// user_resource_views) et persister le clic via un INSERT upsert sur
+// (user_id, resource_id).
 export function ResourcePageFooter({ relatedResources, currentCapability }: ResourcePageFooterProps) {
   const [seenAt, setSeenAt] = useState<Date | null>(null);
   const seen = seenAt !== null;
 
   return (
-    <div style={{ marginTop: 48 }}>
-      <hr
+    <div
+      style={{
+        marginTop: 48,
+        background: '#ffffff',
+        border: '1px solid var(--color-border-default)',
+        borderRadius: 20,
+        boxShadow: 'var(--nc-shadow-3)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Bouton pleine largeur — en-tête du bloc */}
+      <button
+        type="button"
+        onClick={() => setSeenAt(new Date())}
+        disabled={seen}
+        className={!seen ? 'nc-btn-shine' : ''}
         style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          padding: '18px 24px',
+          background: seen ? 'var(--color-surface-raised)' : 'var(--color-brand)',
+          color: seen ? 'var(--color-text-muted)' : '#ffffff',
+          fontSize: 15,
+          fontWeight: 600,
           border: 'none',
-          borderTop: '1px solid var(--color-border-default)',
-          margin: '0 0 32px',
+          borderBottom: '1px solid var(--color-border-default)',
+          cursor: seen ? 'default' : 'pointer',
+          transition: 'opacity 150ms ease',
         }}
-      />
-
-      {/* Marquer comme vue */}
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <button
-          type="button"
-          onClick={() => setSeenAt(new Date())}
-          disabled={seen}
-          className={!seen ? 'nc-btn-shine' : ''}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '12px 28px',
-            borderRadius: 9999,
-            fontSize: 14,
-            fontWeight: 600,
-            color: seen ? 'var(--color-text-muted)' : '#ffffff',
-            background: seen ? 'var(--color-surface-raised)' : 'var(--color-brand)',
-            border: '1px solid',
-            borderColor: seen ? 'var(--color-border-default)' : 'var(--color-brand)',
-            cursor: seen ? 'default' : 'pointer',
-            boxShadow: seen ? 'none' : '0 4px 16px rgba(224,98,90,0.35)',
-            transition: 'all 150ms ease',
-          }}
-        >
-          {seen && seenAt ? (
-            <>
-              <Check size={15} />
-              Vu le {formatSeenDate(seenAt)}
-            </>
-          ) : (
-            'Marquer comme vue'
-          )}
-        </button>
-      </div>
+      >
+        {seen && seenAt ? (
+          <>
+            <Check size={15} />
+            Vu le {formatSeenDate(seenAt)}
+          </>
+        ) : (
+          'Marquer comme vue'
+        )}
+      </button>
 
       {/* Ressources liées */}
       {relatedResources.length > 0 && (
-        <>
-          <hr
-            style={{
-              border: 'none',
-              borderTop: '1px solid var(--color-border-default)',
-              margin: '40px 0 28px',
-            }}
-          />
+        <div style={{ padding: '32px 24px' }}>
           <h2
             style={{
-              fontSize: 18,
+              fontSize: 'clamp(22px, 3.5vw, 28px)',
               fontWeight: 700,
-              letterSpacing: '-0.02em',
+              letterSpacing: '-0.03em',
               color: 'var(--color-text-primary)',
-              margin: '0 0 20px',
+              margin: '0 0 24px',
+              textAlign: 'center',
+              lineHeight: 1.25,
             }}
           >
             Ces ressources peuvent aussi t&apos;intéresser
@@ -94,7 +89,7 @@ export function ResourcePageFooter({ relatedResources, currentCapability }: Reso
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
               gap: 16,
             }}
           >
@@ -102,7 +97,7 @@ export function ResourcePageFooter({ relatedResources, currentCapability }: Reso
               <ResourceCard key={r.slug} resource={r} currentCapability={currentCapability} />
             ))}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
