@@ -1,10 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Phone } from "lucide-react";
 import type { MockCall } from "@/shared/lib/mock/coaching";
 
 const SUMMARY_CHAR_LIMIT = 300;
+
+const CHATGPT_LOGO =
+  "https://res.cloudinary.com/dceobxyts/image/upload/v1776436270/ChatGPT-Logo.svg_rip8m0.png";
+const CLAUDE_LOGO =
+  "https://res.cloudinary.com/dceobxyts/image/upload/v1777030411/IMG_1961_flp3vm.png";
+
+function buildAIPrompt(host: string, transcript: string): string {
+  return `Dans le cadre de mes projets autour de Notion, je vais te poser des questions sur base de la transcription de l'appel que j'ai eu avec ${host}, coach au notionclub.fr : ${transcript}`;
+}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -253,6 +263,80 @@ export function CallCard({ call, archived = false }: CallCardProps) {
               Résumé généré par IA, peut contenir des imprécisions
             </span>
           </p>
+
+          {/* "Ask AI" buttons — pré-remplissent la transcription dans ChatGPT/Claude */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 8,
+              marginTop: 14,
+            }}
+          >
+            <a
+              href={`https://chatgpt.com/?q=${encodeURIComponent(
+                buildAIPrompt(call.host, call.ai_summary!)
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                padding: "7px 14px",
+                background: "#ffffff",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: 9999,
+                fontSize: 13,
+                fontWeight: 500,
+                color: "var(--color-text-primary)",
+                textDecoration: "none",
+                transition: "background 150ms ease, border-color 150ms ease",
+              }}
+              className="hover:bg-[#f5f5f5] hover:border-[#d4d4d8]"
+            >
+              <Image
+                src={CHATGPT_LOGO}
+                alt=""
+                width={16}
+                height={16}
+                style={{ display: "block", flexShrink: 0 }}
+              />
+              Demander à ChatGPT
+            </a>
+
+            <a
+              href={`https://claude.ai/new?q=${encodeURIComponent(
+                buildAIPrompt(call.host, call.ai_summary!)
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                padding: "7px 14px",
+                background: "#ffffff",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: 9999,
+                fontSize: 13,
+                fontWeight: 500,
+                color: "var(--color-text-primary)",
+                textDecoration: "none",
+                transition: "background 150ms ease, border-color 150ms ease",
+              }}
+              className="hover:bg-[#f5f5f5] hover:border-[#d4d4d8]"
+            >
+              <Image
+                src={CLAUDE_LOGO}
+                alt=""
+                width={16}
+                height={16}
+                style={{ display: "block", flexShrink: 0, borderRadius: 3 }}
+              />
+              Demander à Claude
+            </a>
+          </div>
         </>
       )}
     </div>
