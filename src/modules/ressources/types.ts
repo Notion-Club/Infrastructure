@@ -23,6 +23,9 @@ export interface Resource {
   visibilite: ResourceVisibility;
   dateCreation: string;
   content: ContentBlock[];
+  // Slugs des ressources liées — relation Notion self-referencing sur la même base.
+  // TODO(backend): remplacer par la propriété de relation Notion / Supabase foreign keys.
+  relatedSlugs?: string[];
 }
 
 export interface Template {
@@ -35,6 +38,9 @@ export interface Template {
   urlNotionPublicPage: string;
   urlTella?: string;
   dateCreation: string;
+  // Slugs des templates liés — relation Notion self-referencing sur la même base.
+  // TODO(backend): remplacer par la propriété de relation Notion / Supabase foreign keys.
+  relatedSlugs?: string[];
 }
 
 export type ResourceItem = Resource | Template;

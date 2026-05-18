@@ -2,12 +2,13 @@ import { notFound } from 'next/navigation';
 import { Topbar } from '@/shared/components/dashboard/Topbar';
 import { MobileTopActions } from '@/shared/components/dashboard/mobile/MobileTopActions';
 import { BottomNav } from '@/shared/components/dashboard/mobile/BottomNav';
-import { getTemplateBySlug } from '@/modules/ressources/lib/fetch';
+import { getTemplateBySlug, getRelatedTemplates } from '@/modules/ressources/lib/fetch';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceBreadcrumb } from '@/modules/ressources/components/shared/ResourceBreadcrumb';
 import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBadge';
 import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
 import { CapabilityLock } from '@/modules/ressources/components/shared/CapabilityLock';
+import { RelatedItems } from '@/modules/ressources/components/shared/RelatedItems';
 import { canAccess } from '@/modules/ressources/lib/access';
 import { DuplicateButton } from './DuplicateButton';
 
@@ -34,6 +35,7 @@ export default async function TemplateDetailPage({ params }: PageProps) {
   }
 
   const hasAccess = canAccess(mockCurrentUser.capability, template.visibilite);
+  const relatedTemplates = getRelatedTemplates(template.relatedSlugs ?? []);
 
   return (
     <>
@@ -121,6 +123,13 @@ export default async function TemplateDetailPage({ params }: PageProps) {
                   ctaHref="/offres"
                 />
               )}
+
+              {/* Related templates */}
+              <RelatedItems
+                items={relatedTemplates}
+                currentCapability={mockCurrentUser.capability}
+                heading="Templates liés"
+              />
             </div>
           </div>
         </main>

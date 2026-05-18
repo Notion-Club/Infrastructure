@@ -4,6 +4,7 @@ export const mockResources: Resource[] = [
   {
     category: 'resource',
     slug: 'creer-systeme-veille-notion',
+    relatedSlugs: ['automatiser-processus-client', 'structurer-offre-conseil-notion'],
     titre: 'Créer un système de veille avec Notion',
     description: 'Apprenez à construire un système de veille informationnelle complet dans Notion pour rester à jour dans votre domaine sans perdre de temps.',
     formation: 'Notion Architecte',
@@ -29,6 +30,7 @@ export const mockResources: Resource[] = [
   {
     category: 'resource',
     slug: 'structurer-offre-conseil-notion',
+    relatedSlugs: ['construire-crm-client-notion', 'automatiser-processus-client'],
     titre: 'Structurer son offre de conseil Notion',
     description: 'Découvrez comment définir et présenter votre offre de services en tant que consultant Notion pour attirer les bons clients et maximiser votre valeur perçue.',
     formation: 'Notion Architecte',
@@ -51,6 +53,7 @@ export const mockResources: Resource[] = [
   {
     category: 'resource',
     slug: 'automatiser-processus-client',
+    relatedSlugs: ['construire-crm-client-notion', 'creer-systeme-veille-notion'],
     titre: 'Automatiser les processus client avec Notion',
     description: 'Utilisez les automatisations natives de Notion et les intégrations Zapier/Make pour créer des flux de travail client qui tournent sans intervention manuelle.',
     formation: 'Notion Architecte',
@@ -75,6 +78,7 @@ export const mockResources: Resource[] = [
   {
     category: 'resource',
     slug: 'piloter-business-avec-notion',
+    relatedSlugs: ['gerer-equipe-commerciale-notion', 'construire-crm-client-notion'],
     titre: 'Piloter son business avec Notion',
     description: 'Créez un tableau de bord central pour suivre vos finances, vos projets clients et vos objectifs de croissance depuis un seul espace Notion.',
     formation: 'Notion Business',
@@ -98,6 +102,7 @@ export const mockResources: Resource[] = [
   {
     category: 'resource',
     slug: 'gerer-equipe-commerciale-notion',
+    relatedSlugs: ['construire-crm-client-notion', 'piloter-business-avec-notion'],
     titre: 'Gérer son équipe commerciale avec Notion',
     description: 'Implémentez un système de management commercial dans Notion pour suivre les performances, aligner l\'équipe et atteindre vos objectifs de vente.',
     formation: 'Notion Business',
@@ -122,6 +127,7 @@ export const mockResources: Resource[] = [
   {
     category: 'resource',
     slug: 'construire-crm-client-notion',
+    relatedSlugs: ['gerer-equipe-commerciale-notion', 'automatiser-processus-client'],
     titre: 'Construire un CRM client dans Notion',
     description: 'Guide complet pour créer un CRM sur mesure dans Notion qui centralise toutes les informations clients et facilite le suivi des relations commerciales.',
     formation: 'Notion Business',
@@ -149,6 +155,7 @@ export const mockTemplates: Template[] = [
   {
     category: 'template',
     slug: 'template-suivi-mission',
+    relatedSlugs: ['template-crm-client', 'template-dashboard-perso'],
     titre: 'Template Suivi de Mission',
     description: 'Un espace complet pour piloter une mission de conseil Notion : brief client, livrables, suivi des heures et reporting final.',
     type: 'Pour les consultants Notion',
@@ -160,6 +167,7 @@ export const mockTemplates: Template[] = [
   {
     category: 'template',
     slug: 'template-crm-client',
+    relatedSlugs: ['template-suivi-mission', 'template-dashboard-perso'],
     titre: 'Template CRM Client',
     description: 'Un CRM léger et efficace pour gérer vos prospects et clients : pipeline de vente, fiches contact et suivi des interactions.',
     type: 'Pour les consultants Notion',
@@ -171,6 +179,7 @@ export const mockTemplates: Template[] = [
   {
     category: 'template',
     slug: 'template-second-cerveau',
+    relatedSlugs: ['template-dashboard-perso'],
     titre: 'Template Second Cerveau',
     description: 'Un système de gestion des connaissances inspiré de la méthode PARA pour capturer, organiser et retrouver toutes vos informations.',
     type: 'Système Généraliste',
@@ -181,6 +190,7 @@ export const mockTemplates: Template[] = [
   {
     category: 'template',
     slug: 'template-dashboard-perso',
+    relatedSlugs: ['template-second-cerveau', 'template-suivi-mission'],
     titre: 'Template Dashboard Personnel',
     description: 'Un tableau de bord de vie pour suivre vos objectifs, habitudes, finances et projets personnels depuis un seul endroit.',
     type: 'Système Généraliste',

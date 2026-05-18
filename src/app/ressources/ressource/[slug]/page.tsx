@@ -2,12 +2,13 @@ import { notFound } from 'next/navigation';
 import { Topbar } from '@/shared/components/dashboard/Topbar';
 import { MobileTopActions } from '@/shared/components/dashboard/mobile/MobileTopActions';
 import { BottomNav } from '@/shared/components/dashboard/mobile/BottomNav';
-import { getResourceBySlug } from '@/modules/ressources/lib/fetch';
+import { getResourceBySlug, getRelatedResources } from '@/modules/ressources/lib/fetch';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceBreadcrumb } from '@/modules/ressources/components/shared/ResourceBreadcrumb';
 import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBadge';
 import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
 import { CapabilityLock } from '@/modules/ressources/components/shared/CapabilityLock';
+import { RelatedItems } from '@/modules/ressources/components/shared/RelatedItems';
 import { canAccess } from '@/modules/ressources/lib/access';
 import type { ContentBlock } from '@/modules/ressources/types';
 import { MarkAsSeenButton } from './MarkAsSeenButton';
@@ -139,6 +140,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
 
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const hasAccess = canAccess(mockCurrentUser.capability, resource!.visibilite);
+  const relatedResources = getRelatedResources(resource.relatedSlugs ?? []);
 
   return (
     <>
@@ -227,6 +229,13 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                   ctaHref="/offres"
                 />
               )}
+
+              {/* Related resources */}
+              <RelatedItems
+                items={relatedResources}
+                currentCapability={mockCurrentUser.capability}
+                heading="Ressources liées"
+              />
             </div>
           </div>
         </main>
