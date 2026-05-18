@@ -75,12 +75,8 @@ export function PastCallsSection({
         </div>
       ) : (
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
-            gap: 12,
-            alignItems: "start",
-          }}
+          className="grid grid-cols-1 md:grid-cols-2"
+          style={{ gap: 12, alignItems: "start" }}
         >
           {calls.map((call) => (
             <CallCard key={call.id} call={call} archived={archived} />
