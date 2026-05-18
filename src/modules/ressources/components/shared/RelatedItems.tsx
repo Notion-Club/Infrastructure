@@ -13,31 +13,17 @@ export function RelatedItems({ items, currentCapability, heading }: RelatedItems
 
   return (
     <section style={{ marginTop: 56 }}>
-      <div style={{ marginBottom: 24 }}>
-        <p
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '0.07em',
-            textTransform: 'uppercase',
-            color: 'var(--color-text-muted)',
-            margin: '0 0 6px',
-          }}
-        >
-          Voir aussi
-        </p>
-        <h2
-          style={{
-            fontSize: 18,
-            fontWeight: 700,
-            letterSpacing: '-0.02em',
-            color: 'var(--color-text-primary)',
-            margin: 0,
-          }}
-        >
-          {heading}
-        </h2>
-      </div>
+      <h2
+        style={{
+          fontSize: 18,
+          fontWeight: 700,
+          letterSpacing: '-0.02em',
+          color: 'var(--color-text-primary)',
+          margin: '0 0 20px',
+        }}
+      >
+        {heading}
+      </h2>
 
       <div
         style={{

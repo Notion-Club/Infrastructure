@@ -8,10 +8,9 @@ import { ResourceBreadcrumb } from '@/modules/ressources/components/shared/Resou
 import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBadge';
 import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
 import { CapabilityLock } from '@/modules/ressources/components/shared/CapabilityLock';
-import { RelatedItems } from '@/modules/ressources/components/shared/RelatedItems';
+import { ResourcePageFooter } from '@/modules/ressources/components/shared/ResourcePageFooter';
 import { canAccess } from '@/modules/ressources/lib/access';
 import type { ContentBlock } from '@/modules/ressources/types';
-import { MarkAsSeenButton } from './MarkAsSeenButton';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -213,14 +212,9 @@ export default async function ResourceDetailPage({ params }: PageProps) {
 
               {/* Content */}
               {hasAccess ? (
-                <>
-                  <div>
-                    {resource.content.map((block, idx) => renderBlock(block, idx))}
-                  </div>
-                  <div style={{ marginTop: 48 }}>
-                    <MarkAsSeenButton />
-                  </div>
-                </>
+                <div>
+                  {resource.content.map((block, idx) => renderBlock(block, idx))}
+                </div>
               ) : (
                 <CapabilityLock
                   title={`Contenu réservé aux membres ${resource.visibilite}`}
@@ -230,11 +224,10 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                 />
               )}
 
-              {/* Related resources */}
-              <RelatedItems
-                items={relatedResources}
+              {/* Footer unifié : bouton vu + ressources liées */}
+              <ResourcePageFooter
+                relatedResources={relatedResources}
                 currentCapability={mockCurrentUser.capability}
-                heading="Ressources liées"
               />
             </div>
           </div>

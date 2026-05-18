@@ -128,7 +128,7 @@ export default async function TemplateDetailPage({ params }: PageProps) {
               <RelatedItems
                 items={relatedTemplates}
                 currentCapability={mockCurrentUser.capability}
-                heading="Templates liés"
+                heading="Ces templates peuvent aussi t'intéresser"
               />
             </div>
           </div>
