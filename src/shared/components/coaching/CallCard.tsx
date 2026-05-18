@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Phone } from "lucide-react";
+import { AlignJustify, X } from "lucide-react";
 import type { MockCall } from "@/shared/lib/mock/coaching";
 
-const SUMMARY_CHAR_LIMIT = 300;
+// Au branchement backend — remplacer par de vraies URLs Cloudinary pour les photos de profil des coaches
+const HOST_PROFILES: Record<string, { initials: string; bg: string }> = {
+  Théo: { initials: "TG", bg: "#e0625a" },
+  Noah: { initials: "NL", bg: "#7c3aed" },
+};
 
 const CHATGPT_LOGO =
   "https://res.cloudinary.com/dceobxyts/image/upload/v1776436270/ChatGPT-Logo.svg_rip8m0.png";
@@ -16,27 +20,20 @@ function buildAIPrompt(host: string, transcript: string): string {
   return `Dans le cadre de mes projets autour de Notion, je vais te poser des questions sur base de la transcription de l'appel que j'ai eu avec ${host}, coach au notionclub.fr : ${transcript}`;
 }
 
-function formatDate(iso: string): string {
+function formatDateLong(iso: string): string {
   const d = new Date(iso);
-  const day = d.toLocaleDateString("fr-FR", {
+  const datePart = d.toLocaleDateString("fr-FR", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
   });
-  const time = d.toLocaleTimeString("fr-FR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  return day.charAt(0).toUpperCase() + day.slice(1) + ", " + time;
+  return "Le " + datePart;
 }
 
 function getUpcomingLabel(iso: string): string {
-  const now = new Date();
-  const callDate = new Date(iso);
   const diffDays = Math.ceil(
-    (callDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    (new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
   );
   if (diffDays <= 0) return "Aujourd'hui";
   if (diffDays === 1) return "Demain";
@@ -46,7 +43,7 @@ function getUpcomingLabel(iso: string): string {
 const STATUS_STYLES = {
   accepted: { bg: "#dcfce7", text: "#166534", label: "Effectué" },
   no_show: { bg: "#fee2e2", text: "#991b1b", label: "No-show" },
-  upcoming: { bg: "#fef3f2", text: "#e0625a", label: "" }, // dynamic label
+  upcoming: { bg: "#fef3f2", text: "#e0625a", label: "" },
 } as const;
 
 interface CallCardProps {
@@ -55,289 +52,398 @@ interface CallCardProps {
 }
 
 export function CallCard({ call, archived = false }: CallCardProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
 
   const isUpcoming = call.status === "upcoming";
+  const isExpandable = !isUpcoming;
   const hasSummary = !!call.ai_summary;
-  const isTruncatable =
-    hasSummary && call.ai_summary!.length > SUMMARY_CHAR_LIMIT;
-
   const statusStyle = STATUS_STYLES[call.status];
-  const pillLabel = isUpcoming
-    ? getUpcomingLabel(call.date)
-    : statusStyle.label;
+  const host = HOST_PROFILES[call.host] ?? { initials: call.host[0], bg: "#6b7280" };
+
+  function handleToggle() {
+    if (!isExpandable) return;
+    if (isOpen) setSummaryExpanded(false);
+    setIsOpen((o) => !o);
+  }
 
   return (
     <div
       style={{
         background: "#ffffff",
-        border: "1px solid var(--color-border-default)",
-        borderRadius: 16,
-        padding: "20px 24px",
+        border: `1px solid ${isOpen ? "rgba(224,98,90,0.25)" : "var(--color-border-default)"}`,
+        borderRadius: 14,
+        overflow: "hidden",
         opacity: archived ? 0.75 : 1,
-        transition: "box-shadow 200ms ease",
-        position: "relative",
+        transition: "border-color 200ms ease, box-shadow 200ms ease",
+        boxShadow: isOpen
+          ? "0 4px 24px rgba(224,98,90,0.07), 0 1px 3px rgba(0,0,0,0.04)"
+          : "none",
       }}
-      className="hover:shadow-[0_4px_24px_rgba(0,0,0,0.08)]"
     >
-      {/* Archived tag */}
-      {archived && (
-        <span
-          style={{
-            position: "absolute",
-            top: 16,
-            right: 16,
-            fontSize: 11,
-            fontWeight: 600,
-            color: "#6b7280",
-            background: "#f3f4f6",
-            border: "1px solid #e5e7eb",
-            borderRadius: 9999,
-            padding: "2px 8px",
-          }}
-        >
-          Archivé
-        </span>
-      )}
-
-      {/* Header row */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            background: "rgba(224, 98, 90, 0.08)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            marginTop: 2,
-          }}
-        >
-          <Phone size={16} style={{ color: "var(--color-brand)" }} />
-        </div>
-
+      {/* ── Header ─────────────────────────────────────────────── */}
+      <div
+        role={isExpandable ? "button" : undefined}
+        tabIndex={isExpandable ? 0 : undefined}
+        onClick={handleToggle}
+        onKeyDown={(e) => e.key === "Enter" && handleToggle()}
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "16px 18px",
+          cursor: isExpandable ? "pointer" : "default",
+          userSelect: "none",
+          background: isOpen ? "rgba(224,98,90,0.025)" : "transparent",
+          transition: "background 200ms ease",
+        }}
+        className={isExpandable ? "hover:bg-[rgba(0,0,0,0.018)]" : ""}
+      >
+        {/* Left — title + date + host */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "var(--color-text-primary)",
-              margin: 0,
-              lineHeight: 1.4,
-            }}
-          >
-            {formatDate(call.date)}
-          </p>
-          <p
-            style={{
-              fontSize: 13,
-              color: "var(--color-text-muted)",
-              margin: "2px 0 0",
-            }}
-          >
-            avec {call.host}
-          </p>
-        </div>
-      </div>
-
-      {/* Status pill */}
-      <div style={{ marginTop: 12 }}>
-        <span
-          style={{
-            display: "inline-block",
-            fontSize: 12,
-            fontWeight: 600,
-            color: statusStyle.text,
-            background: statusStyle.bg,
-            borderRadius: 9999,
-            padding: "3px 10px",
-          }}
-        >
-          {pillLabel}
-        </span>
-      </div>
-
-      {/* Subject */}
-      <div style={{ marginTop: 14 }}>
-        <p
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "var(--color-text-muted)",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            margin: "0 0 4px",
-          }}
-        >
-          Objet de la demande
-        </p>
-        <p
-          style={{
-            fontSize: 14,
-            color: "var(--color-text-secondary)",
-            margin: 0,
-            fontStyle: "italic",
-          }}
-        >
-          &ldquo;{call.subject}&rdquo;
-        </p>
-      </div>
-
-      {/* AI Summary (past calls only) */}
-      {hasSummary && (
-        <>
-          <div
-            style={{
-              height: 1,
-              background: "var(--color-border-default)",
-              margin: "16px 0",
-            }}
-          />
-
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--color-text-muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              margin: "0 0 8px",
-            }}
-          >
-            Résumé du coaching
-          </p>
-
-          <div
-            style={{
-              overflow: "hidden",
-              maxHeight: expanded ? 9999 : 80,
-              transition: "max-height 350ms cubic-bezier(0.22, 1, 0.36, 1)",
-            }}
-          >
-            <p
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <h2
               style={{
-                fontSize: 14,
-                color: "var(--color-text-secondary)",
-                lineHeight: 1.65,
+                fontSize: 15,
+                fontWeight: 700,
+                color: "var(--color-text-primary)",
                 margin: 0,
+                lineHeight: 1.3,
+                letterSpacing: "-0.01em",
               }}
             >
-              {call.ai_summary}
-            </p>
+              {call.subject}
+            </h2>
+            {archived && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: "#6b7280",
+                  background: "#f3f4f6",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 9999,
+                  padding: "1px 7px",
+                  flexShrink: 0,
+                }}
+              >
+                Archivé
+              </span>
+            )}
           </div>
 
-          {isTruncatable && (
-            <button
-              type="button"
-              onClick={() => setExpanded((e) => !e)}
+          {/* Date + host avatar */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              marginTop: 5,
+              flexWrap: "wrap",
+            }}
+          >
+            <span
               style={{
-                background: "none",
-                border: "none",
-                padding: "6px 0 0",
+                fontSize: 13,
+                color: "var(--color-text-muted)",
+                lineHeight: 1,
+              }}
+            >
+              {formatDateLong(call.date)} avec
+            </span>
+
+            {/* Host avatar */}
+            <div
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                background: host.bg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 8,
+                  fontWeight: 700,
+                  color: "#fff",
+                  letterSpacing: "0.02em",
+                  lineHeight: 1,
+                }}
+              >
+                {host.initials}
+              </span>
+            </div>
+
+            <span
+              style={{
                 fontSize: 13,
                 fontWeight: 600,
-                color: "var(--color-brand)",
-                cursor: "pointer",
-                display: "block",
+                color: "var(--color-text-secondary)",
+                lineHeight: 1,
               }}
             >
-              {expanded ? "Voir moins ↑" : "Voir plus →"}
-            </button>
-          )}
+              {call.host}
+            </span>
 
-          {/* Warning IA */}
-          <p
+            {/* Pill "À venir" pour les calls non expandables */}
+            {isUpcoming && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: statusStyle.text,
+                  background: statusStyle.bg,
+                  borderRadius: 9999,
+                  padding: "2px 9px",
+                  flexShrink: 0,
+                }}
+              >
+                {getUpcomingLabel(call.date)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Right — toggle icon (burger → croix) */}
+        {isExpandable && (
+          <div
+            aria-label={isOpen ? "Fermer les détails" : "Voir les détails"}
             style={{
-              fontSize: 12,
-              color: "#6b7280",
-              margin: "10px 0 0",
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              background: isOpen
+                ? "rgba(224,98,90,0.1)"
+                : "rgba(0,0,0,0.05)",
               display: "flex",
-              alignItems: "flex-start",
-              gap: 4,
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              marginTop: 1,
+              position: "relative",
+              transition: "background 200ms ease",
             }}
           >
-            <span>⚠️</span>
-            <span>
-              Résumé généré par IA, peut contenir des imprécisions
-            </span>
-          </p>
+            {/* Burger icon */}
+            <AlignJustify
+              size={15}
+              style={{
+                position: "absolute",
+                color: isOpen ? "var(--color-brand)" : "var(--color-text-muted)",
+                opacity: isOpen ? 0 : 1,
+                transform: isOpen ? "rotate(90deg) scale(0.6)" : "rotate(0) scale(1)",
+                transition:
+                  "opacity 220ms cubic-bezier(0.22,1,0.36,1), transform 220ms cubic-bezier(0.22,1,0.36,1)",
+              }}
+            />
+            {/* X icon */}
+            <X
+              size={15}
+              style={{
+                position: "absolute",
+                color: "var(--color-brand)",
+                opacity: isOpen ? 1 : 0,
+                transform: isOpen ? "rotate(0) scale(1)" : "rotate(-90deg) scale(0.6)",
+                transition:
+                  "opacity 220ms cubic-bezier(0.22,1,0.36,1), transform 220ms cubic-bezier(0.22,1,0.36,1)",
+              }}
+            />
+          </div>
+        )}
+      </div>
 
-          {/* "Ask AI" buttons — pré-remplissent la transcription dans ChatGPT/Claude */}
+      {/* ── Expandable body ────────────────────────────────────── */}
+      {isExpandable && (
+        <div
+          style={{
+            maxHeight: isOpen ? 640 : 0,
+            overflow: "hidden",
+            transition: "max-height 400ms cubic-bezier(0.22,1,0.36,1)",
+          }}
+        >
           <div
             style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 8,
-              marginTop: 14,
+              padding: "0 18px 18px",
+              borderTop: "1px solid var(--color-border-default)",
+              paddingTop: 16,
             }}
           >
-            <a
-              href={`https://chatgpt.com/?q=${encodeURIComponent(
-                buildAIPrompt(call.host, call.ai_summary!)
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            {/* Status pill */}
+            <span
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 7,
-                padding: "7px 14px",
-                background: "#ffffff",
-                border: "1px solid var(--color-border-default)",
+                display: "inline-block",
+                fontSize: 12,
+                fontWeight: 600,
+                color: statusStyle.text,
+                background: statusStyle.bg,
                 borderRadius: 9999,
-                fontSize: 13,
-                fontWeight: 500,
-                color: "var(--color-text-primary)",
-                textDecoration: "none",
-                transition: "background 150ms ease, border-color 150ms ease",
+                padding: "3px 10px",
+                marginBottom: hasSummary ? 16 : 0,
               }}
-              className="hover:bg-[#f5f5f5] hover:border-[#d4d4d8]"
             >
-              <Image
-                src={CHATGPT_LOGO}
-                alt=""
-                width={16}
-                height={16}
-                style={{ display: "block", flexShrink: 0 }}
-              />
-              Demander à ChatGPT
-            </a>
+              {statusStyle.label}
+            </span>
 
-            <a
-              href={`https://claude.ai/new?q=${encodeURIComponent(
-                buildAIPrompt(call.host, call.ai_summary!)
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 7,
-                padding: "7px 14px",
-                background: "#ffffff",
-                border: "1px solid var(--color-border-default)",
-                borderRadius: 9999,
-                fontSize: 13,
-                fontWeight: 500,
-                color: "var(--color-text-primary)",
-                textDecoration: "none",
-                transition: "background 150ms ease, border-color 150ms ease",
-              }}
-              className="hover:bg-[#f5f5f5] hover:border-[#d4d4d8]"
-            >
-              <Image
-                src={CLAUDE_LOGO}
-                alt=""
-                width={16}
-                height={16}
-                style={{ display: "block", flexShrink: 0, borderRadius: 3 }}
-              />
-              Demander à Claude
-            </a>
+            {hasSummary ? (
+              <>
+                {/* Section résumé */}
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--color-text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    margin: "0 0 8px",
+                  }}
+                >
+                  Résumé du coaching
+                </p>
+
+                <div
+                  style={{
+                    overflow: "hidden",
+                    maxHeight: summaryExpanded ? 600 : 76,
+                    transition: "max-height 350ms cubic-bezier(0.22,1,0.36,1)",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 14,
+                      color: "var(--color-text-secondary)",
+                      lineHeight: 1.65,
+                      margin: 0,
+                    }}
+                  >
+                    {call.ai_summary}
+                  </p>
+                </div>
+
+                {call.ai_summary!.length > 280 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSummaryExpanded((s) => !s);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: "5px 0 0",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--color-brand)",
+                      cursor: "pointer",
+                      display: "block",
+                    }}
+                  >
+                    {summaryExpanded ? "Voir moins ↑" : "Voir plus →"}
+                  </button>
+                )}
+
+                {/* Warning IA */}
+                <p
+                  style={{
+                    fontSize: 11,
+                    color: "#6b7280",
+                    margin: "10px 0 14px",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 4,
+                  }}
+                >
+                  <span>⚠️</span>
+                  <span>Résumé généré par IA, peut contenir des imprécisions</span>
+                </p>
+
+                {/* Ask AI buttons */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  <a
+                    href={`https://chatgpt.com/?q=${encodeURIComponent(
+                      buildAIPrompt(call.host, call.ai_summary!)
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 7,
+                      padding: "7px 14px",
+                      background: "#ffffff",
+                      border: "1px solid var(--color-border-default)",
+                      borderRadius: 9999,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "var(--color-text-primary)",
+                      textDecoration: "none",
+                      transition: "background 150ms ease, border-color 150ms ease",
+                    }}
+                    className="hover:bg-[#f5f5f5] hover:border-[#d4d4d8]"
+                  >
+                    <Image
+                      src={CHATGPT_LOGO}
+                      alt=""
+                      width={15}
+                      height={15}
+                      style={{ display: "block", flexShrink: 0 }}
+                    />
+                    Demander à ChatGPT
+                  </a>
+
+                  <a
+                    href={`https://claude.ai/new?q=${encodeURIComponent(
+                      buildAIPrompt(call.host, call.ai_summary!)
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 7,
+                      padding: "7px 14px",
+                      background: "#ffffff",
+                      border: "1px solid var(--color-border-default)",
+                      borderRadius: 9999,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "var(--color-text-primary)",
+                      textDecoration: "none",
+                      transition: "background 150ms ease, border-color 150ms ease",
+                    }}
+                    className="hover:bg-[#f5f5f5] hover:border-[#d4d4d8]"
+                  >
+                    <Image
+                      src={CLAUDE_LOGO}
+                      alt=""
+                      width={15}
+                      height={15}
+                      style={{ display: "block", flexShrink: 0, borderRadius: 3 }}
+                    />
+                    Demander à Claude
+                  </a>
+                </div>
+              </>
+            ) : (
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "var(--color-text-muted)",
+                  margin: "8px 0 0",
+                  fontStyle: "italic",
+                }}
+              >
+                Pas de résumé disponible pour ce coaching.
+              </p>
+            )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
