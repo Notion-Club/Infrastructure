@@ -103,7 +103,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
           padding: "16px 18px",
           cursor: isExpandable ? "pointer" : "default",
           userSelect: "none",
-          background: isOpen ? "rgba(224,98,90,0.025)" : "transparent",
+          background: "#ffffff",
           transition: "background 200ms ease",
         }}
         className={isExpandable ? "hover:bg-[rgba(0,0,0,0.018)]" : ""}
@@ -322,9 +322,9 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                       fontWeight: 500,
                       color: "var(--color-text-primary)",
                       textDecoration: "none",
-                      transition: "background 150ms ease, border-color 150ms ease",
+                      transition: "background 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease",
                     }}
-                    className="hover:bg-[#f5f5f5] hover:border-[#d4d4d8]"
+                    className="hover:bg-[#f5f5f5] hover:border-[#d4d4d8] hover:shadow-[0_2px_10px_rgba(0,0,0,0.09)] hover:-translate-y-px"
                   >
                     <Image
                       src={CHATGPT_LOGO}
@@ -355,9 +355,9 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                       fontWeight: 500,
                       color: "var(--color-text-primary)",
                       textDecoration: "none",
-                      transition: "background 150ms ease, border-color 150ms ease",
+                      transition: "background 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease",
                     }}
-                    className="hover:bg-[#f5f5f5] hover:border-[#d4d4d8]"
+                    className="hover:bg-[#f5f5f5] hover:border-[#d4d4d8] hover:shadow-[0_2px_10px_rgba(0,0,0,0.09)] hover:-translate-y-px"
                   >
                     <Image
                       src={CLAUDE_LOGO}

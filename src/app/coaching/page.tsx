@@ -157,7 +157,6 @@ interface RightColumnConfig {
   showUpcoming: boolean;
   upcomingCalls: MockCall[];
   pastCalls: MockCall[];
-  pastEmptyMessage?: string;
   pastBannerText?: string;
 }
 
@@ -170,8 +169,6 @@ function getRightColumnConfig(state: UserState): RightColumnConfig {
         showUpcoming: true,
         upcomingCalls: [],
         pastCalls: [],
-        pastEmptyMessage:
-          "Ton historique apparaîtra ici après ton premier coaching.",
       };
     case "formation_1_call":
       return {
@@ -263,37 +260,29 @@ export default function CoachingPage() {
               <CoachingHeader {...headerConfig} />
             </div>
 
-            {/* Two-column layout */}
-            <div
-              className="flex flex-col lg:flex-row gap-6"
-              style={{ marginTop: 28 }}
-            >
-              {/* Left column — CTA card */}
-              <div style={{ flex: "0 0 42%", minWidth: 0 }}>
-                <CoachingCTACard {...ctaConfig} />
-              </div>
+            {/* Single-column layout */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 28 }}>
+              {/* CTA card — horizontal full-width */}
+              <CoachingCTACard {...ctaConfig} />
 
-              {/* Right column — calls sections */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {userState === "free" ? (
-                  <FreeTeaserPanel />
-                ) : (
-                  <>
-                    {rightConfig.showUpcoming && (
-                      <UpcomingCallsSection
-                        calls={rightConfig.upcomingCalls}
-                        emptyMessage="Aucun coaching prévu pour le moment."
-                      />
-                    )}
-                    <PastCallsSection
-                      calls={rightConfig.pastCalls}
-                      emptyMessage={rightConfig.pastEmptyMessage}
-                      bannerText={rightConfig.pastBannerText}
-                      archived={isExpired}
+              {/* Calls sections */}
+              {userState === "free" ? (
+                <FreeTeaserPanel />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                  {rightConfig.showUpcoming && (
+                    <UpcomingCallsSection
+                      calls={rightConfig.upcomingCalls}
+                      emptyMessage="Aucun coaching prévu pour le moment."
                     />
-                  </>
-                )}
-              </div>
+                  )}
+                  <PastCallsSection
+                    calls={rightConfig.pastCalls}
+                    bannerText={rightConfig.pastBannerText}
+                    archived={isExpired}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </main>
