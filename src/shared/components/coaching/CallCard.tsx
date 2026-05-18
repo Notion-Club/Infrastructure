@@ -281,21 +281,23 @@ export function CallCard({ call, archived = false }: CallCardProps) {
               paddingTop: 16,
             }}
           >
-            {/* Status pill */}
-            <span
-              style={{
-                display: "inline-block",
-                fontSize: 12,
-                fontWeight: 600,
-                color: statusStyle.text,
-                background: statusStyle.bg,
-                borderRadius: 9999,
-                padding: "3px 10px",
-                marginBottom: hasSummary ? 16 : 0,
-              }}
-            >
-              {statusStyle.label}
-            </span>
+            {/* Pill no-show uniquement — "Effectué" est redondant dans le détail */}
+            {call.status === "no_show" && (
+              <span
+                style={{
+                  display: "inline-block",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: statusStyle.text,
+                  background: statusStyle.bg,
+                  borderRadius: 9999,
+                  padding: "3px 10px",
+                  marginBottom: 16,
+                }}
+              >
+                {statusStyle.label}
+              </span>
+            )}
 
             {hasSummary ? (
               <>
