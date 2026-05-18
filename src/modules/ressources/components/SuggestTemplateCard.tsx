@@ -34,10 +34,10 @@ export function SuggestTemplateCard({ variant }: SuggestCardProps) {
   return (
     <div
       style={{
-        background: 'rgba(255,255,255,0.82)',
+        backgroundColor: 'rgba(255,255,255,0.82)',
+        backgroundImage: "url(\"data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='16' ry='16' stroke='%23a0aab8' stroke-width='2' stroke-dasharray='8%2c18' stroke-linecap='round'/%3e%3c/svg%3e\")",
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
-        border: '2px dashed var(--color-border-default)',
         borderRadius: 16,
         padding: 28,
         display: 'flex',
