@@ -254,6 +254,20 @@ export async function resendVerificationEmailAction(): Promise<ResendVerificatio
 }
 
 // ============================================================================
+// Note : reset password (étape 1 + 2)
+// ============================================================================
+// Le flow PKCE de Supabase exige que le même client (browser OU server) qui
+// initie resetPasswordForEmail termine le flow via exchangeCodeForSession.
+// Notre createSupabaseServerClient ne peut PAS écrire de cookies depuis un
+// Server Component (cf. bug Next.js 16 middleware), donc le code verifier
+// PKCE serait perdu entre les 2 étapes.
+//
+// → Reset password est entièrement géré côté browser via
+//   createSupabaseBrowserClient :
+//   - src/modules/auth/components/ResetPasswordRequestForm.tsx
+//   - src/modules/auth/components/UpdatePasswordForm.tsx
+
+// ============================================================================
 // Helpers internes
 // ============================================================================
 
