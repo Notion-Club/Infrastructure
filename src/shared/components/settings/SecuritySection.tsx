@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import { GoogleLogo } from "@/shared/components/ui/GoogleButton";
 import { GoogleButton } from "@/shared/components/ui/GoogleButton";
+import { updatePasswordWithReauthAction } from "@/modules/settings";
 import { SettingsCard, SettingsDivider } from "./SettingsCard";
 import type { AuthIdentity, AuthUserShape } from "./types";
 
@@ -199,14 +200,25 @@ function PasswordChangeForm({
       if (isMocked) {
         await new Promise((r) => setTimeout(r, 500));
         toast.success("Mot de passe mis à jour (démo)");
-      } else {
-        const supabase = createSupabaseBrowserClient();
-        const { error: updateError } = await supabase.auth.updateUser({
-          password: next,
-        });
-        if (updateError) throw updateError;
-        toast.success("Mot de passe mis à jour");
+        setCurrent("");
+        setNext("");
+        setConfirm("");
+        onSuccess();
+        return;
       }
+
+      const result = await updatePasswordWithReauthAction({
+        currentPassword: current,
+        newPassword: next,
+        confirmPassword: confirm,
+      });
+
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+
+      toast.success("Mot de passe mis à jour");
       setCurrent("");
       setNext("");
       setConfirm("");

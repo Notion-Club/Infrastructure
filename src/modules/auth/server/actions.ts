@@ -2,11 +2,19 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 import {
+  isPasswordReused,
+  recordPasswordInHistory,
+  PASSWORD_HISTORY_LIMIT,
+} from "@/shared/lib/security/password-history";
+import {
+  recoveryPasswordChangeSchema,
   signinSchema,
   signupSchema,
+  type RecoveryPasswordChangeInput,
   type SigninInput,
   type SignupInput,
 } from "@/modules/auth/lib/validation";
@@ -262,10 +270,111 @@ export async function resendVerificationEmailAction(): Promise<ResendVerificatio
 // Server Component (cf. bug Next.js 16 middleware), donc le code verifier
 // PKCE serait perdu entre les 2 étapes.
 //
-// → Reset password est entièrement géré côté browser via
+// → L'étape 1 (demande de reset) est entièrement gérée côté browser via
 //   createSupabaseBrowserClient :
 //   - src/modules/auth/components/ResetPasswordRequestForm.tsx
-//   - src/modules/auth/components/UpdatePasswordForm.tsx
+//
+// → L'étape 2 (set new password) établit la session recovery côté browser
+//   (cf. UpdatePasswordForm), puis appelle updatePasswordFromRecoveryAction
+//   ci-dessous avec l'accessToken pour passer par notre vérification de
+//   password history côté serveur.
+
+// ============================================================================
+// updatePasswordFromRecoveryAction — flow reset password (lien email)
+// ============================================================================
+// Contexte : la session recovery est établie côté browser via le flow
+// "implicit" (cf. UpdatePasswordForm). Le browser passe son `accessToken` à
+// cette Server Action qui :
+//   1. Valide zod (new, confirm)
+//   2. Recrée un client Supabase scopé sur ce token pour identifier l'user
+//      (l'user_id n'est jamais accepté depuis le client — il vient du JWT
+//       vérifié par Supabase)
+//   3. Check password history (N derniers via bcrypt.compare)
+//   4. Met à jour le mdp via ce client scopé
+//   5. Enregistre le nouveau hash dans l'historique
+
+type RecoveryErrorCode =
+  | "validation"
+  | "invalid_session"
+  | "password_reused"
+  | "weak_password"
+  | "unknown";
+
+export type RecoveryPasswordChangeResult =
+  | { ok: true }
+  | { ok: false; code: RecoveryErrorCode; message: string };
+
+export async function updatePasswordFromRecoveryAction(
+  input: RecoveryPasswordChangeInput,
+): Promise<RecoveryPasswordChangeResult> {
+  const parsed = recoveryPasswordChangeSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "validation",
+      message: parsed.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+  const { newPassword, accessToken } = parsed.data;
+
+  // Client Supabase scopé sur l'accessToken du lien recovery. Cette session
+  // n'est PAS persistée (pas de cookies écrits) — utilisée uniquement le
+  // temps de l'appel.
+  const scopedClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    },
+  );
+
+  const {
+    data: { user },
+    error: userError,
+  } = await scopedClient.auth.getUser();
+  if (userError || !user) {
+    return {
+      ok: false,
+      code: "invalid_session",
+      message: "Lien expiré ou session invalide. Demande un nouveau lien.",
+    };
+  }
+
+  try {
+    const reused = await isPasswordReused(user.id, newPassword);
+    if (reused) {
+      return {
+        ok: false,
+        code: "password_reused",
+        message: `Ce mot de passe a déjà été utilisé récemment. Choisis-en un différent des ${PASSWORD_HISTORY_LIMIT} derniers.`,
+      };
+    }
+  } catch (err) {
+    console.error("[recovery] history check failed:", err);
+    return {
+      ok: false,
+      code: "unknown",
+      message: "Erreur lors de la vérification du mot de passe.",
+    };
+  }
+
+  const { error: updateError } = await scopedClient.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (updateError) {
+    const msg = updateError.message.toLowerCase();
+    if (msg.includes("password")) {
+      return { ok: false, code: "weak_password", message: updateError.message };
+    }
+    return { ok: false, code: "unknown", message: updateError.message };
+  }
+
+  await recordPasswordInHistory(user.id, newPassword);
+
+  return { ok: true };
+}
 
 // ============================================================================
 // Helpers internes
