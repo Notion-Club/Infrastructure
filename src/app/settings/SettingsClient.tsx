@@ -131,7 +131,6 @@ export function SettingsClient({ banner }: { banner?: React.ReactNode } = {}) {
             ) : (
               <>
                 <ProfileHero
-                  userId={state.user.id}
                   avatarUrl={state.profile.avatar_url}
                   displayName={state.profile.display_name}
                   email={state.user.email}

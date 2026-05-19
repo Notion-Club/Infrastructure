@@ -1,12 +1,21 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Camera, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
-import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
+import {
+  AVATAR_ALLOWED_MIME,
+  AVATAR_MAX_BYTES,
+  isAllowedAvatarMime,
+  uploadAvatarAction,
+} from "@/modules/settings";
+import { AvatarCropper } from "./AvatarCropper";
 
-const AVATARS_BUCKET = "avatars";
+type SourceImage = {
+  url: string;
+  mimeType: "image/png" | "image/jpeg" | "image/webp";
+};
 
 function getInitials(displayName: string | null, email: string): string {
   const source = (displayName ?? email).trim();
@@ -33,7 +42,6 @@ function colorFromName(seed: string): string {
 }
 
 type ProfileHeroProps = {
-  userId: string;
   avatarUrl: string | null;
   displayName: string | null;
   email: string;
@@ -42,7 +50,6 @@ type ProfileHeroProps = {
 };
 
 export function ProfileHero({
-  userId,
   avatarUrl,
   displayName,
   email,
@@ -52,10 +59,20 @@ export function ProfileHero({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [sourceImage, setSourceImage] = useState<SourceImage | null>(null);
 
   const effectiveAvatar = previewUrl ?? avatarUrl;
   const initials = getInitials(displayName, email);
   const bg = colorFromName(displayName ?? email);
+
+  // Cleanup du blob URL quand le cropper se ferme — sinon fuite mémoire.
+  useEffect(() => {
+    return () => {
+      if (sourceImage?.url.startsWith("blob:")) {
+        URL.revokeObjectURL(sourceImage.url);
+      }
+    };
+  }, [sourceImage]);
 
   async function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -76,24 +93,43 @@ export function ProfileHero({
       return;
     }
 
+    // Pré-validation côté client pour feedback immédiat (le serveur revérifie
+    // dans tous les cas, c'est juste pour éviter un round-trip inutile).
+    if (!isAllowedAvatarMime(file.type)) {
+      toast.error(
+        `Format non supporté. Utilise ${AVATAR_ALLOWED_MIME.join(", ")}.`,
+      );
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+      toast.error(
+        `Le fichier dépasse ${Math.round(AVATAR_MAX_BYTES / 1024 / 1024)} MB.`,
+      );
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    // Ouvre le cropper avec l'image source. L'upload arrive après validation.
+    const url = URL.createObjectURL(file);
+    setSourceImage({ url, mimeType: file.type });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleCropConfirm(croppedFile: File) {
+    if (!sourceImage) return;
     setUploading(true);
     try {
-      const supabase = createSupabaseBrowserClient();
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `${userId}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from(AVATARS_BUCKET)
-        .upload(path, file, { upsert: true, cacheControl: "3600" });
-      if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(path);
-      const publicUrl = data.publicUrl;
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ avatar_url: publicUrl })
-        .eq("id", userId);
-      if (updateError) throw updateError;
-      onAvatarChange(publicUrl);
+      const formData = new FormData();
+      formData.append("file", croppedFile);
+      const result = await uploadAvatarAction(formData);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      onAvatarChange(result.publicUrl);
       toast.success("Photo de profil mise à jour");
+      closeCropper();
     } catch (err) {
       const message =
         err instanceof Error
@@ -102,8 +138,14 @@ export function ProfileHero({
       toast.error(message);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  }
+
+  function closeCropper() {
+    if (sourceImage?.url.startsWith("blob:")) {
+      URL.revokeObjectURL(sourceImage.url);
+    }
+    setSourceImage(null);
   }
 
   return (
@@ -267,6 +309,16 @@ export function ProfileHero({
         onChange={handleFile}
         style={{ display: "none" }}
       />
+
+      {sourceImage && (
+        <AvatarCropper
+          imageSrc={sourceImage.url}
+          mimeType={sourceImage.mimeType}
+          onConfirm={handleCropConfirm}
+          onCancel={closeCropper}
+          submitting={uploading}
+        />
+      )}
     </div>
   );
 }

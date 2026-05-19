@@ -4,7 +4,10 @@ import { useMemo, useState, type FormEvent } from "react";
 import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
-import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
+import {
+  updateProfileAction,
+  updateAccountEmailAction,
+} from "@/modules/settings";
 import { SettingsCard } from "./SettingsCard";
 import { EmailField } from "./EmailField";
 import { PhoneField, formatPhone, parsePhone, type PhoneValue } from "./PhoneField";
@@ -89,7 +92,7 @@ export function ProfileSection({
     if (!hasChanges || saving) return;
     setSaving(true);
     try {
-      const phoneText = formatPhone(values.phone);
+      const phoneText = formatPhone(values.phone) || null;
       const resolvedNotionEmail = values.use_separate_notion_email
         ? values.notion_email.trim() || null
         : null;
@@ -100,30 +103,51 @@ export function ProfileSection({
         return;
       }
 
-      const supabase = createSupabaseBrowserClient();
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          display_name: values.display_name || null,
-          first_name: values.first_name || null,
-          last_name: values.last_name || null,
-          phone: phoneText || null,
-          notion_email: resolvedNotionEmail,
-        })
-        .eq("id", profile.id);
-      if (profileError) throw profileError;
+      const emailChanged =
+        values.email.trim().toLowerCase() !==
+        accountEmail.trim().toLowerCase();
 
-      if (values.email && values.email !== accountEmail) {
-        const { error: emailError } = await supabase.auth.updateUser({
-          email: values.email,
+      const profileFieldsChanged =
+        values.display_name !== initialValues.display_name ||
+        values.first_name !== initialValues.first_name ||
+        values.last_name !== initialValues.last_name ||
+        values.phone.countryCode !== initialValues.phone.countryCode ||
+        values.phone.national.trim() !== initialValues.phone.national.trim() ||
+        values.use_separate_notion_email !==
+          initialValues.use_separate_notion_email ||
+        (values.use_separate_notion_email &&
+          values.notion_email !== initialValues.notion_email);
+
+      if (profileFieldsChanged) {
+        const result = await updateProfileAction({
+          display_name: values.display_name,
+          first_name: values.first_name,
+          last_name: values.last_name,
+          phone: phoneText,
+          notion_email: resolvedNotionEmail,
         });
-        if (emailError) throw emailError;
+        if (!result.ok) {
+          toast.error(result.message);
+          return;
+        }
+      }
+
+      if (emailChanged) {
+        const result = await updateAccountEmailAction({
+          newEmail: values.email,
+        });
+        if (!result.ok) {
+          toast.error(result.message);
+          return;
+        }
         toast.info(
           "Un email de confirmation a été envoyé à votre nouvelle adresse.",
         );
       }
 
-      toast.success("Modifications enregistrées");
+      if (profileFieldsChanged || emailChanged) {
+        toast.success("Modifications enregistrées");
+      }
     } catch (err) {
       const message =
         err instanceof Error
