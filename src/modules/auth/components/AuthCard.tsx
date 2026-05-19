@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type FormEvent } from "react";
+import { useEffect, useState, useTransition, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
@@ -66,6 +66,22 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
       : null;
 
   const isLoading = isPending || state === "signup-loading";
+
+  // Si l'utilisateur clique "Continuer avec Google" puis ferme l'onglet Google
+  // sans aller au bout, le navigateur restore /login depuis le bfcache avec
+  // isPending=true gelé — la promesse de la transition est morte avec le
+  // redirect, le loader resterait sinon bloqué indéfiniment. On reload dès
+  // qu'on détecte ce retour bfcache pendant qu'une transition était en cours.
+  useEffect(() => {
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted && isPending) {
+        window.location.reload();
+      }
+    }
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, [isPending]);
+
   const errorMessage =
     submitError ??
     oauthError ??
