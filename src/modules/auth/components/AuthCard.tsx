@@ -215,15 +215,26 @@ function SignupFields({
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <Field
-        id="firstName"
-        label="Prénom"
-        type="text"
-        placeholder="Théo"
-        autoComplete="given-name"
-        required
-        disabled={disabled}
-      />
+      <div className="grid grid-cols-2 gap-3">
+        <Field
+          id="firstName"
+          label="Prénom"
+          type="text"
+          placeholder="Théo"
+          autoComplete="given-name"
+          required
+          disabled={disabled}
+        />
+        <Field
+          id="lastName"
+          label="Nom"
+          type="text"
+          placeholder="Gouman"
+          autoComplete="family-name"
+          required
+          disabled={disabled}
+        />
+      </div>
       <Field
         id="email"
         label="Email"
