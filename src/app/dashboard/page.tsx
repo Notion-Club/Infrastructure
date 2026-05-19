@@ -5,6 +5,7 @@ import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTop
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { FormationWidget } from "@/shared/components/dashboard/widgets/FormationWidget";
 import { ProfilWidget } from "@/shared/components/dashboard/widgets/ProfilWidget";
+import { LogoutButton } from "@/modules/auth";
 
 export const metadata: Metadata = {
   title: "Accueil — Notion Club",
@@ -171,6 +172,11 @@ export default function DashboardPage() {
               </span>
               Communauté · Coaching · à venir
             </div>
+          </div>
+
+          {/* Logout temporaire (OPS-15) — à déplacer dans le menu utilisateur du Topbar */}
+          <div className="flex justify-center pt-4">
+            <LogoutButton />
           </div>
         </div>
       </main>

@@ -1,12 +1,21 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
 import { GoogleButton } from "./GoogleButton";
+import {
+  signinSchema,
+  signupSchema,
+} from "@/modules/auth/lib/validation";
+import {
+  signInAction,
+  signInWithGoogleAction,
+  signUpAction,
+} from "@/modules/auth/server/actions";
 
 export type AuthMode = "login" | "signup";
 export type AuthCardState =
@@ -20,45 +29,122 @@ type AuthCardProps = {
   onStateChange?: (state: AuthCardState) => void;
 };
 
-// Délai du mock submit (donne le temps de voir l'état loading).
-const MOCK_AUTH_DELAY_MS = 600;
-
-// Cible post-auth — sera remplacée par la vraie redirection à l'étape Supabase.
 const HOME_PATH = "/dashboard";
+
+// Messages affichés dans l'ErrorPill quand on revient sur /login après un échec OAuth.
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  oauth_denied: "Connexion Google annulée",
+  oauth_no_code: "Réponse Google incomplète",
+  oauth_exchange_failed: "Impossible de finaliser Google",
+  oauth_init_failed: "Impossible de démarrer Google",
+};
+
+type FieldErrors = {
+  email?: string;
+  password?: string;
+  firstName?: string;
+  lastName?: string;
+};
 
 export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const mode: AuthMode = state.startsWith("signup") ? "signup" : "login";
   const [showPassword, setShowPassword] = useState(false);
-  const [pending, setPending] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const isLoading = pending || state === "signup-loading";
-  const hasError = state === "login-error";
+  // Si on revient sur /login après un échec OAuth Google (?error=…), l'erreur est
+  // dérivée pendant le render. Pas d'useEffect : React 19 décourage setState
+  // dans un effect quand on peut calculer l'état au render.
+  const oauthErrorParam = searchParams.get("error");
+  const oauthError =
+    oauthErrorParam && OAUTH_ERROR_MESSAGES[oauthErrorParam]
+      ? OAUTH_ERROR_MESSAGES[oauthErrorParam]
+      : null;
+
+  const isLoading = isPending || state === "signup-loading";
+  const errorMessage =
+    submitError ??
+    oauthError ??
+    (state === "login-error" ? "Identifiants incorrects" : null);
+  const hasError = errorMessage !== null;
 
   function setMode(next: AuthMode) {
-    if (next === mode || pending) return;
+    if (next === mode || isPending) return;
+    setFieldErrors({});
+    setSubmitError(null);
     onStateChange?.(next === "signup" ? "signup-empty" : "login-empty");
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pending) return;
-    setPending(true);
-    await new Promise((resolve) => setTimeout(resolve, MOCK_AUTH_DELAY_MS));
-    router.push(HOME_PATH);
+    if (isPending) return;
+
+    const formData = new FormData(event.currentTarget);
+    setFieldErrors({});
+    setSubmitError(null);
+
+    if (mode === "login") {
+      const raw = {
+        email: String(formData.get("email") ?? ""),
+        password: String(formData.get("password") ?? ""),
+      };
+      const parsed = signinSchema.safeParse(raw);
+      if (!parsed.success) {
+        setFieldErrors(extractFieldErrors(parsed.error.issues));
+        return;
+      }
+
+      startTransition(async () => {
+        const result = await signInAction(parsed.data);
+        if (!result.ok) {
+          setSubmitError(result.message);
+          onStateChange?.("login-error");
+          return;
+        }
+        router.push(HOME_PATH);
+      });
+      return;
+    }
+
+    // Signup
+    const raw = {
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? ""),
+      firstName: String(formData.get("firstName") ?? ""),
+      lastName: String(formData.get("lastName") ?? ""),
+    };
+    const parsed = signupSchema.safeParse(raw);
+    if (!parsed.success) {
+      setFieldErrors(extractFieldErrors(parsed.error.issues));
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await signUpAction(parsed.data);
+      if (!result.ok) {
+        setSubmitError(result.message);
+        return;
+      }
+      router.push(HOME_PATH);
+    });
   }
 
-  async function handleGoogle() {
-    if (pending) return;
-    setPending(true);
-    await new Promise((resolve) => setTimeout(resolve, MOCK_AUTH_DELAY_MS));
-    router.push(HOME_PATH);
+  function handleGoogle() {
+    if (isPending) return;
+    setSubmitError(null);
+    startTransition(async () => {
+      // signInWithGoogleAction throw NEXT_REDIRECT, le browser part avant toute suite.
+      await signInWithGoogleAction();
+    });
   }
 
   return (
     <div className="nc-shine-card w-full max-w-[420px]">
       <div className="nc-shine-card__inner flex flex-col gap-6">
-        <ModeToggle mode={mode} onChange={setMode} disabled={pending} />
+        <ModeToggle mode={mode} onChange={setMode} disabled={isPending} />
 
         <form
           key={mode}
@@ -78,21 +164,21 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
 
           <Divider />
 
-          {hasError && (
-            <ErrorPill message="Email ou mot de passe incorrect" />
-          )}
+          {hasError && errorMessage && <ErrorPill message={errorMessage} />}
 
           {mode === "login" ? (
             <LoginFields
               disabled={isLoading}
               showPassword={showPassword}
               onTogglePassword={() => setShowPassword((v) => !v)}
+              fieldErrors={fieldErrors}
             />
           ) : (
             <SignupFields
               disabled={isLoading}
               showPassword={showPassword}
               onTogglePassword={() => setShowPassword((v) => !v)}
+              fieldErrors={fieldErrors}
             />
           )}
 
@@ -101,6 +187,17 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
       </div>
     </div>
   );
+}
+
+function extractFieldErrors(
+  issues: Array<{ path: (string | number)[]; message: string }>,
+): FieldErrors {
+  const errs: FieldErrors = {};
+  for (const issue of issues) {
+    const field = issue.path[0] as keyof FieldErrors;
+    if (field && !errs[field]) errs[field] = issue.message;
+  }
+  return errs;
 }
 
 /* -------------------- subcomponents -------------------- */
@@ -168,10 +265,12 @@ function LoginFields({
   disabled,
   showPassword,
   onTogglePassword,
+  fieldErrors,
 }: {
   disabled: boolean;
   showPassword: boolean;
   onTogglePassword: () => void;
+  fieldErrors: FieldErrors;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -183,6 +282,7 @@ function LoginFields({
         autoComplete="email"
         required
         disabled={disabled}
+        error={fieldErrors.email}
       />
       <PasswordField
         id="password"
@@ -191,9 +291,10 @@ function LoginFields({
         show={showPassword}
         onToggle={onTogglePassword}
         disabled={disabled}
+        error={fieldErrors.password}
         rightAction={
           <Link
-            href="#"
+            href="/reset-password"
             className="text-[14px] font-medium text-[var(--color-brand)] hover:underline"
           >
             Mot de passe oublié ?
@@ -208,10 +309,12 @@ function SignupFields({
   disabled,
   showPassword,
   onTogglePassword,
+  fieldErrors,
 }: {
   disabled: boolean;
   showPassword: boolean;
   onTogglePassword: () => void;
+  fieldErrors: FieldErrors;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -224,6 +327,7 @@ function SignupFields({
           autoComplete="given-name"
           required
           disabled={disabled}
+          error={fieldErrors.firstName}
         />
         <Field
           id="lastName"
@@ -233,6 +337,7 @@ function SignupFields({
           autoComplete="family-name"
           required
           disabled={disabled}
+          error={fieldErrors.lastName}
         />
       </div>
       <Field
@@ -243,6 +348,7 @@ function SignupFields({
         autoComplete="email"
         required
         disabled={disabled}
+        error={fieldErrors.email}
       />
       <PasswordField
         id="password"
@@ -251,6 +357,7 @@ function SignupFields({
         show={showPassword}
         onToggle={onTogglePassword}
         disabled={disabled}
+        error={fieldErrors.password}
         hint="8 caractères minimum"
       />
     </div>
@@ -265,6 +372,7 @@ function Field({
   autoComplete,
   required,
   disabled,
+  error,
 }: {
   id: string;
   label: string;
@@ -273,6 +381,7 @@ function Field({
   autoComplete?: string;
   required?: boolean;
   disabled?: boolean;
+  error?: string;
 }) {
   return (
     <label htmlFor={id} className="flex flex-col gap-2">
@@ -287,8 +396,12 @@ function Field({
         autoComplete={autoComplete}
         required={required}
         disabled={disabled}
+        aria-invalid={error ? true : undefined}
         className="nc-input disabled:cursor-not-allowed disabled:opacity-60"
       />
+      {error && (
+        <p className="text-[13px] text-[var(--color-brand)]">{error}</p>
+      )}
     </label>
   );
 }
@@ -302,6 +415,7 @@ function PasswordField({
   hint,
   rightAction,
   disabled,
+  error,
 }: {
   id: string;
   label: string;
@@ -311,6 +425,7 @@ function PasswordField({
   hint?: string;
   rightAction?: React.ReactNode;
   disabled?: boolean;
+  error?: string;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -332,6 +447,7 @@ function PasswordField({
           required
           disabled={disabled}
           minLength={1}
+          aria-invalid={error ? true : undefined}
           className="nc-input pr-12 disabled:cursor-not-allowed disabled:opacity-60"
           placeholder="••••••••"
         />
@@ -345,9 +461,11 @@ function PasswordField({
           {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
         </button>
       </div>
-      {hint && (
+      {error ? (
+        <p className="text-[13px] text-[var(--color-brand)]">{error}</p>
+      ) : hint ? (
         <p className="text-[13px] text-[var(--color-text-muted)]">{hint}</p>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -49,13 +49,22 @@ export async function signUpAction(input: SignupInput): Promise<AuthResult> {
       message: parsed.error.issues.map((i) => i.message).join(", "),
     };
   }
-  const { email, password, fullName } = parsed.data;
+  const { email, password, firstName, lastName } = parsed.data;
 
+  // Les champs first_name/last_name/display_name/full_name sont remplis
+  // automatiquement par le trigger handle_new_user à partir des metadata
+  // ci-dessous (cf. migration 005).
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: fullName ? { full_name: fullName } : undefined },
+    options: {
+      data: {
+        first_name: firstName,
+        last_name: lastName,
+        full_name: `${firstName} ${lastName}`,
+      },
+    },
   });
 
   if (error) {
