@@ -24,3 +24,25 @@ export const signinSchema = z.object({
 });
 
 export type SigninInput = z.infer<typeof signinSchema>;
+
+// Demande de reset password : juste un email à valider.
+export const resetPasswordRequestSchema = z.object({
+  email: z.string().email("Email invalide"),
+});
+
+export type ResetPasswordRequestInput = z.infer<
+  typeof resetPasswordRequestSchema
+>;
+
+// Nouveau mdp + confirmation. Les 2 doivent matcher.
+export const updatePasswordSchema = z
+  .object({
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Les mots de passe ne correspondent pas",
+  });
+
+export type UpdatePasswordInput = z.infer<typeof updatePasswordSchema>;
