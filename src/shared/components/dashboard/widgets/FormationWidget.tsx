@@ -28,16 +28,37 @@ export function FormationWidget() {
         padding: 20,
         boxShadow: "var(--nc-shadow-3)",
         cursor: "pointer",
-        transition:
-          "box-shadow 250ms cubic-bezier(0.22, 1, 0.36, 1), transform 250ms cubic-bezier(0.22, 1, 0.36, 1)",
+        transition: "border-color 350ms cubic-bezier(0.22, 1, 0.36, 1)",
         display: "flex",
         flexDirection: "column",
         gap: 16,
+        position: "relative",
+        overflow: "hidden",
       }}
-      className="hover:-translate-y-0.5 hover:shadow-[rgba(0,0,0,0.10)_0px_8px_32px_0px,rgba(0,0,0,0.06)_0px_1px_2px_0px]"
+      className="group hover:border-[rgba(224,98,90,0.32)]"
     >
+      <div
+        aria-hidden
+        className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 ease-out"
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          width: 180,
+          height: 180,
+          pointerEvents: "none",
+          backgroundImage:
+            "radial-gradient(circle, rgba(224,98,90,0.28) 1px, transparent 1.4px)",
+          backgroundSize: "11px 11px",
+          maskImage:
+            "radial-gradient(circle at top right, black 0%, transparent 70%)",
+          WebkitMaskImage:
+            "radial-gradient(circle at top right, black 0%, transparent 70%)",
+        }}
+      />
       <span
         style={{
+          position: "relative",
           fontSize: 11,
           fontWeight: 600,
           letterSpacing: "0.06em",
@@ -48,7 +69,7 @@ export function FormationWidget() {
         Formation en cours
       </span>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 4 }}>
         <h2
           style={{
             fontSize: 16,
@@ -66,7 +87,7 @@ export function FormationWidget() {
         </p>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 6 }}>
         <ProgressBar percent={MOCK_FORMATION.progressPercent} />
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>
           {MOCK_FORMATION.modulesCompleted} modules complétés ·{" "}
@@ -74,7 +95,7 @@ export function FormationWidget() {
         </p>
       </div>
 
-      <div>
+      <div style={{ position: "relative" }}>
         <button
           type="button"
           onClick={(e) => {

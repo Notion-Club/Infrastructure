@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   BookOpen,
@@ -13,6 +13,9 @@ import {
   Bell,
   type LucideIcon,
 } from "lucide-react";
+
+import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
+import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 
 type NavItem = { label: string; icon: LucideIcon; href: string };
 
@@ -29,12 +32,6 @@ const NAV_ITEMS: NavItem[] = [
 
 const MOCK_USER = { prenom: "Théo", nom: "Martin" };
 const UNREAD_COUNT = 2;
-
-const DROPDOWN_ITEMS = [
-  { label: "Mon profil", href: "/profil", danger: false },
-  { label: "Réglages", href: "/reglages", danger: false },
-  { label: "Se déconnecter", href: "/login", danger: true },
-];
 
 function getInitials(prenom: string, nom: string) {
   return `${prenom[0] ?? ""}${nom[0] ?? ""}`.toUpperCase();
@@ -55,7 +52,9 @@ const SEPARATOR = (
 
 export function Topbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -69,25 +68,37 @@ export function Topbar() {
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [avatarOpen]);
 
+  async function handleSignOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Ignore — the redirect below brings the user back to login either way.
+    } finally {
+      router.push("/login");
+    }
+  }
+
   const initials = getInitials(MOCK_USER.prenom, MOCK_USER.nom);
 
   return (
-    /*
-     * Outer header : transparent + couleur de page → le contenu qui scroll
-     * dessous ne transperce pas. sticky top-0 sur l'élément racine (enfant
-     * direct du flex-col) pour que le scroll-container soit la page entière.
-     * hidden md:flex justify-center → pill centrée, pas full-width.
-     */
     <header
-      className="hidden md:flex justify-center sticky top-0 z-50"
+      className="hidden md:flex justify-center"
       style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 50,
         padding: "14px 40px",
-        /* Transparent pour laisser le gradient de page traverser.
-           backdrop-filter empêche le contenu scrollant d'être lisible
-           dans la zone de padding autour de la pill. */
         background: "transparent",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
+        // Force a GPU layer so position:fixed isn't broken by ancestor
+        // filters/transforms. Avoid `contain: paint` here — it would clip
+        // the dropdown that extends below the header.
+        transform: "translateZ(0)",
+        willChange: "transform",
       }}
     >
       {/* Pill — élargie pour respirer avec 5 items de nav + groupe droit */}
@@ -234,7 +245,7 @@ export function Topbar() {
                 position: "absolute",
                 top: "calc(100% + 10px)",
                 right: 0,
-                minWidth: 168,
+                minWidth: 220,
                 borderRadius: 16,
                 boxShadow:
                   "rgba(0,0,0,0.03) 0px -2px 16px -4px, rgba(0,0,0,0.08) 0px 16px 40px -8px, rgba(0,0,0,0.04) 0px 1px 3px 0px",
@@ -242,36 +253,76 @@ export function Topbar() {
                 border: "1px solid #e5e7eb",
                 overflow: "hidden",
                 zIndex: 60,
+                padding: 6,
               }}
             >
-              {DROPDOWN_ITEMS.map((item, idx) => (
-                <div key={item.href}>
-                  {idx === DROPDOWN_ITEMS.length - 1 && (
-                    <div
-                      style={{
-                        height: 1,
-                        background: "#e5e7eb",
-                        margin: "4px 0",
-                      }}
-                    />
-                  )}
-                  <a
-                    href={item.href}
-                    role="menuitem"
-                    style={{
-                      display: "block",
-                      padding: "10px 14px",
-                      fontSize: 14,
-                      color: item.danger ? "#e0625a" : "#000",
-                      textDecoration: "none",
-                      transition: "background 150ms ease",
-                    }}
-                    className="hover:bg-[#f5f5f5]"
-                  >
-                    {item.label}
-                  </a>
-                </div>
-              ))}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  padding: "8px 10px",
+                }}
+              >
+                <span style={{ fontSize: 14, color: "#000" }}>
+                  Mode sombre
+                </span>
+                <ThemeToggle />
+              </div>
+              <div
+                style={{
+                  height: 1,
+                  background: "#e5e7eb",
+                  margin: "4px 0",
+                }}
+              />
+              <Link
+                href="/settings"
+                role="menuitem"
+                onClick={() => setAvatarOpen(false)}
+                style={{
+                  display: "block",
+                  padding: "10px 10px",
+                  fontSize: 14,
+                  color: "#000",
+                  textDecoration: "none",
+                  borderRadius: 10,
+                  transition: "background 150ms ease",
+                }}
+                className="hover:bg-[#f5f5f5]"
+              >
+                Réglages
+              </Link>
+              <div
+                style={{
+                  height: 1,
+                  background: "#e5e7eb",
+                  margin: "4px 0",
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleSignOut}
+                disabled={signingOut}
+                role="menuitem"
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "10px 10px",
+                  fontSize: 14,
+                  color: "#e0625a",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: 10,
+                  cursor: signingOut ? "wait" : "pointer",
+                  opacity: signingOut ? 0.6 : 1,
+                  transition: "background 150ms ease",
+                }}
+                className="hover:bg-[#f5f5f5]"
+              >
+                {signingOut ? "Déconnexion…" : "Se déconnecter"}
+              </button>
             </div>
           )}
         </div>{/* fin avatarRef */}

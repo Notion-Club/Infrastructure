@@ -9,7 +9,8 @@ const passwordSchema = z
 export const signupSchema = z.object({
   email: z.string().email("Email invalide"),
   password: passwordSchema,
-  fullName: z.string().trim().min(0).optional(),
+  firstName: z.string().trim().min(1, "Prénom requis"),
+  lastName: z.string().trim().min(1, "Nom requis"),
 });
 
 export type SignupInput = z.infer<typeof signupSchema>;

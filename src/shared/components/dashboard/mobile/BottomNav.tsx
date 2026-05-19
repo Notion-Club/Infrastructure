@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { Home, BookOpen, Users, Calendar, Library, type LucideIcon } from "lucide-react";
 
 type NavItem = {
@@ -16,9 +17,9 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Ressources", icon: Library, href: "/ressources" },
 ];
 
-const ACTIVE_HREF = "/dashboard";
-
 export function BottomNav() {
+  const pathname = usePathname();
+
   return (
     <nav
       aria-label="Navigation principale"
@@ -42,7 +43,7 @@ export function BottomNav() {
       }}
     >
       {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
-        const isActive = href === ACTIVE_HREF;
+        const isActive = pathname === href || pathname.startsWith(href + "/");
         return (
           <a
             key={href}

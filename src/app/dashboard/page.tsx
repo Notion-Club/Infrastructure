@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Search } from "lucide-react";
 import { Topbar } from "@/shared/components/dashboard/Topbar";
 import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { FormationWidget } from "@/shared/components/dashboard/widgets/FormationWidget";
 import { ProfilWidget } from "@/shared/components/dashboard/widgets/ProfilWidget";
-import { EmailConfirmBanner } from "@/shared/components/dashboard/EmailConfirmBanner";
+import {
+  EmailNotVerifiedBanner,
+  EmailVerifiedToast,
+  LogoutButton,
+} from "@/modules/auth";
 
 export const metadata: Metadata = {
   title: "Accueil — Notion Club",
@@ -15,25 +20,17 @@ const MOCK_USER = { prenom: "Théo" };
 
 export default function DashboardPage() {
   return (
-    <div
-      className="nc-page-halo flex flex-col"
-      style={{ minHeight: "100dvh" }}
-    >
-      {/*
-       * Topbar — enfant direct du flex-col pour que sticky top-0
-       * fonctionne sur toute la hauteur du scroll.
-       * Le hidden md:flex est géré par le composant lui-même.
-       */}
+    <>
+      {/* Éléments fixed hors de nc-page-halo pour éviter que isolation:isolate
+          casse position:fixed dans certains navigateurs */}
       <Topbar />
-
-      {/* Mobile components — position: fixed, masqués sur desktop */}
       <div className="md:hidden">
         <MobileTopActions />
         <BottomNav />
       </div>
 
-      {/* Contenu principal */}
-      <main style={{ flex: 1, position: "relative", zIndex: 1 }}>
+      <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+      <main style={{ position: "relative", zIndex: 1 }}>
         <div
           style={{
             maxWidth: 840,
@@ -42,8 +39,20 @@ export default function DashboardPage() {
             flexDirection: "column",
             gap: 24,
           }}
-          className="px-4 pt-[72px] pb-[100px] md:px-10 md:py-10"
+          className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10"
         >
+          {/* Banner email non confirmé (Server Component : se rend uniquement
+              si email_verified_at IS NULL). Reste visible sur toutes les
+              pages où on l'insère, sans bloquer le user. */}
+          <EmailNotVerifiedBanner />
+
+          {/* Toast post-clic du lien de confirmation (?email_verified=…).
+              Wrappé en Suspense car useSearchParams empêche le prerender
+              statique sinon. */}
+          <Suspense fallback={null}>
+            <EmailVerifiedToast />
+          </Suspense>
+
           {/* Greeting + search — desktop uniquement */}
           <div className="hidden md:flex flex-col gap-5">
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -58,12 +67,12 @@ export default function DashboardPage() {
               </p>
               <h1
                 style={{
-                  fontSize: "clamp(24px, 3vw, 36px)",
+                  fontSize: "clamp(42px, 5vw, 64px)",
                   fontWeight: 700,
-                  letterSpacing: "-0.025em",
+                  letterSpacing: "-0.03em",
                   color: "var(--color-text-primary)",
                   margin: 0,
-                  lineHeight: 1.15,
+                  lineHeight: 1.1,
                 }}
               >
                 Salut {MOCK_USER.prenom}&nbsp;👋
@@ -122,12 +131,12 @@ export default function DashboardPage() {
           <div className="md:hidden flex flex-col gap-1">
             <h1
               style={{
-                fontSize: "clamp(22px, 5vw, 28px)",
+                fontSize: "clamp(36px, 9vw, 48px)",
                 fontWeight: 700,
-                letterSpacing: "-0.025em",
+                letterSpacing: "-0.03em",
                 color: "var(--color-text-primary)",
                 margin: 0,
-                lineHeight: 1.15,
+                lineHeight: 1.1,
               }}
             >
               Salut {MOCK_USER.prenom}&nbsp;👋
@@ -182,8 +191,14 @@ export default function DashboardPage() {
               Communauté · Coaching · à venir
             </div>
           </div>
+
+          {/* Logout temporaire (OPS-15) — à déplacer dans le menu utilisateur du Topbar */}
+          <div className="flex justify-center pt-4">
+            <LogoutButton />
+          </div>
         </div>
       </main>
-    </div>
+      </div>
+    </>
   );
 }
