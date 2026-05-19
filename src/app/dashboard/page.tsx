@@ -159,6 +159,7 @@ export default function DashboardPage() {
 
           {/* Widgets */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <EmailConfirmBanner />
             <FormationWidget />
             <ProfilWidget />
 
