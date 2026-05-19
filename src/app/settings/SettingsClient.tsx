@@ -36,7 +36,7 @@ type LoadState =
       isMocked: boolean;
     };
 
-export function SettingsClient() {
+export function SettingsClient({ banner }: { banner?: React.ReactNode } = {}) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [scenarioId, setScenarioId] = useState<ScenarioId>("default");
 
@@ -138,6 +138,7 @@ export function SettingsClient() {
                   isMocked={state.isMocked}
                   onAvatarChange={patchAvatar}
                 />
+                {banner}
                 {state.isMocked && (
                   <div
                     role="status"
