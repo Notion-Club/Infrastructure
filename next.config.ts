@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     viewTransition: true,
+    // Avatars sont upload-és via Server Action en FormData. La limite par
+    // défaut de Next (1 MB) refuse le payload AVANT d'atteindre notre
+    // validation métier (AVATAR_MAX_BYTES = 2 MB) et renvoie un message
+    // d'erreur cryptique côté client. On passe à 3 MB pour laisser une
+    // marge à l'overhead FormData au-dessus de notre vraie limite.
+    serverActions: { bodySizeLimit: "3mb" },
   },
   images: {
     remotePatterns: [
