@@ -1,24 +1,32 @@
-"use client";
-
-import Image from "next/image";
 import { Mail } from "lucide-react";
-import { useState } from "react";
 
-const GMAIL_LOGO =
-  "https://res.cloudinary.com/dceobxyts/image/upload/v1777309478/Gmail_nabysh.png";
-const GMAIL_SEARCH_URL =
-  "https://mail.google.com/mail/u/0/#search/Notion+club";
+import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import { EmailConfirmBannerActions } from "./EmailConfirmBannerActions";
 
-const MOCK_EMAIL = "theo@gmail.com";
+// Server Component : lit le profile de l'user courant.
+// Affiche le banner uniquement si email_verified_at IS NULL.
+// Le visuel (shine card, bouton Gmail) reste celui choisi par Théo dans
+// la PR #26 ; les actions (bouton Renvoyer) sont brick branchées sur
+// la vraie Server Action resendVerificationEmailAction.
+export async function EmailConfirmBanner() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-function isGmailUser(email: string) {
-  const lower = email.toLowerCase();
-  return !["yahoo", "outlook", "proton"].some((p) => lower.includes(p));
-}
+  if (!user) return null;
 
-export function EmailConfirmBanner() {
-  const [sent, setSent] = useState(false);
-  const showGmail = isGmailUser(MOCK_EMAIL);
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("email_verified_at")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile || profile.email_verified_at) return null;
+
+  // Email réel de l'user pour décider du raccourci Gmail.
+  const email = user.email ?? "";
+  const showGmail = isGmailLikeUser(email);
 
   return (
     <div className="nc-shine-card col-span-1 md:col-span-2">
@@ -71,74 +79,21 @@ export function EmailConfirmBanner() {
             </span>
           </p>
 
-          {/* Actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* Gmail shortcut — uniquement si le domaine n'est pas Yahoo / Outlook / Proton */}
-            {showGmail && (
-              <a
-                href={GMAIL_SEARCH_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Ouvrir Gmail"
-                title="Ouvrir Gmail"
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: "50%",
-                  background: "white",
-                  border: "1px solid var(--color-border-default)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                  boxShadow:
-                    "0 1px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
-                  transition: "box-shadow 150ms ease, border-color 150ms ease",
-                  textDecoration: "none",
-                }}
-                className="hover:border-[rgba(0,0,0,0.15)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)]"
-              >
-                <Image
-                  src={GMAIL_LOGO}
-                  alt="Gmail"
-                  width={20}
-                  height={20}
-                  style={{ display: "block" }}
-                />
-              </a>
-            )}
-
-            {/* Renvoyer */}
-            <button
-              type="button"
-              onClick={() => setSent(true)}
-              disabled={sent}
-              style={{
-                height: 36,
-                padding: "0 18px",
-                borderRadius: 9999,
-                fontSize: 13,
-                fontWeight: 500,
-                border: "1px solid var(--color-border-default)",
-                background: sent ? "var(--color-surface-raised)" : "white",
-                color: sent
-                  ? "var(--color-text-muted)"
-                  : "var(--color-text-primary)",
-                cursor: sent ? "default" : "pointer",
-                transition:
-                  "background 150ms ease, color 150ms ease, border-color 150ms ease",
-                boxShadow: sent
-                  ? "none"
-                  : "0 1px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
-                whiteSpace: "nowrap",
-              }}
-              className={sent ? "" : "hover:border-[rgba(0,0,0,0.15)]"}
-            >
-              {sent ? "Email envoyé ✓" : "Renvoyer l'email"}
-            </button>
-          </div>
+          {/* Actions : Client Component (bouton Renvoyer + cooldown) */}
+          <EmailConfirmBannerActions showGmail={showGmail} />
         </div>
       </div>
     </div>
+  );
+}
+
+// Heuristique conservatrice : on affiche le raccourci Gmail si l'email ne
+// correspond pas à un webmail concurrent connu. Les domaines pro custom
+// (perso.fr, entreprise.com, etc.) restent éligibles puisqu'ils utilisent
+// souvent Google Workspace.
+function isGmailLikeUser(email: string): boolean {
+  const lower = email.toLowerCase();
+  return !["yahoo", "outlook", "hotmail", "live.", "proton", "icloud"].some(
+    (p) => lower.includes(p),
   );
 }
