@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Search } from "lucide-react";
 import { Topbar } from "@/shared/components/dashboard/Topbar";
 import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { FormationWidget } from "@/shared/components/dashboard/widgets/FormationWidget";
 import { ProfilWidget } from "@/shared/components/dashboard/widgets/ProfilWidget";
-import { LogoutButton } from "@/modules/auth";
+import {
+  EmailNotVerifiedBanner,
+  EmailVerifiedToast,
+  LogoutButton,
+} from "@/modules/auth";
 
 export const metadata: Metadata = {
   title: "Accueil — Notion Club",
@@ -36,6 +41,18 @@ export default function DashboardPage() {
           }}
           className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10"
         >
+          {/* Banner email non confirmé (Server Component : se rend uniquement
+              si email_verified_at IS NULL). Reste visible sur toutes les
+              pages où on l'insère, sans bloquer le user. */}
+          <EmailNotVerifiedBanner />
+
+          {/* Toast post-clic du lien de confirmation (?email_verified=…).
+              Wrappé en Suspense car useSearchParams empêche le prerender
+              statique sinon. */}
+          <Suspense fallback={null}>
+            <EmailVerifiedToast />
+          </Suspense>
+
           {/* Greeting + search — desktop uniquement */}
           <div className="hidden md:flex flex-col gap-5">
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>

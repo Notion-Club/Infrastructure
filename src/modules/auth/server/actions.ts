@@ -11,6 +11,10 @@ import {
   type SignupInput,
 } from "@/modules/auth/lib/validation";
 import { ensureChallengeMembership } from "@/modules/auth/server/membership";
+import {
+  resendVerificationEmail,
+  sendVerificationEmail,
+} from "@/modules/auth/server/email";
 
 // ============================================================================
 // Types de retour communs
@@ -99,7 +103,14 @@ export async function signUpAction(input: SignupInput): Promise<AuthResult> {
     console.error("[signUp] ensureChallengeMembership failed:", err);
   }
 
-  // TODO(resend) : envoi email de bienvenue (Reply-To: RESEND_REPLY_TO_EMAIL).
+  // Envoi de l'email de confirmation (best-effort : si l'envoi échoue,
+  // l'utilisateur peut le re-demander via le banner /dashboard).
+  try {
+    await sendVerificationEmail({ userId, email, firstName });
+  } catch (err) {
+    console.error("[signUp] sendVerificationEmail failed:", err);
+  }
+
   // TODO(posthog) : track('user_signed_up_challenge', { user_id: userId }).
 
   return { ok: true };
@@ -186,6 +197,60 @@ export async function signOutAction(): Promise<void> {
   // TODO(posthog) : track('user_logged_out').
 
   redirect("/login");
+}
+
+// ============================================================================
+// resendVerificationEmail — bouton "Renvoyer l'email" du banner
+// ============================================================================
+// Server Action appelable depuis un Client Component (le banner). Lit l'user
+// courant via la session pour ne pas accepter un userId arbitraire depuis le
+// client (un attaquant pourrait spammer des envois ciblés sinon).
+export type ResendVerificationResult =
+  | { ok: true }
+  | { ok: false; code: "not_authenticated" | "already_verified" | "rate_limited" | "unknown"; message: string; retryAfterSeconds?: number };
+
+export async function resendVerificationEmailAction(): Promise<ResendVerificationResult> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      message: "Tu dois être connecté pour demander un nouvel email.",
+    };
+  }
+
+  const result = await resendVerificationEmail({ userId: user.id });
+
+  if (result.ok) {
+    return { ok: true };
+  }
+
+  if (result.retryAfterSeconds !== undefined) {
+    return {
+      ok: false,
+      code: "rate_limited",
+      message: `Patiente encore ${result.retryAfterSeconds}s avant de renvoyer.`,
+      retryAfterSeconds: result.retryAfterSeconds,
+    };
+  }
+
+  if (result.error === "already verified") {
+    return {
+      ok: false,
+      code: "already_verified",
+      message: "Ton email est déjà vérifié.",
+    };
+  }
+
+  return {
+    ok: false,
+    code: "unknown",
+    message: result.error ?? "Impossible d'envoyer l'email pour le moment.",
+  };
 }
 
 // ============================================================================
