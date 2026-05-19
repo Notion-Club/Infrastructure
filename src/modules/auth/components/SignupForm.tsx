@@ -18,14 +18,16 @@ export function SignupForm() {
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string;
     password?: string;
-    fullName?: string;
+    firstName?: string;
+    lastName?: string;
   }>({});
 
   function onSubmit(formData: FormData) {
     const raw = {
       email: String(formData.get("email") ?? ""),
       password: String(formData.get("password") ?? ""),
-      fullName: String(formData.get("fullName") ?? ""),
+      firstName: String(formData.get("firstName") ?? ""),
+      lastName: String(formData.get("lastName") ?? ""),
     };
 
     const parsed = signupSchema.safeParse(raw);
@@ -59,18 +61,35 @@ export function SignupForm() {
       className="flex w-full max-w-sm flex-col gap-4"
       noValidate
     >
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="fullName">Nom complet (optionnel)</Label>
-        <Input
-          id="fullName"
-          name="fullName"
-          type="text"
-          autoComplete="name"
-          disabled={isPending}
-        />
-        {fieldErrors.fullName && (
-          <p className="text-xs text-destructive">{fieldErrors.fullName}</p>
-        )}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="firstName">Prénom</Label>
+          <Input
+            id="firstName"
+            name="firstName"
+            type="text"
+            required
+            autoComplete="given-name"
+            disabled={isPending}
+          />
+          {fieldErrors.firstName && (
+            <p className="text-xs text-destructive">{fieldErrors.firstName}</p>
+          )}
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="lastName">Nom</Label>
+          <Input
+            id="lastName"
+            name="lastName"
+            type="text"
+            required
+            autoComplete="family-name"
+            disabled={isPending}
+          />
+          {fieldErrors.lastName && (
+            <p className="text-xs text-destructive">{fieldErrors.lastName}</p>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">

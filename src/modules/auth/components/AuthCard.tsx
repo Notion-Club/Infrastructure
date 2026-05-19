@@ -42,7 +42,8 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 type FieldErrors = {
   email?: string;
   password?: string;
-  fullName?: string;
+  firstName?: string;
+  lastName?: string;
 };
 
 export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps) {
@@ -112,7 +113,8 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
     const raw = {
       email: String(formData.get("email") ?? ""),
       password: String(formData.get("password") ?? ""),
-      fullName: String(formData.get("fullName") ?? ""),
+      firstName: String(formData.get("firstName") ?? ""),
+      lastName: String(formData.get("lastName") ?? ""),
     };
     const parsed = signupSchema.safeParse(raw);
     if (!parsed.success) {
@@ -316,15 +318,28 @@ function SignupFields({
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <Field
-        id="fullName"
-        label="Nom complet"
-        type="text"
-        placeholder="Théo Gouman"
-        autoComplete="name"
-        disabled={disabled}
-        error={fieldErrors.fullName}
-      />
+      <div className="grid grid-cols-2 gap-3">
+        <Field
+          id="firstName"
+          label="Prénom"
+          type="text"
+          placeholder="Théo"
+          autoComplete="given-name"
+          required
+          disabled={disabled}
+          error={fieldErrors.firstName}
+        />
+        <Field
+          id="lastName"
+          label="Nom"
+          type="text"
+          placeholder="Gouman"
+          autoComplete="family-name"
+          required
+          disabled={disabled}
+          error={fieldErrors.lastName}
+        />
+      </div>
       <Field
         id="email"
         label="Email"
