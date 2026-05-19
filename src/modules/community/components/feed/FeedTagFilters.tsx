@@ -40,16 +40,19 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
               type="button"
               onClick={() => onChange(f.value)}
               style={{
+                /* Fixed min-width prevents layout shift when font-weight changes */
+                minWidth: 90,
                 padding: "7px 14px",
                 borderRadius: 9999,
                 border: isActive ? "1.5px solid var(--color-brand)" : "1px solid var(--color-border-default)",
                 background: isActive ? "rgba(224,98,90,0.08)" : "white",
                 color: isActive ? "var(--color-brand)" : "var(--color-text-secondary)",
                 fontSize: 13,
-                fontWeight: isActive ? 600 : 400,
+                fontWeight: 600,
                 cursor: "pointer",
-                transition: "all 150ms ease",
+                transition: "background 180ms ease, border-color 180ms ease, color 180ms ease",
                 whiteSpace: "nowrap",
+                textAlign: "center",
               }}
               className={!isActive ? "hover:bg-[rgba(0,0,0,0.04)]" : ""}
             >

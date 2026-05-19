@@ -19,25 +19,39 @@ interface PostComposerTagSelectProps {
 
 export function PostComposerTagSelect({ value, onChange, isAdmin }: PostComposerTagSelectProps) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const tags = isAdmin ? ALL_TAGS : ALL_TAGS.filter((t) => !t.adminOnly);
   const selected = tags.find((t) => t.value === value)!;
 
+  function handleOpen() {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setOpen((o) => !o);
+  }
+
   useEffect(() => {
     if (!open) return;
     function close(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      const inButton = buttonRef.current?.contains(target);
+      const inDropdown = dropdownRef.current?.contains(target);
+      if (!inButton && !inDropdown) setOpen(false);
     }
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
 
   return (
-    <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
+    <div style={{ position: "relative", display: "inline-block" }}>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={handleOpen}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -57,19 +71,21 @@ export function PostComposerTagSelect({ value, onChange, isAdmin }: PostComposer
         <ChevronDown size={14} style={{ color: "var(--color-text-muted)" }} />
       </button>
 
-      {open && (
+      {open && dropdownPos && (
         <div
+          ref={dropdownRef}
           style={{
-            position: "absolute",
-            top: "calc(100% + 4px)",
-            left: 0,
+            position: "fixed",
+            top: dropdownPos.top,
+            left: dropdownPos.left,
             background: "white",
             border: "1px solid var(--color-border-default)",
             borderRadius: 12,
             boxShadow: "var(--nc-shadow-3)",
             padding: 4,
-            zIndex: 100,
+            zIndex: 9999,
             minWidth: 160,
+            animation: "nc-mode-in 150ms var(--nc-ease) both",
           }}
         >
           {tags.map((t) => (
@@ -93,7 +109,11 @@ export function PostComposerTagSelect({ value, onChange, isAdmin }: PostComposer
               className={t.value !== value ? "hover:bg-[#f5f5f5]" : ""}
             >
               {t.label}
-              {t.adminOnly && <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginLeft: 6 }}>Admin</span>}
+              {t.adminOnly && (
+                <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginLeft: 6 }}>
+                  Admin
+                </span>
+              )}
             </button>
           ))}
         </div>

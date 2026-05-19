@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { FileText, MoreHorizontal } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { FileText, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import type { Message } from "../../types/conversation.types";
 import { timeAgo } from "../../utils/date-helpers";
+import { linkify } from "../../utils/linkify";
 
 const EMOJIS = ["❤️", "🔥", "🎉", "🙌", "💡", "😍", "👏", "🤯"];
 
@@ -17,7 +18,20 @@ interface MessageBubbleProps {
 export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubbleProps) {
   const [showActions, setShowActions] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [reactions, setReactions] = useState(message.reactions);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    function close(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [showMenu]);
 
   if (message.deleted) {
     return (
@@ -68,7 +82,7 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
         <div
           style={{
             maxWidth: 320,
-            padding: message.type === "pdf" ? "10px 14px" : "10px 14px",
+            padding: "10px 14px",
             borderRadius: isSelf ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
             background: isSelf ? "var(--color-brand)" : "white",
             color: isSelf ? "#fff" : "var(--color-text-primary)",
@@ -78,7 +92,9 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
             wordBreak: "break-word",
           }}
         >
-          {message.type === "text" && <span style={{ whiteSpace: "pre-wrap" }}>{message.body}</span>}
+          {message.type === "text" && (
+            <span style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
+          )}
           {message.type === "image" && (
             <div>
               <img src={message.fileUrl} alt="image" style={{ maxWidth: "100%", borderRadius: 8, display: "block" }} />
@@ -122,22 +138,65 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
               )}
             </div>
             {isSelf && (
-              <div style={{ position: "relative" }}>
+              <div ref={menuRef} style={{ position: "relative" }}>
                 <button
                   type="button"
+                  onClick={() => setShowMenu((o) => !o)}
                   style={{
                     width: 28, height: 28, borderRadius: "50%", border: "1px solid var(--color-border-default)",
                     background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                     color: "var(--color-text-muted)",
                   }}
-                  onClick={() => {
-                    const choice = window.confirm("Modifier (OK) ou Supprimer (Annuler) ?");
-                    if (choice && onEdit) onEdit();
-                    else if (!choice && onDelete) onDelete();
-                  }}
                 >
                   <MoreHorizontal size={14} />
                 </button>
+
+                {showMenu && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      bottom: "calc(100% + 4px)",
+                      background: "white",
+                      border: "1px solid var(--color-border-default)",
+                      borderRadius: 12,
+                      boxShadow: "var(--nc-shadow-3)",
+                      padding: 4,
+                      zIndex: 100,
+                      minWidth: 160,
+                      animation: "nc-mode-in 150ms var(--nc-ease) both",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => { setShowMenu(false); onEdit?.(); }}
+                      style={{
+                        width: "100%", display: "flex", alignItems: "center", gap: 8,
+                        padding: "8px 12px", border: "none", background: "transparent",
+                        borderRadius: 8, cursor: "pointer", fontSize: 13,
+                        color: "var(--color-text-primary)", textAlign: "left",
+                      }}
+                      className="hover:bg-[rgba(0,0,0,0.05)]"
+                    >
+                      <Pencil size={14} />
+                      Modifier
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowMenu(false); onDelete?.(); }}
+                      style={{
+                        width: "100%", display: "flex", alignItems: "center", gap: 8,
+                        padding: "8px 12px", border: "none", background: "transparent",
+                        borderRadius: 8, cursor: "pointer", fontSize: 13,
+                        color: "#e53e3e", textAlign: "left",
+                      }}
+                      className="hover:bg-[rgba(229,62,62,0.06)]"
+                    >
+                      <Trash2 size={14} />
+                      Supprimer
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

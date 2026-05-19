@@ -14,6 +14,7 @@ interface CommentComposerProps {
   replyingTo?: string;
   onCancelReply?: () => void;
   onSubmit: (body: string) => void;
+  compact?: boolean;
 }
 
 export function CommentComposer({

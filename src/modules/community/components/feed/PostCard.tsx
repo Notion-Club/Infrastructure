@@ -7,6 +7,7 @@ import type { Post } from "../../types/post.types";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { timeAgo } from "../../utils/date-helpers";
+import { linkify } from "../../utils/linkify";
 import { UserAvatar } from "../shared/UserAvatar";
 import { UserHoverCard } from "../shared/UserHoverCard";
 import { TagPill } from "../shared/TagPill";
@@ -67,7 +68,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
         transition: "box-shadow 200ms var(--nc-ease), transform 200ms var(--nc-ease)",
         boxShadow: "var(--nc-shadow-3)",
       }}
-      className="hover:shadow-[rgba(0,0,0,0.10)_0px_8px_32px_0px,rgba(0,0,0,0.04)_0px_1px_3px_0px] hover:-translate-y-[1px]"
+      className="hover:shadow-[rgba(0,0,0,0.10)_0px_8px_32px_0px,rgba(0,0,0,0.04)_0px_1px_3px_0px]"
     >
       {/* Pinned badge */}
       {pinned && (
@@ -169,7 +170,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
             whiteSpace: "pre-wrap",
           }}
         >
-          {post.body}
+          {linkify(post.body)}
         </p>
 
         {post.imageUrl && (
