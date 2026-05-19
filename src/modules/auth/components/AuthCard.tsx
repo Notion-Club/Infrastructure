@@ -4,6 +4,7 @@ import { useState, useTransition, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
+import type { ZodIssue } from "zod";
 
 import { cn } from "@/shared/lib/utils";
 import { GoogleButton } from "./GoogleButton";
@@ -189,9 +190,7 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
   );
 }
 
-function extractFieldErrors(
-  issues: Array<{ path: (string | number)[]; message: string }>,
-): FieldErrors {
+function extractFieldErrors(issues: ZodIssue[]): FieldErrors {
   const errs: FieldErrors = {};
   for (const issue of issues) {
     const field = issue.path[0] as keyof FieldErrors;
