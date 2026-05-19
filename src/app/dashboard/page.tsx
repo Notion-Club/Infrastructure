@@ -11,6 +11,7 @@ import {
   EmailVerifiedToast,
   LogoutButton,
 } from "@/modules/auth";
+import { EmailConfirmBanner } from "@/shared/components/dashboard/EmailConfirmBanner";
 
 export const metadata: Metadata = {
   title: "Accueil — Notion Club",
