@@ -46,3 +46,23 @@ export const updatePasswordSchema = z
   });
 
 export type UpdatePasswordInput = z.infer<typeof updatePasswordSchema>;
+
+// Reset password — flow lien email. L'user n'a pas son ancien mdp (oublié)
+// mais on a un accessToken JWT issu de la session recovery établie côté
+// browser via le flow "implicit". On le passe à la Server Action pour
+// identifier l'user en bypassant nos cookies serveur (qui ne portent pas
+// cette session recovery).
+export const recoveryPasswordChangeSchema = z
+  .object({
+    accessToken: z.string().min(1, "Session recovery requise"),
+    newPassword: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Les mots de passe ne correspondent pas",
+  });
+
+export type RecoveryPasswordChangeInput = z.infer<
+  typeof recoveryPasswordChangeSchema
+>;

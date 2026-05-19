@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { ZodIssue } from "zod";
 
 import { updatePasswordSchema } from "@/modules/auth/lib/validation";
+import { updatePasswordFromRecoveryAction } from "@/modules/auth/server/actions";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 
 // Page de définition d'un nouveau mot de passe après clic sur le lien email.
@@ -112,24 +113,38 @@ export function UpdatePasswordForm() {
 
     startTransition(async () => {
       const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.updateUser({
-        password: parsed.data.password,
+
+      // Récupère l'accessToken de la session recovery (établie côté browser
+      // via le flow implicit). On le passe à la Server Action qui s'en sert
+      // pour identifier l'user, check le password history, et update le mdp.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setLoadState("expired");
+        return;
+      }
+
+      const result = await updatePasswordFromRecoveryAction({
+        accessToken: session.access_token,
+        newPassword: parsed.data.password,
+        confirmPassword: parsed.data.confirmPassword,
       });
-      if (error) {
-        const msg = error.message.toLowerCase();
-        if (msg.includes("password")) {
-          setFieldErrors({ password: error.message });
+
+      if (!result.ok) {
+        if (result.code === "password_reused") {
+          setFieldErrors({ password: result.message });
           return;
         }
-        if (
-          msg.includes("session") ||
-          msg.includes("token") ||
-          msg.includes("auth")
-        ) {
+        if (result.code === "weak_password") {
+          setFieldErrors({ password: result.message });
+          return;
+        }
+        if (result.code === "invalid_session") {
           setLoadState("expired");
           return;
         }
-        toast.error("Impossible de mettre à jour le mot de passe.");
+        toast.error(result.message);
         return;
       }
 

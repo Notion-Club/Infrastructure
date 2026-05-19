@@ -11,6 +11,7 @@ const MODULES = [
   "notion-sync",
   "coaching",
   "onboarding",
+  "settings",
 ];
 
 // Pour un module donné, génère une override ESLint qui interdit les imports

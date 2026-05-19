@@ -19,4 +19,6 @@ export {
   signInWithGoogleAction,
   signOutAction,
   resendVerificationEmailAction,
+  updatePasswordFromRecoveryAction,
+  type RecoveryPasswordChangeResult,
 } from "./server/actions";
