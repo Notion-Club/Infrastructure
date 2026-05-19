@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { X } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { X, Image as ImageIcon, Video as VideoIcon, Link } from "lucide-react";
 import type { Post, PostTag, PostAudience } from "../../types/post.types";
 import type { User } from "../../types/user.types";
 import { PostComposerTagSelect } from "./PostComposerTagSelect";
@@ -19,14 +19,22 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
   const isAdmin = currentUser.role === "admin" || currentUser.role === "mentor";
 
   const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const [bodyHtml, setBodyHtml] = useState("");
   const [tag, setTag] = useState<PostTag>("general");
   const [audience, setAudience] = useState<PostAudience | null>(isAdmin ? null : "all");
   const [pinned, setPinned] = useState(false);
   const [pinnedDuration, setPinnedDuration] = useState("24h");
   const [notifyAll, setNotifyAll] = useState(false);
-  const [bold, setBold] = useState(false);
-  const [italic, setItalic] = useState(false);
+
+  const editorRef = useRef<HTMLDivElement>(null);
+  const savedRange = useRef<Range | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const [urlMenuVisible, setUrlMenuVisible] = useState(false);
+  const [urlMenuPos, setUrlMenuPos] = useState({ top: 0, left: 0 });
+  const [urlInput, setUrlInput] = useState("");
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+  const [editorEmpty, setEditorEmpty] = useState(true);
 
   // Restore draft
   useEffect(() => {
@@ -35,8 +43,12 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
       if (saved) {
         const draft = JSON.parse(saved);
         if (draft.title) setTitle(draft.title);
-        if (draft.body) setBody(draft.body);
         if (draft.tag) setTag(draft.tag);
+        if (draft.bodyHtml && editorRef.current) {
+          editorRef.current.innerHTML = draft.bodyHtml;
+          setBodyHtml(draft.bodyHtml);
+          setEditorEmpty(editorRef.current.innerText.trim().length === 0);
+        }
       }
     } catch {}
   }, []);
@@ -44,9 +56,9 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
   // Save draft on change
   useEffect(() => {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ title, body, tag }));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ title, bodyHtml, tag }));
     } catch {}
-  }, [title, body, tag]);
+  }, [title, bodyHtml, tag]);
 
   // Esc to close
   useEffect(() => {
@@ -57,17 +69,26 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const canPublish = body.trim().length > 0 && (isAdmin ? audience !== null : true);
+  function syncBody() {
+    const html = editorRef.current?.innerHTML ?? "";
+    const text = editorRef.current?.innerText?.trim() ?? "";
+    setBodyHtml(html);
+    setEditorEmpty(text.length === 0);
+  }
+
+  const editorHasContent = !editorEmpty;
+  const canPublish = editorHasContent && (isAdmin ? audience !== null : true);
 
   function handlePublish() {
     if (!canPublish) return;
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
     onPublish({
       title: title.trim() || undefined,
-      body: body.trim(),
+      body: editorRef.current?.innerText?.trim() ?? "",
       tag,
       audience: audience ?? "all",
       pinned,
+      imageUrl: pendingImageUrl ?? undefined,
       author: currentUser,
       reactions: [],
       commentCount: 0,
@@ -75,16 +96,36 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
     });
   }
 
-  const wrapText = useCallback((wrapper: string) => {
-    setBody((prev) => {
-      const textarea = document.querySelector<HTMLTextAreaElement>("#composer-body");
-      if (!textarea) return `${wrapper}${prev}${wrapper}`;
-      const { selectionStart: s, selectionEnd: e } = textarea;
-      if (s === e) return prev;
-      const selected = prev.slice(s, e);
-      return prev.slice(0, s) + `${wrapper}${selected}${wrapper}` + prev.slice(e);
-    });
+  const handleUrlButtonClick = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+    savedRange.current = sel.getRangeAt(0).cloneRange();
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    setUrlMenuPos({ top: rect.top - 52, left: rect.left });
+    setUrlMenuVisible(true);
+    setUrlInput("");
   }, []);
+
+  function insertLink() {
+    if (!savedRange.current || !urlInput.trim()) return;
+    const sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(savedRange.current);
+    }
+    document.execCommand("createLink", false, urlInput.trim());
+    setUrlMenuVisible(false);
+    editorRef.current?.focus();
+    syncBody();
+  }
+
+  function handleImageFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (pendingImageUrl) URL.revokeObjectURL(pendingImageUrl);
+    setPendingImageUrl(URL.createObjectURL(file));
+    e.target.value = "";
+  }
 
   return (
     <div
@@ -95,11 +136,82 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 500,
+        zIndex: 9999,
         padding: 16,
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
+      {/* URL floating input */}
+      {urlMenuVisible && (
+        <div
+          style={{
+            position: "fixed",
+            top: urlMenuPos.top,
+            left: urlMenuPos.left,
+            background: "white",
+            border: "1px solid var(--color-border-default)",
+            borderRadius: 12,
+            boxShadow: "var(--nc-shadow-3)",
+            padding: "8px 10px",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            zIndex: 10001,
+            animation: "nc-mode-in 150ms var(--nc-ease) both",
+          }}
+        >
+          <input
+            autoFocus
+            type="url"
+            placeholder="https://…"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); insertLink(); }
+              if (e.key === "Escape") setUrlMenuVisible(false);
+            }}
+            style={{
+              border: "1px solid var(--color-border-default)",
+              borderRadius: 8,
+              padding: "6px 10px",
+              fontSize: 13,
+              outline: "none",
+              width: 220,
+              fontFamily: "inherit",
+            }}
+          />
+          <button
+            type="button"
+            onClick={insertLink}
+            style={{
+              padding: "6px 12px",
+              background: "var(--color-brand)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            OK
+          </button>
+          <button
+            type="button"
+            onClick={() => setUrlMenuVisible(false)}
+            style={{
+              width: 28, height: 28, borderRadius: "50%",
+              border: "none", background: "transparent",
+              cursor: "pointer", color: "var(--color-text-muted)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 14,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <div
         style={{
           background: "white",
@@ -122,7 +234,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
           flexShrink: 0,
         }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--color-text-primary)" }}>
-            Nouveau post
+            Que souhaites-tu partager ?
           </h2>
           <button type="button" onClick={onClose}
             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex", borderRadius: "50%", padding: 4 }}
@@ -152,6 +264,30 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
             onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
           />
 
+          {/* Pending image preview */}
+          {pendingImageUrl && (
+            <div style={{ position: "relative", borderRadius: 12, overflow: "hidden" }}>
+              <img
+                src={pendingImageUrl}
+                alt="preview"
+                style={{ width: "100%", maxHeight: 200, objectFit: "cover", display: "block" }}
+              />
+              <button
+                type="button"
+                onClick={() => { URL.revokeObjectURL(pendingImageUrl); setPendingImageUrl(null); }}
+                style={{
+                  position: "absolute", top: 8, right: 8,
+                  width: 28, height: 28, borderRadius: "50%",
+                  background: "rgba(0,0,0,0.6)", border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#fff", fontSize: 14,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           {/* Editor */}
           <div
             style={{
@@ -166,69 +302,144 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
               padding: "8px 10px", borderBottom: "1px solid var(--color-border-default)",
               background: "var(--color-surface-raised)",
             }}>
-              {[
-                { label: "B", title: "Gras", action: () => { setBold((b) => !b); wrapText("**"); }, active: bold, style: { fontWeight: 700 } },
-                { label: "I", title: "Italique", action: () => { setItalic((i) => !i); wrapText("_"); }, active: italic, style: { fontStyle: "italic" } },
-              ].map((btn) => (
-                <button
-                  key={btn.label}
-                  type="button"
-                  title={btn.title}
-                  onClick={btn.action}
-                  style={{
-                    ...btn.style,
-                    width: 30, height: 30, borderRadius: 6, border: "none",
-                    background: btn.active ? "rgba(224,98,90,0.1)" : "transparent",
-                    color: btn.active ? "var(--color-brand)" : "var(--color-text-secondary)",
-                    cursor: "pointer", fontSize: 14, display: "flex",
-                    alignItems: "center", justifyContent: "center",
-                    transition: "background 100ms ease",
-                  }}
-                  className="hover:bg-[rgba(0,0,0,0.06)]"
-                >
-                  {btn.label}
-                </button>
-              ))}
+              <button
+                type="button"
+                title="Gras"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { document.execCommand("bold", false); editorRef.current?.focus(); syncBody(); }}
+                style={{
+                  fontWeight: 700, width: 30, height: 30, borderRadius: 6, border: "none",
+                  background: "transparent", color: "var(--color-text-secondary)",
+                  cursor: "pointer", fontSize: 14, display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                  transition: "background 100ms ease",
+                }}
+                className="hover:bg-[rgba(0,0,0,0.06)]"
+              >
+                B
+              </button>
+              <button
+                type="button"
+                title="Italique"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { document.execCommand("italic", false); editorRef.current?.focus(); syncBody(); }}
+                style={{
+                  fontStyle: "italic", width: 30, height: 30, borderRadius: 6, border: "none",
+                  background: "transparent", color: "var(--color-text-secondary)",
+                  cursor: "pointer", fontSize: 14, display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                  transition: "background 100ms ease",
+                }}
+                className="hover:bg-[rgba(0,0,0,0.06)]"
+              >
+                I
+              </button>
               <span style={{ width: 1, height: 16, background: "var(--color-border-default)" }} />
-              <button type="button" title="Liste" onClick={() => setBody((b) => b + "\n• ")}
-                style={{ width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)", transition: "background 100ms ease" }}
-                className="hover:bg-[rgba(0,0,0,0.06)]">
+              <button
+                type="button"
+                title="Liste"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { document.execCommand("insertUnorderedList", false); editorRef.current?.focus(); syncBody(); }}
+                style={{
+                  width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
+                  cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)",
+                  transition: "background 100ms ease", display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+                className="hover:bg-[rgba(0,0,0,0.06)]"
+              >
                 ≡
               </button>
-              <button type="button" title="Lien" onClick={() => setBody((b) => b + "[texte](url)")}
-                style={{ width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 600, transition: "background 100ms ease" }}
-                className="hover:bg-[rgba(0,0,0,0.06)]">
-                🔗
+              <button
+                type="button"
+                title="Lien (sélectionnez du texte d'abord)"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={handleUrlButtonClick}
+                style={{
+                  width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
+                  cursor: "pointer", color: "var(--color-text-secondary)",
+                  transition: "background 100ms ease", display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+                className="hover:bg-[rgba(0,0,0,0.06)]"
+              >
+                <Link size={14} />
               </button>
-              <button type="button" title="Image" onClick={() => setBody((b) => b + "\n![image](url)")}
-                style={{ width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", fontSize: 14, transition: "background 100ms ease" }}
-                className="hover:bg-[rgba(0,0,0,0.06)]">
-                📎
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handleImageFile}
+              />
+              <button
+                type="button"
+                title="Image"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => imageInputRef.current?.click()}
+                style={{
+                  width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
+                  cursor: "pointer", color: "var(--color-text-secondary)",
+                  transition: "background 100ms ease", display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+                className="hover:bg-[rgba(0,0,0,0.06)]"
+              >
+                <ImageIcon size={14} />
               </button>
-              <button type="button" title="Vidéo" onClick={() => {
-                const url = window.prompt("URL de la vidéo (YouTube, Tella, Loom)");
-                if (url) setBody((b) => b + `\n[vidéo: ${url}]`);
-              }}
-                style={{ width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", fontSize: 14, transition: "background 100ms ease" }}
-                className="hover:bg-[rgba(0,0,0,0.06)]">
-                🎥
+              <button
+                type="button"
+                title="Vidéo"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  const url = window.prompt("URL de la vidéo (YouTube, Tella, Loom)");
+                  if (url) {
+                    editorRef.current?.focus();
+                    document.execCommand("insertText", false, `[vidéo: ${url}]`);
+                    syncBody();
+                  }
+                }}
+                style={{
+                  width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
+                  cursor: "pointer", color: "var(--color-text-secondary)",
+                  transition: "background 100ms ease", display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+                className="hover:bg-[rgba(0,0,0,0.06)]"
+              >
+                <VideoIcon size={14} />
               </button>
             </div>
 
-            <textarea
-              id="composer-body"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Partagez quelque chose avec la communauté…"
-              rows={6}
-              style={{
-                width: "100%", padding: "14px", border: "none",
-                fontSize: 14, resize: "none", outline: "none",
-                fontFamily: "inherit", lineHeight: 1.6,
-                color: "var(--color-text-primary)", boxSizing: "border-box",
-                background: "white",
-              }}
-            />
+            {/* contentEditable editor */}
+            <div style={{ position: "relative" }}>
+              {editorEmpty && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 14, left: 14,
+                    color: "var(--color-text-muted)",
+                    fontSize: 14,
+                    pointerEvents: "none",
+                    userSelect: "none",
+                  }}
+                >
+                  Partagez quelque chose avec la communauté…
+                </span>
+              )}
+              <div
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={syncBody}
+                style={{
+                  minHeight: 120,
+                  padding: "14px",
+                  fontSize: 14,
+                  fontFamily: "inherit",
+                  lineHeight: 1.6,
+                  color: "var(--color-text-primary)",
+                  outline: "none",
+                  wordBreak: "break-word",
+                }}
+              />
+            </div>
           </div>
 
           {/* Tag */}
@@ -251,7 +462,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
             />
           )}
 
-          {isAdmin && audience === null && body.trim() && (
+          {isAdmin && audience === null && editorHasContent && (
             <p style={{ margin: 0, fontSize: 12, color: "var(--color-brand)", textAlign: "center" }}>
               Sélectionnez une audience pour pouvoir publier.
             </p>

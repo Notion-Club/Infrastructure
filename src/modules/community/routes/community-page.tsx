@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Users, MessageCircle } from "lucide-react";
+import { MessageCircle, Users } from "lucide-react";
 import type { PostTag } from "../types/post.types";
 import { useDevRoleToggle } from "../hooks/useDevRoleToggle";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { usePostsFiltered } from "../hooks/usePostsFiltered";
-import { MOCK_NOTIFICATIONS } from "../mocks/notifications.mock";
 import { FeedTagFilters } from "../components/feed/FeedTagFilters";
 import { FeedPostList } from "../components/feed/FeedPostList";
 import { FeedSkeletonState } from "../components/feed/FeedSkeletonState";
@@ -14,7 +13,6 @@ import { FeedErrorState } from "../components/feed/FeedErrorState";
 import { PostComposerModal } from "../components/post-composer/PostComposerModal";
 import { MessagesLayout } from "../components/messages/MessagesLayout";
 import { DevRoleToggle } from "../components/dev/DevRoleToggle";
-import { NotificationPopover } from "../components/notifications/NotificationPopover";
 import { CommunityRestrictedPage } from "./community-restricted-page";
 import type { Post } from "../types/post.types";
 import { MOCK_CONVERSATIONS } from "../mocks/conversations.mock";
@@ -38,18 +36,13 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
   const [extraPosts, setExtraPosts] = useState<Post[]>([]);
 
   const filteredPosts = usePostsFiltered(currentUser, activeTag);
-  const allPosts = [...extraPosts.filter((p) => {
-    // filter extra posts by same logic
-    if (activeTag !== "all" && p.tag !== activeTag) return false;
-    return true;
-  }), ...filteredPosts];
+  const allPosts = [
+    ...extraPosts.filter((p) => activeTag === "all" || p.tag === activeTag),
+    ...filteredPosts,
+  ];
 
-  // Simulate restricted (Formation-only user)
-  const canViewCommunity = true; // In real app: check user capability
-
-  if (!canViewCommunity) {
-    return <CommunityRestrictedPage />;
-  }
+  const canViewCommunity = true;
+  if (!canViewCommunity) return <CommunityRestrictedPage />;
 
   function handlePublish(partial: Partial<Post>) {
     const newPost: Post = {
@@ -70,45 +63,34 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
 
   const showSkeleton = feedState === "loading";
   const showError = feedState === "error";
-  const showEmpty = feedState === "empty";
 
   return (
     <>
-      {/* Page */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-        {/* Page header */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-            <div>
-              <h1
-                style={{
-                  fontSize: "clamp(28px, 4vw, 40px)",
-                  fontWeight: 800,
-                  color: "var(--color-text-primary)",
-                  margin: "0 0 4px",
-                  letterSpacing: "-0.02em",
-                  lineHeight: 1.1,
-                }}
-              >
-                Communauté
-              </h1>
-              <p style={{ margin: 0, fontSize: 14, color: "var(--color-text-muted)" }}>
-                Échangez avec la communauté Notion Club
-              </p>
-            </div>
-            {/* Notification bell desktop */}
-            <div className="hidden md:flex">
-              <NotificationPopover />
-            </div>
-          </div>
-
-          {/* Tabs */}
+      {/* Global container card */}
+      <div
+        style={{
+          background: "white",
+          border: "1px solid var(--color-border-default)",
+          borderRadius: 20,
+          boxShadow: "var(--nc-shadow-3)",
+          overflow: "hidden",
+        }}
+      >
+        {/* iOS-style pill switcher — full width */}
+        <div
+          style={{
+            padding: "12px 16px",
+            borderBottom: "1px solid var(--color-border-default)",
+            background: "white",
+          }}
+        >
           <div
             style={{
               display: "flex",
-              gap: 4,
-              marginTop: 20,
-              borderBottom: "1px solid var(--color-border-default)",
+              background: "var(--color-surface-raised)",
+              borderRadius: 10,
+              padding: 3,
+              gap: 2,
             }}
           >
             {(
@@ -124,25 +106,29 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
                   type="button"
                   onClick={() => setActiveTab(value)}
                   style={{
-                    display: "inline-flex",
+                    flex: 1,
+                    display: "flex",
                     alignItems: "center",
-                    gap: 6,
-                    padding: "10px 16px",
+                    justifyContent: "center",
+                    gap: 7,
+                    padding: "8px 16px",
+                    borderRadius: 8,
                     border: "none",
-                    background: "transparent",
-                    cursor: "pointer",
-                    fontSize: 14,
-                    fontWeight: isActive ? 700 : 400,
+                    background: isActive ? "white" : "transparent",
+                    boxShadow: isActive
+                      ? "0 1px 4px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)"
+                      : "none",
                     color: isActive ? "var(--color-text-primary)" : "var(--color-text-muted)",
-                    borderBottom: isActive ? "2px solid var(--color-text-primary)" : "2px solid transparent",
-                    marginBottom: -1,
-                    transition: "color 150ms ease, border-color 150ms ease",
-                    position: "relative",
+                    fontSize: 14,
+                    fontWeight: isActive ? 600 : 400,
+                    cursor: "pointer",
+                    transition: "background 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease), color 200ms ease",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  <Icon size={16} />
+                  <Icon size={15} strokeWidth={isActive ? 2.5 : 2} />
                   {label}
-                  {badge && badge > 0 && (
+                  {badge > 0 && (
                     <span
                       style={{
                         minWidth: 16,
@@ -167,39 +153,40 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
           </div>
         </div>
 
-        {/* Feed tab */}
-        {activeTab === "feed" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <FeedTagFilters
-              active={activeTag}
-              onChange={setActiveTag}
-              onNewPost={() => setShowComposer(true)}
-              isAdmin={currentUser.role === "admin"}
+        {/* Content */}
+        <div style={{ padding: activeTab === "messages" ? 0 : 16 }}>
+          {activeTab === "feed" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <FeedTagFilters
+                active={activeTag}
+                onChange={setActiveTag}
+                onNewPost={() => setShowComposer(true)}
+                isAdmin={currentUser.role === "admin"}
+              />
+              {showSkeleton ? (
+                <FeedSkeletonState />
+              ) : showError ? (
+                <FeedErrorState onRetry={() => setFeedState("full")} />
+              ) : (
+                <FeedPostList
+                  posts={feedState === "empty" ? [] : allPosts}
+                  currentUser={currentUser}
+                  devRole={role}
+                />
+              )}
+            </div>
+          )}
+
+          {activeTab === "messages" && (
+            <MessagesLayout
+              currentUser={currentUser}
+              devRole={role}
+              initialConversationId={initialConversationId}
             />
-
-            {showSkeleton ? (
-              <FeedSkeletonState />
-            ) : showError ? (
-              <FeedErrorState onRetry={() => setFeedState("full")} />
-            ) : showEmpty ? (
-              <FeedPostList posts={[]} currentUser={currentUser} devRole={role} />
-            ) : (
-              <FeedPostList posts={allPosts} currentUser={currentUser} devRole={role} />
-            )}
-          </div>
-        )}
-
-        {/* Messages tab */}
-        {activeTab === "messages" && (
-          <MessagesLayout
-            currentUser={currentUser}
-            devRole={role}
-            initialConversationId={initialConversationId}
-          />
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Composer modal */}
       {showComposer && (
         <PostComposerModal
           currentUser={currentUser}
@@ -208,7 +195,6 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
         />
       )}
 
-      {/* Dev toggle */}
       <DevRoleToggle
         role={role}
         onRoleChange={setRole}

@@ -15,7 +15,6 @@ interface CommentListProps {
 
 export function CommentList({ comments: initialComments, currentUser, devRole }: CommentListProps) {
   const [comments, setComments] = useState(initialComments);
-  const [replyingTo, setReplyingTo] = useState<{ commentId: string; name: string } | null>(null);
 
   function handleNewComment(body: string) {
     const newComment: Comment = {
@@ -28,12 +27,6 @@ export function CommentList({ comments: initialComments, currentUser, devRole }:
       createdAt: new Date().toISOString(),
     };
     setComments((prev) => [newComment, ...prev]);
-    setReplyingTo(null);
-  }
-
-  function handleReply(commentId: string, mentionName: string) {
-    setReplyingTo({ commentId, name: mentionName });
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   return (
@@ -42,21 +35,21 @@ export function CommentList({ comments: initialComments, currentUser, devRole }:
         {comments.length} commentaire{comments.length !== 1 ? "s" : ""}
       </h3>
 
+      {/* Top-level comment composer */}
       <CommentComposer
         currentUser={currentUser}
         devRole={devRole}
-        replyingTo={replyingTo?.name}
-        onCancelReply={() => setReplyingTo(null)}
         onSubmit={handleNewComment}
       />
 
+      {/* Comments list — each manages its own inline reply */}
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {comments.map((comment) => (
           <CommentItem
             key={comment.id}
             comment={comment}
             devRole={devRole}
-            onReply={handleReply}
+            currentUser={currentUser}
           />
         ))}
       </div>

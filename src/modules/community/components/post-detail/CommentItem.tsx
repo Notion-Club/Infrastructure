@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Comment } from "../../types/comment.types";
+import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { timeAgo } from "../../utils/date-helpers";
@@ -9,17 +10,20 @@ import { UserAvatar } from "../shared/UserAvatar";
 import { UserHoverCard } from "../shared/UserHoverCard";
 import { ReactionsBar } from "../shared/ReactionsBar";
 import { ReactionPicker } from "../shared/ReactionPicker";
+import { CommentComposer } from "./CommentComposer";
 import { CommentReplyItem } from "./CommentReplyItem";
 
 interface CommentItemProps {
   comment: Comment;
   devRole: DevRole;
-  onReply: (commentId: string, mentionName: string) => void;
+  currentUser: User;
+  /* onReply removed — reply is handled inline */
 }
 
-export function CommentItem({ comment, devRole, onReply }: CommentItemProps) {
+export function CommentItem({ comment, devRole, currentUser }: CommentItemProps) {
   const viewer = useCurrentUser(devRole);
   const [reactions, setReactions] = useState(comment.reactions);
+  const [replyOpen, setReplyOpen] = useState(false);
 
   function handleReaction(emoji: string) {
     setReactions((prev) => {
@@ -42,7 +46,8 @@ export function CommentItem({ comment, devRole, onReply }: CommentItemProps) {
         </div>
       </UserHoverCard>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Comment bubble */}
         <div
           style={{
             background: "var(--color-surface-raised)",
@@ -63,29 +68,54 @@ export function CommentItem({ comment, devRole, onReply }: CommentItemProps) {
           </p>
         </div>
 
+        {/* Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, paddingLeft: 4 }}>
           <ReactionsBar reactions={reactions} compact />
           <ReactionPicker onSelect={handleReaction} mode="comment" label="Réagir" />
           <button
             type="button"
-            onClick={() => onReply(comment.id, comment.author.name)}
+            onClick={() => setReplyOpen((o) => !o)}
             style={{
               fontSize: 12,
-              color: "var(--color-text-muted)",
+              color: replyOpen ? "var(--color-brand)" : "var(--color-text-muted)",
               background: "none",
               border: "none",
               cursor: "pointer",
-              fontWeight: 500,
+              fontWeight: 600,
               padding: "2px 0",
+              transition: "color 150ms ease",
             }}
-            className="hover:text-[var(--color-text-primary)]"
           >
-            Répondre
+            {replyOpen ? "Annuler" : "Répondre"}
           </button>
         </div>
 
+        {/* Inline reply composer — opens directly below this comment */}
+        {replyOpen && (
+          <div
+            style={{
+              animation: "nc-mode-in 180ms var(--nc-ease) both",
+              paddingLeft: 4,
+            }}
+          >
+            <CommentComposer
+              currentUser={currentUser}
+              devRole={devRole}
+              placeholder={`Répondre à ${comment.author.name}…`}
+              replyingTo={comment.author.name}
+              onCancelReply={() => setReplyOpen(false)}
+              onSubmit={(body) => {
+                // In a real app: POST reply. Here we just close.
+                setReplyOpen(false);
+              }}
+              compact
+            />
+          </div>
+        )}
+
+        {/* Existing replies */}
         {comment.replies.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {comment.replies.map((reply) => (
               <CommentReplyItem key={reply.id} reply={reply} devRole={devRole} />
             ))}

@@ -34,7 +34,7 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 500,
+        zIndex: 9999,
         padding: 16,
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
