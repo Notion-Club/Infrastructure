@@ -5,6 +5,7 @@ import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTop
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { FormationWidget } from "@/shared/components/dashboard/widgets/FormationWidget";
 import { ProfilWidget } from "@/shared/components/dashboard/widgets/ProfilWidget";
+import { EmailConfirmBanner } from "@/shared/components/dashboard/EmailConfirmBanner";
 
 export const metadata: Metadata = {
   title: "Accueil — Notion Club",
@@ -149,6 +150,7 @@ export default function DashboardPage() {
 
           {/* Widgets */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <EmailConfirmBanner />
             <FormationWidget />
             <ProfilWidget />
 
