@@ -6,11 +6,7 @@ import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTop
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { FormationWidget } from "@/shared/components/dashboard/widgets/FormationWidget";
 import { ProfilWidget } from "@/shared/components/dashboard/widgets/ProfilWidget";
-import {
-  EmailNotVerifiedBanner,
-  EmailVerifiedToast,
-  LogoutButton,
-} from "@/modules/auth";
+import { EmailVerifiedToast, LogoutButton } from "@/modules/auth";
 import { EmailConfirmBanner } from "@/shared/components/dashboard/EmailConfirmBanner";
 
 export const metadata: Metadata = {
@@ -42,11 +38,6 @@ export default function DashboardPage() {
           }}
           className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10"
         >
-          {/* Banner email non confirmé (Server Component : se rend uniquement
-              si email_verified_at IS NULL). Reste visible sur toutes les
-              pages où on l'insère, sans bloquer le user. */}
-          <EmailNotVerifiedBanner />
-
           {/* Toast post-clic du lien de confirmation (?email_verified=…).
               Wrappé en Suspense car useSearchParams empêche le prerender
               statique sinon. */}

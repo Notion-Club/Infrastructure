@@ -4,7 +4,6 @@ export { SignupForm } from "./components/SignupForm";
 export { LoginForm } from "./components/LoginForm";
 export { LogoutButton } from "./components/LogoutButton";
 export { GoogleSignInButton } from "./components/GoogleSignInButton";
-export { EmailNotVerifiedBanner } from "./components/EmailNotVerifiedBanner";
 export { EmailVerifiedToast } from "./components/EmailVerifiedToast";
 
 // Mockup statique (étape 1 — zéro logique Supabase).
