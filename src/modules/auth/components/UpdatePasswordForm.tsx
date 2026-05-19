@@ -114,19 +114,21 @@ export function UpdatePasswordForm() {
     startTransition(async () => {
       const supabase = createSupabaseBrowserClient();
 
-      // Récupère l'accessToken de la session recovery (établie côté browser
-      // via le flow implicit). On le passe à la Server Action qui s'en sert
-      // pour identifier l'user, check le password history, et update le mdp.
+      // Récupère les tokens de la session recovery (établie côté browser via
+      // le flow implicit). On passe les DEUX à la Server Action qui appelle
+      // setSession() côté serveur — nécessaire pour updateUser({password}),
+      // un simple Bearer header ne suffit pas pour les mutations.
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session?.access_token) {
+      if (!session?.access_token || !session?.refresh_token) {
         setLoadState("expired");
         return;
       }
 
       const result = await updatePasswordFromRecoveryAction({
         accessToken: session.access_token,
+        refreshToken: session.refresh_token,
         newPassword: parsed.data.password,
         confirmPassword: parsed.data.confirmPassword,
       });

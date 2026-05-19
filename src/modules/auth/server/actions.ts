@@ -315,31 +315,37 @@ export async function updatePasswordFromRecoveryAction(
       message: parsed.error.issues.map((i) => i.message).join(", "),
     };
   }
-  const { newPassword, accessToken } = parsed.data;
+  const { newPassword, accessToken, refreshToken } = parsed.data;
 
-  // Client Supabase scopé sur l'accessToken du lien recovery. Cette session
-  // n'est PAS persistée (pas de cookies écrits) — utilisée uniquement le
-  // temps de l'appel.
+  // Client Supabase scopé sur la session recovery — pas persisté (pas de
+  // cookies écrits), utilisé uniquement le temps de l'appel.
+  //
+  // ⚠️ On DOIT appeler setSession() avec access + refresh tokens : un simple
+  // header Bearer suffit pour `getUser()` (read) mais PAS pour
+  // `updateUser({password})` (write). Sans ça, Supabase répond
+  // "Auth session missing!".
   const scopedClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { Authorization: `Bearer ${accessToken}` } },
     },
   );
 
-  const {
-    data: { user },
-    error: userError,
-  } = await scopedClient.auth.getUser();
-  if (userError || !user) {
+  const { data: sessionData, error: sessionError } =
+    await scopedClient.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+  if (sessionError || !sessionData.user) {
     return {
       ok: false,
       code: "invalid_session",
       message: "Lien expiré ou session invalide. Demande un nouveau lien.",
     };
   }
+
+  const user = sessionData.user;
 
   try {
     const reused = await isPasswordReused(user.id, newPassword);

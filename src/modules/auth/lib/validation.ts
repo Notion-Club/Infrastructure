@@ -48,13 +48,15 @@ export const updatePasswordSchema = z
 export type UpdatePasswordInput = z.infer<typeof updatePasswordSchema>;
 
 // Reset password — flow lien email. L'user n'a pas son ancien mdp (oublié)
-// mais on a un accessToken JWT issu de la session recovery établie côté
-// browser via le flow "implicit". On le passe à la Server Action pour
-// identifier l'user en bypassant nos cookies serveur (qui ne portent pas
-// cette session recovery).
+// mais on a un accessToken + refreshToken issus de la session recovery
+// établie côté browser via le flow "implicit". On les passe à la Server
+// Action pour reconstruire une vraie session Supabase côté serveur
+// (setSession), nécessaire pour que `updateUser({password})` fonctionne —
+// un simple Bearer header ne suffit pas pour les mutations.
 export const recoveryPasswordChangeSchema = z
   .object({
     accessToken: z.string().min(1, "Session recovery requise"),
+    refreshToken: z.string().min(1, "Session recovery requise"),
     newPassword: passwordSchema,
     confirmPassword: z.string(),
   })
