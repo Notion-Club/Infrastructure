@@ -7,18 +7,12 @@ import { Bell } from "lucide-react";
 
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
-
-const MOCK_USER = {
-  prenom: "Théo",
-  nom: "Martin",
-  avatarUrl: null as string | null,
-};
+import {
+  computeInitials,
+  useProfileIdentity,
+} from "@/shared/lib/hooks/useProfileIdentity";
 
 const UNREAD_COUNT = 2;
-
-function getInitials(prenom: string, nom: string) {
-  return `${prenom[0] ?? ""}${nom[0] ?? ""}`.toUpperCase();
-}
 
 const CIRCLE: React.CSSProperties = {
   width: 38,
@@ -42,7 +36,9 @@ export function MobileTopActions() {
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
-  const initials = getInitials(MOCK_USER.prenom, MOCK_USER.nom);
+  const { identity } = useProfileIdentity();
+  const initials = computeInitials(identity);
+  const avatarUrl = identity?.avatarUrl ?? null;
 
   useEffect(() => {
     if (!avatarOpen) return;
@@ -126,7 +122,7 @@ export function MobileTopActions() {
             width: 38,
             height: 38,
             borderRadius: "50%",
-            background: "var(--color-brand)",
+            background: avatarUrl ? "transparent" : "var(--color-brand)",
             color: "white",
             display: "flex",
             alignItems: "center",
@@ -137,15 +133,21 @@ export function MobileTopActions() {
             border: "none",
             cursor: "pointer",
             flexShrink: 0,
+            overflow: "hidden",
+            padding: 0,
             boxShadow: "0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
           }}
         >
-          {MOCK_USER.avatarUrl ? (
+          {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={MOCK_USER.avatarUrl}
-              alt={MOCK_USER.prenom}
-              style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+              src={avatarUrl}
+              alt=""
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
             />
           ) : (
             initials
