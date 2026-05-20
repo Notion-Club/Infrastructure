@@ -51,17 +51,21 @@ export function SettingsClient({ banner }: { banner?: React.ReactNode } = {}) {
         const { data: profileRow } = await supabase
           .from("profiles")
           .select(
-            "id, avatar_url, display_name, first_name, last_name, phone, notion_email",
+            "id, avatar_url, avatar_color, display_name, first_name, last_name, username, bio, phone, communication_email, notion_email",
           )
           .eq("id", authUser.id)
           .maybeSingle<ProfileRow>();
         const profile: ProfileRow = profileRow ?? {
           id: authUser.id,
           avatar_url: null,
+          avatar_color: null,
           display_name: null,
           first_name: null,
           last_name: null,
+          username: null,
+          bio: null,
           phone: null,
+          communication_email: null,
           notion_email: null,
         };
         const user: AuthUserShape = {
@@ -88,12 +92,18 @@ export function SettingsClient({ banner }: { banner?: React.ReactNode } = {}) {
 
   const scenario = findScenario(scenarioId);
 
-  function patchAvatar(url: string) {
-    setState((prev) =>
-      prev.status === "ready"
-        ? { ...prev, profile: { ...prev.profile, avatar_url: url } }
-        : prev,
-    );
+  function patchAvatar(next: {
+    avatarUrl?: string | null;
+    avatarColor?: string | null;
+  }) {
+    setState((prev) => {
+      if (prev.status !== "ready") return prev;
+      const patched = { ...prev.profile };
+      if (next.avatarUrl !== undefined) patched.avatar_url = next.avatarUrl;
+      if (next.avatarColor !== undefined)
+        patched.avatar_color = next.avatarColor;
+      return { ...prev, profile: patched };
+    });
   }
 
   return (
@@ -132,6 +142,9 @@ export function SettingsClient({ banner }: { banner?: React.ReactNode } = {}) {
               <>
                 <ProfileHero
                   avatarUrl={state.profile.avatar_url}
+                  avatarColor={state.profile.avatar_color}
+                  firstName={state.profile.first_name}
+                  lastName={state.profile.last_name}
                   displayName={state.profile.display_name}
                   email={state.user.email}
                   isMocked={state.isMocked}

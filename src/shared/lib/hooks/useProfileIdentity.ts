@@ -9,6 +9,7 @@ export type ProfileIdentity = {
   lastName: string | null;
   email: string | null;
   avatarUrl: string | null;
+  avatarColor: string | null;
 };
 
 // Hook partagé par Topbar et MobileTopActions pour afficher les bonnes
@@ -42,12 +43,13 @@ export function useProfileIdentity(): {
 
         const { data: profile } = await supabase
           .from("profiles")
-          .select("first_name, last_name, avatar_url")
+          .select("first_name, last_name, avatar_url, avatar_color")
           .eq("id", user.id)
           .maybeSingle<{
             first_name: string | null;
             last_name: string | null;
             avatar_url: string | null;
+            avatar_color: string | null;
           }>();
 
         if (cancelled) return;
@@ -56,6 +58,7 @@ export function useProfileIdentity(): {
           lastName: profile?.last_name ?? null,
           email: user.email ?? null,
           avatarUrl: profile?.avatar_url ?? null,
+          avatarColor: profile?.avatar_color ?? null,
         });
       } catch {
         if (!cancelled) setIdentity(null);

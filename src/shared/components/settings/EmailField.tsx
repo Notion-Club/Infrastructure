@@ -9,8 +9,12 @@ type EmailFieldProps = {
   // Whether the "use a different email for Notion" mode is active.
   // When false, the platform email is implicitly used for Notion as well.
   useSeparateNotionEmail: boolean;
+  platformEmailError?: string;
+  notionEmailError?: string;
   onPlatformEmailChange: (value: string) => void;
   onNotionEmailChange: (value: string) => void;
+  onPlatformEmailBlur?: () => void;
+  onNotionEmailBlur?: () => void;
   onToggleSeparateNotion: (enabled: boolean) => void;
 };
 
@@ -18,8 +22,12 @@ export function EmailField({
   platformEmail,
   notionEmail,
   useSeparateNotionEmail,
+  platformEmailError,
+  notionEmailError,
   onPlatformEmailChange,
   onNotionEmailChange,
+  onPlatformEmailBlur,
+  onNotionEmailBlur,
   onToggleSeparateNotion,
 }: EmailFieldProps) {
   const innerRef = useRef<HTMLDivElement>(null);
@@ -74,11 +82,30 @@ export function EmailField({
           type="email"
           value={platformEmail}
           onChange={(e) => onPlatformEmailChange(e.target.value)}
+          onBlur={onPlatformEmailBlur}
           autoComplete="email"
+          aria-invalid={platformEmailError ? true : undefined}
           className="nc-input"
           placeholder="vous@exemple.com"
-          style={{ background: "white" }}
+          style={{
+            background: "white",
+            borderColor: platformEmailError ? "var(--color-brand)" : undefined,
+          }}
         />
+        {platformEmailError && (
+          <p
+            role="alert"
+            style={{
+              margin: 0,
+              fontSize: 12,
+              color: "var(--color-brand)",
+              fontWeight: 500,
+              lineHeight: 1.4,
+            }}
+          >
+            {platformEmailError}
+          </p>
+        )}
         <p
           style={{
             margin: 0,
@@ -141,12 +168,33 @@ export function EmailField({
               type="email"
               value={notionEmail}
               onChange={(e) => onNotionEmailChange(e.target.value)}
+              onBlur={onNotionEmailBlur}
               autoComplete="email"
+              aria-invalid={notionEmailError ? true : undefined}
               className="nc-input"
               placeholder="vous@notion.com"
               disabled={!useSeparateNotionEmail}
-              style={{ background: "white" }}
+              style={{
+                background: "white",
+                borderColor: notionEmailError
+                  ? "var(--color-brand)"
+                  : undefined,
+              }}
             />
+            {notionEmailError && (
+              <p
+                role="alert"
+                style={{
+                  margin: 0,
+                  fontSize: 12,
+                  color: "var(--color-brand)",
+                  fontWeight: 500,
+                  lineHeight: 1.4,
+                }}
+              >
+                {notionEmailError}
+              </p>
+            )}
           </div>
         </div>
       </div>
