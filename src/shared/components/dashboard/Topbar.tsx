@@ -16,6 +16,10 @@ import {
 
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
+import {
+  computeInitials,
+  useProfileIdentity,
+} from "@/shared/lib/hooks/useProfileIdentity";
 
 type NavItem = { label: string; icon: LucideIcon; href: string };
 
@@ -30,12 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Ressources", icon: Library, href: "/ressources" },
 ];
 
-const MOCK_USER = { prenom: "Théo", nom: "Martin" };
 const UNREAD_COUNT = 2;
-
-function getInitials(prenom: string, nom: string) {
-  return `${prenom[0] ?? ""}${nom[0] ?? ""}`.toUpperCase();
-}
 
 const SEPARATOR = (
   <div
@@ -81,7 +80,9 @@ export function Topbar() {
     }
   }
 
-  const initials = getInitials(MOCK_USER.prenom, MOCK_USER.nom);
+  const { identity } = useProfileIdentity();
+  const initials = computeInitials(identity);
+  const avatarUrl = identity?.avatarUrl ?? null;
 
   return (
     <header
@@ -220,7 +221,7 @@ export function Topbar() {
               width: 36,
               height: 36,
               borderRadius: "50%",
-              background: "#e0625a",
+              background: avatarUrl ? "transparent" : "#e0625a",
               color: "#fff",
               display: "flex",
               alignItems: "center",
@@ -232,10 +233,25 @@ export function Topbar() {
               cursor: "pointer",
               flexShrink: 0,
               transition: "opacity 150ms ease",
+              overflow: "hidden",
+              padding: 0,
             }}
             className="hover:opacity-85"
           >
-            {initials}
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt=""
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+              />
+            ) : (
+              initials
+            )}
           </button>
 
           {avatarOpen && (
