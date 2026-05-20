@@ -104,7 +104,8 @@ function ReactionPill({ emoji, count, userReacted, compact, onReact, allReaction
     hideTimer.current = setTimeout(() => setHovered(false), 200);
   }, []);
 
-  function onPressDown() {
+  function onPressDown(e: React.PointerEvent) {
+    if (e.pointerType === "mouse") return;
     pressTimer.current = setTimeout(() => { setHovered(false); setShowSheet(true); }, 500);
   }
   function onPressUp() {
@@ -197,7 +198,8 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
   const [showGroupSheet, setShowGroupSheet] = useState(false);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function onGroupPressDown() {
+  function onGroupPressDown(e: React.PointerEvent) {
+    if (e.pointerType === "mouse") return;
     pressTimer.current = setTimeout(() => setShowGroupSheet(true), 500);
   }
   function onGroupPressUp() {

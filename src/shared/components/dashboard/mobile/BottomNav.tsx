@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Home, BookOpen, Users, Calendar, Library, type LucideIcon } from "lucide-react";
 
 type NavItem = {
@@ -21,6 +21,7 @@ const NAV_ITEMS: NavItem[] = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const navRef = useRef<HTMLElement>(null);
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
@@ -91,11 +92,19 @@ export function BottomNav() {
 
       {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
         const isActive = pathname === href || pathname.startsWith(href + "/");
+        const isCommunaute = href === "/communaute";
         return (
           <Link
             key={href}
             href={href}
             ref={(el) => { itemRefs.current[i] = el; }}
+            onClick={(e) => {
+              if (isCommunaute && pathname.startsWith("/communaute")) {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                router.push("/communaute");
+              }
+            }}
             style={{
               position: "relative",
               zIndex: 1,

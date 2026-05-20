@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MessageCircle, Users, SquarePen } from "lucide-react";
 import type { PostTag } from "../types/post.types";
 import { useDevRoleToggle } from "../hooks/useDevRoleToggle";
@@ -31,6 +31,18 @@ interface CommunityPageProps {
 export function CommunityPage({ initialTab = "feed", initialConversationId }: CommunityPageProps) {
   const { role, setRole, feedState, setFeedState } = useDevRoleToggle();
   const currentUser = useCurrentUser(role);
+
+  // Restore scroll position saved before navigating into a post detail
+  useEffect(() => {
+    try {
+      const savedY = sessionStorage.getItem("communaute:scrollY");
+      if (savedY) {
+        sessionStorage.removeItem("communaute:scrollY");
+        const y = parseInt(savedY, 10);
+        requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
+      }
+    } catch {}
+  }, []);
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [activeTag, setActiveTag] = useState<TagFilter>("all");
   const [showComposer, setShowComposer] = useState(false);
