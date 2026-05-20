@@ -38,6 +38,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
   const isAuthor = post.author.id === currentUser.id;
 
   function handleCardClick() {
+    try { sessionStorage.setItem("communaute:scrollY", String(window.scrollY)); } catch {}
     router.push(`/communaute/post/${post.id}`);
   }
 

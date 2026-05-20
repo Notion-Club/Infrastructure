@@ -1,12 +1,22 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bold, Italic, List, Link, Image as ImageIcon } from "lucide-react";
+import { Bold, Italic, List, Link, Image as ImageIcon, Video as VideoIcon } from "lucide-react";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { MOCK_USERS } from "../../mocks/users.mock";
 import { canMentionUser } from "../../utils/mention-rules";
 import { UserAvatar } from "../shared/UserAvatar";
+
+function detectVideoUrl(text: string): string | null {
+  const ytMatch = text.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+  const loomMatch = text.match(/https?:\/\/(?:www\.)?loom\.com\/share\/([a-z0-9]+)/i);
+  if (loomMatch) return `https://www.loom.com/embed/${loomMatch[1]}`;
+  const tellaMatch = text.match(/https?:\/\/(?:www\.)?tella\.tv\/video\/([^?\s]+)/i);
+  if (tellaMatch) return `https://www.tella.tv/video/${tellaMatch[1]}/embed`;
+  return null;
+}
 
 interface CommentComposerProps {
   currentUser: User;
@@ -35,6 +45,7 @@ export function CommentComposer({
   const [urlVisible, setUrlVisible] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [urlPos, setUrlPos] = useState({ top: 0, left: 0 });
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const mentionables = MOCK_USERS.filter(
@@ -55,6 +66,7 @@ export function CommentComposer({
   function syncEmpty() {
     const text = editorRef.current?.innerText?.trim() ?? "";
     setEditorEmpty(text.length === 0);
+    setVideoPreview(detectVideoUrl(text));
   }
 
   function handleInput() {
@@ -215,6 +227,23 @@ export function CommentComposer({
             >
               <ImageIcon size={13} />
             </button>
+            <button
+              type="button"
+              title="Vidéo (YouTube, Loom, Tella)"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                const url = window.prompt("URL de la vidéo (YouTube, Loom, Tella)");
+                if (url) {
+                  editorRef.current?.focus();
+                  document.execCommand("insertText", false, url);
+                  syncEmpty();
+                }
+              }}
+              style={{ width: 26, height: 26, borderRadius: 5, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", transition: "background 100ms ease" }}
+              className="hover:bg-[rgba(0,0,0,0.06)]"
+            >
+              <VideoIcon size={13} />
+            </button>
           </div>
 
           {/* ContentEditable */}
@@ -267,6 +296,17 @@ export function CommentComposer({
             />
             <button type="button" onClick={insertLink} style={{ padding: "6px 12px", background: "var(--color-brand)", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>OK</button>
             <button type="button" onClick={() => setUrlVisible(false)} style={{ width: 24, height: 24, borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-muted)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✕</button>
+          </div>
+        )}
+
+        {videoPreview && (
+          <div style={{ borderRadius: 10, overflow: "hidden", aspectRatio: "16/9", marginTop: 8 }}>
+            <iframe
+              src={videoPreview}
+              style={{ width: "100%", height: "100%", border: "none" }}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
           </div>
         )}
 
