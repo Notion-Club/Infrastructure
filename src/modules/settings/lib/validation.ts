@@ -111,3 +111,23 @@ export type AvatarMimeType = (typeof AVATAR_ALLOWED_MIME)[number];
 export function isAllowedAvatarMime(mime: string): mime is AvatarMimeType {
   return (AVATAR_ALLOWED_MIME as readonly string[]).includes(mime);
 }
+
+// ============================================================================
+// Account deletion — Danger Zone (soft delete / anonymisation)
+// ============================================================================
+// Friction délibérée : double confirmation pour éviter tout clic
+// accidentel ou session-hijack.
+//   1. Password — re-auth (cf. OPS-17 pattern password change)
+//   2. confirmation textuelle stricte — l'user doit RÉ-ÉCRIRE la phrase
+export const ACCOUNT_DELETION_CONFIRMATION_PHRASE = "SUPPRIMER MON COMPTE";
+
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, "Mot de passe requis"),
+  confirmation: z
+    .string()
+    .refine((v) => v === ACCOUNT_DELETION_CONFIRMATION_PHRASE, {
+      message: `Tape exactement "${ACCOUNT_DELETION_CONFIRMATION_PHRASE}" pour confirmer.`,
+    }),
+});
+
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;

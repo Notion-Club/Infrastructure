@@ -22,8 +22,15 @@ export function LoginForm() {
     password?: string;
   }>({});
 
-  // Affiche un toast si on revient sur /login depuis un callback OAuth en erreur.
+  // Affiche un toast si on revient sur /login depuis un callback OAuth en
+  // erreur, ou après une suppression de compte réussie.
   useEffect(() => {
+    if (searchParams.get("account_deleted") === "1") {
+      toast.success(
+        "Ton compte a été supprimé. Merci d'avoir fait partie du Notion Club.",
+      );
+      return;
+    }
     const err = searchParams.get("error");
     if (!err) return;
     const messages: Record<string, string> = {
