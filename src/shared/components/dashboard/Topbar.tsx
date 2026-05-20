@@ -17,9 +17,9 @@ import {
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import {
-  computeInitials,
-  useProfileIdentity,
-} from "@/shared/lib/hooks/useProfileIdentity";
+  computeIdentityInitials,
+  useProfileIdentityContext,
+} from "@/shared/components/identity/ProfileIdentityProvider";
 
 type NavItem = { label: string; icon: LucideIcon; href: string };
 
@@ -80,8 +80,8 @@ export function Topbar() {
     }
   }
 
-  const { identity } = useProfileIdentity();
-  const initials = computeInitials(identity);
+  const { identity } = useProfileIdentityContext();
+  const initials = computeIdentityInitials(identity);
   const avatarUrl = identity?.avatarUrl ?? null;
   const avatarColor = identity?.avatarColor ?? "#e0625a";
 
