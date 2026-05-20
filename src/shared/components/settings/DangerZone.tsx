@@ -1,31 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { Eye, EyeOff, LoaderCircle, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
+import {
+  ACCOUNT_DELETION_CONFIRMATION_PHRASE,
+  deleteAccountAction,
+} from "@/modules/settings";
 import { SettingsCard } from "./SettingsCard";
 
-const SUPPORT_EMAIL = "support@notionclub.fr";
+type DangerZoneProps = {
+  isMocked: boolean;
+};
 
-export function DangerZone() {
-  const [showInfo, setShowInfo] = useState(false);
+export function DangerZone({ isMocked }: DangerZoneProps) {
+  const [modalOpen, setModalOpen] = useState(false);
 
   return (
     <SettingsCard
       title="Zone de danger"
-      description="La suppression de votre compte est définitive. Toutes vos données seront effacées."
+      description="La suppression de votre compte est définitive. Toutes vos données identifiantes seront anonymisées et vos accès révoqués."
       tone="danger"
     >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <button
           type="button"
-          onClick={() => setShowInfo(true)}
+          onClick={() => setModalOpen(true)}
           style={{
             alignSelf: "flex-start",
             display: "inline-flex",
@@ -46,35 +48,306 @@ export function DangerZone() {
           <Trash2 size={14} />
           Supprimer mon compte
         </button>
-        {showInfo && (
-          <div
-            role="status"
+      </div>
+      {modalOpen && (
+        <DeleteAccountModal
+          isMocked={isMocked}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
+    </SettingsCard>
+  );
+}
+
+// ============================================================================
+// Modal de confirmation — re-auth password + texte de confirmation
+// ============================================================================
+function DeleteAccountModal({
+  isMocked,
+  onClose,
+}: {
+  isMocked: boolean;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Lock body scroll while modal is open.
+  useEffect(() => {
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, []);
+
+  // Escape closes the modal.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !submitting) onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose, submitting]);
+
+  const canSubmit =
+    password.length > 0 &&
+    confirmation === ACCOUNT_DELETION_CONFIRMATION_PHRASE &&
+    !submitting;
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setSubmitting(true);
+    try {
+      if (isMocked) {
+        await new Promise((r) => setTimeout(r, 600));
+        toast.info("Suppression simulée (démo) — connectez-vous pour de vrai.");
+        onClose();
+        return;
+      }
+
+      const result = await deleteAccountAction({ password, confirmation });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      // Redirige vers /login avec un flag pour afficher un toast de
+      // confirmation côté page login.
+      router.push("/login?account_deleted=1");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Erreur lors de la suppression du compte.";
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Confirmer la suppression du compte"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !submitting) onClose();
+      }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 100,
+        background: "rgba(0,0,0,0.55)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          width: "100%",
+          maxWidth: 460,
+          background: "white",
+          borderRadius: 20,
+          overflow: "hidden",
+          boxShadow: "0 24px 48px -12px rgba(0,0,0,0.35)",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <header
+          style={{
+            padding: "18px 20px 14px",
+            borderBottom: "1px solid var(--color-border-default)",
+          }}
+        >
+          <h2
             style={{
-              padding: 14,
-              borderRadius: 12,
-              border: "1px solid rgba(224,98,90,0.3)",
-              background: "rgba(224,98,90,0.06)",
-              fontSize: 13,
-              color: "var(--color-text-secondary)",
-              lineHeight: 1.55,
+              margin: 0,
+              fontSize: 17,
+              fontWeight: 700,
+              color: "var(--color-text-primary)",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
             }}
           >
-            Pour supprimer votre compte, contactez-nous à{" "}
-            <a
-              href={`mailto:${SUPPORT_EMAIL}`}
+            <Trash2 size={18} style={{ color: "var(--color-brand)" }} />
+            Supprimer le compte
+          </h2>
+          <p
+            style={{
+              margin: "8px 0 0",
+              fontSize: 13,
+              color: "var(--color-text-secondary)",
+              lineHeight: 1.5,
+            }}
+          >
+            Cette action est <strong>définitive</strong>. Tes données
+            identifiantes seront anonymisées immédiatement et tu ne pourras
+            plus te connecter avec ce compte.
+          </p>
+        </header>
+
+        <div
+          style={{
+            padding: "18px 20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
+          {/* Password */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              htmlFor="delete-account-password"
               style={{
-                color: "var(--color-brand)",
-                fontWeight: 600,
-                textDecoration: "underline",
-                textUnderlineOffset: 3,
+                fontSize: 13,
+                fontWeight: 500,
+                color: "var(--color-text-secondary)",
               }}
             >
-              {SUPPORT_EMAIL}
-            </a>
-            .
+              Mot de passe actuel
+            </label>
+            <div style={{ position: "relative" }}>
+              <input
+                id="delete-account-password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                disabled={submitting}
+                className="nc-input"
+                style={{ paddingRight: 44 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                aria-label={
+                  showPassword
+                    ? "Masquer le mot de passe"
+                    : "Afficher le mot de passe"
+                }
+                disabled={submitting}
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  right: 10,
+                  transform: "translateY(-50%)",
+                  background: "transparent",
+                  border: "none",
+                  cursor: submitting ? "not-allowed" : "pointer",
+                  padding: 6,
+                  color: "var(--color-text-muted)",
+                  borderRadius: 6,
+                }}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
-        )}
-      </div>
-    </SettingsCard>
+
+          {/* Confirmation phrase */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              htmlFor="delete-account-confirmation"
+              style={{
+                fontSize: 13,
+                fontWeight: 500,
+                color: "var(--color-text-secondary)",
+              }}
+            >
+              Tape{" "}
+              <code
+                style={{
+                  background: "rgba(224,98,90,0.08)",
+                  color: "var(--color-brand)",
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  fontFamily: "var(--font-geist-mono), monospace",
+                }}
+              >
+                {ACCOUNT_DELETION_CONFIRMATION_PHRASE}
+              </code>{" "}
+              pour confirmer
+            </label>
+            <input
+              id="delete-account-confirmation"
+              type="text"
+              value={confirmation}
+              onChange={(e) => setConfirmation(e.target.value)}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              disabled={submitting}
+              className="nc-input"
+              placeholder={ACCOUNT_DELETION_CONFIRMATION_PHRASE}
+              style={{ letterSpacing: "0.04em" }}
+            />
+          </div>
+        </div>
+
+        <footer
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 10,
+            padding: "14px 20px",
+            borderTop: "1px solid var(--color-border-default)",
+            background: "var(--color-surface-raised)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            style={{
+              padding: "9px 18px",
+              borderRadius: 9999,
+              border: "1px solid var(--color-border-default)",
+              background: "white",
+              color: "var(--color-text-secondary)",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: submitting ? "not-allowed" : "pointer",
+              opacity: submitting ? 0.6 : 1,
+            }}
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "9px 18px",
+              borderRadius: 9999,
+              border: "none",
+              background: "var(--color-brand)",
+              color: "white",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: canSubmit ? "pointer" : "not-allowed",
+              opacity: canSubmit ? 1 : 0.55,
+              boxShadow: "0 6px 18px -8px rgba(224,98,90,0.55)",
+            }}
+          >
+            {submitting && <LoaderCircle size={14} className="animate-spin" />}
+            {submitting ? "Suppression…" : "Supprimer définitivement"}
+          </button>
+        </footer>
+      </form>
+    </div>
   );
 }

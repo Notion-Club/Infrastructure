@@ -11,10 +11,12 @@ import {
   AVATAR_ALLOWED_MIME,
   AVATAR_MAX_BYTES,
   accountEmailChangeSchema,
+  deleteAccountSchema,
   isAllowedAvatarMime,
   passwordChangeSchema,
   profileUpdateSchema,
   type AccountEmailChangeInput,
+  type DeleteAccountInput,
   type PasswordChangeInput,
   type ProfileUpdateInput,
 } from "@/modules/settings/lib/validation";
@@ -73,6 +75,21 @@ export type AvatarUploadResult =
         | "file_too_large"
         | "not_authenticated"
         | "upload_failed"
+        | "unknown";
+      message: string;
+    };
+
+export type DeleteAccountResult =
+  | { ok: true }
+  | {
+      ok: false;
+      code:
+        | "validation"
+        | "not_authenticated"
+        | "no_password_identity"
+        | "invalid_password"
+        | "rate_limited"
+        | "already_deleted"
         | "unknown";
       message: string;
     };
@@ -431,4 +448,130 @@ async function cleanupOldAvatars(
   if (toRemove.length === 0) return;
 
   await admin.storage.from(AVATARS_BUCKET).remove(toRemove);
+}
+
+// ============================================================================
+// deleteAccountAction — soft-delete (anonymisation) du compte courant
+// ============================================================================
+// Flow :
+//   1. Validation zod (password + confirmation phrase exacte)
+//   2. Récupère l'user via la session (jamais d'userId depuis le client)
+//   3. Re-auth via signInWithPassword({ email, password })
+//      → garde-fou contre session-hijack
+//   4. Cleanup storage : remove tous les fichiers de avatars/<userId>/
+//   5. RPC anonymize_account(userId) via service-role
+//      → nullifie PII profile, swap email auth, supprime identities,
+//        cleanup password_history
+//   6. signOut() de la session courante
+//   7. Le caller redirige vers /login?account_deleted=1
+//
+// Sécurité :
+//   - L'identité provient TOUJOURS de la session, jamais du payload client
+//   - Re-auth password obligatoire (cf. raisons OPS-17 password change)
+//   - La fonction anonymize_account est REVOKE EXECUTE de authenticated,
+//     seul le service-role peut l'appeler
+//
+// Note : le hard delete final (DELETE auth.users) sera fait par un cron à
+// 30j dans une PR ultérieure (Brique 3 admin). Pour l'instant, soft delete
+// suffit côté RGPD : toutes les PII sont nullifiées immédiatement.
+export async function deleteAccountAction(
+  input: DeleteAccountInput,
+): Promise<DeleteAccountResult> {
+  const parsed = deleteAccountSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "validation",
+      message: parsed.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+  const { password } = parsed.data;
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || !user.email) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      message: "Tu dois être connecté pour supprimer ton compte.",
+    };
+  }
+
+  const hasEmailIdentity = (user.identities ?? []).some(
+    (i) => i.provider === "email",
+  );
+  if (!hasEmailIdentity) {
+    // SSO-only : pas de password à vérifier. On refuse pour le moment —
+    // un flow alternatif (re-auth Google) sera ajouté plus tard si besoin.
+    return {
+      ok: false,
+      code: "no_password_identity",
+      message:
+        "Suppression impossible pour les comptes Google uniquement. Contacte le support.",
+    };
+  }
+
+  const { error: reauthError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password,
+  });
+  if (reauthError) {
+    const msg = reauthError.message.toLowerCase();
+    if (msg.includes("rate limit") || msg.includes("too many")) {
+      return {
+        ok: false,
+        code: "rate_limited",
+        message: "Trop de tentatives. Réessaie dans quelques minutes.",
+      };
+    }
+    return {
+      ok: false,
+      code: "invalid_password",
+      message: "Mot de passe incorrect.",
+    };
+  }
+
+  const admin = createSupabaseAdminClient();
+
+  // 1. Cleanup storage — best-effort, on continue même si ça échoue
+  try {
+    const { data: files } = await admin.storage
+      .from(AVATARS_BUCKET)
+      .list(user.id, { limit: 100 });
+    if (files && files.length > 0) {
+      await admin.storage
+        .from(AVATARS_BUCKET)
+        .remove(files.map((f) => `${user.id}/${f.name}`));
+    }
+  } catch (err) {
+    console.error("[deleteAccount] storage cleanup failed:", err);
+  }
+
+  // 2. RPC d'anonymisation atomique
+  const { error: rpcError } = await admin.rpc("anonymize_account", {
+    target_user_id: user.id,
+  });
+  if (rpcError) {
+    if (rpcError.message?.includes("account_already_deleted")) {
+      return {
+        ok: false,
+        code: "already_deleted",
+        message: "Ce compte a déjà été supprimé.",
+      };
+    }
+    console.error("[deleteAccount] anonymize_account failed:", rpcError);
+    return {
+      ok: false,
+      code: "unknown",
+      message: "Impossible de supprimer le compte. Réessaie.",
+    };
+  }
+
+  // 3. SignOut de la session courante — le JWT reste techniquement valide
+  //    jusqu'à expiration mais l'user n'a plus de credentials pour login.
+  await supabase.auth.signOut();
+
+  return { ok: true };
 }

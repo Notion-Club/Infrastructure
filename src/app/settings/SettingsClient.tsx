@@ -171,7 +171,7 @@ export function SettingsClient({ banner }: { banner?: React.ReactNode } = {}) {
                   isMocked={state.isMocked}
                 />
                 <AppearanceSection />
-                <DangerZone />
+                <DangerZone isMocked={state.isMocked} />
               </>
             )}
           </div>
