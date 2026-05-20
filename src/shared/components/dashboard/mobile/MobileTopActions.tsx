@@ -8,9 +8,9 @@ import { Bell } from "lucide-react";
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import {
-  computeInitials,
-  useProfileIdentity,
-} from "@/shared/lib/hooks/useProfileIdentity";
+  computeIdentityInitials,
+  useProfileIdentityContext,
+} from "@/shared/components/identity/ProfileIdentityProvider";
 
 const UNREAD_COUNT = 2;
 
@@ -36,8 +36,8 @@ export function MobileTopActions() {
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
-  const { identity } = useProfileIdentity();
-  const initials = computeInitials(identity);
+  const { identity } = useProfileIdentityContext();
+  const initials = computeIdentityInitials(identity);
   const avatarUrl = identity?.avatarUrl ?? null;
   const avatarColor = identity?.avatarColor ?? "#e0625a";
 

@@ -20,6 +20,7 @@ import type {
   ProfileRow,
 } from "@/shared/components/settings/types";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
+import { useProfileIdentityContext } from "@/shared/components/identity/ProfileIdentityProvider";
 import {
   MOCK_AUTH_USER,
   MOCK_PROFILE,
@@ -39,6 +40,7 @@ type LoadState =
 export function SettingsClient({ banner }: { banner?: React.ReactNode } = {}) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [scenarioId, setScenarioId] = useState<ScenarioId>("default");
+  const { updateIdentity } = useProfileIdentityContext();
 
   useEffect(() => {
     let cancelled = false;
@@ -103,6 +105,12 @@ export function SettingsClient({ banner }: { banner?: React.ReactNode } = {}) {
       if (next.avatarColor !== undefined)
         patched.avatar_color = next.avatarColor;
       return { ...prev, profile: patched };
+    });
+    // Propagate to the shared identity context so Topbar/Mobile reflect
+    // the change immediately (without a full reload).
+    updateIdentity({
+      ...(next.avatarUrl !== undefined && { avatarUrl: next.avatarUrl }),
+      ...(next.avatarColor !== undefined && { avatarColor: next.avatarColor }),
     });
   }
 
