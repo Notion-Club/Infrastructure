@@ -83,7 +83,7 @@ export function PostComposerTagSelect({ value, onChange, isAdmin }: PostComposer
             borderRadius: 12,
             boxShadow: "var(--nc-shadow-3)",
             padding: 4,
-            zIndex: 9999,
+            zIndex: 10001,
             minWidth: 160,
             animation: "nc-mode-in 150ms var(--nc-ease) both",
           }}

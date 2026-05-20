@@ -39,7 +39,11 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
   const allPosts = [
     ...extraPosts.filter((p) => activeTag === "all" || p.tag === activeTag),
     ...filteredPosts,
-  ];
+  ].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   const canViewCommunity = true;
   if (!canViewCommunity) return <CommunityRestrictedPage />;
@@ -182,6 +186,7 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
               currentUser={currentUser}
               devRole={role}
               initialConversationId={initialConversationId}
+              embedded
             />
           )}
         </div>

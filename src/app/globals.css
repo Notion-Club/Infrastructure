@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+html {
+  scroll-behavior: smooth;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -230,6 +234,17 @@
 
 .nc-mode-in {
   animation: nc-mode-in var(--nc-duration-normal) var(--nc-ease) both;
+}
+
+@keyframes nc-sheet-in {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @keyframes nc-modal-in {

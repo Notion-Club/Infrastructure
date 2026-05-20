@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import type { Post } from "../../types/post.types";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
@@ -13,6 +12,7 @@ import { UserHoverCard } from "../shared/UserHoverCard";
 import { TagPill } from "../shared/TagPill";
 import { ReactionsBar } from "../shared/ReactionsBar";
 import { PostKebabMenu } from "../shared/PostKebabMenu";
+import { PostComposerModal } from "../post-composer/PostComposerModal";
 
 interface PostCardProps {
   post: Post;
@@ -33,6 +33,8 @@ function getYouTubeId(url: string) {
 export function PostCard({ post, currentUser, devRole, pinned = false }: PostCardProps) {
   const router = useRouter();
   const [reactions, setReactions] = useState(post.reactions);
+  const [postData, setPostData] = useState(post);
+  const [showEditComposer, setShowEditComposer] = useState(false);
   const isAuthor = post.author.id === currentUser.id;
 
   function handleCardClick() {
@@ -54,6 +56,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
   }
 
   return (
+    <>
     <article
       onClick={handleCardClick}
       style={{
@@ -135,7 +138,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
         {isAuthor && (
           <div onClick={(e) => e.stopPropagation()}>
             <PostKebabMenu
-              onEdit={() => alert("Modifier (mock)")}
+              onEdit={() => setShowEditComposer(true)}
               onDelete={() => alert("Supprimer (mock)")}
             />
           </div>
@@ -144,7 +147,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
 
       {/* Content */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {post.title && (
+        {postData.title && (
           <h2
             style={{
               margin: 0,
@@ -154,7 +157,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
               lineHeight: 1.3,
             }}
           >
-            {post.title}
+            {postData.title}
           </h2>
         )}
         <p
@@ -170,23 +173,23 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
             whiteSpace: "pre-wrap",
           }}
         >
-          {linkify(post.body)}
+          {linkify(postData.body)}
         </p>
 
-        {post.imageUrl && (
+        {postData.imageUrl && (
           <div style={{ borderRadius: 12, overflow: "hidden", marginTop: 4 }}>
             <img
-              src={post.imageUrl}
+              src={postData.imageUrl}
               alt=""
               style={{ width: "100%", maxHeight: 260, objectFit: "cover", display: "block" }}
             />
           </div>
         )}
 
-        {post.videoUrl && isYouTube(post.videoUrl) && (
+        {postData.videoUrl && isYouTube(postData.videoUrl) && (
           <div style={{ borderRadius: 12, overflow: "hidden", aspectRatio: "16/9", marginTop: 4 }}>
             <iframe
-              src={`https://www.youtube.com/embed/${getYouTubeId(post.videoUrl)}`}
+              src={`https://www.youtube.com/embed/${getYouTubeId(postData.videoUrl)}`}
               style={{ width: "100%", height: "100%", border: "none" }}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
@@ -198,8 +201,27 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
 
       {/* Footer */}
       <div onClick={(e) => e.stopPropagation()}>
-        <ReactionsBar reactions={reactions} commentCount={post.commentCount} />
+        <ReactionsBar
+          reactions={reactions}
+          commentCount={postData.commentCount}
+          compact
+          onReact={handleReaction}
+          onCommentClick={() => router.push(`/communaute/post/${post.id}#comments`)}
+        />
       </div>
     </article>
+
+    {showEditComposer && (
+      <PostComposerModal
+        currentUser={currentUser}
+        initialPost={postData}
+        onClose={() => setShowEditComposer(false)}
+        onPublish={(updated) => {
+          setPostData((prev) => ({ ...prev, ...updated }));
+          setShowEditComposer(false);
+        }}
+      />
+    )}
+    </>
   );
 }
