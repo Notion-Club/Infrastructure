@@ -29,7 +29,7 @@ export function ConversationThread({ conversation, currentUser, onBack }: Conver
 
   const isDeleted = conversation.participant.deleted;
   const disabledMsg = isDeleted
-    ? "Cet utilisateur n'est plus sur la plateforme"
+    ? "Cet utilisateur n'est plus membre du Notion Club"
     : undefined;
 
   function handleSend(body: string, type: "text" | "pdf" | "image" = "text", fileName?: string) {

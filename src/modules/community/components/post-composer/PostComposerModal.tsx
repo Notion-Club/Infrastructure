@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { X, Image as ImageIcon, Video as VideoIcon, Link } from "lucide-react";
 import type { Post, PostTag, PostAudience } from "../../types/post.types";
 import type { User } from "../../types/user.types";
@@ -9,20 +10,34 @@ import { PostComposerAdminFields } from "./PostComposerAdminFields";
 
 const DRAFT_KEY = "community:draft";
 
+function detectVideoUrl(text: string): { type: "youtube" | "loom" | "tella"; src: string } | null {
+  const ytMatch = text.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
+  if (ytMatch) return { type: "youtube", src: `https://www.youtube.com/embed/${ytMatch[1]}` };
+  const loomMatch = text.match(/https?:\/\/(?:www\.)?loom\.com\/share\/([a-z0-9]+)/i);
+  if (loomMatch) return { type: "loom", src: `https://www.loom.com/embed/${loomMatch[1]}` };
+  const tellaMatch = text.match(/https?:\/\/(?:www\.)?tella\.tv\/video\/([^?\s]+)/i);
+  if (tellaMatch) return { type: "tella", src: `https://www.tella.tv/video/${tellaMatch[1]}/embed` };
+  return null;
+}
+
 interface PostComposerModalProps {
   currentUser: User;
   onClose: () => void;
   onPublish: (post: Partial<Post>) => void;
+  initialPost?: Partial<Post>;
 }
 
-export function PostComposerModal({ currentUser, onClose, onPublish }: PostComposerModalProps) {
+export function PostComposerModal({ currentUser, onClose, onPublish, initialPost }: PostComposerModalProps) {
   const isAdmin = currentUser.role === "admin" || currentUser.role === "mentor";
+  const isEditMode = !!initialPost;
 
-  const [title, setTitle] = useState("");
-  const [bodyHtml, setBodyHtml] = useState("");
-  const [tag, setTag] = useState<PostTag>("general");
-  const [audience, setAudience] = useState<PostAudience | null>(isAdmin ? null : "all");
-  const [pinned, setPinned] = useState(false);
+  const [title, setTitle] = useState(initialPost?.title ?? "");
+  const [bodyHtml, setBodyHtml] = useState(initialPost?.body ?? "");
+  const [tag, setTag] = useState<PostTag>(initialPost?.tag ?? "general");
+  const [audience, setAudience] = useState<PostAudience | null>(
+    isEditMode ? (initialPost?.audience ?? "all") : isAdmin ? null : "all"
+  );
+  const [pinned, setPinned] = useState(initialPost?.pinned ?? false);
   const [pinnedDuration, setPinnedDuration] = useState("24h");
   const [notifyAll, setNotifyAll] = useState(false);
 
@@ -32,12 +47,26 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
 
   const [urlMenuVisible, setUrlMenuVisible] = useState(false);
   const [urlMenuPos, setUrlMenuPos] = useState({ top: 0, left: 0 });
+  const [urlNoSelection, setUrlNoSelection] = useState(false);
   const [urlInput, setUrlInput] = useState("");
-  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
-  const [editorEmpty, setEditorEmpty] = useState(true);
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(initialPost?.imageUrl ?? null);
+  const [editorEmpty, setEditorEmpty] = useState(!initialPost?.body);
+  const [videoPreview, setVideoPreview] = useState<{ type: string; src: string } | null>(null);
+  const [boldActive, setBoldActive] = useState(false);
+  const [italicActive, setItalicActive] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  // Restore draft
+  useEffect(() => { setMounted(true); }, []);
+
+  // Restore draft (only when not editing)
   useEffect(() => {
+    if (isEditMode) {
+      if (editorRef.current && initialPost?.body) {
+        editorRef.current.innerHTML = initialPost.body;
+        setEditorEmpty(false);
+      }
+      return;
+    }
     try {
       const saved = localStorage.getItem(DRAFT_KEY);
       if (saved) {
@@ -48,32 +77,51 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
           editorRef.current.innerHTML = draft.bodyHtml;
           setBodyHtml(draft.bodyHtml);
           setEditorEmpty(editorRef.current.innerText.trim().length === 0);
+          const video = detectVideoUrl(editorRef.current.innerText);
+          if (video) setVideoPreview(video);
         }
       }
     } catch {}
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Save draft on change
+  // Save draft on change (only when not editing)
   useEffect(() => {
+    if (isEditMode) return;
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({ title, bodyHtml, tag }));
     } catch {}
-  }, [title, bodyHtml, tag]);
+  }, [title, bodyHtml, tag, isEditMode]);
 
-  // Esc to close
+  // Esc to close, Cmd/Ctrl+Enter to publish
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        if (canPublish) handlePublish();
+      }
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose]);
+
+  // Track bold/italic active state on selection changes
+  useEffect(() => {
+    function onSelectionChange() {
+      setBoldActive(document.queryCommandState("bold"));
+      setItalicActive(document.queryCommandState("italic"));
+    }
+    document.addEventListener("selectionchange", onSelectionChange);
+    return () => document.removeEventListener("selectionchange", onSelectionChange);
+  }, []);
 
   function syncBody() {
     const html = editorRef.current?.innerHTML ?? "";
     const text = editorRef.current?.innerText?.trim() ?? "";
     setBodyHtml(html);
     setEditorEmpty(text.length === 0);
+    const video = detectVideoUrl(text);
+    setVideoPreview(video);
   }
 
   const editorHasContent = !editorEmpty;
@@ -81,8 +129,11 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
 
   function handlePublish() {
     if (!canPublish) return;
-    try { localStorage.removeItem(DRAFT_KEY); } catch {}
+    if (!isEditMode) {
+      try { localStorage.removeItem(DRAFT_KEY); } catch {}
+    }
     onPublish({
+      ...initialPost,
       title: title.trim() || undefined,
       body: editorRef.current?.innerText?.trim() ?? "",
       tag,
@@ -90,20 +141,26 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
       pinned,
       imageUrl: pendingImageUrl ?? undefined,
       author: currentUser,
-      reactions: [],
-      commentCount: 0,
-      createdAt: new Date().toISOString(),
+      reactions: initialPost?.reactions ?? [],
+      commentCount: initialPost?.commentCount ?? 0,
+      createdAt: initialPost?.createdAt ?? new Date().toISOString(),
     });
   }
 
   const handleUrlButtonClick = useCallback(() => {
     const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+      setUrlNoSelection(true);
+      setTimeout(() => setUrlNoSelection(false), 2000);
+      return;
+    }
     savedRange.current = sel.getRangeAt(0).cloneRange();
     const rect = sel.getRangeAt(0).getBoundingClientRect();
-    setUrlMenuPos({ top: rect.top - 52, left: rect.left });
+    // Position above the selection
+    setUrlMenuPos({ top: rect.top - 60, left: Math.max(8, rect.left) });
     setUrlMenuVisible(true);
     setUrlInput("");
+    setUrlNoSelection(false);
   }, []);
 
   function insertLink() {
@@ -127,7 +184,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
     e.target.value = "";
   }
 
-  return (
+  const modal = (
     <div
       style={{
         position: "fixed",
@@ -156,7 +213,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
             display: "flex",
             alignItems: "center",
             gap: 6,
-            zIndex: 10001,
+            zIndex: 10002,
             animation: "nc-mode-in 150ms var(--nc-ease) both",
           }}
         >
@@ -234,7 +291,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
           flexShrink: 0,
         }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--color-text-primary)" }}>
-            Que souhaites-tu partager ?
+            {isEditMode ? "Modifier le post" : "Que souhaites-tu partager ?"}
           </h2>
           <button type="button" onClick={onClose}
             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex", borderRadius: "50%", padding: 4 }}
@@ -288,6 +345,18 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
             </div>
           )}
 
+          {/* Video preview */}
+          {videoPreview && (
+            <div style={{ borderRadius: 12, overflow: "hidden", aspectRatio: "16/9" }}>
+              <iframe
+                src={videoPreview.src}
+                style={{ width: "100%", height: "100%", border: "none" }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          )}
+
           {/* Editor */}
           <div
             style={{
@@ -309,7 +378,8 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
                 onClick={() => { document.execCommand("bold", false); editorRef.current?.focus(); syncBody(); }}
                 style={{
                   fontWeight: 700, width: 30, height: 30, borderRadius: 6, border: "none",
-                  background: "transparent", color: "var(--color-text-secondary)",
+                  background: boldActive ? "rgba(0,0,0,0.10)" : "transparent",
+                  color: boldActive ? "var(--color-text-primary)" : "var(--color-text-secondary)",
                   cursor: "pointer", fontSize: 14, display: "flex",
                   alignItems: "center", justifyContent: "center",
                   transition: "background 100ms ease",
@@ -325,7 +395,8 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
                 onClick={() => { document.execCommand("italic", false); editorRef.current?.focus(); syncBody(); }}
                 style={{
                   fontStyle: "italic", width: 30, height: 30, borderRadius: 6, border: "none",
-                  background: "transparent", color: "var(--color-text-secondary)",
+                  background: italicActive ? "rgba(0,0,0,0.10)" : "transparent",
+                  color: italicActive ? "var(--color-text-primary)" : "var(--color-text-secondary)",
                   cursor: "pointer", fontSize: 14, display: "flex",
                   alignItems: "center", justifyContent: "center",
                   transition: "background 100ms ease",
@@ -349,20 +420,42 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
               >
                 ≡
               </button>
-              <button
-                type="button"
-                title="Lien (sélectionnez du texte d'abord)"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={handleUrlButtonClick}
-                style={{
-                  width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
-                  cursor: "pointer", color: "var(--color-text-secondary)",
-                  transition: "background 100ms ease", display: "flex", alignItems: "center", justifyContent: "center",
-                }}
-                className="hover:bg-[rgba(0,0,0,0.06)]"
-              >
-                <Link size={14} />
-              </button>
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  title="Lien"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={handleUrlButtonClick}
+                  style={{
+                    width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
+                    cursor: "pointer", color: "var(--color-text-secondary)",
+                    transition: "background 100ms ease", display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                  className="hover:bg-[rgba(0,0,0,0.06)]"
+                >
+                  <Link size={14} />
+                </button>
+                {urlNoSelection && (
+                  <div style={{
+                    position: "absolute",
+                    top: "calc(100% + 6px)",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: "#1a1a1a",
+                    color: "#fff",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    padding: "5px 10px",
+                    borderRadius: 8,
+                    whiteSpace: "nowrap",
+                    zIndex: 10003,
+                    pointerEvents: "none",
+                    animation: "nc-mode-in 150ms var(--nc-ease) both",
+                  }}>
+                    Sélectionne du texte pour ajouter un lien
+                  </div>
+                )}
+              </div>
               <input
                 ref={imageInputRef}
                 type="file"
@@ -386,13 +479,13 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
               </button>
               <button
                 type="button"
-                title="Vidéo"
+                title="Vidéo (YouTube, Tella, Loom)"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   const url = window.prompt("URL de la vidéo (YouTube, Tella, Loom)");
                   if (url) {
                     editorRef.current?.focus();
-                    document.execCommand("insertText", false, `[vidéo: ${url}]`);
+                    document.execCommand("insertText", false, url);
                     syncBody();
                   }
                 }}
@@ -491,7 +584,6 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
             type="button"
             onClick={handlePublish}
             disabled={!canPublish}
-            className={canPublish ? "nc-btn-shine" : ""}
             style={{
               padding: "9px 24px",
               background: canPublish ? "var(--color-brand)" : "#e5e7eb",
@@ -501,10 +593,13 @@ export function PostComposerModal({ currentUser, onClose, onPublish }: PostCompo
               transition: "all 150ms ease",
             }}
           >
-            Publier
+            {isEditMode ? "Sauvegarder" : "Publier"}
           </button>
         </div>
       </div>
     </div>
   );
+
+  if (!mounted) return null;
+  return createPortal(modal, document.body);
 }

@@ -151,13 +151,14 @@ export function CommunityPostDetailPage({ post, devRole }: CommunityPostDetailPa
 
         {/* Reactions */}
         <div style={{ paddingTop: 4, borderTop: "1px solid var(--color-border-default)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <ReactionsBar reactions={reactions} commentCount={comments.length} />
+          <ReactionsBar reactions={reactions} onReact={handleReaction} />
           <ReactionPicker onSelect={handleReaction} mode="post" selectedEmojis={reactions.filter((r) => r.userReacted).map((r) => r.emoji)} />
         </div>
       </article>
 
       {/* Comments */}
       <div
+        id="comments"
         style={{
           background: "white",
           border: "1px solid var(--color-border-default)",

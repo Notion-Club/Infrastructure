@@ -156,7 +156,7 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
                     style={{
                       position: "absolute",
                       right: 0,
-                      bottom: "calc(100% + 4px)",
+                      top: "calc(100% + 4px)",
                       background: "white",
                       border: "1px solid var(--color-border-default)",
                       borderRadius: 12,
