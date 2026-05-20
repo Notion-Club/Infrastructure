@@ -27,6 +27,7 @@ import {
   MOCK_USER_OFFER,
 } from "@/shared/lib/settings/mock-data";
 import { findScenario, type ScenarioId } from "@/shared/lib/settings/scenarios";
+import type { NotificationSettings } from "@/modules/settings";
 
 type LoadState =
   | { status: "loading" }
@@ -37,7 +38,13 @@ type LoadState =
       isMocked: boolean;
     };
 
-export function SettingsClient({ banner }: { banner?: React.ReactNode } = {}) {
+export function SettingsClient({
+  banner,
+  initialNotificationSettings,
+}: {
+  banner?: React.ReactNode;
+  initialNotificationSettings?: NotificationSettings | null;
+} = {}) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [scenarioId, setScenarioId] = useState<ScenarioId>("default");
   const { updateIdentity } = useProfileIdentityContext();
@@ -187,9 +194,9 @@ export function SettingsClient({ banner }: { banner?: React.ReactNode } = {}) {
                   paymentMethod={scenario.paymentMethod}
                 />
                 <NotificationsSection
-                  userId={state.user.id}
                   userOffer={MOCK_USER_OFFER}
                   isMocked={state.isMocked}
+                  initialSettings={initialNotificationSettings ?? null}
                 />
                 <AppearanceSection />
                 <DangerZone isMocked={state.isMocked} />

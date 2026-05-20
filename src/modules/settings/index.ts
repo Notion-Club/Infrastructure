@@ -9,6 +9,8 @@ export {
   updateAvatarColorAction,
   removeAvatarAction,
   deleteAccountAction,
+  getNotificationSettings,
+  updateNotificationSettingsAction,
   type PasswordChangeResult,
   type ProfileUpdateResult,
   type AccountEmailChangeResult,
@@ -16,6 +18,8 @@ export {
   type AvatarColorChangeResult,
   type AvatarRemoveResult,
   type DeleteAccountResult,
+  type NotificationSettings,
+  type NotificationSettingsResult,
 } from "./server/actions";
 
 export {
@@ -24,6 +28,7 @@ export {
   accountEmailChangeSchema,
   avatarColorChangeSchema,
   deleteAccountSchema,
+  notificationSettingsUpdateSchema,
   ACCOUNT_DELETION_CONFIRMATION_PHRASE,
   AVATAR_MAX_BYTES,
   AVATAR_ALLOWED_MIME,
@@ -32,6 +37,9 @@ export {
   BIO_MAX_LENGTH,
   USERNAME_MIN_LENGTH,
   USERNAME_MAX_LENGTH,
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_CHANNELS,
+  DEFAULT_CHANNEL_ENABLED,
   isAllowedAvatarMime,
   isAllowedAvatarColor,
   type PasswordChangeInput,
@@ -40,4 +48,7 @@ export {
   type AvatarColorChangeInput,
   type AvatarColor,
   type DeleteAccountInput,
+  type NotificationCategory,
+  type NotificationChannel,
+  type NotificationSettingsUpdateInput,
 } from "./lib/validation";

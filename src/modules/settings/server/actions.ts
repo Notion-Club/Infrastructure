@@ -10,15 +10,22 @@ import {
 import {
   AVATAR_ALLOWED_MIME,
   AVATAR_MAX_BYTES,
+  DEFAULT_CHANNEL_ENABLED,
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_CHANNELS,
   accountEmailChangeSchema,
   avatarColorChangeSchema,
   deleteAccountSchema,
   isAllowedAvatarMime,
+  notificationSettingsUpdateSchema,
   passwordChangeSchema,
   profileUpdateSchema,
   type AccountEmailChangeInput,
   type AvatarColorChangeInput,
   type DeleteAccountInput,
+  type NotificationCategory,
+  type NotificationChannel,
+  type NotificationSettingsUpdateInput,
   type PasswordChangeInput,
   type ProfileUpdateInput,
 } from "@/modules/settings/lib/validation";
@@ -109,6 +116,22 @@ export type DeleteAccountResult =
         | "rate_limited"
         | "already_deleted"
         | "unknown";
+      message: string;
+    };
+
+export type NotificationSettings = {
+  preferences: Record<
+    NotificationCategory,
+    Record<NotificationChannel, boolean>
+  >;
+  channels: Record<NotificationChannel, boolean>;
+};
+
+export type NotificationSettingsResult =
+  | { ok: true }
+  | {
+      ok: false;
+      code: "validation" | "not_authenticated" | "unknown";
       message: string;
     };
 
@@ -685,6 +708,140 @@ export async function deleteAccountAction(
   // 3. SignOut de la session courante — le JWT reste techniquement valide
   //    jusqu'à expiration mais l'user n'a plus de credentials pour login.
   await supabase.auth.signOut();
+
+  return { ok: true };
+}
+
+// ============================================================================
+// getNotificationSettings — lecture initiale (Server Component)
+// ============================================================================
+// Charge la matrice catégorie × canal + les toggles globaux par canal pour
+// l'user courant. Mergé avec les defaults pour qu'il y ait toujours une
+// valeur définie pour chaque (category, channel) et chaque channel global.
+//
+// Renvoie null si pas d'user (cas mock dev / pré-auth) — le caller doit alors
+// tomber sur ses defaults côté client.
+export async function getNotificationSettings(): Promise<NotificationSettings | null> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const [prefsRes, channelsRes] = await Promise.all([
+    supabase
+      .from("notification_preferences")
+      .select("category, channel, enabled")
+      .eq("user_id", user.id),
+    supabase
+      .from("channel_preferences")
+      .select("channel, enabled")
+      .eq("user_id", user.id),
+  ]);
+
+  if (prefsRes.error) {
+    console.error("[getNotificationSettings] prefs read failed:", prefsRes.error.message);
+  }
+  if (channelsRes.error) {
+    console.error("[getNotificationSettings] channels read failed:", channelsRes.error.message);
+  }
+
+  // Defaults : pour la matrice, on suit la même règle que les canaux globaux
+  // (email/in_app on, whatsapp off) — cohérent avec le défaut DB des inserts
+  // futurs et avec l'UI actuelle.
+  const preferences = NOTIFICATION_CATEGORIES.reduce(
+    (acc, category) => {
+      acc[category] = { ...DEFAULT_CHANNEL_ENABLED };
+      return acc;
+    },
+    {} as NotificationSettings["preferences"],
+  );
+
+  for (const row of prefsRes.data ?? []) {
+    const cat = row.category as NotificationCategory;
+    const ch = row.channel as NotificationChannel;
+    if (preferences[cat] && ch in preferences[cat]) {
+      preferences[cat][ch] = row.enabled;
+    }
+  }
+
+  const channels: Record<NotificationChannel, boolean> = { ...DEFAULT_CHANNEL_ENABLED };
+  for (const row of channelsRes.data ?? []) {
+    const ch = row.channel as NotificationChannel;
+    if (ch in channels) channels[ch] = row.enabled;
+  }
+
+  return { preferences, channels };
+}
+
+// ============================================================================
+// updateNotificationSettingsAction — persistance matrice + canaux
+// ============================================================================
+// Upsert atomique (best-effort : 2 requêtes en parallèle) sur les deux tables.
+// L'auth provient TOUJOURS de la session côté serveur — on ignore tout user_id
+// éventuellement présent dans le payload client.
+//
+// RLS notif_prefs_*_self + channel_prefs_*_self (migrations 004 + 012)
+// garantit qu'on ne peut écrire que sur ses propres lignes même si on bidouille.
+export async function updateNotificationSettingsAction(
+  input: NotificationSettingsUpdateInput,
+): Promise<NotificationSettingsResult> {
+  const parsed = notificationSettingsUpdateSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "validation",
+      message: parsed.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      message: "Tu dois être connecté pour modifier tes préférences.",
+    };
+  }
+
+  const prefRows = parsed.data.preferences.map((p) => ({
+    user_id: user.id,
+    category: p.category,
+    channel: p.channel,
+    enabled: p.enabled,
+  }));
+
+  const channelRows = parsed.data.channels.map((c) => ({
+    user_id: user.id,
+    channel: c.channel,
+    enabled: c.enabled,
+  }));
+
+  const [prefsRes, channelsRes] = await Promise.all([
+    prefRows.length > 0
+      ? supabase
+          .from("notification_preferences")
+          .upsert(prefRows, { onConflict: "user_id,category,channel" })
+      : Promise.resolve({ error: null } as const),
+    channelRows.length > 0
+      ? supabase
+          .from("channel_preferences")
+          .upsert(channelRows, { onConflict: "user_id,channel" })
+      : Promise.resolve({ error: null } as const),
+  ]);
+
+  if (prefsRes.error || channelsRes.error) {
+    const err = prefsRes.error ?? channelsRes.error;
+    console.error("[updateNotificationSettings] failed:", err?.message);
+    return {
+      ok: false,
+      code: "unknown",
+      message: err?.message ?? "Erreur lors de l'enregistrement.",
+    };
+  }
 
   return { ok: true };
 }

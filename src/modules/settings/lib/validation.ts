@@ -198,3 +198,53 @@ export const deleteAccountSchema = z.object({
 });
 
 export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
+
+// ============================================================================
+// Notifications — matrice catégorie × canal + toggle global par canal
+// ============================================================================
+// Source de vérité partagée entre le composant client et les Server Actions
+// pour les valeurs autorisées. Les `check` côté DB (migrations 004 + 012)
+// imposent les mêmes ensembles.
+
+export const NOTIFICATION_CATEGORIES = [
+  "new_modules",
+  "formation_reminders",
+  "coaching_calls",
+  "community_messages",
+  "billing",
+] as const;
+
+export const NOTIFICATION_CHANNELS = ["email", "in_app", "whatsapp"] as const;
+
+export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
+export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
+
+// Défaut implicite quand aucune ligne n'existe en DB (cf. migrations 004 + 012)
+export const DEFAULT_CHANNEL_ENABLED: Record<NotificationChannel, boolean> = {
+  email: true,
+  in_app: true,
+  whatsapp: false,
+};
+
+const notificationPreferenceRow = z.object({
+  category: z.enum(NOTIFICATION_CATEGORIES),
+  channel: z.enum(NOTIFICATION_CHANNELS),
+  enabled: z.boolean(),
+});
+
+const channelPreferenceRow = z.object({
+  channel: z.enum(NOTIFICATION_CHANNELS),
+  enabled: z.boolean(),
+});
+
+// Update unifié : on envoie d'un coup la matrice fine + les toggles globaux.
+// Limite stricte sur la taille pour éviter qu'un client malicieux n'envoie un
+// payload énorme (5 cats × 3 channels = 15 lignes max ; 3 canaux).
+export const notificationSettingsUpdateSchema = z.object({
+  preferences: z.array(notificationPreferenceRow).max(15),
+  channels: z.array(channelPreferenceRow).max(3),
+});
+
+export type NotificationSettingsUpdateInput = z.infer<
+  typeof notificationSettingsUpdateSchema
+>;

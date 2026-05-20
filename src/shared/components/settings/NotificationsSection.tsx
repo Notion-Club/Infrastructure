@@ -4,26 +4,27 @@ import { useMemo, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
-import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
+import {
+  DEFAULT_CHANNEL_ENABLED,
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_CHANNELS,
+  updateNotificationSettingsAction,
+  type NotificationCategory,
+  type NotificationChannel,
+  type NotificationSettings,
+} from "@/modules/settings";
 import { SettingsCard, SettingsDivider } from "./SettingsCard";
 import type { UserOffer } from "./types";
 
-type Channel = "email" | "in_app" | "whatsapp";
-
-type CategoryKey =
-  | "new_modules"
-  | "formation_reminders"
-  | "coaching_calls"
-  | "community_messages"
-  | "billing";
-
 type Category = {
-  key: CategoryKey;
+  key: NotificationCategory;
   label: string;
-  description?: string;
   requiresOffer?: UserOffer;
 };
 
+// L'ordre + les libellés UI vivent côté composant. Les valeurs autorisées
+// (clés) viennent de @/modules/settings — source unique de vérité partagée
+// avec le schema zod et les `check` côté DB.
 const CATEGORIES: Category[] = [
   { key: "new_modules", label: "Nouveaux modules disponibles" },
   { key: "formation_reminders", label: "Rappels de formation" },
@@ -36,44 +37,42 @@ const CATEGORIES: Category[] = [
   { key: "billing", label: "Informations de facturation" },
 ];
 
-const CHANNELS: { key: Channel; label: string }[] = [
-  { key: "email", label: "Email" },
-  { key: "in_app", label: "In-app" },
-  { key: "whatsapp", label: "WhatsApp" },
-];
+const CHANNEL_LABELS: Record<NotificationChannel, string> = {
+  email: "Email",
+  in_app: "In-app",
+  whatsapp: "WhatsApp",
+};
 
-type PreferenceMap = Record<CategoryKey, Record<Channel, boolean>>;
+type PreferenceMap = NotificationSettings["preferences"];
+type ChannelMap = NotificationSettings["channels"];
 
-const DEFAULT_PREFERENCES: PreferenceMap = CATEGORIES.reduce((acc, cat) => {
-  acc[cat.key] = {
-    email: true,
-    in_app: true,
-    whatsapp: false,
+function buildDefaults(): NotificationSettings {
+  const preferences = NOTIFICATION_CATEGORIES.reduce((acc, cat) => {
+    acc[cat] = { ...DEFAULT_CHANNEL_ENABLED };
+    return acc;
+  }, {} as PreferenceMap);
+  return {
+    preferences,
+    channels: { ...DEFAULT_CHANNEL_ENABLED },
   };
-  return acc;
-}, {} as PreferenceMap);
+}
 
 type NotificationsSectionProps = {
-  userId: string;
   userOffer: UserOffer;
-  initialChannelDefaults?: Record<Channel, boolean>;
-  initialPreferences?: PreferenceMap;
   isMocked: boolean;
+  // null = mode démo / user non auth (le Server Component n'a pas pu fetch).
+  // undefined ne devrait jamais arriver — typage défensif uniquement.
+  initialSettings: NotificationSettings | null;
 };
 
 export function NotificationsSection({
-  userId,
   userOffer,
-  initialChannelDefaults,
-  initialPreferences,
   isMocked,
+  initialSettings,
 }: NotificationsSectionProps) {
-  const [channels, setChannels] = useState<Record<Channel, boolean>>(
-    initialChannelDefaults ?? { email: true, in_app: true, whatsapp: false },
-  );
-  const [prefs, setPrefs] = useState<PreferenceMap>(
-    initialPreferences ?? DEFAULT_PREFERENCES,
-  );
+  const initial = initialSettings ?? buildDefaults();
+  const [channels, setChannels] = useState<ChannelMap>(initial.channels);
+  const [prefs, setPrefs] = useState<PreferenceMap>(initial.preferences);
   const [saving, setSaving] = useState(false);
 
   const visibleCategories = useMemo(
@@ -86,11 +85,11 @@ export function NotificationsSection({
     [userOffer],
   );
 
-  function toggleChannel(channel: Channel) {
+  function toggleChannel(channel: NotificationChannel) {
     setChannels((prev) => ({ ...prev, [channel]: !prev[channel] }));
   }
 
-  function togglePref(category: CategoryKey, channel: Channel) {
+  function togglePref(category: NotificationCategory, channel: NotificationChannel) {
     setPrefs((prev) => ({
       ...prev,
       [category]: {
@@ -104,30 +103,33 @@ export function NotificationsSection({
     setSaving(true);
     try {
       if (isMocked) {
-        await new Promise((r) => setTimeout(r, 500));
+        await new Promise((r) => setTimeout(r, 400));
         toast.success("Préférences enregistrées (démo)");
         return;
       }
-      const supabase = createSupabaseBrowserClient();
-      const rows = visibleCategories.flatMap((cat) =>
-        CHANNELS.map((ch) => ({
-          user_id: userId,
+
+      const preferences = visibleCategories.flatMap((cat) =>
+        NOTIFICATION_CHANNELS.map((ch) => ({
           category: cat.key,
-          channel: ch.key,
-          enabled: prefs[cat.key][ch.key] && channels[ch.key],
+          channel: ch,
+          enabled: prefs[cat.key][ch],
         })),
       );
-      const { error } = await supabase
-        .from("notification_preferences")
-        .upsert(rows, { onConflict: "user_id,category,channel" });
-      if (error) throw error;
+      const channelRows = NOTIFICATION_CHANNELS.map((ch) => ({
+        channel: ch,
+        enabled: channels[ch],
+      }));
+
+      const result = await updateNotificationSettingsAction({
+        preferences,
+        channels: channelRows,
+      });
+
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
       toast.success("Préférences enregistrées");
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Erreur lors de l'enregistrement des préférences";
-      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -168,16 +170,16 @@ export function NotificationsSection({
             flexDirection: "column",
           }}
         >
-          {CHANNELS.map((ch, idx) => (
+          {NOTIFICATION_CHANNELS.map((ch, idx) => (
             <li
-              key={ch.key}
+              key={ch}
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "10px 0",
                 borderBottom:
-                  idx === CHANNELS.length - 1
+                  idx === NOTIFICATION_CHANNELS.length - 1
                     ? "none"
                     : "1px solid var(--color-border-default)",
               }}
@@ -188,12 +190,12 @@ export function NotificationsSection({
                   color: "var(--color-text-primary)",
                 }}
               >
-                {ch.label}
+                {CHANNEL_LABELS[ch]}
               </span>
               <SwitchToggle
-                checked={channels[ch.key]}
-                onChange={() => toggleChannel(ch.key)}
-                ariaLabel={`Canal ${ch.label}`}
+                checked={channels[ch]}
+                onChange={() => toggleChannel(ch)}
+                ariaLabel={`Canal ${CHANNEL_LABELS[ch]}`}
               />
             </li>
           ))}
@@ -252,30 +254,30 @@ export function NotificationsSection({
                   flexWrap: "wrap",
                 }}
               >
-                {CHANNELS.map((ch) => {
-                  const disabled = !channels[ch.key];
+                {NOTIFICATION_CHANNELS.map((ch) => {
+                  const channelOff = !channels[ch];
                   return (
                     <label
-                      key={ch.key}
+                      key={ch}
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
                         gap: 6,
                         fontSize: 13,
-                        color: disabled
+                        color: channelOff
                           ? "var(--color-text-muted)"
                           : "var(--color-text-secondary)",
-                        cursor: disabled ? "not-allowed" : "pointer",
+                        cursor: channelOff ? "not-allowed" : "pointer",
                       }}
                     >
                       <input
                         type="checkbox"
-                        checked={prefs[cat.key][ch.key] && channels[ch.key]}
-                        onChange={() => togglePref(cat.key, ch.key)}
-                        disabled={disabled}
+                        checked={prefs[cat.key][ch] && channels[ch]}
+                        onChange={() => togglePref(cat.key, ch)}
+                        disabled={channelOff}
                         style={{ accentColor: "var(--color-brand)" }}
                       />
-                      {ch.label}
+                      {CHANNEL_LABELS[ch]}
                     </label>
                   );
                 })}
