@@ -83,6 +83,7 @@ export function Topbar() {
   const { identity } = useProfileIdentity();
   const initials = computeInitials(identity);
   const avatarUrl = identity?.avatarUrl ?? null;
+  const avatarColor = identity?.avatarColor ?? "#e0625a";
 
   return (
     <header
@@ -221,7 +222,7 @@ export function Topbar() {
               width: 36,
               height: 36,
               borderRadius: "50%",
-              background: avatarUrl ? "transparent" : "#e0625a",
+              background: avatarUrl ? "transparent" : avatarColor,
               color: "#fff",
               display: "flex",
               alignItems: "center",

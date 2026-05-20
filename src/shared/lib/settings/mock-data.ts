@@ -7,10 +7,14 @@ import type {
 export const MOCK_PROFILE: ProfileRow = {
   id: "mock-user-1",
   avatar_url: null,
+  avatar_color: null,
   display_name: "Théo Martin",
   first_name: "Théo",
   last_name: "Martin",
+  username: "theo-martin",
+  bio: null,
   phone: "+33 6 12 34 56 78",
+  communication_email: null,
   notion_email: "theo.notion@notionclub.fr",
 };
 

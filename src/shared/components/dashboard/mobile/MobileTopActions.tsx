@@ -39,6 +39,7 @@ export function MobileTopActions() {
   const { identity } = useProfileIdentity();
   const initials = computeInitials(identity);
   const avatarUrl = identity?.avatarUrl ?? null;
+  const avatarColor = identity?.avatarColor ?? "#e0625a";
 
   useEffect(() => {
     if (!avatarOpen) return;
@@ -122,7 +123,7 @@ export function MobileTopActions() {
             width: 38,
             height: 38,
             borderRadius: "50%",
-            background: avatarUrl ? "transparent" : "var(--color-brand)",
+            background: avatarUrl ? "transparent" : avatarColor,
             color: "white",
             display: "flex",
             alignItems: "center",

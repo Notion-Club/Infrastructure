@@ -11,11 +11,13 @@ import {
   AVATAR_ALLOWED_MIME,
   AVATAR_MAX_BYTES,
   accountEmailChangeSchema,
+  avatarColorChangeSchema,
   deleteAccountSchema,
   isAllowedAvatarMime,
   passwordChangeSchema,
   profileUpdateSchema,
   type AccountEmailChangeInput,
+  type AvatarColorChangeInput,
   type DeleteAccountInput,
   type PasswordChangeInput,
   type ProfileUpdateInput,
@@ -47,7 +49,7 @@ export type ProfileUpdateResult =
   | { ok: true }
   | {
       ok: false;
-      code: "validation" | "not_authenticated" | "unknown";
+      code: "validation" | "not_authenticated" | "username_taken" | "unknown";
       message: string;
     };
 
@@ -76,6 +78,22 @@ export type AvatarUploadResult =
         | "not_authenticated"
         | "upload_failed"
         | "unknown";
+      message: string;
+    };
+
+export type AvatarColorChangeResult =
+  | { ok: true }
+  | {
+      ok: false;
+      code: "validation" | "not_authenticated" | "unknown";
+      message: string;
+    };
+
+export type AvatarRemoveResult =
+  | { ok: true }
+  | {
+      ok: false;
+      code: "not_authenticated" | "unknown";
       message: string;
     };
 
@@ -235,6 +253,16 @@ export async function updateProfileAction(
     .eq("id", user.id);
 
   if (error) {
+    // Postgres unique_violation = 23505. Notre index unique case-insensitive
+    // sur lower(username) déclenche cette erreur quand un autre user a déjà
+    // ce username (cf. migration 010).
+    if (error.code === "23505" && error.message.toLowerCase().includes("username")) {
+      return {
+        ok: false,
+        code: "username_taken",
+        message: "Ce nom d'utilisateur est déjà pris. Choisis-en un autre.",
+      };
+    }
     console.error("[updateProfile] failed:", error.message);
     return { ok: false, code: "unknown", message: error.message };
   }
@@ -448,6 +476,91 @@ async function cleanupOldAvatars(
   if (toRemove.length === 0) return;
 
   await admin.storage.from(AVATARS_BUCKET).remove(toRemove);
+}
+
+// ============================================================================
+// updateAvatarColorAction — choix d'une couleur de fond d'avatar
+// ============================================================================
+// Couleur HEX d'une palette autorisée (cf. AVATAR_COLOR_PALETTE). On valide
+// strictement côté serveur pour empêcher l'injection d'un HEX arbitraire
+// via DevTools.
+export async function updateAvatarColorAction(
+  input: AvatarColorChangeInput,
+): Promise<AvatarColorChangeResult> {
+  const parsed = avatarColorChangeSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "validation",
+      message: parsed.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      message: "Tu dois être connecté pour modifier ton avatar.",
+    };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ avatar_color: parsed.data.color })
+    .eq("id", user.id);
+  if (error) {
+    console.error("[updateAvatarColor] failed:", error.message);
+    return { ok: false, code: "unknown", message: error.message };
+  }
+  return { ok: true };
+}
+
+// ============================================================================
+// removeAvatarAction — supprime la photo d'avatar (garde la couleur)
+// ============================================================================
+// Set avatar_url = null + cleanup du bucket storage du user.
+export async function removeAvatarAction(): Promise<AvatarRemoveResult> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      message: "Tu dois être connecté pour supprimer ta photo.",
+    };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ avatar_url: null })
+    .eq("id", user.id);
+  if (error) {
+    console.error("[removeAvatar] profile update failed:", error.message);
+    return { ok: false, code: "unknown", message: error.message };
+  }
+
+  // Cleanup storage best-effort
+  try {
+    const admin = createSupabaseAdminClient();
+    const { data: files } = await admin.storage
+      .from(AVATARS_BUCKET)
+      .list(user.id, { limit: 100 });
+    if (files && files.length > 0) {
+      await admin.storage
+        .from(AVATARS_BUCKET)
+        .remove(files.map((f) => `${user.id}/${f.name}`));
+    }
+  } catch (err) {
+    console.error("[removeAvatar] storage cleanup failed:", err);
+  }
+
+  return { ok: true };
 }
 
 // ============================================================================

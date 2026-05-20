@@ -70,15 +70,44 @@ const optionalEmail = trimmedOrNull.pipe(
   z.string().email("Email invalide").nullable(),
 );
 
+// Username : 3-30 chars, ASCII lowercase + chiffres + - _, ne pas
+// commencer/finir par - ou _. OBLIGATOIRE (auto-généré au signup, doit
+// rester rempli ensuite). Case-insensitive côté DB via index unique.
+const USERNAME_REGEX = /^[a-z0-9][a-z0-9_-]{1,28}[a-z0-9]$/;
+const usernameField = z
+  .string()
+  .transform((v) => v.trim().toLowerCase())
+  .pipe(
+    z
+      .string()
+      .min(3, "3 caractères minimum")
+      .max(30, "30 caractères maximum")
+      .regex(
+        USERNAME_REGEX,
+        "Lettres minuscules, chiffres, - et _ uniquement. Ne peut pas commencer ou finir par - ou _.",
+      ),
+  );
+
+const bioField = trimmedOrNull.pipe(
+  z.string().max(500, "500 caractères maximum").nullable(),
+);
+
 export const profileUpdateSchema = z.object({
   display_name: displayName,
   first_name: personName,
   last_name: personName,
+  username: usernameField,
+  bio: bioField,
   phone: phoneField,
   notion_email: optionalEmail,
 });
 
 export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
+
+// Limites exportées pour l'UI (compteur de caractères, helper text, etc.)
+export const BIO_MAX_LENGTH = 500;
+export const USERNAME_MIN_LENGTH = 3;
+export const USERNAME_MAX_LENGTH = 30;
 
 // ============================================================================
 // Account email change — section Profile (champ "Email Notion Club")
@@ -111,6 +140,44 @@ export type AvatarMimeType = (typeof AVATAR_ALLOWED_MIME)[number];
 export function isAllowedAvatarMime(mime: string): mime is AvatarMimeType {
   return (AVATAR_ALLOWED_MIME as readonly string[]).includes(mime);
 }
+
+// ============================================================================
+// Avatar color — palette stricte
+// ============================================================================
+// Source unique de vérité pour les couleurs autorisées. Toute couleur en
+// dehors de cette liste est rejetée par updateAvatarColorAction (évite
+// qu'un user injecte n'importe quel HEX via DevTools).
+//
+// Couleurs choisies pour bien contraster sur fond blanc avec du texte
+// blanc (initiales) — accessibilité WCAG AA visée.
+export const AVATAR_COLOR_PALETTE = [
+  "#e0625a", // brand Notion Club (rouge)
+  "#5b8def", // bleu
+  "#8a6cf2", // violet
+  "#27ae8e", // vert
+  "#ed9d3a", // orange
+  "#c97c97", // rose
+  "#52525b", // gris foncé
+  "#0f172a", // noir bleuté
+] as const;
+
+export type AvatarColor = (typeof AVATAR_COLOR_PALETTE)[number];
+
+export const DEFAULT_AVATAR_COLOR: AvatarColor = "#e0625a";
+
+export function isAllowedAvatarColor(value: string): value is AvatarColor {
+  return (AVATAR_COLOR_PALETTE as readonly string[]).includes(value);
+}
+
+export const avatarColorChangeSchema = z.object({
+  color: z
+    .string()
+    .refine((v) => isAllowedAvatarColor(v), {
+      message: "Couleur non autorisée.",
+    }),
+});
+
+export type AvatarColorChangeInput = z.infer<typeof avatarColorChangeSchema>;
 
 // ============================================================================
 // Account deletion — Danger Zone (soft delete / anonymisation)

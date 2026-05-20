@@ -5,6 +5,7 @@ import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import {
+  BIO_MAX_LENGTH,
   updateProfileAction,
   updateAccountEmailAction,
 } from "@/modules/settings";
@@ -17,11 +18,17 @@ type FormValues = {
   display_name: string;
   first_name: string;
   last_name: string;
+  username: string;
+  bio: string;
   phone: PhoneValue;
   email: string;
   notion_email: string;
   use_separate_notion_email: boolean;
 };
+
+type FieldErrors = Partial<
+  Record<"username" | "bio" | "email" | "notion_email", string>
+>;
 
 function profileToForm(profile: ProfileRow, fallbackEmail: string): FormValues {
   const notionEmail = profile.notion_email ?? "";
@@ -30,6 +37,8 @@ function profileToForm(profile: ProfileRow, fallbackEmail: string): FormValues {
     display_name: profile.display_name ?? "",
     first_name: profile.first_name ?? "",
     last_name: profile.last_name ?? "",
+    username: profile.username ?? "",
+    bio: profile.bio ?? "",
     phone: parsePhone(profile.phone),
     email: platformEmail,
     notion_email: notionEmail,
@@ -37,6 +46,63 @@ function profileToForm(profile: ProfileRow, fallbackEmail: string): FormValues {
       notionEmail.trim().length > 0 &&
       notionEmail.trim().toLowerCase() !== platformEmail.trim().toLowerCase(),
   };
+}
+
+// ============================================================================
+// Validation client synchrone pour affichage inline (sous chaque champ)
+// ============================================================================
+// On valide les champs qui en ont vraiment besoin :
+//   - username : 3-30 chars + regex
+//   - bio : 500 chars max
+//   - email (platform) : format valide
+//   - notion_email (si toggle on) : format valide
+// Pas de validation sur display_name / first_name / last_name : c'est trop
+// personnel, l'user choisit ce qu'il veut (sauf max length, géré par maxlength
+// côté input).
+const USERNAME_REGEX = /^[a-z0-9][a-z0-9_-]{1,28}[a-z0-9]$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const BIO_LIMIT = 500;
+
+function validateForm(values: FormValues): FieldErrors {
+  const errors: FieldErrors = {};
+
+  // Username (obligatoire)
+  const username = values.username.trim().toLowerCase();
+  if (username.length === 0) {
+    errors.username = "Le nom d'utilisateur est requis.";
+  } else if (username.length < 3) {
+    errors.username = "3 caractères minimum.";
+  } else if (username.length > 30) {
+    errors.username = "30 caractères maximum.";
+  } else if (!USERNAME_REGEX.test(username)) {
+    errors.username =
+      "Lettres minuscules, chiffres, - et _ uniquement. Ne peut pas commencer ou finir par - ou _.";
+  }
+
+  // Bio
+  if (values.bio.length > BIO_LIMIT) {
+    errors.bio = `${BIO_LIMIT} caractères maximum.`;
+  }
+
+  // Email (auth platform)
+  const email = values.email.trim();
+  if (email.length === 0) {
+    errors.email = "L'email est requis.";
+  } else if (!EMAIL_REGEX.test(email)) {
+    errors.email = "Format d'email invalide.";
+  }
+
+  // Notion email (uniquement si toggle on)
+  if (values.use_separate_notion_email) {
+    const notionEmail = values.notion_email.trim();
+    if (notionEmail.length === 0) {
+      errors.notion_email = "Email Notion requis.";
+    } else if (!EMAIL_REGEX.test(notionEmail)) {
+      errors.notion_email = "Format d'email invalide.";
+    }
+  }
+
+  return errors;
 }
 
 type ProfileSectionProps = {
@@ -56,11 +122,31 @@ export function ProfileSection({
   );
   const [values, setValues] = useState<FormValues>(initialValues);
   const [saving, setSaving] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // Validation client : recalculée à chaque changement, mais affichée
+  // uniquement pour les champs déjà "touched" (l'user a interagi avec).
+  // Évite l'effet "tout est rouge dès l'ouverture de la page".
+  const errors = useMemo(() => validateForm(values), [values]);
+  const visibleErrors: FieldErrors = useMemo(() => {
+    const v: FieldErrors = {};
+    (Object.keys(errors) as (keyof FieldErrors)[]).forEach((k) => {
+      if (touched[k]) v[k] = errors[k];
+    });
+    return v;
+  }, [errors, touched]);
+  const hasErrors = Object.keys(errors).length > 0;
+
+  function markTouched(field: keyof FieldErrors) {
+    setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+  }
 
   const hasChanges = useMemo(() => {
     if (values.display_name !== initialValues.display_name) return true;
     if (values.first_name !== initialValues.first_name) return true;
     if (values.last_name !== initialValues.last_name) return true;
+    if (values.username.trim().toLowerCase() !== initialValues.username) return true;
+    if (values.bio !== initialValues.bio) return true;
     if (values.email !== initialValues.email) return true;
     if (
       values.phone.countryCode !== initialValues.phone.countryCode ||
@@ -90,6 +176,17 @@ export function ProfileSection({
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!hasChanges || saving) return;
+    // Au submit, on marque tous les champs comme touched pour que les
+    // erreurs apparaissent même si l'user n'a jamais focus le champ.
+    if (hasErrors) {
+      setTouched({
+        username: true,
+        bio: true,
+        email: true,
+        notion_email: true,
+      });
+      return;
+    }
     setSaving(true);
     try {
       const phoneText = formatPhone(values.phone) || null;
@@ -111,6 +208,8 @@ export function ProfileSection({
         values.display_name !== initialValues.display_name ||
         values.first_name !== initialValues.first_name ||
         values.last_name !== initialValues.last_name ||
+        values.username.trim().toLowerCase() !== initialValues.username ||
+        values.bio !== initialValues.bio ||
         values.phone.countryCode !== initialValues.phone.countryCode ||
         values.phone.national.trim() !== initialValues.phone.national.trim() ||
         values.use_separate_notion_email !==
@@ -123,10 +222,17 @@ export function ProfileSection({
           display_name: values.display_name,
           first_name: values.first_name,
           last_name: values.last_name,
+          username: values.username,
+          bio: values.bio,
           phone: phoneText,
           notion_email: resolvedNotionEmail,
         });
         if (!result.ok) {
+          // Si username pris, on flag le champ comme touched + on inject l'erreur
+          // inline (en plus du toast). Sinon comportement standard.
+          if (result.code === "username_taken") {
+            setTouched((prev) => ({ ...prev, username: true }));
+          }
           toast.error(result.message);
           return;
         }
@@ -194,6 +300,20 @@ export function ProfileSection({
           />
         </div>
 
+        <UsernameField
+          value={values.username}
+          onChange={(v) => update("username", v)}
+          onBlur={() => markTouched("username")}
+          error={visibleErrors.username}
+        />
+
+        <BioField
+          value={values.bio}
+          onChange={(v) => update("bio", v)}
+          onBlur={() => markTouched("bio")}
+          error={visibleErrors.bio}
+        />
+
         <PhoneField
           id="phone"
           label="Numéro de téléphone"
@@ -205,8 +325,12 @@ export function ProfileSection({
           platformEmail={values.email}
           notionEmail={values.notion_email}
           useSeparateNotionEmail={values.use_separate_notion_email}
+          platformEmailError={visibleErrors.email}
+          notionEmailError={visibleErrors.notion_email}
           onPlatformEmailChange={(v) => update("email", v)}
           onNotionEmailChange={(v) => update("notion_email", v)}
+          onPlatformEmailBlur={() => markTouched("email")}
+          onNotionEmailBlur={() => markTouched("notion_email")}
           onToggleSeparateNotion={(enabled) =>
             setValues((prev) => ({
               ...prev,
@@ -308,6 +432,196 @@ function TextField({
           {helper}
         </p>
       )}
+    </div>
+  );
+}
+
+// ============================================================================
+// UsernameField — input avec préfixe "@" et helper text dédié
+// ============================================================================
+function UsernameField({
+  value,
+  onChange,
+  onBlur,
+  error,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onBlur?: () => void;
+  error?: string;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <label
+        htmlFor="username"
+        style={{
+          fontSize: 13,
+          fontWeight: 500,
+          color: "var(--color-text-secondary)",
+        }}
+      >
+        Nom d&apos;utilisateur
+      </label>
+      <div style={{ position: "relative" }}>
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: 14,
+            transform: "translateY(-50%)",
+            color: "var(--color-text-muted)",
+            fontSize: 14,
+            pointerEvents: "none",
+            fontWeight: 500,
+          }}
+        >
+          @
+        </span>
+        <input
+          id="username"
+          name="username"
+          type="text"
+          value={value}
+          onChange={(e) => {
+            // Lowercase + filtrage caractères pour éviter d'autoriser
+            // de la saisie qui sera rejetée par zod côté serveur.
+            const filtered = e.target.value
+              .toLowerCase()
+              .replace(/[^a-z0-9_-]/g, "");
+            onChange(filtered);
+          }}
+          onBlur={onBlur}
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          maxLength={30}
+          placeholder="ton-username"
+          aria-invalid={error ? true : undefined}
+          className="nc-input"
+          style={{
+            paddingLeft: 30,
+            borderColor: error ? "var(--color-brand)" : undefined,
+          }}
+        />
+      </div>
+      {error ? (
+        <p
+          role="alert"
+          style={{
+            margin: 0,
+            fontSize: 12,
+            color: "var(--color-brand)",
+            lineHeight: 1.4,
+            fontWeight: 500,
+          }}
+        >
+          {error}
+        </p>
+      ) : (
+        <p
+          style={{
+            margin: 0,
+            fontSize: 12,
+            color: "var(--color-text-muted)",
+            lineHeight: 1.4,
+          }}
+        >
+          3-30 caractères, lettres minuscules, chiffres, <code>-</code> et{" "}
+          <code>_</code>. Doit être unique.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// BioField — textarea avec compteur de caractères
+// ============================================================================
+function BioField({
+  value,
+  onChange,
+  onBlur,
+  error,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onBlur?: () => void;
+  error?: string;
+}) {
+  const length = value.length;
+  const overLimit = length > BIO_MAX_LENGTH;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <label
+        htmlFor="bio"
+        style={{
+          fontSize: 13,
+          fontWeight: 500,
+          color: "var(--color-text-secondary)",
+        }}
+      >
+        Bio
+      </label>
+      <textarea
+        id="bio"
+        name="bio"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        rows={4}
+        maxLength={BIO_MAX_LENGTH}
+        placeholder="Parle un peu de toi…"
+        aria-invalid={error ? true : undefined}
+        className="nc-input"
+        style={{
+          resize: "vertical",
+          minHeight: 90,
+          paddingTop: 10,
+          paddingBottom: 10,
+          fontFamily: "inherit",
+          lineHeight: 1.5,
+          borderColor: error ? "var(--color-brand)" : undefined,
+        }}
+      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        {error ? (
+          <p
+            role="alert"
+            style={{
+              margin: 0,
+              fontSize: 12,
+              color: "var(--color-brand)",
+              lineHeight: 1.4,
+              fontWeight: 500,
+            }}
+          >
+            {error}
+          </p>
+        ) : (
+          <span />
+        )}
+        <p
+          style={{
+            margin: 0,
+            fontSize: 12,
+            color: overLimit
+              ? "var(--color-brand)"
+              : "var(--color-text-muted)",
+            lineHeight: 1.4,
+            textAlign: "right",
+          }}
+        >
+          {length} / {BIO_MAX_LENGTH}
+        </p>
+      </div>
     </div>
   );
 }
