@@ -18,13 +18,13 @@ interface NotionSelect {
 interface NotionPage {
   id: string;
   archived: boolean;
+  created_time?: string;
   properties: {
-    "Composant"?: { rich_text: NotionRichText[] };
-    "Action"?: { multi_select: NotionSelect[] };
-    "Page concernée"?: { select: NotionSelect | null };
-    "Feedback"?: { rich_text: NotionRichText[] };
-    "Statut"?: { select: NotionSelect | null };
-    "Date soumission"?: { date: { start: string } | null };
+    Composant?: { select: NotionSelect | null };
+    Action?: { select: NotionSelect | null };
+    Feedback?: { rich_text: NotionRichText[] };
+    "User Agent"?: { rich_text: NotionRichText[] };
+    URL?: { url: string | null };
   };
 }
 
@@ -73,18 +73,20 @@ export async function GET() {
     const tickets = pages
       .filter((p) => !p.archived)
       .filter((p) =>
-        str(p.properties["Composant"]?.rich_text) !== "" ||
-        str(p.properties["Feedback"]?.rich_text) !== ""
+        (p.properties.Composant?.select?.name ?? "") !== "" ||
+        str(p.properties.Feedback?.rich_text) !== ""
       )
       .map((p) => ({
         notionId:    p.id,
-        element:     str(p.properties["Composant"]?.rich_text),
-        action:      p.properties["Action"]?.multi_select?.map((t) => t.name).join(", ") ?? "",
-        page:        p.properties["Page concernée"]?.select?.name ?? "",
-        text:        str(p.properties["Feedback"]?.rich_text),
-        status:      p.properties["Statut"]?.select?.name ?? "À traiter",
-        statusColor: p.properties["Statut"]?.select?.color ?? "gray",
-        timestamp:   p.properties["Date soumission"]?.date?.start ?? "",
+        element:     p.properties.Composant?.select?.name ?? "",
+        action:      p.properties.Action?.select?.name ?? "",
+        // Page concernée / Statut / Date soumission ne font pas partie du
+        // schéma réel de la base — on affiche des valeurs neutres côté UI.
+        page:        "",
+        text:        str(p.properties.Feedback?.rich_text),
+        status:      "À traiter",
+        statusColor: "gray",
+        timestamp:   p.created_time ?? "",
       }));
 
     return NextResponse.json({ tickets }, { headers: CORS });

@@ -28,6 +28,9 @@ const NOTION_RICH_TEXT_MAX = 2000;
 const PROPERTY_PREVIEW_LIMIT = 1900;
 const TRUNCATION_MARKER = "… [Contenu complet dans le corps de la page ↓]";
 
+// Notion select option names are capped at 100 chars by the API.
+const NOTION_SELECT_NAME_MAX = 100;
+
 function truncatedProperty(content: string) {
   if (!content) return { rich_text: [] };
   if (content.length <= NOTION_RICH_TEXT_MAX) {
@@ -36,6 +39,13 @@ function truncatedProperty(content: string) {
   return {
     rich_text: [{ text: { content: content.slice(0, PROPERTY_PREVIEW_LIMIT) + TRUNCATION_MARKER } }],
   };
+}
+
+function selectName(content: string): string {
+  // Notion auto-creates the option if it doesn't exist, but the name itself
+  // must respect the 100-char ceiling — also strip commas which Notion forbids
+  // inside select option names.
+  return content.replace(/,/g, " ").slice(0, NOTION_SELECT_NAME_MAX).trim();
 }
 
 // Découpe un texte en paragraphes Notion (respecte les sauts de ligne, max 2000 char par bloc)
@@ -87,7 +97,7 @@ function buildPageBody(fb: FeedbackItem) {
       object: "block",
       type: "heading_3",
       heading_3: {
-        rich_text: [{ type: "text", text: { content: "Retour client complet" } }],
+        rich_text: [{ type: "text", text: { content: "Feedback complet" } }],
       },
     });
     blocks.push(...buildParagraphBlocks(fb.text));
@@ -137,18 +147,15 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           parent: { database_id: databaseId },
+          // Le schéma réel de la base "ticket roadmap" jointe ne contient que
+          // ces 5 propriétés (Composant, Action, Feedback, User Agent, URL).
+          // Le titre de la page est laissé vide — Notion fallback sur le
+          // contenu de Composant dans la vue grille.
           properties: {
-            Ticket: {
-              title: [{ text: { content: `${fb.element} · ${fb.text.slice(0, 60)}`.slice(0, NOTION_RICH_TEXT_MAX) } }],
-            },
-            Statut: { select: { name: "À traiter" } },
-            ...(fb.action ? { Action: { multi_select: [{ name: fb.action }] } } : {}),
-            Composant: truncatedProperty(fb.element),
-            "Page concernée": { select: { name: fb.page } },
+            Composant: { select: { name: selectName(fb.element) } },
+            ...(fb.action ? { Action: { select: { name: fb.action } } } : {}),
             Feedback: truncatedProperty(fb.text),
             "User Agent": truncatedProperty(userAgent),
-            "Date soumission": { date: { start: fb.timestamp } },
-            "Session ID": truncatedProperty(sessionId ?? ""),
             ...(fb.elementUrl ? { URL: { url: fb.elementUrl } } : {}),
           },
           children: buildPageBody(fb),
