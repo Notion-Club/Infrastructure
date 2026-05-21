@@ -212,6 +212,7 @@ export function ProfileHero({
       {pickerOpen && (
         <AvatarPicker
           currentColor={avatarColor}
+          currentAvatarUrl={avatarUrl}
           hasPhoto={!!avatarUrl}
           initials={initials}
           isMocked={isMocked}

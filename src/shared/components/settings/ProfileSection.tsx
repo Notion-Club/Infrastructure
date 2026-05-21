@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -274,12 +274,16 @@ export function ProfileSection({
         onSubmit={handleSubmit}
         style={{ display: "flex", flexDirection: "column", gap: 16 }}
       >
-        <TextField
-          id="display_name"
-          label="Nom d'affichage"
+        <UsernameField
+          value={values.username}
+          onChange={(v) => update("username", v)}
+          onBlur={() => markTouched("username")}
+          error={visibleErrors.username}
+        />
+
+        <AnimatedDisplayNameField
           value={values.display_name}
           onChange={(v) => update("display_name", v)}
-          autoComplete="nickname"
         />
         <div
           style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}
@@ -290,6 +294,7 @@ export function ProfileSection({
             value={values.first_name}
             onChange={(v) => update("first_name", v)}
             autoComplete="given-name"
+            placeholder="Théo"
           />
           <TextField
             id="last_name"
@@ -297,15 +302,9 @@ export function ProfileSection({
             value={values.last_name}
             onChange={(v) => update("last_name", v)}
             autoComplete="family-name"
+            placeholder="GOUMAN"
           />
         </div>
-
-        <UsernameField
-          value={values.username}
-          onChange={(v) => update("username", v)}
-          onBlur={() => markTouched("username")}
-          error={visibleErrors.username}
-        />
 
         <BioField
           value={values.bio}
@@ -432,6 +431,93 @@ function TextField({
           {helper}
         </p>
       )}
+    </div>
+  );
+}
+
+// ============================================================================
+// AnimatedDisplayNameField — input avec placeholder qui cycle entre
+// plusieurs questions ouvertes pour donner envie de remplir le champ.
+// Le cycle s'arrête dès que l'utilisateur a tapé quelque chose.
+// ============================================================================
+const DISPLAY_NAME_PLACEHOLDERS = [
+  "Comment veux-tu qu'on t'appelle ?",
+  "Ton prénom, ton pseudo… c'est toi qui choisis",
+  "Le nom qui s'affichera partout dans l'app",
+  "Si tu devais te présenter en un mot ?",
+];
+
+function AnimatedDisplayNameField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  const isEmpty = value.length === 0;
+
+  useEffect(() => {
+    if (!isEmpty) return;
+    const cycle = setInterval(() => {
+      setVisible(false);
+      const swap = setTimeout(() => {
+        setIndex((i) => (i + 1) % DISPLAY_NAME_PLACEHOLDERS.length);
+        setVisible(true);
+      }, 260);
+      return () => clearTimeout(swap);
+    }, 3400);
+    return () => clearInterval(cycle);
+  }, [isEmpty]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <label
+        htmlFor="display_name"
+        style={{
+          fontSize: 13,
+          fontWeight: 500,
+          color: "var(--color-text-secondary)",
+        }}
+      >
+        Nom d&apos;affichage
+      </label>
+      <div style={{ position: "relative" }}>
+        <input
+          id="display_name"
+          name="display_name"
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          autoComplete="nickname"
+          className="nc-input"
+          aria-label="Nom d'affichage"
+        />
+        {isEmpty && (
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: 14,
+              transform: "translateY(-50%)",
+              fontSize: 14,
+              color: "var(--color-text-muted)",
+              opacity: visible ? 0.75 : 0,
+              transition: "opacity 240ms ease",
+              pointerEvents: "none",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: "calc(100% - 28px)",
+            }}
+          >
+            {DISPLAY_NAME_PLACEHOLDERS[index]}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
