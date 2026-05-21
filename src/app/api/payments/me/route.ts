@@ -1,14 +1,23 @@
-// Payments API — GET renvoie l'engagement de paiement de l'utilisateur courant
-// tel qu'il est enregistré dans la base Notion "Calls" (DB SalesCall), filtré
-// par `E-mail Guest = auth.email`.
+// Payments API — GET renvoie la liste des paiements de l'utilisateur courant
+// tels qu'ils sont enregistrés dans la base Notion `Paiements`.
 //
-// Variables d'env : NOTION_API_TOKEN (token de l'intégration NotionClub, déjà
-// configurée pour la base de tickets feedback côté /api/feedback).
-// NOTION_SALES_CALL_DATABASE_ID en override optionnel — sinon fallback sur
-// l'ID hardcodé (transmis en session par l'admin via le ticket OPS-41).
+// Le matching utilisateur → paiements se fait en 2 étapes parce que la DB
+// Paiements n'a pas d'email : elle pointe vers la DB `Calls` via la relation
+// `Lead`, et c'est la DB `Calls` qui porte la propriété `E-mail Guest`.
 //
-// Aucune écriture, lecture seule. Cache: no-store pour toujours refléter
-// l'état Notion (l'admin met à jour les Calls manuellement).
+//   1. Query DB Calls          filter: `E-mail Guest = auth.email`
+//      → on récupère les IDs Notion des Calls du prospect
+//   2. Query DB Paiements      filter: `Lead.relation.contains <call-id>`
+//                              (combiné en `or` si plusieurs Calls matchent)
+//      → on récupère et normalise la liste des paiements
+//
+// Variables d'env :
+//   - NOTION_API_TOKEN                  (déjà existant — widget feedback)
+//   - NOTION_SALES_CALL_DATABASE_ID     override DB Calls (optionnel, staging)
+//   - NOTION_PAYMENTS_DATABASE_ID       override DB Paiements (optionnel, staging)
+//
+// Aucune écriture, lecture seule. `cache: "no-store"` pour toujours refléter
+// l'état Notion courant (l'admin met à jour à la main).
 import { NextResponse } from "next/server";
 
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
@@ -17,76 +26,88 @@ export const dynamic = "force-dynamic";
 
 const CORS = { "Content-Type": "application/json" };
 
-// ID Notion de la base "Calls" (alias SalesCall) — transmis dans le ticket
-// OPS-41. La propriété `E-mail Guest` est la clé de jointure avec l'auth user.
+// IDs Notion transmis par l'admin via les tickets OPS-41 (Roadmap de Production).
 const SALES_CALL_DATABASE_ID = "1d4bad05-6a95-808e-8997-d8f73838d2df";
+const PAYMENTS_DATABASE_ID = "2a1bad05-6a95-80cc-b34d-c3bc28ad2d1d";
 
 // ───────────────────────────────────────────────────────────────────────────
-// Types Notion — uniquement les propriétés qu'on lit côté serveur. On reste
-// permissif sur la forme exacte de Notion (les `?` partout) parce que la base
-// est éditée à la main par l'admin et qu'une propriété renommée ne doit pas
-// faire crasher la route.
+// Types Notion partiels — uniquement les propriétés qu'on lit. On reste
+// permissif (chaque champ optionnel) parce que la base est éditée à la main
+// par l'admin et qu'une propriété renommée ne doit pas crasher la route.
 
-interface NotionRichText {
-  text?: { content?: string };
-  plain_text?: string;
+interface NotionTitleProp {
+  title: Array<{ plain_text?: string; text?: { content?: string } }>;
 }
 
-interface NotionEmail {
-  email: string | null;
+interface NotionSelectProp {
+  select: { name: string; color?: string } | null;
 }
 
-interface NotionSelect {
-  name: string;
-}
-
-interface NotionStatus {
-  name: string;
-  color?: string;
-}
-
-interface NotionNumber {
+interface NotionNumberProp {
   number: number | null;
 }
 
-interface NotionDate {
+interface NotionDateProp {
   date: { start: string | null } | null;
 }
 
-interface NotionTitle {
-  title: NotionRichText[];
+interface NotionRelationProp {
+  relation: Array<{ id: string }>;
 }
 
-interface NotionPage {
+interface NotionEmailProp {
+  email: string | null;
+}
+
+interface CallPage {
   id: string;
-  url?: string;
-  archived?: boolean;
-  created_time?: string;
   properties: {
-    "Nom"?: NotionTitle;
-    "Prénom"?: { rich_text: NotionRichText[] };
-    "E-mail Guest"?: NotionEmail;
-    "Montant closés"?: NotionNumber;
-    "Modalité"?: { select: NotionSelect | null };
-    "État"?: { status: NotionStatus | null };
-    "Date de Closing"?: NotionDate;
+    "E-mail Guest"?: NotionEmailProp;
   };
 }
 
-function readRichText(arr?: NotionRichText[]): string {
-  const first = arr?.[0];
-  return first?.text?.content ?? first?.plain_text ?? "";
+interface PaymentPage {
+  id: string;
+  url?: string;
+  created_time?: string;
+  properties: {
+    Nom?: NotionTitleProp;
+    "Montant TTC"?: NotionNumberProp;
+    "Date de Paiement"?: NotionDateProp;
+    Source?: NotionSelectProp;
+    Statut?: NotionSelectProp;
+    Lead?: NotionRelationProp;
+  };
 }
 
-// État Notion → catégorie business simplifiée pour le front.
-// active = paiements en cours (Close, En acompte), expired = annulé/abandonné,
-// pending = en attente de R1/R2 ou en relance, none si pas d'engagement.
-function mapEtat(etat: string | null): "active" | "expired" | "pending" {
-  if (!etat) return "pending";
-  if (etat === "Close" || etat === "En acompte") return "active";
-  if (etat === "Annulé" || etat === "Abandon acompte" || etat === "No-show")
-    return "expired";
-  return "pending";
+function readTitle(prop?: NotionTitleProp): string {
+  const first = prop?.title?.[0];
+  return first?.plain_text ?? first?.text?.content ?? "";
+}
+
+// Statut Notion → catégorie business simple pour le front. Les options
+// existantes en base sont "À payer" / "Payé" / "Refus".
+function mapStatut(
+  statut: string | null,
+): "paid" | "due" | "refused" | "unknown" {
+  if (!statut) return "unknown";
+  if (statut === "Payé") return "paid";
+  if (statut === "À payer") return "due";
+  if (statut === "Refus") return "refused";
+  return "unknown";
+}
+
+async function queryNotion(dbId: string, body: object, token: string) {
+  return fetch(`https://api.notion.com/v1/databases/${dbId}/query`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Notion-Version": "2022-06-28",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
 }
 
 export async function GET() {
@@ -103,9 +124,6 @@ export async function GET() {
   const userEmail = authData.user.email.trim().toLowerCase();
 
   const token = process.env.NOTION_API_TOKEN;
-  const dbId =
-    process.env.NOTION_SALES_CALL_DATABASE_ID ?? SALES_CALL_DATABASE_ID;
-
   if (!token) {
     return NextResponse.json(
       { error: "Configuration serveur manquante (NOTION_API_TOKEN)" },
@@ -113,80 +131,106 @@ export async function GET() {
     );
   }
 
+  const callsDbId =
+    process.env.NOTION_SALES_CALL_DATABASE_ID ?? SALES_CALL_DATABASE_ID;
+  const paymentsDbId =
+    process.env.NOTION_PAYMENTS_DATABASE_ID ?? PAYMENTS_DATABASE_ID;
+
   try {
-    const res = await fetch(
-      `https://api.notion.com/v1/databases/${dbId}/query`,
+    // ─── Étape 1 : trouver les Calls correspondant à l'utilisateur ────────
+    const callsRes = await queryNotion(
+      callsDbId,
       {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Notion-Version": "2022-06-28",
-          "Content-Type": "application/json",
+        filter: {
+          property: "E-mail Guest",
+          email: { equals: userEmail },
         },
-        body: JSON.stringify({
-          filter: {
-            property: "E-mail Guest",
-            email: { equals: userEmail },
-          },
-          page_size: 5,
-        }),
-        cache: "no-store",
+        page_size: 25,
       },
+      token,
     );
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.error("[payments/me] Notion query error:", JSON.stringify(err));
+    if (!callsRes.ok) {
+      const err = await callsRes.json().catch(() => ({}));
+      console.error("[payments/me] Calls query error:", JSON.stringify(err));
       return NextResponse.json(
         {
-          error: `Notion a retourné ${res.status} — vérifiez NOTION_API_TOKEN et la connexion de l'intégration à la base Calls.`,
+          error: `Notion (Calls) a retourné ${callsRes.status} — vérifiez le token et la connexion de l'intégration.`,
         },
         { status: 502, headers: CORS },
       );
     }
 
-    const data = await res.json();
-    const pages: NotionPage[] = data.results ?? [];
+    const callsData = await callsRes.json();
+    const calls: CallPage[] = callsData.results ?? [];
+    const callIds = calls.map((c) => c.id);
 
-    // Plusieurs Calls peuvent matcher (multiples rendez-vous successifs). On
-    // garde le plus récent (Date de Closing décroissante, fallback created_time).
-    const sorted = [...pages].sort((a, b) => {
-      const aDate =
-        a.properties["Date de Closing"]?.date?.start ?? a.created_time ?? "";
-      const bDate =
-        b.properties["Date de Closing"]?.date?.start ?? b.created_time ?? "";
-      return bDate.localeCompare(aDate);
-    });
-
-    const latest = sorted[0];
-    if (!latest) {
-      return NextResponse.json({ engagement: null }, { headers: CORS });
+    if (callIds.length === 0) {
+      // Pas de Call rattaché à cet email → pas de paiements à afficher.
+      return NextResponse.json({ payments: [] }, { headers: CORS });
     }
 
-    const nom = readRichText(latest.properties["Nom"]?.title);
-    const prenom = readRichText(latest.properties["Prénom"]?.rich_text);
-    const montant = latest.properties["Montant closés"]?.number ?? null;
-    const modalite =
-      latest.properties["Modalité"]?.select?.name ?? null;
-    const etat = latest.properties["État"]?.status?.name ?? null;
-    const closingDate =
-      latest.properties["Date de Closing"]?.date?.start ?? null;
+    // ─── Étape 2 : récupérer les Paiements liés à ces Calls ───────────────
+    // Filtre Notion : `or` de `Lead.relation.contains <callId>` pour matcher
+    // n'importe quel Call de l'utilisateur. Un seul Lead suffit à inclure
+    // la ligne (les paiements ont 1 Lead, mais on reste générique).
+    const leadFilter =
+      callIds.length === 1
+        ? {
+            property: "Lead",
+            relation: { contains: callIds[0] },
+          }
+        : {
+            or: callIds.map((id) => ({
+              property: "Lead",
+              relation: { contains: id },
+            })),
+          };
 
-    return NextResponse.json(
+    const paymentsRes = await queryNotion(
+      paymentsDbId,
       {
-        engagement: {
-          notionId: latest.id,
-          notionUrl: latest.url ?? null,
-          fullName: [prenom, nom].filter(Boolean).join(" "),
-          amount: montant,
-          installmentPlan: modalite,
-          state: etat,
-          status: mapEtat(etat),
-          closingDate,
-        },
+        filter: leadFilter,
+        sorts: [
+          {
+            property: "Date de Paiement",
+            direction: "descending",
+          },
+        ],
+        page_size: 100,
       },
-      { headers: CORS },
+      token,
     );
+
+    if (!paymentsRes.ok) {
+      const err = await paymentsRes.json().catch(() => ({}));
+      console.error("[payments/me] Payments query error:", JSON.stringify(err));
+      return NextResponse.json(
+        {
+          error: `Notion (Paiements) a retourné ${paymentsRes.status} — vérifiez la connexion de l'intégration à la base Paiements.`,
+        },
+        { status: 502, headers: CORS },
+      );
+    }
+
+    const paymentsData = await paymentsRes.json();
+    const pages: PaymentPage[] = paymentsData.results ?? [];
+
+    const payments = pages.map((p) => {
+      const statutRaw = p.properties.Statut?.select?.name ?? null;
+      return {
+        notionId: p.id,
+        notionUrl: p.url ?? null,
+        label: readTitle(p.properties.Nom),
+        amount: p.properties["Montant TTC"]?.number ?? null,
+        paymentDate: p.properties["Date de Paiement"]?.date?.start ?? null,
+        source: p.properties.Source?.select?.name ?? null,
+        status: statutRaw,
+        statusCategory: mapStatut(statutRaw),
+      };
+    });
+
+    return NextResponse.json({ payments }, { headers: CORS });
   } catch (err) {
     console.error("[payments/me] error:", err);
     return NextResponse.json(
