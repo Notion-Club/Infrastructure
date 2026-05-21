@@ -223,3 +223,131 @@ Remplacée par `Topbar.tsx` pour desktop.
 - ✅ Données mockées uniquement
 - ✅ `useState` pour interactions UI
 - ✅ `router.push()` statique
+
+---
+
+## Outil de feedback admin (widget intégré)
+
+Repris tel quel de `theogouman/random-project` (branche `claude/setup-swiss-serenity-plus-Fm7s6`, projet Swiss Serenity Plus). Voir `extracted-feedback-widget/INTEGRATION.md` pour le dump brut d'origine + le graphe de dépendances complet.
+
+### Emplacement dans le repo
+
+```
+src/shared/components/feedback-widget/
+  FeedbackWidget.tsx           ← cœur (1208 LOC, 3 flows)
+  FeedbackWidget.module.css
+  FeedbackWidgetLoader.tsx     ← dynamic(ssr:false) wrapper
+  CustomSelect/{tsx,module.css}
+  RichTextEditor/{tsx,module.css}
+
+src/app/api/
+  feedback/route.ts            ← POST  → Notion DB (NOTION_DATABASE_ID)
+  tickets/route.ts             ← GET (liste) / DELETE (archive) — même DB
+  blog-posts/route.ts          ← POST  → Notion DB (NOTION_BLOG_DATABASE_ID)
+```
+
+Monté dans `src/app/(app)/layout.tsx` (donc visible uniquement après auth Supabase, pas sur `/login` ni `/signup`).
+
+### Les 3 flows
+
+1. **Feedback sur un élément** — mode inspection visuel : clic sur "Sélectionner un élément" → curseur crosshair + overlay highlight → clic sur n'importe quel élément de la page → l'élément est annoté (avec son ancre `#id` pour deep-link), choix d'une action (Modifier du texte, Ajouter du texte, Ajouter une image, Changer une couleur, Modifier la mise en page, Supprimer un élément, Ajouter un lien, Corriger une faute, Autre), saisie du retour, ajout au draft.
+2. **Feedback général** — feedback page entière sans sélection.
+3. **Création d'article de blog** — formulaire complet : titre, slug auto-généré, extrait, catégorie, tags, image cover (drag & drop), auteur, date de publication, temps de lecture, meta description SEO (validation 120-160 caractères), corps via éditeur rich-text (`<RichTextEditor>` — gras, italique, listes, séparateur via `document.execCommand`).
+
+Vue grille des tickets déjà envoyés disponible depuis le hub (lecture/suppression directe via `/api/tickets`).
+
+### Comment l'administrateur note rapidement dans le ticket de la roadmap
+
+1. Naviguer sur n'importe quelle page du dashboard (le widget est disponible partout sous `(app)/`).
+2. Cliquer sur le bouton flottant en bas à droite (avatar circulaire).
+3. Choisir un des 3 flows selon le type de note :
+   - **"Sélectionner un élément"** quand la modification porte sur un élément précis (un bouton, un titre, une image) — l'élément ciblé + son URL avec ancre sont envoyés à Notion.
+   - **"Feedback général"** pour une note de page entière (cohérence, ordre des sections, etc.).
+   - **"Nouvel article"** pour une note structurée avec titre + corps (utile pour les recettes UX/copy plus longues qui ne tiennent pas dans un retour court).
+4. Rédiger, ajouter au draft. Plusieurs retours peuvent s'accumuler avant envoi.
+5. "Envoyer" → un ticket est créé par retour dans la base Notion jointe, statut initial `À traiter`.
+6. Onglet "Tickets envoyés" (icône grille) : voir/supprimer les tickets existants.
+
+### Connexion à la base Notion
+
+URL fournie en session par l'administrateur :
+
+```
+https://www.notion.so/gouman/c4209ec95e2b496888c843e6c4672eda?v=a981d5a0b73149c29454699f4f0ca8c3&source=copy_link
+```
+
+→ ID de la base (format UUID Notion) : `c4209ec9-5e2b-4968-88c8-43e6c4672eda`
+
+À renseigner dans **`NOTION_BLOG_DATABASE_ID`** (variable consommée par `/api/blog-posts`) — flow "Nouvel article" du widget. Voir `.env.example` pour le détail des variables.
+
+### Champs Notion attendus par le code (à créer/vérifier dans la base jointe)
+
+Repris tels quels du code source, sans renommage.
+
+**Base feedback/tickets** (consommée par `/api/feedback`, `/api/tickets` — `NOTION_DATABASE_ID`) :
+
+| Propriété (libellé exact) | Type Notion | Valeurs |
+|---|---|---|
+| `Ticket` | Titre | auto : `[Élément ciblé] · [60 premiers char du retour]` |
+| `Statut` | Select | `À traiter`, `En cours`, `Traité`, `Résolu`, `Refusé` |
+| `Action` | Select | les 9 actions listées plus haut |
+| `Élément ciblé` | Texte (rich_text) | nom de l'élément annoté |
+| `Page concernée` | Select | un des libellés `PAGE_MAP` (Dashboard, Communauté, etc.) |
+| `Retour client` | Texte (rich_text) | texte complet du retour |
+| `Date soumission` | Date | ISO 8601 |
+| `Session ID` | Texte (rich_text) | UUID v4 |
+| `URL` | URL | deep-link `https://app.notionclub.fr/page#anchor` |
+
+**Base articles de blog** (consommée par `/api/blog-posts` — `NOTION_BLOG_DATABASE_ID`, c'est cette base qui reçoit la base jointe) :
+
+| Propriété | Type Notion | Notes |
+|---|---|---|
+| `Titre` | Titre | |
+| `Statut` | Select | `Brouillon`, `À relire`, `Publié`, `Archivé` |
+| `Slug` | Texte | |
+| `Extrait` | Texte | |
+| `Catégorie` | Select | cf. `BLOG_CATEGORY_OPTIONS` (5 valeurs Swiss Serenity, non adaptées — cf. ambiguïtés) |
+| `Tags` | Multi-select | |
+| `Image cover` | URL | |
+| `Auteur` | Texte | default `"Mireille Dayer"` côté UI (non adapté — cf. ambiguïtés) |
+| `Date de publication` | Date | |
+| `Temps de lecture (min)` | Nombre | |
+| `Meta description SEO` | Texte | validé 120-160 caractères côté UI |
+| `Corps` | Texte | rich-text HTML produit par l'éditeur |
+
+### Adaptations effectuées au code source
+
+Conformément à la règle "ne rien inventer", seules deux modifications strictement nécessaires :
+
+1. **Imports** dans `FeedbackWidget.tsx` : `../CustomSelect/...` → `./CustomSelect/...` (réorganisation dossier, sous-composants imbriqués dans `feedback-widget/`).
+2. **`PAGE_MAP`** dans `FeedbackWidget.tsx` : remplacé par les routes réelles de NotionClub Infra (`/dashboard`, `/communaute`, `/coaching`, `/ressources`, `/settings`, `/login`, `/signup`, `/reset-password`, `/update-password`). Routes dynamiques (`/communaute/post/[id]`, `/ressources/ressource/[slug]`, etc.) retombent sur `"Home"` — comportement d'origine, **point à confirmer**.
+
+### Points d'ambiguïté — laissés ouverts
+
+À trancher par l'administrateur :
+
+- **Variables d'env Notion** : faut-il fusionner `NOTION_TOKEN` (consommé par le widget) avec l'existant `NOTION_API_TOKEN` (Brique 4 — Notion sync, OPS-18) sur une seule intégration Notion, ou garder deux intégrations distinctes ?
+- **Base unique ou deux bases** : le widget original utilise deux bases (feedback + blog). Une seule base est jointe par l'administrateur (ID `c4209ec9-5e2b-4968-88c8-43e6c4672eda`). Faut-il :
+  - pointer uniquement `NOTION_BLOG_DATABASE_ID` dessus (le flow "Nouvel article" suffit-il à la roadmap UX/copy ?), ou
+  - pointer aussi `NOTION_DATABASE_ID` dessus en s'assurant que les champs des 2 schémas coexistent dans la base jointe, ou
+  - créer une seconde base dédiée aux flows "feedback élément" et "feedback général" ?
+- **Constantes non adaptées dans `FeedbackWidget.tsx`** (laissées verbatim faute d'équivalent NotionClub fourni) :
+  - `SITE_DOMAIN = "swiss-serenity-plus.ch"` (l. 28) — apparaît dans la prévisualisation du slug du flow blog.
+  - `AVATAR_URL = "https://res.cloudinary.com/.../Avatar_zc0wae.jpg"` (l. 30-31) — avatar Mireille dans le bouton trigger.
+  - `setBlogAuthor("Mireille Dayer")` (l. 233, 592) — auteur par défaut du formulaire blog.
+  - `aria-label="Outil de retours Mireille"` (l. 674) — libellé d'accessibilité du modal.
+  - `BLOG_CATEGORY_OPTIONS` (l. 18-24) — catégories Swiss Serenity (`conseils-dirigeants`, `temoignages`, `actualites`, `ressources-particuliers`, `autre`).
+  - `STATUS_COLORS` (l. 72-78) — palette `À traiter / En cours / Traité / Résolu / Refusé`, **a priori OK** pour NotionClub.
+- **Gating admin** : le widget est aujourd'hui monté pour **tous les utilisateurs authentifiés** via `(app)/layout.tsx`. À restreindre aux administrateurs ? Si oui, sur quel critère (rôle Supabase, email allowlist, env var) ?
+- **Thème sombre** : le widget hardcode des couleurs claires (palette feedback d'origine). Le projet utilise `next-themes` ; l'apparence en mode dark n'a pas été ajustée.
+- **Routes dynamiques manquantes dans `PAGE_MAP`** : `/communaute/post/[id]`, `/ressources/ressource/[slug]`, `/ressources/template/[slug]` → tous ces deep-links remonteront avec `Page concernée = "Home"` dans Notion.
+
+### Setup à effectuer côté Vercel/Notion
+
+1. Créer (ou réutiliser) une intégration Notion sur https://www.notion.so/my-integrations — capability `Insert content` minimum, `Read content` aussi si on veut activer la vue grille des tickets envoyés.
+2. Connecter l'intégration à la base jointe : ouvrir la base → `...` → `Connections` → ajouter l'intégration.
+3. Renseigner les variables d'env sur Vercel (Production + Preview + Development) :
+   - `NOTION_TOKEN` (token `ntn_…` ou `secret_…` de l'intégration)
+   - `NOTION_BLOG_DATABASE_ID=c4209ec9-5e2b-4968-88c8-43e6c4672eda`
+   - `NOTION_DATABASE_ID=` (laissé vide tant que la décision "base unique vs deux bases" n'est pas tranchée — flow "feedback élément/général" cassera tant que cette variable est manquante)
+4. Tester en local avec `vercel dev` (les env Vercel sont injectées automatiquement) ou en posant les valeurs dans `.env.local`.
