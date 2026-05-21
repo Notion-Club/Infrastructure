@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check } from "lucide-react";
+
+// Logo Notion (Cloudinary, déjà autorisé dans next.config.ts via /dceobxyts/**).
+// Utilisé pour souligner visuellement que le champ qui suit concerne le compte
+// Notion personnel de l'utilisateur, pas son compte sur la plateforme.
+const NOTION_LOGO_SRC =
+  "https://res.cloudinary.com/dceobxyts/image/upload/v1776790487/Logo_Notion_fgou5g.png";
 
 type EmailFieldProps = {
   platformEmail: string;
@@ -130,7 +136,25 @@ export function EmailField({
         }}
       >
         <Checkbox
-          label="J'utilise un mail différent pour mon compte Notion"
+          label={
+            <>
+              J&apos;utilise un mail différent pour mon compte{" "}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={NOTION_LOGO_SRC}
+                alt="Notion"
+                width={16}
+                height={16}
+                style={{
+                  display: "inline-block",
+                  width: 16,
+                  height: 16,
+                  verticalAlign: "-3px",
+                  marginLeft: 2,
+                }}
+              />
+            </>
+          }
           checked={useSeparateNotionEmail}
           onChange={(v) => onToggleSeparateNotion(v)}
         />
@@ -209,7 +233,7 @@ function Checkbox({
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
-  label: string;
+  label: ReactNode;
 }) {
   return (
     <label

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  forwardRef,
   useCallback,
   useEffect,
   useRef,
@@ -13,6 +14,7 @@ import {
   Check,
   Image as ImageIcon,
   LoaderCircle,
+  Palette,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -31,8 +33,6 @@ import {
 } from "@/modules/settings";
 import { AvatarCropper } from "./AvatarCropper";
 
-type Tab = "color" | "photo";
-
 type SourceImage = {
   url: string;
   mimeType: "image/png" | "image/jpeg" | "image/webp";
@@ -40,6 +40,7 @@ type SourceImage = {
 
 type AvatarPickerProps = {
   currentColor: string | null; // null = couleur brand par défaut
+  currentAvatarUrl: string | null;
   hasPhoto: boolean;
   initials: string;
   isMocked: boolean;
@@ -52,13 +53,13 @@ type AvatarPickerProps = {
 
 export function AvatarPicker({
   currentColor,
+  currentAvatarUrl,
   hasPhoto,
   initials,
   isMocked,
   onClose,
   onAvatarUpdated,
 }: AvatarPickerProps) {
-  const [tab, setTab] = useState<Tab>("color");
   const [selectedColor, setSelectedColor] = useState<AvatarColor>(
     (currentColor as AvatarColor | null) ?? DEFAULT_AVATAR_COLOR,
   );
@@ -66,6 +67,10 @@ export function AvatarPicker({
   const [sourceImage, setSourceImage] = useState<SourceImage | null>(null);
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [colorPopupOpen, setColorPopupOpen] = useState(false);
+
+  const colorPopupRef = useRef<HTMLDivElement>(null);
+  const colorTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Body scroll lock + Escape close
   useEffect(() => {
@@ -79,12 +84,16 @@ export function AvatarPicker({
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape" && !savingColor && !uploading && !removing) {
-        onClose();
+        if (colorPopupOpen) {
+          setColorPopupOpen(false);
+        } else {
+          onClose();
+        }
       }
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, savingColor, uploading, removing]);
+  }, [onClose, savingColor, uploading, removing, colorPopupOpen]);
 
   // Cleanup blob URL si on quitte le picker avec une image en attente
   useEffect(() => {
@@ -94,6 +103,24 @@ export function AvatarPicker({
       }
     };
   }, [sourceImage]);
+
+  // Fermer le popup couleur si clic en dehors
+  useEffect(() => {
+    if (!colorPopupOpen) return;
+    function onClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (
+        colorPopupRef.current &&
+        !colorPopupRef.current.contains(target) &&
+        colorTriggerRef.current &&
+        !colorTriggerRef.current.contains(target)
+      ) {
+        setColorPopupOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [colorPopupOpen]);
 
   const colorChanged = selectedColor !== (currentColor ?? DEFAULT_AVATAR_COLOR);
 
@@ -105,7 +132,7 @@ export function AvatarPicker({
         await new Promise((r) => setTimeout(r, 400));
         toast.success("Couleur mise à jour (démo)");
         onAvatarUpdated({ avatarColor: selectedColor });
-        onClose();
+        setColorPopupOpen(false);
         return;
       }
       const result = await updateAvatarColorAction({ color: selectedColor });
@@ -115,7 +142,7 @@ export function AvatarPicker({
       }
       toast.success("Couleur mise à jour");
       onAvatarUpdated({ avatarColor: selectedColor });
-      onClose();
+      setColorPopupOpen(false);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Erreur lors de la mise à jour.";
@@ -195,7 +222,6 @@ export function AvatarPicker({
         await new Promise((r) => setTimeout(r, 300));
         toast.info("Suppression simulée (démo).");
         onAvatarUpdated({ avatarUrl: null });
-        onClose();
         return;
       }
       const result = await removeAvatarAction();
@@ -205,7 +231,6 @@ export function AvatarPicker({
       }
       toast.success("Photo supprimée");
       onAvatarUpdated({ avatarUrl: null });
-      onClose();
     } finally {
       setRemoving(false);
     }
@@ -253,7 +278,7 @@ export function AvatarPicker({
         >
           <header
             style={{
-              padding: "18px 20px 0",
+              padding: "18px 20px 16px",
               borderBottom: "1px solid var(--color-border-default)",
             }}
           >
@@ -269,60 +294,88 @@ export function AvatarPicker({
             </h2>
             <p
               style={{
-                margin: "4px 0 14px",
+                margin: "4px 0 0",
                 fontSize: 13,
                 color: "var(--color-text-muted)",
                 lineHeight: 1.4,
               }}
             >
-              Choisis une couleur de fond ou ajoute une photo.
+              Ajoute une photo, ou survole l&apos;avatar pour changer la couleur
+              de fond.
             </p>
-
-            <div
-              role="tablist"
-              style={{
-                display: "flex",
-                gap: 4,
-                marginBottom: -1,
-              }}
-            >
-              <TabButton
-                active={tab === "color"}
-                onClick={() => setTab("color")}
-              >
-                Couleur
-              </TabButton>
-              <TabButton
-                active={tab === "photo"}
-                onClick={() => setTab("photo")}
-              >
-                Photo
-              </TabButton>
-            </div>
           </header>
 
           <div
             style={{
-              padding: "20px",
+              padding: "22px 20px 20px",
               display: "flex",
               flexDirection: "column",
-              gap: 16,
-              minHeight: 280,
+              gap: 18,
             }}
           >
-            {tab === "color" ? (
-              <ColorTab
+            {/* Preview de l'avatar : photo si elle existe, sinon initiales
+                sur fond coloré. Au hover, un bouton "Couleur" s'affiche
+                par-dessus et déclenche le popup palette. */}
+            <AvatarPreview
+              avatarUrl={currentAvatarUrl}
+              color={selectedColor}
+              initials={initials}
+              colorTriggerRef={colorTriggerRef}
+              onOpenColorPopup={() => setColorPopupOpen((o) => !o)}
+              colorPopupOpen={colorPopupOpen}
+            />
+
+            {colorPopupOpen && (
+              <ColorPopup
+                ref={colorPopupRef}
                 selected={selectedColor}
                 onSelect={setSelectedColor}
-                initials={initials}
+                onSave={handleSaveColor}
+                onCancel={() => {
+                  setSelectedColor(
+                    (currentColor as AvatarColor | null) ??
+                      DEFAULT_AVATAR_COLOR,
+                  );
+                  setColorPopupOpen(false);
+                }}
+                saving={savingColor}
+                canSave={colorChanged}
               />
-            ) : (
-              <PhotoTab
-                onFile={ingestFile}
-                hasPhoto={hasPhoto}
-                removing={removing}
-                onRemove={handleRemovePhoto}
-              />
+            )}
+
+            {/* Drop zone — le user a explicitement demandé qu'on favorise
+                l'insertion de photo, donc elle prend la moitié inférieure
+                du modal sans tab à choisir d'abord. */}
+            <PhotoDropZone onFile={ingestFile} />
+
+            {hasPhoto && (
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                disabled={removing}
+                style={{
+                  alignSelf: "center",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 16px",
+                  borderRadius: 9999,
+                  border: "1px solid rgba(224,98,90,0.3)",
+                  background: "white",
+                  color: "var(--color-brand)",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: removing ? "wait" : "pointer",
+                  opacity: removing ? 0.6 : 1,
+                }}
+              >
+                {removing ? (
+                  <LoaderCircle size={14} className="animate-spin" />
+                ) : (
+                  <Trash2 size={14} />
+                )}
+                {removing ? "Suppression…" : "Supprimer la photo"}
+              </button>
             )}
           </div>
 
@@ -355,35 +408,8 @@ export function AvatarPicker({
                 opacity: savingColor || uploading || removing ? 0.6 : 1,
               }}
             >
-              {tab === "color" && colorChanged ? "Annuler" : "Fermer"}
+              Fermer
             </button>
-            {tab === "color" && (
-              <button
-                type="button"
-                onClick={handleSaveColor}
-                disabled={!colorChanged || savingColor}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "9px 18px",
-                  borderRadius: 9999,
-                  border: "none",
-                  background: "var(--color-brand)",
-                  color: "white",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: colorChanged && !savingColor ? "pointer" : "not-allowed",
-                  opacity: colorChanged && !savingColor ? 1 : 0.55,
-                  boxShadow: "0 6px 18px -8px rgba(224,98,90,0.55)",
-                }}
-              >
-                {savingColor && (
-                  <LoaderCircle size={14} className="animate-spin" />
-                )}
-                {savingColor ? "Enregistrement…" : "Enregistrer"}
-              </button>
-            )}
           </footer>
         </div>
       </div>
@@ -402,158 +428,241 @@ export function AvatarPicker({
 }
 
 // ============================================================================
-// TabButton
+// AvatarPreview — gros aperçu en haut du modal, avec hover qui révèle un
+// bouton "Couleur" pour ouvrir le popup palette par-dessus la fenêtre.
 // ============================================================================
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      style={{
-        padding: "10px 16px",
-        borderRadius: "10px 10px 0 0",
-        border: "none",
-        borderBottom: active
-          ? "2px solid var(--color-brand)"
-          : "2px solid transparent",
-        background: "transparent",
-        color: active
-          ? "var(--color-text-primary)"
-          : "var(--color-text-muted)",
-        fontSize: 14,
-        fontWeight: active ? 600 : 500,
-        cursor: "pointer",
-        transition: "color 150ms ease, border-bottom-color 150ms ease",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-// ============================================================================
-// ColorTab
-// ============================================================================
-function ColorTab({
-  selected,
-  onSelect,
+function AvatarPreview({
+  avatarUrl,
+  color,
   initials,
+  colorTriggerRef,
+  onOpenColorPopup,
+  colorPopupOpen,
 }: {
-  selected: AvatarColor;
-  onSelect: (color: AvatarColor) => void;
+  avatarUrl: string | null;
+  color: AvatarColor;
   initials: string;
+  colorTriggerRef: React.RefObject<HTMLButtonElement | null>;
+  onOpenColorPopup: () => void;
+  colorPopupOpen: boolean;
 }) {
+  const [hovering, setHovering] = useState(false);
+  const showOverlay = hovering || colorPopupOpen;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      {/* Preview */}
+    <div style={{ display: "flex", justifyContent: "center", padding: "4px 0" }}>
       <div
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
         style={{
-          display: "flex",
-          justifyContent: "center",
-          padding: "8px 0",
+          position: "relative",
+          width: 124,
+          height: 124,
+          borderRadius: "50%",
         }}
       >
         <div
+          aria-hidden
           style={{
-            width: 84,
-            height: 84,
+            position: "absolute",
+            inset: 0,
             borderRadius: "50%",
-            background: selected,
+            background: avatarUrl ? "transparent" : color,
             color: "white",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 28,
+            fontSize: 42,
             fontWeight: 700,
             letterSpacing: "0.02em",
             border: "4px solid white",
             boxShadow:
               "0 14px 32px -10px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.06)",
+            overflow: "hidden",
             transition: "background 200ms ease",
           }}
         >
-          {initials}
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt=""
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          ) : (
+            initials
+          )}
         </div>
-      </div>
-
-      {/* Palette grid 4x2 */}
-      <div
-        role="radiogroup"
-        aria-label="Couleur d'avatar"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 14,
-        }}
-      >
-        {AVATAR_COLOR_PALETTE.map((color) => {
-          const active = selected === color;
-          return (
-            <button
-              key={color}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              aria-label={`Couleur ${color}`}
-              onClick={() => onSelect(color)}
-              style={{
-                width: "100%",
-                aspectRatio: "1 / 1",
-                borderRadius: "50%",
-                background: color,
-                border: active
-                  ? "3px solid var(--color-text-primary)"
-                  : "3px solid transparent",
-                cursor: "pointer",
-                padding: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-                transition: "transform 150ms ease, border-color 150ms ease",
-                transform: active ? "scale(1.05)" : "scale(1)",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-              }}
-            >
-              {active && <Check size={20} strokeWidth={3} />}
-            </button>
-          );
-        })}
+        {/* Overlay "Couleur" visible au hover ou quand le popup est ouvert */}
+        <button
+          ref={colorTriggerRef}
+          type="button"
+          onClick={onOpenColorPopup}
+          aria-label="Changer la couleur de fond"
+          aria-expanded={colorPopupOpen}
+          style={{
+            position: "absolute",
+            inset: 4,
+            borderRadius: "50%",
+            border: "none",
+            background: showOverlay ? "rgba(0,0,0,0.45)" : "transparent",
+            color: "white",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
+            cursor: "pointer",
+            opacity: showOverlay ? 1 : 0,
+            transition: "opacity 180ms ease, background 180ms ease",
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            padding: 0,
+          }}
+        >
+          <Palette size={20} />
+          Couleur
+        </button>
       </div>
     </div>
   );
 }
 
 // ============================================================================
-// PhotoTab — zone drop & click & paste
+// ColorPopup — popup compact qui se superpose à la fenêtre, avec la palette
+// et un bouton pour enregistrer la couleur sélectionnée.
 // ============================================================================
-function PhotoTab({
-  onFile,
-  hasPhoto,
-  removing,
-  onRemove,
-}: {
-  onFile: (file: File) => void;
-  hasPhoto: boolean;
-  removing: boolean;
-  onRemove: () => void;
-}) {
+type ColorPopupProps = {
+  selected: AvatarColor;
+  onSelect: (color: AvatarColor) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saving: boolean;
+  canSave: boolean;
+};
+
+const ColorPopup = forwardRef<HTMLDivElement, ColorPopupProps>(
+  function ColorPopup(
+    { selected, onSelect, onSave, onCancel, saving, canSave },
+    ref,
+  ) {
+    return (
+      <div
+        ref={ref}
+        role="dialog"
+        aria-label="Choix de la couleur d'avatar"
+        style={{
+          padding: 14,
+          borderRadius: 14,
+          background: "var(--color-surface-raised)",
+          border: "1px solid var(--color-border-default)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        <div
+          role="radiogroup"
+          aria-label="Couleur d'avatar"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(8, 1fr)",
+            gap: 10,
+          }}
+        >
+          {AVATAR_COLOR_PALETTE.map((color) => {
+            const active = selected === color;
+            return (
+              <button
+                key={color}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                aria-label={`Couleur ${color}`}
+                onClick={() => onSelect(color)}
+                style={{
+                  width: "100%",
+                  aspectRatio: "1 / 1",
+                  borderRadius: "50%",
+                  background: color,
+                  border: active
+                    ? "3px solid var(--color-text-primary)"
+                    : "2px solid white",
+                  cursor: "pointer",
+                  padding: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "white",
+                  transition: "transform 150ms ease, border-color 150ms ease",
+                  transform: active ? "scale(1.08)" : "scale(1)",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+                }}
+              >
+                {active && <Check size={14} strokeWidth={3} />}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            style={{
+              padding: "7px 14px",
+              borderRadius: 9999,
+              border: "1px solid var(--color-border-default)",
+              background: "white",
+              color: "var(--color-text-secondary)",
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: saving ? "not-allowed" : "pointer",
+              opacity: saving ? 0.6 : 1,
+            }}
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={!canSave || saving}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 14px",
+              borderRadius: 9999,
+              border: "none",
+              background: "var(--color-brand)",
+              color: "white",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: canSave && !saving ? "pointer" : "not-allowed",
+              opacity: canSave && !saving ? 1 : 0.55,
+              boxShadow: "0 6px 18px -8px rgba(224,98,90,0.55)",
+            }}
+          >
+            {saving && <LoaderCircle size={12} className="animate-spin" />}
+            {saving ? "Enregistrement…" : "Appliquer la couleur"}
+          </button>
+        </div>
+      </div>
+    );
+  },
+);
+
+// ============================================================================
+// PhotoDropZone — zone drop & click & paste, en vedette dans le nouveau layout.
+// ============================================================================
+function PhotoDropZone({ onFile }: { onFile: (file: File) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Paste listener au niveau du modal (dropZone focus pas garanti).
-  // Capture Cmd/Ctrl+V quand le tab Photo est actif.
+  // Paste listener au niveau du document (dropZone focus pas garanti).
+  // Capture Cmd/Ctrl+V tant que le modal est ouvert.
   useEffect(() => {
     function onPaste(e: globalThis.ClipboardEvent) {
       const items = e.clipboardData?.items;
@@ -583,8 +692,6 @@ function PhotoTab({
   const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    // Le dragleave fire aussi sur les enfants — on check qu'on quitte vraiment
-    // le dropZone (et pas juste un enfant).
     if (
       dropZoneRef.current &&
       !dropZoneRef.current.contains(e.relatedTarget as Node)
@@ -636,7 +743,7 @@ function PhotoTab({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <>
       <div
         ref={dropZoneRef}
         role="button"
@@ -660,7 +767,7 @@ function PhotoTab({
             ? "rgba(224,98,90,0.06)"
             : "var(--color-surface-raised)",
           borderRadius: 16,
-          padding: "32px 20px",
+          padding: "28px 20px",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -699,7 +806,7 @@ function PhotoTab({
         >
           {isDragging
             ? "Lâche pour importer"
-            : "Glisse une photo ici ou clique"}
+            : "Glisse une photo ici ou clique pour parcourir"}
         </p>
         <p
           style={{
@@ -710,7 +817,7 @@ function PhotoTab({
             lineHeight: 1.5,
           }}
         >
-          PNG, JPEG, WebP · 2 MB max
+          PNG, JPEG, WebP · {Math.round(AVATAR_MAX_BYTES / 1024 / 1024)} MB max
           <br />
           Tu peux aussi coller une image avec ⌘V
         </p>
@@ -723,36 +830,6 @@ function PhotoTab({
         onChange={handleFileSelect}
         style={{ display: "none" }}
       />
-
-      {hasPhoto && (
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={removing}
-          style={{
-            alignSelf: "center",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 16px",
-            borderRadius: 9999,
-            border: "1px solid rgba(224,98,90,0.3)",
-            background: "white",
-            color: "var(--color-brand)",
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: removing ? "wait" : "pointer",
-            opacity: removing ? 0.6 : 1,
-          }}
-        >
-          {removing ? (
-            <LoaderCircle size={14} className="animate-spin" />
-          ) : (
-            <Trash2 size={14} />
-          )}
-          {removing ? "Suppression…" : "Supprimer la photo"}
-        </button>
-      )}
-    </div>
+    </>
   );
 }

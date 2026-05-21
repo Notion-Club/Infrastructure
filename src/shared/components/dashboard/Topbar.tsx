@@ -122,14 +122,20 @@ export function Topbar() {
       >
         {/* ── Gauche : logo + séparateur + nav ── */}
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <Image
-            src={LOGO_SRC}
-            alt="Notion Club"
-            width={120}
-            height={40}
-            priority
-            style={{ height: 32, width: "auto", display: "block", flexShrink: 0 }}
-          />
+          <Link
+            href="/dashboard"
+            aria-label="Notion Club — retour à l'accueil"
+            style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}
+          >
+            <Image
+              src={LOGO_SRC}
+              alt="Notion Club"
+              width={120}
+              height={40}
+              priority
+              style={{ height: 32, width: "auto", display: "block", flexShrink: 0 }}
+            />
+          </Link>
 
           {SEPARATOR}
 
