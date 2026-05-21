@@ -1,25 +1,26 @@
-/* ── Mapping palette Swiss Serenity → tokens NotionClub
+/* ── Mapping palette → tokens NotionClub
    Le code source du widget utilise --c-text, --c-bg, etc. qui n'existent
-   pas dans globals.css du projet. On les redéfinit en local sur chaque
-   racine du widget (trigger, modal, hint, toast) pour qu'elles cascadent
-   vers tous les enfants. ── */
+   pas dans globals.css du projet. On les hardcode en local sur chaque
+   racine du widget (trigger, modal, hint, toast) pour qu'ils cascadent
+   vers tous les enfants — pas de dépendance aux tokens Tailwind v4 qui
+   peuvent ne pas être exposés au runtime via @theme inline. ── */
 .triggerWrap,
 .backdrop,
 .selectionHint,
 .toast {
-  --c-text: var(--color-text-primary, #000000);
-  --c-text-muted: var(--color-text-muted, #64748b);
-  --c-border: var(--color-border-default, #e5e7eb);
-  --c-bg: var(--color-surface-page, #f5f2f2);
+  --c-text: #000000;
+  --c-text-muted: #64748b;
+  --c-border: #e5e7eb;
+  --c-bg: #f5f2f2;
   --c-surface: #ffffff;
-  --c-accent-primary: var(--color-brand, #e0625a);
-  --c-accent-secondary: var(--color-text-secondary, #52525b);
+  --c-accent-primary: #e0625a;
+  --c-accent-secondary: #52525b;
   --font-body: var(--font-sf-pro-display, system-ui, sans-serif);
   --font-display: var(--font-sf-pro-display, system-ui, sans-serif);
-  --shadow-card-hover-strong: var(--nc-shadow-2,
+  --shadow-card-hover-strong:
     rgba(0, 0, 0, 0.06) 0 4px 24px 0,
-    rgba(0, 0, 0, 0.04) 0 1px 2px 0);
-  --transition-fast: var(--nc-duration-fast, 200ms) ease;
+    rgba(0, 0, 0, 0.04) 0 1px 2px 0;
+  --transition-fast: 200ms ease;
 }
 
 /* ── Trigger ── */
