@@ -1,8 +1,12 @@
 // Tickets API — GET liste les items d'une database Notion, DELETE archive une page.
-// Variables d'env : NOTION_TOKEN, NOTION_DATABASE_ID
+// Variables d'env : NOTION_API_TOKEN (token de l'intégration NotionClub).
+// NOTION_DATABASE_ID en override optionnel — sinon fallback sur la base roadmap.
 import { NextRequest, NextResponse } from "next/server";
 
 const CORS = { "Content-Type": "application/json" };
+
+// Base "ticket roadmap" jointe par l'administrateur.
+const FEEDBACK_DATABASE_ID = "c4209ec9-5e2b-4968-88c8-43e6c4672eda";
 
 interface NotionRichText {
   text: { content: string };
@@ -29,12 +33,12 @@ function str(arr?: NotionRichText[]): string {
 }
 
 export async function GET() {
-  const token  = process.env.NOTION_TOKEN;
-  const dbId   = process.env.NOTION_DATABASE_ID;
+  const token = process.env.NOTION_API_TOKEN;
+  const dbId  = process.env.NOTION_DATABASE_ID ?? FEEDBACK_DATABASE_ID;
 
-  if (!token || !dbId) {
+  if (!token) {
     return NextResponse.json(
-      { error: "Configuration serveur manquante (NOTION_TOKEN ou NOTION_DATABASE_ID)" },
+      { error: "Configuration serveur manquante (NOTION_API_TOKEN)" },
       { status: 500, headers: CORS }
     );
   }
@@ -58,7 +62,7 @@ export async function GET() {
       const err = await res.json().catch(() => ({}));
       console.error("[tickets] Notion query error:", JSON.stringify(err));
       return NextResponse.json(
-        { error: `Notion a retourné ${res.status} — vérifiez NOTION_TOKEN, NOTION_DATABASE_ID et la permission "Lire le contenu" de l'intégration.` },
+        { error: `Notion a retourné ${res.status} — vérifiez NOTION_API_TOKEN, la base Notion et la permission "Lire le contenu" de l'intégration.` },
         { status: 502, headers: CORS }
       );
     }
@@ -98,9 +102,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "ID manquant" }, { status: 400, headers: CORS });
   }
 
-  const token = process.env.NOTION_TOKEN;
+  const token = process.env.NOTION_API_TOKEN;
   if (!token) {
-    return NextResponse.json({ error: "Configuration manquante" }, { status: 500, headers: CORS });
+    return NextResponse.json({ error: "Configuration manquante (NOTION_API_TOKEN)" }, { status: 500, headers: CORS });
   }
 
   try {

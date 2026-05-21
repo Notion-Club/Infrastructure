@@ -25,10 +25,7 @@ const BLOG_CATEGORY_OPTIONS = [
 
 const SEO_DESC_MIN = 120;
 const SEO_DESC_MAX = 160;
-const SITE_DOMAIN = "swiss-serenity-plus.ch";
-
-const AVATAR_URL =
-  "https://res.cloudinary.com/dceobxyts/image/upload/v1778440872/Avatar_zc0wae.jpg";
+const SITE_DOMAIN = "app.notionclub.fr";
 
 // Map adaptée aux routes existantes de NotionClub Infra. Toute route non listée
 // (ex. routes dynamiques /communaute/post/[id]) retombe sur "Home" — comportement
@@ -74,11 +71,11 @@ const PLACEHOLDERS: Record<ActionOption | "default", string> = {
 };
 
 const STATUS_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
-  "À traiter": { dot: "#F59E0B", bg: "rgba(245,158,11,0.1)", text: "#92400E" },
-  "En cours":  { dot: "#3B82F6", bg: "rgba(59,130,246,0.1)", text: "#1E40AF" },
-  "Traité":    { dot: "#5A7A4F", bg: "rgba(90,122,79,0.1)",  text: "#3B5E32" },
-  "Résolu":    { dot: "#5A7A4F", bg: "rgba(90,122,79,0.1)",  text: "#3B5E32" },
-  "Refusé":    { dot: "#B42C2A", bg: "rgba(180,44,42,0.1)",  text: "#7F1D1D" },
+  "À traiter": { dot: "#f59e0b", bg: "rgba(245,158,11,0.08)", text: "#92400e" },
+  "En cours":  { dot: "#3b82f6", bg: "rgba(59,130,246,0.08)", text: "#1e40af" },
+  "Traité":    { dot: "#10b981", bg: "rgba(16,185,129,0.08)", text: "#065f46" },
+  "Résolu":    { dot: "#10b981", bg: "rgba(16,185,129,0.08)", text: "#065f46" },
+  "Refusé":    { dot: "#e0625a", bg: "rgba(224,98,90,0.08)",  text: "#9a3a35" },
 };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -235,7 +232,7 @@ export default function FeedbackWidget() {
   const [blogCoverUrl, setBlogCoverUrl] = useState("");
   const [blogCoverName, setBlogCoverName] = useState("");
   const [blogIsDragOver, setBlogIsDragOver] = useState(false);
-  const [blogAuthor, setBlogAuthor] = useState("Mireille Dayer");
+  const [blogAuthor, setBlogAuthor] = useState("");
   const [blogPublishDate, setBlogPublishDate] = useState("");
   const [blogReadingMinutes, setBlogReadingMinutes] = useState<string>("");
   const [blogMetaDesc, setBlogMetaDesc] = useState("");
@@ -270,14 +267,18 @@ export default function FeedbackWidget() {
         [data-feedback-highlight] {
           position: fixed; pointer-events: none; z-index: 8990;
           border-radius: 14px;
-          transition: top 50ms ease, left 50ms ease, width 50ms ease, height 50ms ease, opacity 120ms ease;
-          box-shadow: 0 0 0 2px #977b57, 0 0 0 5px rgba(151,123,87,0.18), 0 0 28px rgba(151,123,87,0.4), inset 0 0 20px rgba(151,123,87,0.06);
+          transition: top 60ms cubic-bezier(0.22,1,0.36,1), left 60ms cubic-bezier(0.22,1,0.36,1), width 60ms cubic-bezier(0.22,1,0.36,1), height 60ms cubic-bezier(0.22,1,0.36,1), opacity 150ms ease;
+          box-shadow:
+            0 0 0 2px #e0625a,
+            0 0 0 6px rgba(224,98,90,0.18),
+            0 0 28px rgba(224,98,90,0.36),
+            inset 0 0 20px rgba(224,98,90,0.05);
           overflow: hidden; opacity: 0;
         }
         [data-feedback-highlight].fb-visible { opacity: 1; }
         [data-feedback-highlight]::after {
           content: ''; position: absolute; top: 0; left: 0; width: 45%; height: 100%;
-          background: linear-gradient(90deg, transparent 0%, rgba(151,123,87,0.22) 50%, transparent 100%);
+          background: linear-gradient(90deg, transparent 0%, rgba(224,98,90,0.28) 50%, transparent 100%);
           animation: fbSweep 2s ease-in-out infinite;
         }
       `;
@@ -595,7 +596,7 @@ export default function FeedbackWidget() {
     setBlogTags([]);
     setBlogCoverUrl("");
     setBlogCoverName("");
-    setBlogAuthor("Mireille Dayer");
+    setBlogAuthor("");
     setBlogPublishDate("");
     setBlogReadingMinutes("");
     setBlogMetaDesc("");
@@ -662,10 +663,9 @@ export default function FeedbackWidget() {
           <button
             className={styles.trigger}
             onClick={() => { setIsOpen(true); setView("hub"); setShowBubble(false); }}
-            aria-label="Ouvrir l'outil de retours"
+            aria-label="Ouvrir l&apos;outil de retours"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={AVATAR_URL} alt="Théo" className={styles.avatar} />
+            <MessageSquarePlus size={24} strokeWidth={2} className={styles.triggerIcon} />
           </button>
         </div>
       )}
@@ -677,7 +677,7 @@ export default function FeedbackWidget() {
           className={styles.backdrop}
           onClick={(e) => { if (e.target === e.currentTarget) setIsOpen(false); }}
         >
-          <div className={styles.modal} role="dialog" aria-label="Outil de retours Mireille">
+          <div className={styles.modal} role="dialog" aria-label="Outil de retours">
             {/* Header */}
             <div className={styles.modalHeader}>
               {view !== "hub" && (
@@ -690,8 +690,9 @@ export default function FeedbackWidget() {
                 </button>
               )}
               <div className={styles.modalHeaderLeft}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={AVATAR_URL} alt="" className={styles.avatarSmall} aria-hidden="true" />
+                <div className={styles.avatarSmall} aria-hidden="true">
+                  <MessageSquarePlus size={18} strokeWidth={2} />
+                </div>
                 <div>
                   <p className={styles.modalTitle}>
                     {view === "hub" && "Outil de retours"}

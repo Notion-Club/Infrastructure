@@ -228,6 +228,8 @@ Remplacée par `Topbar.tsx` pour desktop.
 
 ## Outil de feedback admin (widget intégré)
 
+> 📘 **Point d'entrée canonique** : [`docs/feedback-widget/README.md`](../docs/feedback-widget/README.md) — recap complet, prompt de reprise de contexte, journal des commits, ambiguïtés ouvertes, next steps.
+
 Repris tel quel de `theogouman/random-project` (branche `claude/setup-swiss-serenity-plus-Fm7s6`, projet Swiss Serenity Plus). Voir `extracted-feedback-widget/INTEGRATION.md` pour le dump brut d'origine + le graphe de dépendances complet.
 
 ### Emplacement dans le repo
@@ -278,7 +280,7 @@ https://www.notion.so/gouman/c4209ec95e2b496888c843e6c4672eda?v=a981d5a0b73149c2
 
 → ID de la base (format UUID Notion) : `c4209ec9-5e2b-4968-88c8-43e6c4672eda`
 
-À renseigner dans **`NOTION_BLOG_DATABASE_ID`** (variable consommée par `/api/blog-posts`) — flow "Nouvel article" du widget. Voir `.env.example` pour le détail des variables.
+ID hardcodé comme défaut dans les 3 routes (`/api/feedback`, `/api/tickets`, `/api/blog-posts`). Plus aucune variable d'env à renseigner — `NOTION_API_TOKEN` existante suffit. Voir `.env.example` pour le détail.
 
 ### Champs Notion attendus par le code (à créer/vérifier dans la base jointe)
 
@@ -317,37 +319,42 @@ Repris tels quels du code source, sans renommage.
 
 ### Adaptations effectuées au code source
 
-Conformément à la règle "ne rien inventer", seules deux modifications strictement nécessaires :
-
 1. **Imports** dans `FeedbackWidget.tsx` : `../CustomSelect/...` → `./CustomSelect/...` (réorganisation dossier, sous-composants imbriqués dans `feedback-widget/`).
 2. **`PAGE_MAP`** dans `FeedbackWidget.tsx` : remplacé par les routes réelles de NotionClub Infra (`/dashboard`, `/communaute`, `/coaching`, `/ressources`, `/settings`, `/login`, `/signup`, `/reset-password`, `/update-password`). Routes dynamiques (`/communaute/post/[id]`, `/ressources/ressource/[slug]`, etc.) retombent sur `"Home"` — comportement d'origine, **point à confirmer**.
+3. **Palette CSS adaptée à NotionClub** dans `FeedbackWidget.module.css` :
+   - Bloc d'alias en tête du fichier qui mappe les variables Swiss Serenity (`--c-text`, `--c-bg`, `--c-surface`, `--c-accent-primary`, `--c-accent-secondary`, `--c-border`, `--c-text-muted`, `--font-body`, `--font-display`, `--shadow-card-hover-strong`, `--transition-fast`) vers les tokens NC (`--color-text-primary`, `--color-surface-page`, `--color-brand`, `--color-text-secondary`, `--color-border-default`, `--color-text-muted`, `--font-sf-pro-display`, `--nc-shadow-2`, `--nc-duration-fast`).
+   - Mapping scopé sur les 4 racines du widget (`.triggerWrap`, `.backdrop`, `.selectionHint`, `.toast`) pour cascader sans polluer `:root`.
+   - Couleurs hardcodées Swiss Serenity remplacées par brand NC :
+     - bordeaux `rgba(180,44,42,X)` → `rgba(224,98,90,X)` (brand `#e0625a`)
+     - taupe `rgba(151,123,87,X)` → `rgba(224,98,90,X)` (idem brand)
+     - taupe direct `#977b57` → `var(--color-brand)`
+     - bordeaux hover `#9a2523` → `#c1473f`
+     - navy hover `#0a3560` → `#1a1a1a`
+     - SVG chevron stroke `%234a5a6f` → `%2364748b` (text-muted NC)
+4. **Trigger button** : `<img src={AVATAR_URL}>` (photo Mireille) → `<MessageSquarePlus>` icône Lucide blanc sur fond brand `#e0625a`. Const `AVATAR_URL` supprimée. Header de modal idem : icône dans un cercle brand-tinted.
+5. **Constantes Mireille → NotionClub** :
+   - `SITE_DOMAIN` : `"swiss-serenity-plus.ch"` → `"app.notionclub.fr"`.
+   - `setBlogAuthor("Mireille Dayer")` → `setBlogAuthor("")` (champ vide par défaut).
+   - `aria-label="Outil de retours Mireille"` → `"Outil de retours"`.
 
 ### Points d'ambiguïté — laissés ouverts
 
 À trancher par l'administrateur :
 
-- **Variables d'env Notion** : faut-il fusionner `NOTION_TOKEN` (consommé par le widget) avec l'existant `NOTION_API_TOKEN` (Brique 4 — Notion sync, OPS-18) sur une seule intégration Notion, ou garder deux intégrations distinctes ?
-- **Base unique ou deux bases** : le widget original utilise deux bases (feedback + blog). Une seule base est jointe par l'administrateur (ID `c4209ec9-5e2b-4968-88c8-43e6c4672eda`). Faut-il :
-  - pointer uniquement `NOTION_BLOG_DATABASE_ID` dessus (le flow "Nouvel article" suffit-il à la roadmap UX/copy ?), ou
-  - pointer aussi `NOTION_DATABASE_ID` dessus en s'assurant que les champs des 2 schémas coexistent dans la base jointe, ou
-  - créer une seconde base dédiée aux flows "feedback élément" et "feedback général" ?
-- **Constantes non adaptées dans `FeedbackWidget.tsx`** (laissées verbatim faute d'équivalent NotionClub fourni) :
-  - `SITE_DOMAIN = "swiss-serenity-plus.ch"` (l. 28) — apparaît dans la prévisualisation du slug du flow blog.
-  - `AVATAR_URL = "https://res.cloudinary.com/.../Avatar_zc0wae.jpg"` (l. 30-31) — avatar Mireille dans le bouton trigger.
-  - `setBlogAuthor("Mireille Dayer")` (l. 233, 592) — auteur par défaut du formulaire blog.
-  - `aria-label="Outil de retours Mireille"` (l. 674) — libellé d'accessibilité du modal.
-  - `BLOG_CATEGORY_OPTIONS` (l. 18-24) — catégories Swiss Serenity (`conseils-dirigeants`, `temoignages`, `actualites`, `ressources-particuliers`, `autre`).
-  - `STATUS_COLORS` (l. 72-78) — palette `À traiter / En cours / Traité / Résolu / Refusé`, **a priori OK** pour NotionClub.
+Décisions tranchées :
+- **Token Notion unifié** : les 3 routes consomment `NOTION_API_TOKEN` (variable existante de la Brique 4 Notion sync) — plus de second token dédié au widget.
+- **Base Notion unique** : `c4209ec9-5e2b-4968-88c8-43e6c4672eda` (base "ticket roadmap" jointe) hardcodée comme défaut dans les 3 routes. La base doit contenir l'union des champs des 2 schémas (feedback + blog).
+- **Fallback Mireille supprimé** : l'ancienne `DEFAULT_BLOG_DB_ID = "ca0b4df233c54095917cb3ea38bc59a0"` est éliminée. Plus de risque d'écrire dans la DB du projet d'origine.
+
+Restant ouvert :
+- **`BLOG_CATEGORY_OPTIONS`** (`FeedbackWidget.tsx` l. 18-24) — catégories Swiss Serenity (`conseils-dirigeants`, `temoignages`, `actualites`, `ressources-particuliers`, `autre`) **laissées verbatim** car aucune liste NC fournie. À remplacer par les catégories réelles de la roadmap.
 - **Gating admin** : le widget est aujourd'hui monté pour **tous les utilisateurs authentifiés** via `(app)/layout.tsx`. À restreindre aux administrateurs ? Si oui, sur quel critère (rôle Supabase, email allowlist, env var) ?
-- **Thème sombre** : le widget hardcode des couleurs claires (palette feedback d'origine). Le projet utilise `next-themes` ; l'apparence en mode dark n'a pas été ajustée.
+- **Thème sombre** : la palette est désormais alignée sur le light theme NC. Le projet utilise `next-themes` ; l'apparence en mode dark n'a pas encore été testée.
 - **Routes dynamiques manquantes dans `PAGE_MAP`** : `/communaute/post/[id]`, `/ressources/ressource/[slug]`, `/ressources/template/[slug]` → tous ces deep-links remonteront avec `Page concernée = "Home"` dans Notion.
 
 ### Setup à effectuer côté Vercel/Notion
 
-1. Créer (ou réutiliser) une intégration Notion sur https://www.notion.so/my-integrations — capability `Insert content` minimum, `Read content` aussi si on veut activer la vue grille des tickets envoyés.
-2. Connecter l'intégration à la base jointe : ouvrir la base → `...` → `Connections` → ajouter l'intégration.
-3. Renseigner les variables d'env sur Vercel (Production + Preview + Development) :
-   - `NOTION_TOKEN` (token `ntn_…` ou `secret_…` de l'intégration)
-   - `NOTION_BLOG_DATABASE_ID=c4209ec9-5e2b-4968-88c8-43e6c4672eda`
-   - `NOTION_DATABASE_ID=` (laissé vide tant que la décision "base unique vs deux bases" n'est pas tranchée — flow "feedback élément/général" cassera tant que cette variable est manquante)
-4. Tester en local avec `vercel dev` (les env Vercel sont injectées automatiquement) ou en posant les valeurs dans `.env.local`.
+1. Vérifier que l'intégration Notion liée à `NOTION_API_TOKEN` est connectée à la base "ticket roadmap" (`c4209ec9-...`) : ouvrir la base → `...` → `Connections` → ajouter l'intégration.
+2. S'assurer que la base contient l'union des 2 schémas de champs (feedback + blog — voir tableaux ci-dessus).
+3. `NOTION_API_TOKEN` est déjà configurée côté Vercel (Brique 4 Notion sync). Aucune nouvelle var requise.
+4. `NOTION_DATABASE_ID` / `NOTION_BLOG_DATABASE_ID` restent dispos en override optionnel (preview/staging vers une base de test).
