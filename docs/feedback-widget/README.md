@@ -129,14 +129,10 @@ Conformément à la consigne « ne rien inventer », on est resté verbatim part
   - URL : `https://www.notion.so/gouman/c4209ec95e2b496888c843e6c4672eda`
   - ID : `c4209ec9-5e2b-4968-88c8-43e6c4672eda`
   - → ouvrir la base → `...` → `Connections` → ajouter l'intégration.
-- [ ] Renseigner les variables d'env sur Vercel (Production + Preview + Development) :
-  ```
-  NOTION_TOKEN=ntn_xxx_ou_secret_xxx
-  NOTION_BLOG_DATABASE_ID=c4209ec9-5e2b-4968-88c8-43e6c4672eda
-  NOTION_DATABASE_ID=                ← cf. ambiguïté #2 ci-dessous
-  ```
-- [ ] Vérifier que la base contient les propriétés attendues par le code (voir `Champs Notion attendus` plus bas).
-- [ ] Décider du gating admin (cf. ambiguïté #4) — si restriction nécessaire, ajouter un check côté serveur dans `(app)/layout.tsx`.
+- [ ] Variables d'env Vercel : aucune nouvelle var n'est requise. `NOTION_API_TOKEN` (déjà configurée pour la Brique 4) est partagée par les 3 routes du widget. La base cible est en dur dans le code.
+- [ ] Overrides optionnels `NOTION_DATABASE_ID` / `NOTION_BLOG_DATABASE_ID` à laisser vides sauf si on veut pointer sur une base de test en preview.
+- [ ] Vérifier que la base contient les propriétés attendues par le code (voir `Champs Notion attendus` plus bas) — pour le moment, base unique = union des 2 schémas (feedback + blog).
+- [ ] Décider du gating admin (cf. ambiguïté #2) — si restriction nécessaire, ajouter un check côté serveur dans `(app)/layout.tsx`.
 
 ### Côté front-end
 
@@ -192,16 +188,23 @@ Consommée par `/api/blog-posts` (POST). C'est cette variable qui pointe sur la 
 
 ---
 
+## ✅ Décisions tranchées (n'apparaissent plus en ambiguïté)
+
+- **Token Notion unifié** — les 3 routes consomment `NOTION_API_TOKEN` (la variable d'env déjà utilisée par la Brique 4 Notion sync). Plus aucune duplication avec un second token dédié au widget.
+- **Base Notion unique** — la base "ticket roadmap" jointe (`c4209ec9-5e2b-4968-88c8-43e6c4672eda`) sert simultanément aux 3 routes. Elle est hardcodée comme défaut dans chaque route handler. **Conséquence** : la base doit contenir l'union des champs des 2 schémas (cf. § "Champs Notion attendus" — fusionner les colonnes feedback et blog dans une seule base).
+- **Plus de fallback Mireille** — l'ancienne constante `DEFAULT_BLOG_DB_ID = "ca0b4df233c54095917cb3ea38bc59a0"` (DB du projet d'origine) est supprimée. Risque de fuite éliminé.
+- Les overrides `NOTION_DATABASE_ID` et `NOTION_BLOG_DATABASE_ID` restent disponibles comme env vars optionnelles (utile en preview / staging pour pointer sur une base de test).
+
+---
+
 ## ❓ Ambiguïtés ouvertes (à trancher par l'administrateur)
 
 | # | Question | Options |
 |---|---|---|
-| 1 | **Variables d'env Notion** : fusionner `NOTION_TOKEN` (consommé par le widget) avec l'existant `NOTION_API_TOKEN` (Brique 4 — Notion sync, OPS-18) sur une seule intégration ? | A) Une intégration partagée. B) Deux intégrations distinctes. |
-| 2 | **Base unique ou deux bases** : une seule base jointe par l'administrateur. Le widget original utilise 2 bases (feedback + blog). | A) Pointer uniquement `NOTION_BLOG_DATABASE_ID` dessus (le flow article suffit-il à la roadmap ?). B) Pointer `NOTION_DATABASE_ID` aussi (champs des 2 schémas coexistent dans la même base). C) Créer une 2e base dédiée aux flows feedback élément + général. |
-| 3 | **`BLOG_CATEGORY_OPTIONS`** | Encore sur les 5 catégories Swiss-Serenity. À remplacer par les catégories de la roadmap NotionClub — liste à fournir. |
-| 4 | **Gating admin** | Aujourd'hui le widget est visible pour TOUS les users authentifiés. Restreindre aux admins ? Si oui sur quel critère : rôle Supabase ? email allowlist ? env var ? |
-| 5 | **Thème sombre** | La palette est désormais alignée sur le light theme NC. Le projet utilise `next-themes` ; l'apparence en mode dark n'a pas été ajustée. |
-| 6 | **Routes dynamiques dans `PAGE_MAP`** | `/communaute/post/[id]`, `/ressources/ressource/[slug]`, `/ressources/template/[slug]` retombent sur `"Home"` dans Notion. Stratégie ? `usePathname` matchers à motifs ? |
+| 1 | **`BLOG_CATEGORY_OPTIONS`** | Encore sur les 5 catégories Swiss-Serenity. À remplacer par les catégories de la roadmap NotionClub — liste à fournir. |
+| 2 | **Gating admin** | Aujourd'hui le widget est visible pour TOUS les users authentifiés. Restreindre aux admins ? Si oui sur quel critère : rôle Supabase ? email allowlist ? env var ? |
+| 3 | **Thème sombre** | La palette est désormais alignée sur le light theme NC. Le projet utilise `next-themes` ; l'apparence en mode dark n'a pas été ajustée. |
+| 4 | **Routes dynamiques dans `PAGE_MAP`** | `/communaute/post/[id]`, `/ressources/ressource/[slug]`, `/ressources/template/[slug]` retombent sur `"Home"` dans Notion. Stratégie ? `usePathname` matchers à motifs ? |
 
 ---
 
@@ -214,6 +217,8 @@ Consommée par `/api/blog-posts` (POST). C'est cette variable qui pointe sur la 
 | `cc71346` | Add **absolute PR template rule** in CLAUDE.md (5-sections obligatoires) |
 | `2da7513` | **Fix visual integration** with NotionClub tokens (1ère passe : bridge palette + icône Lucide + constantes Mireille → NC) |
 | `b51a7e6` | **Harden palette** : hardcode color values (2e passe — élimine la dépendance aux tokens `@theme inline` de Tailwind v4 qui ne s'exposent pas tous au runtime) |
+| `323ec54` | Add `docs/feedback-widget/README.md` — hub de reprise de contexte + pointeur depuis `.claude/context.md` |
+| `(à venir)` | **Unify Notion creds** : `NOTION_TOKEN` → `NOTION_API_TOKEN` (token unique partagé avec la Brique 4 Notion sync). Hardcode `c4209ec9-...` comme DB par défaut dans les 3 routes, supprime le fallback Mireille `ca0b4df...`. |
 
 ---
 
@@ -232,15 +237,9 @@ Le widget apparaît en bas à droite des pages `(app)/` (dashboard, communauté,
 
 ### Pour brancher Notion en local
 
-Créer `.env.local` à la racine avec :
+Aucune variable d'env spécifique au widget : tant que `NOTION_API_TOKEN` est présent dans `.env.local` (déjà nécessaire pour la Brique 4 Notion sync), les 3 routes du widget l'utilisent automatiquement. L'ID de la base "ticket roadmap" est en dur dans chaque route (`c4209ec9-5e2b-4968-88c8-43e6c4672eda`).
 
-```
-NOTION_TOKEN=ntn_xxx_ou_secret_xxx
-NOTION_BLOG_DATABASE_ID=c4209ec9-5e2b-4968-88c8-43e6c4672eda
-NOTION_DATABASE_ID=                # ou même valeur, cf. ambiguïté #2
-```
-
-L'intégration Notion doit être connectée à la base avant que les API ne fonctionnent (cf. `docs/feedback-widget/README.md` § Branchements back).
+Prérequis : l'intégration Notion doit être connectée à la base — ouvrir la base sur Notion, cliquer `...` → `Connections`, ajouter l'intégration NotionClub.
 
 ### Pour trancher les ambiguïtés ouvertes
 
@@ -251,8 +250,8 @@ Reprendre la table « Ambiguïtés ouvertes » ci-dessus. Pour chacune, décider
 
 ### Pour publier en prod (une fois validé)
 
-1. Vercel → Settings → Environment Variables → ajouter `NOTION_TOKEN`, `NOTION_DATABASE_ID`, `NOTION_BLOG_DATABASE_ID` sur Production + Preview + Development.
-2. Connecter l'intégration Notion à la base jointe.
+1. Vérifier que `NOTION_API_TOKEN` est déjà configurée côté Vercel (Production + Preview). Pas de nouvelle var à ajouter.
+2. Connecter l'intégration Notion à la base "ticket roadmap" (`c4209ec9-...`) si pas déjà fait.
 3. Merger la PR #44 sur `main`.
 4. Tester en preview avant production.
 

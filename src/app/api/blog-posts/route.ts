@@ -1,6 +1,7 @@
-// Blog posts API — POST crée une page dans la base "Articles de blog" Notion.
-// Variables d'env : NOTION_TOKEN, NOTION_BLOG_DATABASE_ID
-// (DB ID par défaut : ca0b4df233c54095917cb3ea38bc59a0 — fallback dev)
+// Blog posts API — POST crée une page dans la base "ticket roadmap" Notion.
+// Variables d'env : NOTION_API_TOKEN (token de l'intégration NotionClub).
+// NOTION_BLOG_DATABASE_ID en override optionnel — sinon fallback sur la base
+// roadmap jointe par l'administrateur.
 import { NextRequest, NextResponse } from "next/server";
 
 const CORS = {
@@ -9,7 +10,8 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-const DEFAULT_BLOG_DB_ID = "ca0b4df233c54095917cb3ea38bc59a0";
+// Base "ticket roadmap" jointe par l'administrateur.
+const FEEDBACK_DATABASE_ID = "c4209ec9-5e2b-4968-88c8-43e6c4672eda";
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
@@ -58,11 +60,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Le titre est requis" }, { status: 400, headers });
   }
 
-  const token = process.env.NOTION_TOKEN;
-  const dbId = process.env.NOTION_BLOG_DATABASE_ID ?? DEFAULT_BLOG_DB_ID;
+  const token = process.env.NOTION_API_TOKEN;
+  const dbId = process.env.NOTION_BLOG_DATABASE_ID ?? FEEDBACK_DATABASE_ID;
 
   if (!token) {
-    console.error("[blog-posts] NOTION_TOKEN manquant");
+    console.error("[blog-posts] NOTION_API_TOKEN manquant");
     return NextResponse.json({ error: "Configuration serveur manquante" }, { status: 500, headers });
   }
 

@@ -1,5 +1,6 @@
 // API feedback — reçoit un batch de retours et crée une page Notion par retour.
-// Variables d'env requises : NOTION_TOKEN, NOTION_DATABASE_ID
+// Variables d'env requises : NOTION_API_TOKEN (token de l'intégration NotionClub).
+// NOTION_DATABASE_ID en override optionnel — sinon fallback sur la base roadmap.
 import { NextRequest, NextResponse } from "next/server";
 
 const CORS = {
@@ -111,11 +112,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Aucun retour fourni" }, { status: 400, headers });
   }
 
-  const notionToken = process.env.NOTION_TOKEN;
-  const databaseId = process.env.NOTION_DATABASE_ID;
+  // Base "ticket roadmap" jointe par l'administrateur — destination par défaut
+  // pour les flows feedback élément + général.
+  const FEEDBACK_DATABASE_ID = "c4209ec9-5e2b-4968-88c8-43e6c4672eda";
+  const notionToken = process.env.NOTION_API_TOKEN;
+  const databaseId = process.env.NOTION_DATABASE_ID ?? FEEDBACK_DATABASE_ID;
 
-  if (!notionToken || !databaseId) {
-    console.error("[feedback] Variables d'environnement manquantes : NOTION_TOKEN ou NOTION_DATABASE_ID");
+  if (!notionToken) {
+    console.error("[feedback] NOTION_API_TOKEN manquant");
     return NextResponse.json({ success: false, error: "Configuration serveur manquante" }, { status: 500, headers });
   }
 
