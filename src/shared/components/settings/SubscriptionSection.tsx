@@ -1,4 +1,7 @@
-import { CreditCard } from "lucide-react";
+"use client";
+
+import { useEffect, useState } from "react";
+import { CreditCard, ExternalLink, LoaderCircle } from "lucide-react";
 
 import { SettingsCard } from "./SettingsCard";
 import type {
@@ -14,9 +17,22 @@ type SubscriptionSectionProps = {
   paymentMethod: PaymentMethod | null;
 };
 
+// Forme renvoyée par GET /api/payments/me. On accepte engagement: null quand
+// l'auth-user n'a pas (encore) de Sales Call rattaché dans la base Notion.
+type Engagement = {
+  notionId: string;
+  notionUrl: string | null;
+  fullName: string;
+  amount: number | null;
+  installmentPlan: string | null;
+  state: string | null;
+  status: SubscriptionStatus | "pending";
+  closingDate: string | null;
+};
+
 const STATUS_LABEL: Record<SubscriptionStatus, string> = {
-  active: "Actif",
-  expired: "Expiré",
+  active: "À jour",
+  expired: "Échéance dépassée",
   pending: "En attente",
 };
 
@@ -41,20 +57,72 @@ const STATUS_STYLE: Record<
   },
 };
 
+function formatEur(amount: number | null): string {
+  if (amount === null) return "—";
+  return amount.toLocaleString("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  });
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
 export function SubscriptionSection({
   subscription,
   history,
   paymentMethod,
 }: SubscriptionSectionProps) {
-  const status = STATUS_STYLE[subscription.status];
-  const isExpired = subscription.status === "expired";
+  // Engagement réel fetché depuis la base Notion "Calls". Tant que la requête
+  // n'a pas répondu (ou si elle échoue), on reste sur les données mock passées
+  // en props pour ne pas afficher un état vide.
+  const [engagement, setEngagement] = useState<Engagement | null>(null);
+  const [loadingEngagement, setLoadingEngagement] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/payments/me", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setEngagement(data.engagement ?? null);
+      } catch {
+        // Silencieux : on garde le fallback mock pour que l'écran ne casse pas
+        // si Notion est down ou si l'utilisateur n'est pas auth.
+      } finally {
+        if (!cancelled) setLoadingEngagement(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Affichage : engagement Notion réel s'il existe, sinon données mock.
+  const hasNotionEngagement = engagement !== null;
+  const status: SubscriptionStatus = hasNotionEngagement
+    ? (engagement.status as SubscriptionStatus)
+    : subscription.status;
+  const statusStyle = STATUS_STYLE[status];
 
   return (
     <SettingsCard
-      title="Abonnement & facturation"
-      description="Gérez votre offre, consultez vos paiements et votre moyen de paiement."
+      title="Échéances de paiement"
+      description="Suivez le montant total engagé, les échéances à venir et votre moyen de paiement."
     >
-      {/* Current plan */}
+      {/* Engagement (ex-Plan) */}
       <div
         style={{
           display: "flex",
@@ -82,7 +150,9 @@ export function SubscriptionSection({
               color: "var(--color-text-primary)",
             }}
           >
-            {subscription.planName}
+            {hasNotionEngagement
+              ? engagement.fullName || "Engagement Notion Club"
+              : subscription.planName}
           </p>
           <span
             style={{
@@ -93,13 +163,20 @@ export function SubscriptionSection({
               fontSize: 11,
               fontWeight: 600,
               letterSpacing: "0.02em",
-              color: status.fg,
-              background: status.bg,
-              border: `1px solid ${status.border}`,
+              color: statusStyle.fg,
+              background: statusStyle.bg,
+              border: `1px solid ${statusStyle.border}`,
             }}
           >
-            {STATUS_LABEL[subscription.status]}
+            {STATUS_LABEL[status]}
           </span>
+          {loadingEngagement && (
+            <LoaderCircle
+              size={12}
+              className="animate-spin"
+              style={{ color: "var(--color-text-muted)" }}
+            />
+          )}
         </div>
         <div
           style={{
@@ -108,36 +185,61 @@ export function SubscriptionSection({
             gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
           }}
         >
-          <KeyValue label="Prix" value={subscription.priceLabel} />
           <KeyValue
-            label={isExpired ? "Date d'expiration" : "Prochain renouvellement"}
-            value={subscription.renewalDateLabel}
+            label="Montant total"
+            value={
+              hasNotionEngagement
+                ? formatEur(engagement.amount)
+                : subscription.priceLabel
+            }
+          />
+          <KeyValue
+            label="Modalité"
+            value={
+              hasNotionEngagement
+                ? engagement.installmentPlan ?? "Paiement unique"
+                : "Paiement unique"
+            }
+          />
+          <KeyValue
+            label="Date de closing"
+            value={
+              hasNotionEngagement
+                ? formatDate(engagement.closingDate)
+                : subscription.renewalDateLabel
+            }
           />
         </div>
-        <div style={{ position: "relative", marginTop: 2 }}>
-          <button
-            type="button"
-            disabled
-            aria-disabled
-            title="Disponible prochainement"
+        {hasNotionEngagement && engagement.notionUrl && (
+          <a
+            href={engagement.notionUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
-              padding: "9px 16px",
+              alignSelf: "flex-start",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 14px",
               borderRadius: 9999,
               border: "1px solid var(--color-border-default)",
               background: "white",
               color: "var(--color-text-secondary)",
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: 500,
-              cursor: "not-allowed",
-              opacity: 0.7,
+              textDecoration: "none",
             }}
           >
-            Gérer mon abonnement
-          </button>
-        </div>
+            <ExternalLink size={12} />
+            Voir le détail sur Notion
+          </a>
+        )}
       </div>
 
-      {/* Payment history */}
+      {/* Historique de paiements
+          NB : tant que la DB Notion "Paiements" (relation depuis Calls) n'est
+          pas branchée, l'historique reste mocké. Voir le ticket OPS-41 dans la
+          roadmap pour le suivi. */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <h3
           style={{
@@ -250,7 +352,7 @@ export function SubscriptionSection({
         </div>
       </div>
 
-      {/* Payment method */}
+      {/* Moyen de paiement */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <h3
           style={{
