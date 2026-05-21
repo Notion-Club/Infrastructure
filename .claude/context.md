@@ -228,6 +228,8 @@ Remplacée par `Topbar.tsx` pour desktop.
 
 ## Outil de feedback admin (widget intégré)
 
+> 📘 **Point d'entrée canonique** : [`docs/feedback-widget/README.md`](../docs/feedback-widget/README.md) — recap complet, prompt de reprise de contexte, journal des commits, ambiguïtés ouvertes, next steps.
+
 Repris tel quel de `theogouman/random-project` (branche `claude/setup-swiss-serenity-plus-Fm7s6`, projet Swiss Serenity Plus). Voir `extracted-feedback-widget/INTEGRATION.md` pour le dump brut d'origine + le graphe de dépendances complet.
 
 ### Emplacement dans le repo
