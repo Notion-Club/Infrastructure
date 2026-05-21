@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
           properties: {
             Composant: { select: { name: selectName(fb.element) } },
             ...(fb.action ? { Action: { select: { name: fb.action } } } : {}),
-            ...(fb.end ? { "/End": { select: { name: fb.end } } } : {}),
+            ...(fb.end ? { "/End": { multi_select: [{ name: fb.end }] } } : {}),
             Feedback: truncatedProperty(fb.text),
             "User Agent": truncatedProperty(userAgent),
             ...(fb.elementUrl ? { URL: { url: fb.elementUrl } } : {}),
