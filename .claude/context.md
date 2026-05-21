@@ -317,10 +317,23 @@ Repris tels quels du code source, sans renommage.
 
 ### Adaptations effectuées au code source
 
-Conformément à la règle "ne rien inventer", seules deux modifications strictement nécessaires :
-
 1. **Imports** dans `FeedbackWidget.tsx` : `../CustomSelect/...` → `./CustomSelect/...` (réorganisation dossier, sous-composants imbriqués dans `feedback-widget/`).
 2. **`PAGE_MAP`** dans `FeedbackWidget.tsx` : remplacé par les routes réelles de NotionClub Infra (`/dashboard`, `/communaute`, `/coaching`, `/ressources`, `/settings`, `/login`, `/signup`, `/reset-password`, `/update-password`). Routes dynamiques (`/communaute/post/[id]`, `/ressources/ressource/[slug]`, etc.) retombent sur `"Home"` — comportement d'origine, **point à confirmer**.
+3. **Palette CSS adaptée à NotionClub** dans `FeedbackWidget.module.css` :
+   - Bloc d'alias en tête du fichier qui mappe les variables Swiss Serenity (`--c-text`, `--c-bg`, `--c-surface`, `--c-accent-primary`, `--c-accent-secondary`, `--c-border`, `--c-text-muted`, `--font-body`, `--font-display`, `--shadow-card-hover-strong`, `--transition-fast`) vers les tokens NC (`--color-text-primary`, `--color-surface-page`, `--color-brand`, `--color-text-secondary`, `--color-border-default`, `--color-text-muted`, `--font-sf-pro-display`, `--nc-shadow-2`, `--nc-duration-fast`).
+   - Mapping scopé sur les 4 racines du widget (`.triggerWrap`, `.backdrop`, `.selectionHint`, `.toast`) pour cascader sans polluer `:root`.
+   - Couleurs hardcodées Swiss Serenity remplacées par brand NC :
+     - bordeaux `rgba(180,44,42,X)` → `rgba(224,98,90,X)` (brand `#e0625a`)
+     - taupe `rgba(151,123,87,X)` → `rgba(224,98,90,X)` (idem brand)
+     - taupe direct `#977b57` → `var(--color-brand)`
+     - bordeaux hover `#9a2523` → `#c1473f`
+     - navy hover `#0a3560` → `#1a1a1a`
+     - SVG chevron stroke `%234a5a6f` → `%2364748b` (text-muted NC)
+4. **Trigger button** : `<img src={AVATAR_URL}>` (photo Mireille) → `<MessageSquarePlus>` icône Lucide blanc sur fond brand `#e0625a`. Const `AVATAR_URL` supprimée. Header de modal idem : icône dans un cercle brand-tinted.
+5. **Constantes Mireille → NotionClub** :
+   - `SITE_DOMAIN` : `"swiss-serenity-plus.ch"` → `"app.notionclub.fr"`.
+   - `setBlogAuthor("Mireille Dayer")` → `setBlogAuthor("")` (champ vide par défaut).
+   - `aria-label="Outil de retours Mireille"` → `"Outil de retours"`.
 
 ### Points d'ambiguïté — laissés ouverts
 
@@ -331,15 +344,9 @@ Conformément à la règle "ne rien inventer", seules deux modifications stricte
   - pointer uniquement `NOTION_BLOG_DATABASE_ID` dessus (le flow "Nouvel article" suffit-il à la roadmap UX/copy ?), ou
   - pointer aussi `NOTION_DATABASE_ID` dessus en s'assurant que les champs des 2 schémas coexistent dans la base jointe, ou
   - créer une seconde base dédiée aux flows "feedback élément" et "feedback général" ?
-- **Constantes non adaptées dans `FeedbackWidget.tsx`** (laissées verbatim faute d'équivalent NotionClub fourni) :
-  - `SITE_DOMAIN = "swiss-serenity-plus.ch"` (l. 28) — apparaît dans la prévisualisation du slug du flow blog.
-  - `AVATAR_URL = "https://res.cloudinary.com/.../Avatar_zc0wae.jpg"` (l. 30-31) — avatar Mireille dans le bouton trigger.
-  - `setBlogAuthor("Mireille Dayer")` (l. 233, 592) — auteur par défaut du formulaire blog.
-  - `aria-label="Outil de retours Mireille"` (l. 674) — libellé d'accessibilité du modal.
-  - `BLOG_CATEGORY_OPTIONS` (l. 18-24) — catégories Swiss Serenity (`conseils-dirigeants`, `temoignages`, `actualites`, `ressources-particuliers`, `autre`).
-  - `STATUS_COLORS` (l. 72-78) — palette `À traiter / En cours / Traité / Résolu / Refusé`, **a priori OK** pour NotionClub.
+- **`BLOG_CATEGORY_OPTIONS`** (`FeedbackWidget.tsx` l. 18-24) — catégories Swiss Serenity (`conseils-dirigeants`, `temoignages`, `actualites`, `ressources-particuliers`, `autre`) **laissées verbatim** car aucune liste NC fournie. À remplacer par les catégories réelles de la roadmap.
 - **Gating admin** : le widget est aujourd'hui monté pour **tous les utilisateurs authentifiés** via `(app)/layout.tsx`. À restreindre aux administrateurs ? Si oui, sur quel critère (rôle Supabase, email allowlist, env var) ?
-- **Thème sombre** : le widget hardcode des couleurs claires (palette feedback d'origine). Le projet utilise `next-themes` ; l'apparence en mode dark n'a pas été ajustée.
+- **Thème sombre** : la palette est désormais alignée sur le light theme NC. Le projet utilise `next-themes` ; l'apparence en mode dark n'a pas encore été testée.
 - **Routes dynamiques manquantes dans `PAGE_MAP`** : `/communaute/post/[id]`, `/ressources/ressource/[slug]`, `/ressources/template/[slug]` → tous ces deep-links remonteront avec `Page concernée = "Home"` dans Notion.
 
 ### Setup à effectuer côté Vercel/Notion

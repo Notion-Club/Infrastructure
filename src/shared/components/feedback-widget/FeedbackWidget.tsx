@@ -25,10 +25,7 @@ const BLOG_CATEGORY_OPTIONS = [
 
 const SEO_DESC_MIN = 120;
 const SEO_DESC_MAX = 160;
-const SITE_DOMAIN = "swiss-serenity-plus.ch";
-
-const AVATAR_URL =
-  "https://res.cloudinary.com/dceobxyts/image/upload/v1778440872/Avatar_zc0wae.jpg";
+const SITE_DOMAIN = "app.notionclub.fr";
 
 // Map adaptée aux routes existantes de NotionClub Infra. Toute route non listée
 // (ex. routes dynamiques /communaute/post/[id]) retombe sur "Home" — comportement
@@ -235,7 +232,7 @@ export default function FeedbackWidget() {
   const [blogCoverUrl, setBlogCoverUrl] = useState("");
   const [blogCoverName, setBlogCoverName] = useState("");
   const [blogIsDragOver, setBlogIsDragOver] = useState(false);
-  const [blogAuthor, setBlogAuthor] = useState("Mireille Dayer");
+  const [blogAuthor, setBlogAuthor] = useState("");
   const [blogPublishDate, setBlogPublishDate] = useState("");
   const [blogReadingMinutes, setBlogReadingMinutes] = useState<string>("");
   const [blogMetaDesc, setBlogMetaDesc] = useState("");
@@ -595,7 +592,7 @@ export default function FeedbackWidget() {
     setBlogTags([]);
     setBlogCoverUrl("");
     setBlogCoverName("");
-    setBlogAuthor("Mireille Dayer");
+    setBlogAuthor("");
     setBlogPublishDate("");
     setBlogReadingMinutes("");
     setBlogMetaDesc("");
@@ -662,10 +659,9 @@ export default function FeedbackWidget() {
           <button
             className={styles.trigger}
             onClick={() => { setIsOpen(true); setView("hub"); setShowBubble(false); }}
-            aria-label="Ouvrir l'outil de retours"
+            aria-label="Ouvrir l&apos;outil de retours"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={AVATAR_URL} alt="Théo" className={styles.avatar} />
+            <MessageSquarePlus size={24} strokeWidth={2} className={styles.triggerIcon} />
           </button>
         </div>
       )}
@@ -677,7 +673,7 @@ export default function FeedbackWidget() {
           className={styles.backdrop}
           onClick={(e) => { if (e.target === e.currentTarget) setIsOpen(false); }}
         >
-          <div className={styles.modal} role="dialog" aria-label="Outil de retours Mireille">
+          <div className={styles.modal} role="dialog" aria-label="Outil de retours">
             {/* Header */}
             <div className={styles.modalHeader}>
               {view !== "hub" && (
@@ -690,8 +686,9 @@ export default function FeedbackWidget() {
                 </button>
               )}
               <div className={styles.modalHeaderLeft}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={AVATAR_URL} alt="" className={styles.avatarSmall} aria-hidden="true" />
+                <div className={styles.avatarSmall} aria-hidden="true">
+                  <MessageSquarePlus size={18} strokeWidth={2} />
+                </div>
                 <div>
                   <p className={styles.modalTitle}>
                     {view === "hub" && "Outil de retours"}

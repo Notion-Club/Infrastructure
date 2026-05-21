@@ -1,3 +1,27 @@
+/* ── Mapping palette Swiss Serenity → tokens NotionClub
+   Le code source du widget utilise --c-text, --c-bg, etc. qui n'existent
+   pas dans globals.css du projet. On les redéfinit en local sur chaque
+   racine du widget (trigger, modal, hint, toast) pour qu'elles cascadent
+   vers tous les enfants. ── */
+.triggerWrap,
+.backdrop,
+.selectionHint,
+.toast {
+  --c-text: var(--color-text-primary, #000000);
+  --c-text-muted: var(--color-text-muted, #64748b);
+  --c-border: var(--color-border-default, #e5e7eb);
+  --c-bg: var(--color-surface-page, #f5f2f2);
+  --c-surface: #ffffff;
+  --c-accent-primary: var(--color-brand, #e0625a);
+  --c-accent-secondary: var(--color-text-secondary, #52525b);
+  --font-body: var(--font-sf-pro-display, system-ui, sans-serif);
+  --font-display: var(--font-sf-pro-display, system-ui, sans-serif);
+  --shadow-card-hover-strong: var(--nc-shadow-2,
+    rgba(0, 0, 0, 0.06) 0 4px 24px 0,
+    rgba(0, 0, 0, 0.04) 0 1px 2px 0);
+  --transition-fast: var(--nc-duration-fast, 200ms) ease;
+}
+
 /* ── Trigger ── */
 .triggerWrap {
   position: fixed; bottom: 24px; right: 24px; z-index: 9000;
@@ -5,14 +29,17 @@
 }
 .trigger {
   width: 54px; height: 54px; border-radius: 9999px;
-  border: 3px solid #fff; padding: 0; overflow: hidden;
-  cursor: pointer; background: none;
-  box-shadow: 0 4px 20px rgba(6,36,69,0.28);
-  transition: transform 220ms cubic-bezier(0.22,1,0.36,1), box-shadow 220ms;
+  border: 2px solid #fff; padding: 0;
+  cursor: pointer;
+  background: var(--c-accent-primary);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+  transition: transform 220ms cubic-bezier(0.22,1,0.36,1), box-shadow 220ms, background 220ms;
 }
-.trigger:hover { transform: scale(1.1); box-shadow: 0 8px 30px rgba(6,36,69,0.38); }
+.trigger:hover { transform: scale(1.08); box-shadow: 0 8px 30px rgba(224,98,90,0.4); background: #d05148; }
 .trigger:focus-visible { outline: 2px solid var(--c-accent-primary); outline-offset: 3px; }
-.avatar { width: 100%; height: 100%; object-fit: cover; display: block; }
+.triggerIcon { color: #fff; }
 
 .bubble {
   background: var(--c-text); color: #fff;
@@ -74,7 +101,9 @@
 .modalHeaderLeft { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
 .avatarSmall {
   width: 36px; height: 36px; border-radius: 9999px;
-  object-fit: cover; border: 2px solid var(--c-border); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(224, 98, 90, 0.12); color: var(--c-accent-primary);
+  flex-shrink: 0;
 }
 .modalTitle {
   font-family: var(--font-display); font-size: 16px; font-weight: 600;
@@ -121,7 +150,7 @@
 }
 .actionCard:hover {
   box-shadow: var(--shadow-card-hover-strong);
-  border-color: rgba(151,123,87,0.5);
+  border-color: rgba(224,98,90,0.5);
   transform: translateY(-2px);
 }
 .actionCard:focus-visible {
@@ -135,11 +164,11 @@
   display: flex; align-items: center; justify-content: center;
 }
 .iconBordeaux {
-  background: linear-gradient(135deg, rgba(180,44,42,0.14), rgba(180,44,42,0.04));
+  background: linear-gradient(135deg, rgba(224,98,90,0.14), rgba(224,98,90,0.04));
   color: var(--c-accent-primary);
 }
 .iconTaupe {
-  background: linear-gradient(135deg, rgba(151,123,87,0.18), rgba(151,123,87,0.06));
+  background: linear-gradient(135deg, rgba(224,98,90,0.18), rgba(224,98,90,0.06));
   color: var(--c-accent-secondary);
 }
 .iconBlue {
@@ -183,8 +212,8 @@
 /* ── Form (feedback élément ou général) ── */
 .pendingForm { display: flex; flex-direction: column; gap: 16px; }
 .pendingCover {
-  background: linear-gradient(135deg, rgba(151,123,87,0.09) 0%, rgba(6,36,69,0.04) 100%);
-  border: 1px solid rgba(151,123,87,0.22); border-radius: 12px; padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(224,98,90,0.09) 0%, rgba(6,36,69,0.04) 100%);
+  border: 1px solid rgba(224,98,90,0.22); border-radius: 12px; padding: 14px 16px;
 }
 .pendingCoverEyebrow {
   display: block; font-size: 10px; font-weight: 700;
@@ -221,7 +250,7 @@
   background: var(--c-bg);
   transition: border-color 200ms ease;
 }
-.actionPillsError { border-color: var(--c-accent-primary); background: rgba(180,44,42,0.03); }
+.actionPillsError { border-color: var(--c-accent-primary); background: rgba(224,98,90,0.03); }
 .actionPill {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 5px 12px; border-radius: 9999px;
@@ -235,7 +264,7 @@
 .actionPillActive {
   background: var(--c-text); border-color: var(--c-text); color: #fff;
 }
-.actionPillActive:hover { background: #0a3560; border-color: #0a3560; color: #fff; }
+.actionPillActive:hover { background: #1a1a1a; border-color: #1a1a1a; color: #fff; }
 
 .input,
 .select,
@@ -252,11 +281,11 @@
 .select:focus,
 .textarea:focus {
   border-color: var(--c-accent-secondary);
-  box-shadow: 0 0 0 3px rgba(151,123,87,0.12);
+  box-shadow: 0 0 0 3px rgba(224,98,90,0.12);
 }
 .input::placeholder,
 .textarea::placeholder { color: var(--c-text-muted); opacity: 0.75; }
-.select { appearance: none; cursor: pointer; padding-right: 32px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234a5a6f' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; }
+.select { appearance: none; cursor: pointer; padding-right: 32px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; }
 
 .pendingActions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .cancelBtn {
@@ -271,7 +300,7 @@
   background: var(--c-text); font-family: var(--font-body);
   font-size: 13px; font-weight: 600; color: #fff; cursor: pointer; transition: background 150ms;
 }
-.addBtn:hover:not(:disabled) { background: #0a3560; }
+.addBtn:hover:not(:disabled) { background: #1a1a1a; }
 .addBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ── Blog form ── */
@@ -280,7 +309,7 @@
 .notionInfo {
   display: flex; align-items: flex-start; gap: 10px;
   padding: 12px 14px;
-  background: linear-gradient(135deg, rgba(6,36,69,0.05), rgba(151,123,87,0.05));
+  background: linear-gradient(135deg, rgba(6,36,69,0.05), rgba(224,98,90,0.05));
   border: 1px solid rgba(6,36,69,0.12);
   border-radius: 10px;
   font-size: 13px; color: var(--c-text-muted); line-height: 1.5;
@@ -302,7 +331,7 @@
   border-radius: 9999px; background: var(--c-text);
   color: #fff; font-size: 10px; font-weight: 700;
 }
-.listCountNotion { background: #977b57; }
+.listCountNotion { background: var(--color-brand, #e0625a); }
 
 .refreshBtn {
   width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--c-border);
@@ -337,7 +366,7 @@
   padding: 12px 14px; border-radius: 11px;
   border: 1px solid var(--c-border); background: var(--c-bg);
 }
-.notionItem { background: rgba(151,123,87,0.03); }
+.notionItem { background: rgba(224,98,90,0.03); }
 
 .notionItemHeader {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
@@ -351,8 +380,8 @@
 }
 .actionTag {
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
-  color: var(--c-accent-secondary); background: rgba(151,123,87,0.1);
-  border: 1px solid rgba(151,123,87,0.2); padding: 2px 8px; border-radius: 9999px;
+  color: var(--c-accent-secondary); background: rgba(224,98,90,0.1);
+  border: 1px solid rgba(224,98,90,0.2); padding: 2px 8px; border-radius: 9999px;
 }
 .feedbackElement { font-size: 13px; font-weight: 600; color: var(--c-text); line-height: 1.4; word-break: break-word; }
 .feedbackText    { font-size: 13px; line-height: 1.55; color: var(--c-text-muted); word-break: break-word; }
@@ -379,7 +408,7 @@
   transition: background 150ms, color 150ms;
 }
 .menuTrigger:hover { background: rgba(6,36,69,0.07); color: var(--c-text); }
-.menuTriggerDanger:hover { background: rgba(180,44,42,0.09); color: var(--c-accent-primary); }
+.menuTriggerDanger:hover { background: rgba(224,98,90,0.09); color: var(--c-accent-primary); }
 .menuTriggerDanger:disabled { opacity: 0.4; cursor: default; }
 .menuDropdown {
   position: absolute; right: 0; top: calc(100% + 4px); z-index: 100;
@@ -400,7 +429,7 @@
 }
 .menuItem:hover { background: var(--c-bg); }
 .menuItemDanger { color: var(--c-accent-primary); }
-.menuItemDanger:hover { background: rgba(180,44,42,0.07); }
+.menuItemDanger:hover { background: rgba(224,98,90,0.07); }
 
 /* Envoi global brouillons */
 .sendBtn {
@@ -411,7 +440,7 @@
   background: var(--c-accent-primary); font-family: var(--font-body);
   font-size: 14px; font-weight: 600; color: #fff; cursor: pointer; transition: background 150ms;
 }
-.sendBtn:hover:not(:disabled) { background: #9a2523; }
+.sendBtn:hover:not(:disabled) { background: #c1473f; }
 .sendBtn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ── Confirmation suppression ── */
@@ -431,7 +460,7 @@
 .confirmText  { font-size: 13px; color: var(--c-text-muted); line-height: 1.6; }
 .confirmActions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
 .confirmDeleteBtn { background: var(--c-accent-primary) !important; }
-.confirmDeleteBtn:hover:not(:disabled) { background: #9a2523 !important; }
+.confirmDeleteBtn:hover:not(:disabled) { background: #c1473f !important; }
 
 /* ── Bandeau sélection ── */
 .selectionHint {
@@ -502,8 +531,8 @@
   text-align: center;
   transition: border-color var(--transition-fast), background var(--transition-fast);
 }
-.dropZone:hover, .dropZoneOver { border-color: var(--c-accent-secondary); background: rgba(151,123,87,0.04); }
-.dropZoneFilled { border-style: solid; border-color: var(--c-accent-secondary); background: rgba(151,123,87,0.04); }
+.dropZone:hover, .dropZoneOver { border-color: var(--c-accent-secondary); background: rgba(224,98,90,0.04); }
+.dropZoneFilled { border-style: solid; border-color: var(--c-accent-secondary); background: rgba(224,98,90,0.04); }
 .dropZoneIcon { color: var(--c-text-muted); }
 .dropZoneText { font-size: 13px; font-weight: 500; color: var(--c-text); }
 .dropZoneBtn {
@@ -513,7 +542,7 @@
   color: var(--c-accent-secondary); cursor: pointer;
   transition: background var(--transition-fast);
 }
-.dropZoneBtn:hover { background: rgba(151,123,87,0.08); }
+.dropZoneBtn:hover { background: rgba(224,98,90,0.08); }
 .fileInputHidden { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
 .dropZoneFile { display: flex; align-items: center; gap: 8px; width: 100%; }
 .dropZoneFileIcon { color: var(--c-accent-secondary); flex-shrink: 0; }
