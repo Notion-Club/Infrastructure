@@ -17,6 +17,7 @@ interface FeedbackItem {
   element: string;
   elementUrl?: string;
   action?: string;
+  end?: string;
   page: string;
   text: string;
   timestamp: string;
@@ -69,27 +70,6 @@ function buildParagraphBlocks(text: string) {
 
 function buildPageBody(fb: FeedbackItem) {
   const blocks: object[] = [];
-
-  if (fb.elementUrl) {
-    blocks.push({
-      object: "block",
-      type: "paragraph",
-      paragraph: {
-        rich_text: [
-          {
-            type: "text",
-            text: { content: "🔗 Voir l'élément sur le site : ", link: null },
-            annotations: { bold: true, color: "default" },
-          },
-          {
-            type: "text",
-            text: { content: fb.elementUrl, link: { url: fb.elementUrl } },
-            annotations: { color: "blue" },
-          },
-        ],
-      },
-    });
-  }
 
   // Si le retour dépasse la limite property, on l'écrit en entier dans le body.
   if (fb.text && fb.text.length > NOTION_RICH_TEXT_MAX) {
@@ -154,6 +134,7 @@ export async function POST(request: NextRequest) {
           properties: {
             Composant: { select: { name: selectName(fb.element) } },
             ...(fb.action ? { Action: { select: { name: fb.action } } } : {}),
+            ...(fb.end ? { "/End": { select: { name: fb.end } } } : {}),
             Feedback: truncatedProperty(fb.text),
             "User Agent": truncatedProperty(userAgent),
             ...(fb.elementUrl ? { URL: { url: fb.elementUrl } } : {}),
