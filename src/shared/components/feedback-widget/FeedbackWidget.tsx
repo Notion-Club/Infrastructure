@@ -27,7 +27,10 @@ const PAGE_MAP: Record<string, string> = {
   "/settings": "Réglages",
 };
 
-const ACTION_OPTIONS = [
+// Fallback minimaliste si l'appel `/api/feedback-schema` échoue. Les vraies
+// options sont récupérées dynamiquement depuis la base Notion au montage du
+// widget — voir `loadSchema` plus bas.
+const ACTION_OPTIONS_FALLBACK: string[] = [
   "Modifier du texte",
   "Ajouter du texte",
   "Ajouter une image",
@@ -37,16 +40,13 @@ const ACTION_OPTIONS = [
   "Ajouter un lien",
   "Corriger une faute",
   "Autre",
-] as const;
+];
 
-type ActionOption = (typeof ACTION_OPTIONS)[number];
+const END_OPTIONS_FALLBACK: string[] = ["Frontend", "Backend"];
 
-// Tag /End : indique sur quel côté de la stack porte le retour. Mappé sur la
-// propriété Select nommée "/End" dans la base Notion roadmap.
-const END_OPTIONS = ["Frontend", "Backend"] as const;
-type EndOption = (typeof END_OPTIONS)[number];
-
-const PLACEHOLDERS: Record<ActionOption | "default", string> = {
+// Placeholders contextuels pour les actions connues. Pour toute action retournée
+// par Notion qui n'est pas listée ici, on retombe sur `default`.
+const PLACEHOLDERS: Record<string, string> = {
   "Modifier du texte": "Quel texte souhaitez-vous modifier ? Quelle formulation préférez-vous à la place ?",
   "Ajouter du texte": "Quel contenu souhaitez-vous ajouter et à quel emplacement précis sur la page ?",
   "Ajouter une image": "Quelle image souhaitez-vous intégrer ? Avez-vous un fichier ou une référence à proposer ?",
@@ -180,6 +180,12 @@ export default function FeedbackWidget() {
   const [ticketsError, setTicketsError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Schéma Notion — liste réelle des options des selects/multi_selects, fetchée
+  // au montage via `/api/feedback-schema`. Fallback sur les listes locales en
+  // attendant la réponse ou si l'API échoue.
+  const [actionOptions, setActionOptions] = useState<string[]>(ACTION_OPTIONS_FALLBACK);
+  const [endOptions, setEndOptions] = useState<string[]>(END_OPTIONS_FALLBACK);
+
   // Formulaire feedback (élément ou général)
   const [pendingElement, setPendingElement] = useState<string | null>(null);
   const [pendingElementUrl, setPendingElementUrl] = useState<string>("");
@@ -258,6 +264,32 @@ export default function FeedbackWidget() {
       return () => { document.body.style.overflow = prev; };
     }
   }, [isOpen]);
+
+  // Schéma Notion — un fetch au montage du widget, met à jour les pills si la
+  // base contient plus / d'autres options que le fallback hardcodé. On garde
+  // les fallbacks affichés en attendant pour éviter un état vide.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/feedback-schema");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (Array.isArray(data.action) && data.action.length > 0) {
+          setActionOptions(data.action);
+        }
+        if (Array.isArray(data.end) && data.end.length > 0) {
+          setEndOptions(data.end);
+        }
+      } catch {
+        // Silencieux — on reste sur les fallbacks.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Fermer menu trois points si clic en dehors
   useEffect(() => {
@@ -397,7 +429,7 @@ export default function FeedbackWidget() {
     setActionError(false);
   }
 
-  function selectEnd(end: EndOption) {
+  function selectEnd(end: string) {
     setPendingEnd((prev) => (prev === end ? "" : end));
   }
 
@@ -524,8 +556,7 @@ export default function FeedbackWidget() {
     }
   }
 
-  const currentPlaceholder =
-    PLACEHOLDERS[pendingAction as ActionOption] ?? PLACEHOLDERS.default;
+  const currentPlaceholder = PLACEHOLDERS[pendingAction] ?? PLACEHOLDERS.default;
 
   function StatusBadge({ status }: { status: string }) {
     const s = STATUS_COLORS[status] ?? { dot: "#9CA3AF", bg: "rgba(156,163,175,0.1)", text: "#6B7280" };
@@ -724,7 +755,7 @@ export default function FeedbackWidget() {
                       {isGeneralMode && <span className={styles.fieldOptional}>(optionnel)</span>}
                     </label>
                     <div className={`${styles.actionPills} ${actionError ? styles.actionPillsError : ""}`}>
-                      {ACTION_OPTIONS.map((opt) => (
+                      {actionOptions.map((opt) => (
                         <button
                           key={opt}
                           type="button"
@@ -745,7 +776,7 @@ export default function FeedbackWidget() {
                       Côté concerné <span className={styles.fieldOptional}>(optionnel)</span>
                     </label>
                     <div className={styles.actionPills}>
-                      {END_OPTIONS.map((opt) => (
+                      {endOptions.map((opt) => (
                         <button
                           key={opt}
                           type="button"
