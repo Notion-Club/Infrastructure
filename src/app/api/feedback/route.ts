@@ -123,6 +123,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Configuration serveur manquante" }, { status: 500, headers });
   }
 
+  // UA récupéré côté serveur depuis le header du fetch émis par le navigateur de l'admin.
+  const userAgent = request.headers.get("user-agent") ?? "";
+
   const results = await Promise.allSettled(
     feedbacks.map((fb) =>
       fetch("https://api.notion.com/v1/pages", {
@@ -139,10 +142,11 @@ export async function POST(request: NextRequest) {
               title: [{ text: { content: `${fb.element} · ${fb.text.slice(0, 60)}`.slice(0, NOTION_RICH_TEXT_MAX) } }],
             },
             Statut: { select: { name: "À traiter" } },
-            ...(fb.action ? { Action: { select: { name: fb.action } } } : {}),
-            "Élément ciblé": truncatedProperty(fb.element),
+            ...(fb.action ? { Action: { multi_select: [{ name: fb.action }] } } : {}),
+            Composant: truncatedProperty(fb.element),
             "Page concernée": { select: { name: fb.page } },
-            "Retour client": truncatedProperty(fb.text),
+            Feedback: truncatedProperty(fb.text),
+            "User Agent": truncatedProperty(userAgent),
             "Date soumission": { date: { start: fb.timestamp } },
             "Session ID": truncatedProperty(sessionId ?? ""),
             ...(fb.elementUrl ? { URL: { url: fb.elementUrl } } : {}),

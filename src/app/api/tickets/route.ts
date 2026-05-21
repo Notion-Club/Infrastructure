@@ -19,10 +19,10 @@ interface NotionPage {
   id: string;
   archived: boolean;
   properties: {
-    "Élément ciblé"?: { rich_text: NotionRichText[] };
-    "Action"?: { select: NotionSelect | null };
+    "Composant"?: { rich_text: NotionRichText[] };
+    "Action"?: { multi_select: NotionSelect[] };
     "Page concernée"?: { select: NotionSelect | null };
-    "Retour client"?: { rich_text: NotionRichText[] };
+    "Feedback"?: { rich_text: NotionRichText[] };
     "Statut"?: { select: NotionSelect | null };
     "Date soumission"?: { date: { start: string } | null };
   };
@@ -73,15 +73,15 @@ export async function GET() {
     const tickets = pages
       .filter((p) => !p.archived)
       .filter((p) =>
-        str(p.properties["Élément ciblé"]?.rich_text) !== "" ||
-        str(p.properties["Retour client"]?.rich_text) !== ""
+        str(p.properties["Composant"]?.rich_text) !== "" ||
+        str(p.properties["Feedback"]?.rich_text) !== ""
       )
       .map((p) => ({
         notionId:    p.id,
-        element:     str(p.properties["Élément ciblé"]?.rich_text),
-        action:      p.properties["Action"]?.select?.name ?? "",
+        element:     str(p.properties["Composant"]?.rich_text),
+        action:      p.properties["Action"]?.multi_select?.map((t) => t.name).join(", ") ?? "",
         page:        p.properties["Page concernée"]?.select?.name ?? "",
-        text:        str(p.properties["Retour client"]?.rich_text),
+        text:        str(p.properties["Feedback"]?.rich_text),
         status:      p.properties["Statut"]?.select?.name ?? "À traiter",
         statusColor: p.properties["Statut"]?.select?.color ?? "gray",
         timestamp:   p.properties["Date soumission"]?.date?.start ?? "",
