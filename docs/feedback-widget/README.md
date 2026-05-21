@@ -218,7 +218,7 @@ Consommée par `/api/blog-posts` (POST). C'est cette variable qui pointe sur la 
 | `2da7513` | **Fix visual integration** with NotionClub tokens (1ère passe : bridge palette + icône Lucide + constantes Mireille → NC) |
 | `b51a7e6` | **Harden palette** : hardcode color values (2e passe — élimine la dépendance aux tokens `@theme inline` de Tailwind v4 qui ne s'exposent pas tous au runtime) |
 | `323ec54` | Add `docs/feedback-widget/README.md` — hub de reprise de contexte + pointeur depuis `.claude/context.md` |
-| `(à venir)` | **Unify Notion creds** : `NOTION_TOKEN` → `NOTION_API_TOKEN` (token unique partagé avec la Brique 4 Notion sync). Hardcode `c4209ec9-...` comme DB par défaut dans les 3 routes, supprime le fallback Mireille `ca0b4df...`. |
+| `b427653` | **Unify Notion creds** : `NOTION_TOKEN` → `NOTION_API_TOKEN` (token unique partagé avec la Brique 4 Notion sync). Hardcode `c4209ec9-...` comme DB par défaut dans les 3 routes, supprime le fallback Mireille `ca0b4df...`. |
 
 ---
 
