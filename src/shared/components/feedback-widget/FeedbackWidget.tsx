@@ -1,31 +1,15 @@
-// FeedbackWidget v2 — Hub modal flouté avec 3 flows :
+// FeedbackWidget — Hub modal flouté avec 2 flows :
 //   • Feedback sur un élément (sélection visuelle)
 //   • Feedback général (page entière, sans sélection)
-//   • Création d'article de blog (nouvelle base Notion dédiée)
 // Tickets Notion accessibles en vue grille depuis le hub.
 "use client";
 
-import { useState, useEffect, useId, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X, MousePointer, Send, Trash2, RefreshCw, MoreHorizontal, Pencil, ExternalLink,
-  MessageSquarePlus, FileText, Globe, LayoutGrid, ArrowLeft, Check, Info,
-  Upload, FileImage,
+  MessageSquarePlus, Globe, LayoutGrid, ArrowLeft,
 } from "lucide-react";
-import CustomSelect from "./CustomSelect/CustomSelect";
-import RichTextEditor from "./RichTextEditor/RichTextEditor";
 import styles from "./FeedbackWidget.module.css";
-
-const BLOG_CATEGORY_OPTIONS = [
-  { value: "conseils-dirigeants", label: "Conseils dirigeants" },
-  { value: "temoignages", label: "Témoignages" },
-  { value: "actualites", label: "Actualités" },
-  { value: "ressources-particuliers", label: "Ressources particuliers" },
-  { value: "autre", label: "Autre" },
-];
-
-const SEO_DESC_MIN = 120;
-const SEO_DESC_MAX = 160;
-const SITE_DOMAIN = "app.notionclub.fr";
 
 // Map adaptée aux routes existantes de NotionClub Infra. Toute route non listée
 // (ex. routes dynamiques /communaute/post/[id]) retombe sur "Home" — comportement
@@ -57,6 +41,11 @@ const ACTION_OPTIONS = [
 
 type ActionOption = (typeof ACTION_OPTIONS)[number];
 
+// Tag /End : indique sur quel côté de la stack porte le retour. Mappé sur la
+// propriété Select nommée "/End" dans la base Notion roadmap.
+const END_OPTIONS = ["Frontend", "Backend"] as const;
+type EndOption = (typeof END_OPTIONS)[number];
+
 const PLACEHOLDERS: Record<ActionOption | "default", string> = {
   "Modifier du texte": "Quel texte souhaitez-vous modifier ? Quelle formulation préférez-vous à la place ?",
   "Ajouter du texte": "Quel contenu souhaitez-vous ajouter et à quel emplacement précis sur la page ?",
@@ -77,20 +66,6 @@ const STATUS_COLORS: Record<string, { dot: string; bg: string; text: string }> =
   "Résolu":    { dot: "#10b981", bg: "rgba(16,185,129,0.08)", text: "#065f46" },
   "Refusé":    { dot: "#e0625a", bg: "rgba(224,98,90,0.08)",  text: "#9a3a35" },
 };
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const BLOG_CATEGORIES = [
-  "Conseils dirigeants",
-  "Témoignages",
-  "Actualités",
-  "Ressources particuliers",
-  "Autre",
-] as const;
-
-const BLOG_TAGS = [
-  "PME", "Entrepreneurs", "Particuliers", "Suisse romande",
-  "Organisation", "Stratégie", "Discrétion",
-] as const;
 
 function getCurrentPage(): string {
   return PAGE_MAP[window.location.pathname] ?? "Home";
@@ -147,6 +122,7 @@ interface Draft {
   element: string;
   elementUrl: string;
   action: string;
+  end: string;
   page: string;
   text: string;
   timestamp: string;
@@ -165,7 +141,7 @@ interface NotionTicket {
 }
 
 type ToastType = "success" | "error" | "partial";
-type View = "hub" | "form" | "blog" | "tickets";
+type View = "hub" | "form" | "tickets";
 
 const TEXT_CLAMP = 200;
 
@@ -184,16 +160,6 @@ function ExpandableText({ text }: { text: string }) {
       )}
     </div>
   );
-}
-
-function slugify(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
 }
 
 export default function FeedbackWidget() {
@@ -218,28 +184,10 @@ export default function FeedbackWidget() {
   const [pendingElement, setPendingElement] = useState<string | null>(null);
   const [pendingElementUrl, setPendingElementUrl] = useState<string>("");
   const [pendingAction, setPendingAction] = useState("");
+  const [pendingEnd, setPendingEnd] = useState<string>("");
   const [pendingText, setPendingText] = useState("");
   const [actionError, setActionError] = useState(false);
   const [isGeneralMode, setIsGeneralMode] = useState(false);
-
-  // Formulaire blog
-  const [blogTitle, setBlogTitle] = useState("");
-  const [blogSlug, setBlogSlug] = useState("");
-  const [blogSlugTouched, setBlogSlugTouched] = useState(false);
-  const [blogExcerpt, setBlogExcerpt] = useState("");
-  const [blogCategory, setBlogCategory] = useState<string>("");
-  const [blogTags, setBlogTags] = useState<string[]>([]);
-  const [blogCoverUrl, setBlogCoverUrl] = useState("");
-  const [blogCoverName, setBlogCoverName] = useState("");
-  const [blogIsDragOver, setBlogIsDragOver] = useState(false);
-  const [blogAuthor, setBlogAuthor] = useState("");
-  const [blogPublishDate, setBlogPublishDate] = useState("");
-  const [blogReadingMinutes, setBlogReadingMinutes] = useState<string>("");
-  const [blogMetaDesc, setBlogMetaDesc] = useState("");
-  const [blogMetaTooltip, setBlogMetaTooltip] = useState(false);
-  const [blogBody, setBlogBody] = useState("");
-  const [blogSending, setBlogSending] = useState(false);
-  const blogMetaTooltipId = useId();
 
   const [isSending, setIsSending] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
@@ -322,14 +270,6 @@ export default function FeedbackWidget() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [menuOpenId]);
-
-  // Slug auto-suggéré tant que pas touché manuellement
-  useEffect(() => {
-    if (!blogSlugTouched && blogTitle) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setBlogSlug(slugify(blogTitle));
-    }
-  }, [blogTitle, blogSlugTouched]);
 
   // Chargement tickets
   const loadNotionTickets = useCallback(async () => {
@@ -447,10 +387,6 @@ export default function FeedbackWidget() {
     setView("form");
   }
 
-  function startBlogCreator() {
-    setView("blog");
-  }
-
   function openTickets() {
     setView("tickets");
     loadNotionTickets();
@@ -459,6 +395,10 @@ export default function FeedbackWidget() {
   function selectAction(action: string) {
     setPendingAction(action);
     setActionError(false);
+  }
+
+  function selectEnd(end: EndOption) {
+    setPendingEnd((prev) => (prev === end ? "" : end));
   }
 
   function addFeedback() {
@@ -472,6 +412,7 @@ export default function FeedbackWidget() {
       element: pendingElement,
       elementUrl: pendingElementUrl,
       action: pendingAction,
+      end: pendingEnd,
       page: getCurrentPage(),
       text: pendingText.trim(),
       timestamp: new Date().toISOString(),
@@ -492,6 +433,7 @@ export default function FeedbackWidget() {
     setPendingElement(null);
     setPendingElementUrl("");
     setPendingAction("");
+    setPendingEnd("");
     setPendingText("");
     setActionError(false);
     setIsGeneralMode(false);
@@ -509,6 +451,7 @@ export default function FeedbackWidget() {
     setPendingElement(draft.element);
     setPendingElementUrl(draft.elementUrl);
     setPendingAction(draft.action);
+    setPendingEnd(draft.end);
     setPendingText(draft.text);
     setIsGeneralMode(!!draft.isGeneral);
     setView("form");
@@ -556,7 +499,7 @@ export default function FeedbackWidget() {
           sessionId: sessionId.current,
           feedbacks: drafts.map((d) => ({
             element: d.element, elementUrl: d.elementUrl, action: d.action,
-            page: d.page, text: d.text, timestamp: d.timestamp,
+            end: d.end, page: d.page, text: d.text, timestamp: d.timestamp,
           })),
         }),
       });
@@ -578,65 +521,6 @@ export default function FeedbackWidget() {
       showToast("Erreur réseau, réessayez ou contactez Théo", "error");
     } finally {
       setIsSending(false);
-    }
-  }
-
-  function toggleBlogTag(tag: string) {
-    setBlogTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
-  }
-
-  function resetBlogForm() {
-    setBlogTitle("");
-    setBlogSlug("");
-    setBlogSlugTouched(false);
-    setBlogExcerpt("");
-    setBlogCategory("");
-    setBlogTags([]);
-    setBlogCoverUrl("");
-    setBlogCoverName("");
-    setBlogAuthor("");
-    setBlogPublishDate("");
-    setBlogReadingMinutes("");
-    setBlogMetaDesc("");
-    setBlogBody("");
-  }
-
-  async function submitBlogPost() {
-    if (!blogTitle.trim() || blogSending) return;
-    setBlogSending(true);
-    try {
-      const res = await fetch("/api/blog-posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: blogTitle.trim(),
-          slug: blogSlug.trim() || undefined,
-          excerpt: blogExcerpt.trim() || undefined,
-          category: blogCategory || undefined,
-          tags: blogTags.length > 0 ? blogTags : undefined,
-          coverUrl: blogCoverUrl.trim() || undefined,
-          author: blogAuthor.trim() || undefined,
-          publishDate: blogPublishDate || undefined,
-          readingMinutes: blogReadingMinutes ? Number(blogReadingMinutes) : undefined,
-          metaDescription: blogMetaDesc.trim() || undefined,
-          body: blogBody.trim() || undefined,
-          status: "Brouillon",
-        }),
-      });
-      if (res.ok) {
-        showToast("Article créé dans Notion (statut Brouillon)", "success");
-        resetBlogForm();
-        setView("hub");
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showToast(data.error ?? "Erreur lors de la création", "error");
-      }
-    } catch {
-      showToast("Erreur réseau, réessayez", "error");
-    } finally {
-      setBlogSending(false);
     }
   }
 
@@ -697,7 +581,6 @@ export default function FeedbackWidget() {
                   <p className={styles.modalTitle}>
                     {view === "hub" && "Outil de retours"}
                     {view === "form" && (isGeneralMode ? "Feedback général" : (editingId ? "Modifier le retour" : "Nouveau retour"))}
-                    {view === "blog" && "Créer un article de blog"}
                     {view === "tickets" && "Retours envoyés"}
                   </p>
                   <p className={styles.modalSub}>
@@ -728,17 +611,6 @@ export default function FeedbackWidget() {
                       <span className={styles.actionCardCta}>Sélectionner →</span>
                     </button>
 
-                    <button className={styles.actionCard} onClick={startBlogCreator}>
-                      <div className={`${styles.actionCardIcon} ${styles.iconTaupe}`}>
-                        <FileText size={22} strokeWidth={1.5} />
-                      </div>
-                      <h3 className={styles.actionCardTitle}>Créer un article de blog</h3>
-                      <p className={styles.actionCardText}>
-                        Rédiger un brouillon (titre, extrait, catégorie, corps...) directement envoyé dans la base Notion blog.
-                      </p>
-                      <span className={styles.actionCardCta}>Rédiger →</span>
-                    </button>
-
                     <button className={styles.actionCard} onClick={startGeneralFeedback}>
                       <div className={`${styles.actionCardIcon} ${styles.iconBlue}`}>
                         <Globe size={22} strokeWidth={1.5} />
@@ -764,6 +636,7 @@ export default function FeedbackWidget() {
                               <span className={styles.actionTag}>
                                 {draft.isGeneral ? "Général" : draft.action}
                               </span>
+                              {draft.end && <span className={styles.actionTag}>{draft.end}</span>}
                               <div className={styles.draftMenu} ref={menuOpenId === draft.id ? menuRef : null}>
                                 <button
                                   className={styles.menuTrigger}
@@ -869,6 +742,25 @@ export default function FeedbackWidget() {
 
                   <div className={styles.field}>
                     <label className={styles.fieldLabel}>
+                      Côté concerné <span className={styles.fieldOptional}>(optionnel)</span>
+                    </label>
+                    <div className={styles.actionPills}>
+                      {END_OPTIONS.map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          className={`${styles.actionPill} ${pendingEnd === opt ? styles.actionPillActive : ""}`}
+                          onClick={() => selectEnd(opt)}
+                          aria-pressed={pendingEnd === opt}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className={styles.field}>
+                    <label className={styles.fieldLabel}>
                       Détail du retour <span aria-hidden="true">*</span>
                     </label>
                     <textarea
@@ -891,224 +783,6 @@ export default function FeedbackWidget() {
                       disabled={!pendingText.trim()}
                     >
                       {editingId ? "Mettre à jour" : "Ajouter au brouillon"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* ──── BLOG ──── */}
-              {view === "blog" && (
-                <div className={styles.blogForm}>
-                  <div className={styles.notionInfo}>
-                    <Info size={14} />
-                    <span>L&apos;article sera enregistré en <strong>Brouillon</strong> — vous pourrez le réviser avant publication.</span>
-                  </div>
-
-                  <div className={styles.field}>
-                    <label className={styles.fieldLabel}>
-                      Titre <span aria-hidden="true">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className={styles.input}
-                      value={blogTitle}
-                      onChange={(e) => setBlogTitle(e.target.value)}
-                      placeholder="Le bras droit externalisé : un levier stratégique pour les PME suisses"
-                      maxLength={120}
-                    />
-                  </div>
-
-                  {/* Slug URL — aperçu façon navigateur (#64) */}
-                  <div className={styles.field}>
-                    <label className={styles.fieldLabel}>URL de l&apos;article</label>
-                    <div className={styles.slugPreview}>
-                      <Globe size={12} className={styles.slugGlobe} aria-hidden="true" />
-                      <span className={styles.slugDomain}>{SITE_DOMAIN}/blog/</span>
-                      <span className={blogSlug ? styles.slugValue : styles.slugPlaceholder}>
-                        {blogSlug || "votre-article"}
-                      </span>
-                    </div>
-                    <input
-                      type="text"
-                      className={`${styles.input} ${styles.inputSmall}`}
-                      value={blogSlug}
-                      onChange={(e) => { setBlogSlug(slugify(e.target.value)); setBlogSlugTouched(true); }}
-                      placeholder="votre-article"
-                    />
-                  </div>
-
-                  <div className={styles.field}>
-                    <label className={styles.fieldLabel}>Extrait</label>
-                    <textarea
-                      className={styles.textarea}
-                      value={blogExcerpt}
-                      onChange={(e) => setBlogExcerpt(e.target.value)}
-                      placeholder="Résumé court (1-2 phrases) affiché en prévisualisation."
-                      rows={2}
-                      maxLength={300}
-                    />
-                  </div>
-
-                  {/* Catégorie — CustomSelect (#73) */}
-                  <div className={styles.field}>
-                    <label className={styles.fieldLabel}>Catégorie</label>
-                    <CustomSelect
-                      name="blogCategory"
-                      options={BLOG_CATEGORY_OPTIONS}
-                      placeholder="Sélectionner..."
-                      value={blogCategory}
-                      onChange={setBlogCategory}
-                    />
-                  </div>
-
-                  <div className={styles.field}>
-                    <label className={styles.fieldLabel}>Tags</label>
-                    <div className={styles.actionPills}>
-                      {BLOG_TAGS.map((tag) => (
-                        <button
-                          key={tag}
-                          type="button"
-                          className={`${styles.actionPill} ${blogTags.includes(tag) ? styles.actionPillActive : ""}`}
-                          onClick={() => toggleBlogTag(tag)}
-                        >
-                          {blogTags.includes(tag) && <Check size={12} />}
-                          {tag}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Image de couverture — drag & drop (#71) */}
-                  <div className={styles.field}>
-                    <label className={styles.fieldLabel}>Image de couverture</label>
-                    <div
-                      className={`${styles.dropZone} ${blogIsDragOver ? styles.dropZoneOver : ""} ${blogCoverName ? styles.dropZoneFilled : ""}`}
-                      onDragOver={(e) => { e.preventDefault(); setBlogIsDragOver(true); }}
-                      onDragLeave={() => setBlogIsDragOver(false)}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        setBlogIsDragOver(false);
-                        const file = e.dataTransfer.files[0];
-                        if (file?.type.startsWith("image/")) { setBlogCoverName(file.name); setBlogCoverUrl(URL.createObjectURL(file)); }
-                      }}
-                    >
-                      {blogCoverName ? (
-                        <div className={styles.dropZoneFile}>
-                          <FileImage size={16} className={styles.dropZoneFileIcon} aria-hidden="true" />
-                          <span className={styles.dropZoneFileName}>{blogCoverName}</span>
-                          <button
-                            type="button"
-                            className={styles.dropZoneRemove}
-                            onClick={() => { setBlogCoverName(""); setBlogCoverUrl(""); }}
-                            aria-label="Supprimer l'image"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <Upload size={18} className={styles.dropZoneIcon} aria-hidden="true" />
-                          <span className={styles.dropZoneText}>Glissez votre image ici</span>
-                          <label className={styles.dropZoneBtn}>
-                            Choisir un fichier
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className={styles.fileInputHidden}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) { setBlogCoverName(file.name); setBlogCoverUrl(URL.createObjectURL(file)); }
-                              }}
-                            />
-                          </label>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className={styles.fieldRow}>
-                    <div className={styles.field}>
-                      <label className={styles.fieldLabel}>Auteur</label>
-                      <input
-                        type="text"
-                        className={styles.input}
-                        value={blogAuthor}
-                        onChange={(e) => setBlogAuthor(e.target.value)}
-                      />
-                    </div>
-                    <div className={styles.field}>
-                      <label className={styles.fieldLabel}>Temps de lecture (min)</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={60}
-                        className={styles.input}
-                        value={blogReadingMinutes}
-                        onChange={(e) => setBlogReadingMinutes(e.target.value)}
-                        placeholder="5"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Méta description SEO — tooltip + compteur (#72) */}
-                  <div className={styles.field}>
-                    <div className={styles.fieldLabelRow}>
-                      <label className={styles.fieldLabel}>Méta description SEO</label>
-                      <button
-                        type="button"
-                        className={styles.seoTooltipTrigger}
-                        aria-describedby={blogMetaTooltipId}
-                        onMouseEnter={() => setBlogMetaTooltip(true)}
-                        onMouseLeave={() => setBlogMetaTooltip(false)}
-                        onFocus={() => setBlogMetaTooltip(true)}
-                        onBlur={() => setBlogMetaTooltip(false)}
-                        aria-label="Aide SEO"
-                      >
-                        <Info size={13} />
-                      </button>
-                      {blogMetaTooltip && (
-                        <div id={blogMetaTooltipId} role="tooltip" className={styles.seoTooltip}>
-                          <strong>120–160 caractères recommandés.</strong> Ce texte s&apos;affiche sous le titre dans Google.
-                        </div>
-                      )}
-                    </div>
-                    <textarea
-                      className={`${styles.textarea} ${blogMetaDesc.length >= SEO_DESC_MIN && blogMetaDesc.length <= SEO_DESC_MAX ? styles.textareaOk : blogMetaDesc.length > 0 ? styles.textareaWarn : ""}`}
-                      value={blogMetaDesc}
-                      onChange={(e) => setBlogMetaDesc(e.target.value)}
-                      placeholder="Résumé pour les moteurs de recherche (120–160 caractères)"
-                      rows={2}
-                      maxLength={200}
-                    />
-                    <span className={`${styles.fieldHint} ${blogMetaDesc.length >= SEO_DESC_MIN && blogMetaDesc.length <= SEO_DESC_MAX ? styles.hintOk : blogMetaDesc.length > SEO_DESC_MAX ? styles.hintWarn : ""}`}>
-                      {blogMetaDesc.length}/{SEO_DESC_MAX} car.
-                      {blogMetaDesc.length > 0 && blogMetaDesc.length < SEO_DESC_MIN && ` — encore ${SEO_DESC_MIN - blogMetaDesc.length} recommandés`}
-                      {blogMetaDesc.length > SEO_DESC_MAX && " — trop long"}
-                      {blogMetaDesc.length >= SEO_DESC_MIN && blogMetaDesc.length <= SEO_DESC_MAX && " — idéal"}
-                    </span>
-                  </div>
-
-                  {/* Corps de l'article — éditeur riche (#74) */}
-                  <div className={styles.field}>
-                    <label className={styles.fieldLabel}>Corps de l&apos;article</label>
-                    <RichTextEditor
-                      value={blogBody}
-                      onChange={setBlogBody}
-                      placeholder="Rédigez votre article — utilisez la barre d'outils pour mettre en forme (gras, listes…)."
-                    />
-                  </div>
-
-                  <div className={styles.pendingActions}>
-                    <button className={styles.cancelBtn} onClick={() => { resetBlogForm(); setView("hub"); }}>
-                      Annuler
-                    </button>
-                    <button
-                      className={styles.addBtn}
-                      onClick={submitBlogPost}
-                      disabled={!blogTitle.trim() || blogSending}
-                      aria-busy={blogSending}
-                    >
-                      {blogSending ? "Création..." : <><MessageSquarePlus size={14} />Créer le brouillon</>}
                     </button>
                   </div>
                 </div>
