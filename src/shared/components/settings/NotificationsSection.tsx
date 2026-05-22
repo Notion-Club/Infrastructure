@@ -226,7 +226,15 @@ function NotificationsMatrix({
   onToggleChannel: (ch: NotificationChannel) => void;
   onTogglePref: (cat: NotificationCategory, ch: NotificationChannel) => void;
 }) {
-  const gridCols = "minmax(0, 1fr) repeat(3, 56px)";
+  // Grid responsive via la classe `nc-notif-grid` (définie dans
+  // globals.css). Sur mobile : `minmax(0,1fr) repeat(3, 56px)` (compact,
+  // tient ≥ 320 px). Sur desktop : `minmax(0,1fr) repeat(3, 96px)` +
+  // gap plus large → les 3 boutons canaux sont plus respirants et la
+  // proportion titre/buttons devient correcte (sans grand vide central).
+  const baseGrid: React.CSSProperties = {
+    display: "grid",
+    padding: 6,
+  };
 
   return (
     <div
@@ -243,11 +251,9 @@ function NotificationsMatrix({
       {/* HEADER */}
       <div
         role="row"
+        className="nc-notif-grid"
         style={{
-          display: "grid",
-          gridTemplateColumns: gridCols,
-          gap: 4,
-          padding: 6,
+          ...baseGrid,
           background: "var(--color-surface-raised)",
           borderBottom: "1px solid var(--color-border-default)",
           alignItems: "stretch",
@@ -285,11 +291,9 @@ function NotificationsMatrix({
         <div
           key={cat.key}
           role="row"
+          className="nc-notif-grid"
           style={{
-            display: "grid",
-            gridTemplateColumns: gridCols,
-            gap: 4,
-            padding: 6,
+            ...baseGrid,
             borderBottom:
               i === categories.length - 1
                 ? "none"
@@ -380,22 +384,25 @@ function ChannelHeaderButton({
         gap: 3,
         padding: "8px 4px",
         borderRadius: 10,
-        border: "none",
-        background: active ? "var(--color-brand)" : "transparent",
-        color: active ? "white" : "var(--color-text-muted)",
+        border: active
+          ? "1px solid rgba(224, 98, 90, 0.28)"
+          : "1px solid transparent",
+        // Tint léger de la couleur brand quand actif (rgba 0.12) au lieu
+        // d'un fond plein qui surcharge la matrix. Le texte et l'icône
+        // restent en brand red sur ce fond clair → contraste lisible et
+        // identité visuelle conservée sans dominer le composant.
+        background: active ? "rgba(224, 98, 90, 0.12)" : "transparent",
+        color: active ? "var(--color-brand)" : "var(--color-text-muted)",
         cursor: "pointer",
         transition:
-          "background 200ms var(--nc-ease), color 200ms ease, box-shadow 200ms ease",
-        boxShadow: active
-          ? "0 4px 14px -4px rgba(224, 98, 90, 0.55)"
-          : "none",
+          "background 200ms var(--nc-ease), color 200ms ease, border-color 200ms ease",
         minHeight: 48,
         outline: "none",
         fontFamily: "inherit",
       }}
       className="hover:bg-[rgba(0,0,0,0.04)] focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
     >
-      <Icon size={16} strokeWidth={active ? 2.5 : 2} aria-hidden />
+      <Icon size={16} strokeWidth={active ? 2.25 : 2} aria-hidden />
       <span
         style={{
           fontSize: 11,
@@ -430,7 +437,11 @@ function SwitchToggle({
   const w = size === "sm" ? 32 : 42;
   const h = size === "sm" ? 20 : 24;
   const knob = size === "sm" ? 16 : 20;
-  const knobLeft = checked ? w - knob - 2 : 2;
+  // Distance que le knob parcourt entre les états off/on. Le knob est
+  // toujours positionné à `left: 2`, on l'anime ensuite via translateX
+  // (GPU-composited → plus fluide qu'animer `left` qui déclenche le
+  // layout à chaque frame, surtout visible sur mobile / WebKit).
+  const knobTravel = w - knob - 4;
 
   return (
     <button
@@ -459,13 +470,18 @@ function SwitchToggle({
         style={{
           position: "absolute",
           top: 2,
-          left: knobLeft,
+          left: 2,
           width: knob,
           height: knob,
           borderRadius: "50%",
           background: "white",
           boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-          transition: "left 200ms ease",
+          // transform/translateX au lieu de `left` → GPU compositing,
+          // animation fluide sur mobile (Safari iOS / Chrome Android
+          // saccadaient avec `left` à cause des reflows).
+          transform: `translateX(${checked ? knobTravel : 0}px)`,
+          transition: "transform 200ms ease",
+          willChange: "transform",
         }}
       />
     </button>
