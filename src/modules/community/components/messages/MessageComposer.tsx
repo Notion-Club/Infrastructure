@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Paperclip, Send, X, FileText } from "lucide-react";
 
 interface PendingFile {
@@ -15,12 +15,29 @@ interface MessageComposerProps {
   disabledMessage?: string;
 }
 
+// Détection navigateur Mac — sur Mac on remplace le mot "Entrée" par
+// l'icône ⌘ dans le hint du textarea, pour s'aligner sur la convention
+// visuelle macOS. Calculé côté client uniquement (SSR-safe via useEffect).
+function detectMac(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const platform = navigator.platform || "";
+  const ua = navigator.userAgent || "";
+  return /Mac|iPhone|iPod|iPad/i.test(platform) || /Macintosh/i.test(ua);
+}
+
 export function MessageComposer({ onSend, disabled, disabledMessage }: MessageComposerProps) {
   const [value, setValue] = useState("");
   const [dragging, setDragging] = useState(false);
   const [pendingFile, setPendingFile] = useState<PendingFile | null>(null);
+  const [isMac, setIsMac] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Hydratation : on calcule isMac une fois côté client pour éviter un
+  // mismatch SSR (server n'a pas navigator).
+  useEffect(() => {
+    setIsMac(detectMac());
+  }, []);
 
   function handleSend() {
     if (disabled) return;
@@ -214,7 +231,7 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
           onChange={(e) => setValue(e.target.value)}
           onInput={handleTextareaInput}
           onKeyDown={handleKeyDown}
-          placeholder="Tapez un message… (Entrée pour envoyer)"
+          placeholder={`Tapez un message… (${isMac ? "⌘" : "Entrée"} pour envoyer)`}
           rows={1}
           style={{
             flex: 1,

@@ -2,11 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
-import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import {
   computeIdentityInitials,
   useProfileIdentityContext,
@@ -32,9 +30,7 @@ const CIRCLE: React.CSSProperties = {
 };
 
 export function MobileTopActions() {
-  const router = useRouter();
   const [avatarOpen, setAvatarOpen] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
   const { identity } = useProfileIdentityContext();
   const initials = computeIdentityInitials(identity);
@@ -51,19 +47,6 @@ export function MobileTopActions() {
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [avatarOpen]);
-
-  async function handleSignOut() {
-    if (signingOut) return;
-    setSigningOut(true);
-    try {
-      const supabase = createSupabaseBrowserClient();
-      await supabase.auth.signOut();
-    } catch {
-      // Ignore — fall through to the login redirect.
-    } finally {
-      router.push("/login");
-    }
-  }
 
   return (
     <div
@@ -211,35 +194,6 @@ export function MobileTopActions() {
             >
               Réglages
             </Link>
-            <div
-              style={{
-                height: 1,
-                background: "var(--color-border-default)",
-                margin: "4px 0",
-              }}
-            />
-            <button
-              type="button"
-              onClick={handleSignOut}
-              disabled={signingOut}
-              role="menuitem"
-              style={{
-                width: "100%",
-                textAlign: "left",
-                padding: "10px 10px",
-                fontSize: 14,
-                color: "var(--color-brand)",
-                background: "transparent",
-                border: "none",
-                borderRadius: 10,
-                cursor: signingOut ? "wait" : "pointer",
-                opacity: signingOut ? 0.6 : 1,
-                transition: "background 150ms ease",
-              }}
-              className="hover:bg-[var(--color-surface-raised)]"
-            >
-              {signingOut ? "Déconnexion…" : "Se déconnecter"}
-            </button>
           </div>
         )}
       </div>
