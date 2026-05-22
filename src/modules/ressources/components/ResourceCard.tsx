@@ -99,8 +99,12 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
       </div>
 
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <ResourceBadge variant="formation" label={resource.formation} />
-        <ResourceBadge variant="type" label={resource.type} />
+        {resource.formation.map((f) => (
+          <ResourceBadge key={f} variant="formation" label={f} />
+        ))}
+        {resource.type.map((t) => (
+          <ResourceBadge key={t} variant="type" label={t} />
+        ))}
       </div>
     </div>
   );
