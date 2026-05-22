@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Camera, LoaderCircle } from "lucide-react";
 
 import { DEFAULT_AVATAR_COLOR } from "@/modules/settings";
@@ -41,7 +41,10 @@ function getInitials(
 // chevauchement contrôlé).
 const AVATAR_SIZE = 124;
 const BADGE_SIZE = 40;
-const PILL_WIDTH = 320;
+// PILL_WIDTH = 360 → contient confortablement le plus long placeholder
+// "Ton prénom, ton pseudo… c'est toi qui choisis" à 13px / 600 (≈ 295 px
+// de glyphes), avec marge pour le padding gauche/droit.
+const PILL_WIDTH = 360;
 const PILL_HEIGHT = 40;
 const PILL_OVERLAP = 6;
 const PILL_FONT_SIZE = 13;
@@ -265,65 +268,76 @@ const PLACEHOLDERS = [
 ] as const;
 
 // ============================================================================
-// PlaceholderCycle — crossfade entre 3 messages dans un container de
-// dimensions fixes (pas de saccade de redimensionnement de la pill).
+// PlaceholderCycle — slot-machine vertical scroll inspiré du design
+// Superdesign "Pur Animated Text Scroller" (draft c8746fb8). Une pile
+// verticale de N+1 spans (les N messages + un duplicat du 1er pour
+// rendre la boucle seamless) est translatée vers le haut via le
+// keyframe `nc-placeholder-scroll` défini dans globals.css.
 //
-// Implémentation : les 3 spans sont tous montés en `position: absolute`
-// dans le même container, et on bascule simplement l'opacité de l'item
-// courant (1) vs les autres (0). Transition 500ms ease.
+// Chaque item a une hauteur fixe `1em` (= height du container avec
+// overflow:hidden) → un seul message est visible à la fois. La transition
+// utilise l'easing cubic-bezier(0.76, 0, 0.24, 1) du design d'origine,
+// qui donne ce "punch" satisfaisant en début et fin de chaque slide.
 //
-// Avantage vs un pattern "fade-out → swap → fade-in" : pas de trou où
-// rien n'est visible pendant la transition, et le container garde une
-// taille parfaitement stable car la pill au-dessus a une largeur fixée.
+// La boucle est seamless : on duplique le 1er message en dernière
+// position. Le keyframe va de translateY(0) à translateY(-75%) — donc
+// après le 3e message on revoit le 1er à -75% — puis revient à 0%
+// (1er aussi). Aucun saut visible.
 //
-// Respect de prefers-reduced-motion → fige sur le 1er message.
+// Respect de prefers-reduced-motion : la media query dans globals.css
+// désactive l'animation et fige le 1er message visible.
+//
+// Pure CSS (pas de useEffect/setInterval) → animation fluide gérée par
+// le compositor du navigateur, sans coût React à chaque frame.
 // ============================================================================
 function PlaceholderCycle() {
-  const [current, setCurrent] = useState(0);
-
-  useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-    ) {
-      return;
-    }
-    const cycle = setInterval(() => {
-      setCurrent((c) => (c + 1) % PLACEHOLDERS.length);
-    }, 3400);
-    return () => clearInterval(cycle);
-  }, []);
+  // On stack [...messages, messages[0]] (4 items) pour que la boucle
+  // soit seamless : translateY(-75%) affiche le duplicat du 1er msg,
+  // identique au translateY(0%) du début → pas de "jump" visuel.
+  const stack = [...PLACEHOLDERS, PLACEHOLDERS[0]];
 
   return (
     <span
+      aria-label={PLACEHOLDERS[0]}
       style={{
         position: "relative",
         display: "block",
         width: "100%",
-        height: "1.5em",
-        // Le container a une hauteur fixe (1.5em ≈ line-height du texte)
-        // pour que les items en absolute aient une zone définie.
+        // 1.2em = hauteur de slot (cohérente avec le design Superdesign
+        // d'origine `h-[1.2em]`). Donne assez d'air vertical pour éviter
+        // que les descendants ('p', 'q') soient clippés par le overflow.
+        height: "1.2em",
+        overflow: "hidden",
+        lineHeight: 1.2,
       }}
     >
-      {PLACEHOLDERS.map((text, i) => (
-        <span
-          key={i}
-          aria-hidden={i !== current}
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: i === current ? 1 : 0,
-            transition: "opacity 500ms ease",
-            whiteSpace: "nowrap",
-            pointerEvents: "none",
-          }}
-        >
-          {text}
-        </span>
-      ))}
+      <span
+        className="nc-placeholder-scroll"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          // willChange: "transform" → hint au compositor pour pousser le
+          // calcul de l'animation sur la GPU.
+          willChange: "transform",
+        }}
+      >
+        {stack.map((text, i) => (
+          <span
+            key={i}
+            aria-hidden={i !== 0}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "1.2em",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {text}
+          </span>
+        ))}
+      </span>
     </span>
   );
 }

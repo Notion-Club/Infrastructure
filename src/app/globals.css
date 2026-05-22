@@ -158,6 +158,44 @@ html {
   }
 }
 
+/*
+ * Slot-machine vertical scroll animation pour les placeholders cyclants
+ * (cf. PlaceholderCycle dans ProfileHero.tsx). On translate une pile de 4
+ * items [msg1, msg2, msg3, msg1] de 0 → -25% → -50% → -75% sur un cycle
+ * de 9 s, easing cubic-bezier(0.76, 0, 0.24, 1) — chaque message reste
+ * ~2.4 s à l'écran, transition ~0.6 s entre eux. Le 4e item (duplicat de
+ * msg1) rend la boucle parfaitement seamless : visuellement, après -75%
+ * on revient à 0% sans aucun saut puisque les deux frames affichent
+ * msg1.
+ */
+@keyframes nc-placeholder-scroll {
+  0%,
+  27% {
+    transform: translateY(0%);
+  }
+  33%,
+  60% {
+    transform: translateY(-25%);
+  }
+  67%,
+  93% {
+    transform: translateY(-50%);
+  }
+  100% {
+    transform: translateY(-75%);
+  }
+}
+
+.nc-placeholder-scroll {
+  animation: nc-placeholder-scroll 9s cubic-bezier(0.76, 0, 0.24, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nc-placeholder-scroll {
+    animation: none;
+  }
+}
+
 .nc-page-halo {
   background-color: var(--color-surface-page);
   position: relative;
