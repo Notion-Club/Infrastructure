@@ -10,24 +10,45 @@ const LAYERS = [
 interface GradualBlurOverlayProps {
   height?: number;
   zIndex?: number;
+  /**
+   * - 'fixed' (défaut) : voile collé en bas du viewport, suit le scroll de window.
+   * - 'sticky' : voile localisé au scroll d'un conteneur parent (qui doit être
+   *   en position: relative + overflow-y: auto). Placer ce composant en dernier
+   *   enfant du conteneur scrollable.
+   */
+  position?: "fixed" | "sticky";
 }
 
 export function GradualBlurOverlay({
   height = 120,
   zIndex = 30,
+  position = "fixed",
 }: GradualBlurOverlayProps) {
+  const isSticky = position === "sticky";
+
   return (
     <div
       aria-hidden
-      style={{
-        position: "fixed",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        height,
-        pointerEvents: "none",
-        zIndex,
-      }}
+      style={
+        isSticky
+          ? {
+              position: "sticky",
+              bottom: 0,
+              height,
+              marginTop: -height,
+              pointerEvents: "none",
+              zIndex,
+            }
+          : {
+              position: "fixed",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height,
+              pointerEvents: "none",
+              zIndex,
+            }
+      }
     >
       {LAYERS.map((l, i) => (
         <div

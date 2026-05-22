@@ -13,6 +13,7 @@ import { FeedErrorState } from "../components/feed/FeedErrorState";
 import { PostComposerModal } from "../components/post-composer/PostComposerModal";
 import { MessagesLayout } from "../components/messages/MessagesLayout";
 import { DevRoleToggle } from "../components/dev/DevRoleToggle";
+import { GradualBlurOverlay } from "@/shared/components/GradualBlurOverlay";
 import { CommunityRestrictedPage } from "./community-restricted-page";
 import type { Post } from "../types/post.types";
 import { MOCK_CONVERSATIONS } from "../mocks/conversations.mock";
@@ -160,24 +161,34 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
         {/* Content */}
         <div style={{ padding: activeTab === "messages" ? 0 : 16 }}>
           {activeTab === "feed" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <FeedTagFilters
-                active={activeTag}
-                onChange={setActiveTag}
-                onNewPost={() => setShowComposer(true)}
-                isAdmin={currentUser.role === "admin"}
-              />
-              {showSkeleton ? (
-                <FeedSkeletonState />
-              ) : showError ? (
-                <FeedErrorState onRetry={() => setFeedState("full")} />
-              ) : (
-                <FeedPostList
-                  posts={feedState === "empty" ? [] : allPosts}
-                  currentUser={currentUser}
-                  devRole={role}
+            <div
+              style={{
+                position: "relative",
+                maxHeight: "calc(100dvh - 240px)",
+                minHeight: 400,
+                overflowY: "auto",
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <FeedTagFilters
+                  active={activeTag}
+                  onChange={setActiveTag}
+                  onNewPost={() => setShowComposer(true)}
+                  isAdmin={currentUser.role === "admin"}
                 />
-              )}
+                {showSkeleton ? (
+                  <FeedSkeletonState />
+                ) : showError ? (
+                  <FeedErrorState onRetry={() => setFeedState("full")} />
+                ) : (
+                  <FeedPostList
+                    posts={feedState === "empty" ? [] : allPosts}
+                    currentUser={currentUser}
+                    devRole={role}
+                  />
+                )}
+              </div>
+              <GradualBlurOverlay position="sticky" zIndex={1} />
             </div>
           )}
 
