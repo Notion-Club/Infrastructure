@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Camera, LoaderCircle, Pencil } from "lucide-react";
 
 import { DEFAULT_AVATAR_COLOR } from "@/modules/settings";
@@ -76,10 +76,9 @@ export function ProfileHero({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        // OPS-62 — gap réduit à 0 entre l'avatar et la pill du nom :
-        // la pill est ensuite tirée vers le haut via marginTop négatif
-        // pour chevaucher le bas de l'avatar. Le bouton "Modifier l'avatar"
-        // récupère son propre espacement via marginTop.
+        // OPS-62 v2 — pas de gap, on chevauche la pill via marginTop négatif.
+        // Plus de bouton "Modifier l'avatar" secondaire en dessous : le badge
+        // caméra sur l'avatar est désormais le seul CTA pour ouvrir le picker.
         gap: 0,
         padding: "8px 0 12px",
       }}
@@ -87,7 +86,9 @@ export function ProfileHero({
       <button
         type="button"
         onClick={() => setPickerOpen(true)}
-        aria-label="Personnaliser l'avatar"
+        aria-label="Modifier ma photo de profil"
+        // group permet au badge caméra de scaler au hover du bouton entier
+        className="group"
         style={{
           position: "relative",
           width: 124,
@@ -144,14 +145,27 @@ export function ProfileHero({
             initials
           )}
         </span>
+        {/* OPS-62 v2 — Badge caméra promu en CTA principal pour modifier la
+            photo, maintenant que le bouton secondaire en dessous est retiré.
+            Évolutions vs version précédente :
+              - taille 40×40 au lieu de 36×36 (touch-target confortable),
+              - position légèrement décalée (right/bottom: -2) pour flotter
+                hors du cercle et éviter le chevauchement avec la pill du
+                nom d'affichage qui vient juste en dessous,
+              - shadow brand-tinted (rgba 224,98,90) renforcée pour le
+                mettre en valeur — c'est désormais le seul point d'entrée
+                visible pour le picker depuis le hero,
+              - hover scale 110% (via group-hover sur le bouton parent)
+                pour le rendre clairement clickable. */}
         <span
           aria-hidden
+          className="transition-transform duration-200 group-hover:scale-110"
           style={{
             position: "absolute",
-            right: 4,
-            bottom: 4,
-            width: 36,
-            height: 36,
+            right: -2,
+            bottom: -2,
+            width: 40,
+            height: 40,
             borderRadius: "50%",
             background: "var(--color-brand)",
             color: "white",
@@ -159,10 +173,11 @@ export function ProfileHero({
             alignItems: "center",
             justifyContent: "center",
             border: "3px solid white",
-            boxShadow: "0 6px 16px -4px rgba(224,98,90,0.45)",
+            boxShadow:
+              "0 10px 24px -8px rgba(224,98,90,0.55), 0 2px 8px rgba(0,0,0,0.08)",
           }}
         >
-          <Camera size={14} />
+          <Camera size={16} strokeWidth={2.25} />
         </span>
       </button>
 
@@ -176,31 +191,9 @@ export function ProfileHero({
       />
       {/* Note OPS-47 : l'email n'est plus affiché ici. Il reste consultable
           dans l'encadré "Informations du profil" via le composant EmailField,
-          qui est aussi le seul endroit où on peut le modifier. */}
-
-      <button
-        type="button"
-        onClick={() => setPickerOpen(true)}
-        style={{
-          marginTop: 14,
-          padding: "6px 14px",
-          borderRadius: 9999,
-          border: "1px solid var(--color-border-default)",
-          background: "white",
-          color: "var(--color-text-secondary)",
-          fontSize: 12,
-          fontWeight: 500,
-          cursor: "pointer",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          transition: "background 150ms ease",
-        }}
-        className="hover:bg-[var(--color-surface-raised)]"
-      >
-        <Camera size={12} />
-        Modifier l&apos;avatar
-      </button>
+          qui est aussi le seul endroit où on peut le modifier.
+          Note OPS-62 v2 : le bouton "Modifier l'avatar" secondaire a été
+          retiré, le badge caméra ci-dessus est le seul CTA photo. */}
 
       {pickerOpen && (
         <AvatarPicker
@@ -219,27 +212,84 @@ export function ProfileHero({
 
 // ============================================================================
 // EditableDisplayName — pill nom d'affichage chevauchant le bas de l'avatar
-// (OPS-62). État par défaut : bouton-pill blanc avec icône pencil au hover.
+// (OPS-62 v2). État par défaut : bouton-pill blanc avec icône pencil au hover.
 // Clic → input du même gabarit en focus immédiat ; Entrée / blur enregistre,
-// Échap annule. Optimistic update côté parent ; les erreurs réseau sont
-// gérées par le parent via toast (on relève juste l'exception ici pour ne
-// pas masquer l'erreur visuelle).
+// Échap annule.
 //
-// Spécifications visuelles OPS-62 :
-//   - fond blanc, bord arrondi (radius pill 9999),
-//   - bordure fine + shadow douce pour démarquer la pill sur le halo,
+// Spécifications visuelles OPS-62 v2 :
+//   - fond blanc, bord arrondi pill (radius 9999),
+//   - bordure fine `var(--color-border-default)` + shadow `--nc-shadow-3`
+//     pour rester cohérent avec le reste du design system,
 //   - chevauche le bas de l'avatar via marginTop négatif,
-//   - taille de police adaptée (15px) pour rester proportionné à la pill
-//     (l'ancien 22px débordait la pill quand le nom était long),
-//   - zIndex au-dessus du badge caméra du bouton avatar.
+//   - taille de police 13px (cohérente avec les boutons du design system —
+//     ni trop gros, ni trop crammé),
+//   - largeur min 220 / max 340 → la pill garde une taille stable et
+//     les placeholders cyclants (jusqu'à 47 chars) tiennent en entier sans
+//     ellipsis dans le cas standard,
+//   - zIndex 2 pour passer au-dessus de l'avatar mais reste derrière le
+//     badge caméra qui flotte hors du cercle (right/bottom: -2).
 //
-// Note implémentation : on utilise `key={value}` au niveau du composant
-// parent (via la prop `value`) pour re-synchroniser le draft quand la
-// valeur upstream change. Cela évite un useEffect + setState (anti-pattern
+// Empty state : un cycle de 3 placeholders (PlaceholderCycle) tourne
+// toutes les 3.4s avec fade in/out 260ms — invite l'utilisateur à
+// remplir le champ. Cycle interrompu dès que la valeur upstream est non
+// vide. Respecte prefers-reduced-motion.
+//
+// Note implémentation : `value` est passé comme `key` du composant par le
+// parent → chaque changement upstream remount le composant et réinitialise
+// proprement `draft`. Pas besoin de useEffect + setState (anti-pattern
 // React 19 — cf. "you might not need an effect").
 // ============================================================================
-const PILL_FONT_SIZE = 15;
-const PILL_OVERLAP = 18; // px de chevauchement avec le bas de l'avatar
+const PILL_FONT_SIZE = 13;
+const PILL_OVERLAP = 16;
+const PILL_MIN_WIDTH = 220;
+const PILL_MAX_WIDTH = 340;
+
+// 3 placeholders cyclants pour inviter à remplir le champ. Liste consolidée
+// après OPS-46 (qui a retiré "Si tu devais te présenter en un mot ?").
+const PLACEHOLDERS = [
+  "Comment veux-tu qu'on t'appelle ?",
+  "Ton prénom, ton pseudo… c'est toi qui choisis",
+  "Le nom qui s'affichera partout dans l'app",
+] as const;
+
+function PlaceholderCycle() {
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    // Respect de prefers-reduced-motion — on fige sur le 1er message au
+    // lieu de cycler (évite la fatigue visuelle pour les utilisateurs
+    // sensibles aux animations).
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    const cycle = setInterval(() => {
+      setVisible(false);
+      const swap = setTimeout(() => {
+        setIndex((i) => (i + 1) % PLACEHOLDERS.length);
+        setVisible(true);
+      }, 260);
+      return () => clearTimeout(swap);
+    }, 3400);
+    return () => clearInterval(cycle);
+  }, []);
+
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        opacity: visible ? 1 : 0,
+        transition: "opacity 260ms ease",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {PLACEHOLDERS[index]}
+    </span>
+  );
+}
 
 function EditableDisplayName({
   value,
@@ -248,9 +298,6 @@ function EditableDisplayName({
   value: string;
   onSave: (next: string) => Promise<void>;
 }) {
-  // `value` est aussi passé comme `key` du composant par le parent —
-  // chaque changement upstream remount le composant et réinitialise
-  // proprement `draft` à la nouvelle valeur. Pas besoin de useEffect.
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [busy, setBusy] = useState(false);
@@ -280,22 +327,23 @@ function EditableDisplayName({
     setEditing(false);
   }
 
-  // Wrapper commun : positionnement relatif + chevauchement du bas de
-  // l'avatar via marginTop négatif. zIndex 2 pour passer au-dessus du
-  // badge caméra du bouton avatar (qui est en bottom: 4 du parent button).
-  const wrapperStyle: React.CSSProperties = {
+  // Wrapper commun aux deux états (display / edit). marginTop négatif
+  // pour chevaucher l'avatar. zIndex 2 → au-dessus de l'avatar mais
+  // toujours derrière le badge caméra qui flotte hors du cercle.
+  const wrapperBase: React.CSSProperties = {
     position: "relative",
     marginTop: -PILL_OVERLAP,
     zIndex: 2,
     display: "inline-flex",
     alignItems: "center",
-    gap: 6,
-    maxWidth: "min(360px, 90%)",
+    justifyContent: "center",
+    minWidth: PILL_MIN_WIDTH,
+    maxWidth: PILL_MAX_WIDTH,
   };
 
   if (editing) {
     return (
-      <div style={wrapperStyle}>
+      <div style={wrapperBase}>
         <input
           autoFocus
           type="text"
@@ -308,9 +356,10 @@ function EditableDisplayName({
           }}
           disabled={busy}
           maxLength={60}
-          placeholder="Comment veux-tu qu'on t'appelle ?"
+          placeholder={PLACEHOLDERS[0]}
           aria-label="Nom d'affichage"
           style={{
+            width: "100%",
             fontSize: PILL_FONT_SIZE,
             fontWeight: 600,
             letterSpacing: "-0.01em",
@@ -318,13 +367,11 @@ function EditableDisplayName({
             background: "white",
             border: "1px solid var(--color-brand)",
             borderRadius: 9999,
-            padding: "7px 18px",
+            padding: "8px 18px",
             textAlign: "center",
-            minWidth: 220,
-            maxWidth: 320,
             outline: "none",
             boxShadow:
-              "0 0 0 3px rgba(224, 98, 90, 0.15), 0 8px 20px -10px rgba(0,0,0,0.15)",
+              "0 0 0 3px rgba(224, 98, 90, 0.15), var(--nc-shadow-3)",
             fontFamily: "inherit",
           }}
         />
@@ -334,10 +381,11 @@ function EditableDisplayName({
             className="animate-spin"
             style={{
               position: "absolute",
-              right: 10,
+              right: 12,
               top: "50%",
               transform: "translateY(-50%)",
               color: "var(--color-text-muted)",
+              pointerEvents: "none",
             }}
           />
         )}
@@ -357,11 +405,12 @@ function EditableDisplayName({
       }
       className="group hover:bg-[var(--color-surface-raised)] focus-visible:bg-[var(--color-surface-raised)]"
       style={{
-        ...wrapperStyle,
+        ...wrapperBase,
+        gap: 6,
         background: "white",
         border: "1px solid var(--color-border-default)",
         borderRadius: 9999,
-        padding: "7px 16px 7px 18px",
+        padding: "8px 16px 8px 18px",
         cursor: "pointer",
         color: isEmpty
           ? "var(--color-text-muted)"
@@ -371,20 +420,27 @@ function EditableDisplayName({
         letterSpacing: "-0.01em",
         fontStyle: isEmpty ? "italic" : "normal",
         outline: "none",
-        boxShadow:
-          "0 8px 24px -12px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.04)",
+        // var(--nc-shadow-3) du design system — ombre fine cohérente
+        // avec les autres cards/pills du dashboard.
+        boxShadow: "var(--nc-shadow-3)",
         transition: "background 150ms ease, box-shadow 150ms ease",
       }}
     >
       <span
         style={{
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
+          flex: 1,
           minWidth: 0,
+          textAlign: "center",
+          whiteSpace: "nowrap",
+          // textOverflow ellipsis uniquement en cas de débordement extrême
+          // (nom > 50 chars). Les 3 placeholders cyclants tiennent en
+          // entier dans la fourchette 220-340 ; les noms réels aussi
+          // dans 99% des cas.
+          textOverflow: "ellipsis",
+          overflow: "hidden",
         }}
       >
-        {isEmpty ? "Choisis ton nom d'affichage" : display}
+        {isEmpty ? <PlaceholderCycle /> : display}
       </span>
       <Pencil
         size={13}
