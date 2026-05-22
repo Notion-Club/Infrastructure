@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
+import { toast } from "sonner";
 
 import { Topbar } from "@/shared/components/dashboard/Topbar";
 import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
@@ -27,7 +28,7 @@ import {
   MOCK_USER_OFFER,
 } from "@/shared/lib/settings/mock-data";
 import { type ScenarioId } from "@/shared/lib/settings/scenarios";
-import type { NotificationSettings } from "@/modules/settings";
+import { updateProfileAction, type NotificationSettings } from "@/modules/settings";
 
 type LoadState =
   | { status: "loading" }
@@ -119,6 +120,44 @@ export function SettingsClient({
     });
   }
 
+  // OPS-47 — Sauvegarde du nom d'affichage depuis l'inline-edit dans
+  // ProfileHero. Optimistic update local + propagation au context identité
+  // (Topbar / MobileTopActions s'actualisent immédiatement), puis appel
+  // server action. En cas d'erreur on toast l'utilisateur sans revert : il
+  // garde la nouvelle valeur dans l'input pour pouvoir corriger et retenter.
+  async function patchDisplayName(nextDisplayName: string) {
+    if (state.status !== "ready") return;
+    const previous = state.profile.display_name;
+    const trimmed = nextDisplayName.trim() || null;
+
+    // Optimistic update
+    setState((prev) =>
+      prev.status === "ready"
+        ? { ...prev, profile: { ...prev.profile, display_name: trimmed } }
+        : prev,
+    );
+    updateIdentity({ displayName: trimmed });
+
+    if (state.isMocked) {
+      toast.success("Nom d'affichage mis à jour (démo)");
+      return;
+    }
+
+    const result = await updateProfileAction({ display_name: trimmed });
+    if (!result.ok) {
+      // Revert optimistic update on server failure.
+      setState((prev) =>
+        prev.status === "ready"
+          ? { ...prev, profile: { ...prev.profile, display_name: previous } }
+          : prev,
+      );
+      updateIdentity({ displayName: previous });
+      toast.error(result.message);
+      throw new Error(result.message);
+    }
+    toast.success("Nom d'affichage mis à jour");
+  }
+
   return (
     <>
       <Topbar />
@@ -162,6 +201,7 @@ export function SettingsClient({
                   email={state.user.email}
                   isMocked={state.isMocked}
                   onAvatarChange={patchAvatar}
+                  onDisplayNameSave={patchDisplayName}
                 />
                 {banner}
                 {state.isMocked && (

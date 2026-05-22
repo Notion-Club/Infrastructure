@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,8 +14,10 @@ import { EmailField } from "./EmailField";
 import { PhoneField, formatPhone, parsePhone, type PhoneValue } from "./PhoneField";
 import type { ProfileRow } from "./types";
 
+// OPS-47 — display_name n'est plus dans le form ; il vit dans le ProfileHero
+// sous la photo (inline-edit). On le retire donc de FormValues, de la
+// validation, de hasChanges et du payload submit.
 type FormValues = {
-  display_name: string;
   first_name: string;
   last_name: string;
   username: string;
@@ -34,7 +36,6 @@ function profileToForm(profile: ProfileRow, fallbackEmail: string): FormValues {
   const notionEmail = profile.notion_email ?? "";
   const platformEmail = fallbackEmail;
   return {
-    display_name: profile.display_name ?? "",
     first_name: profile.first_name ?? "",
     last_name: profile.last_name ?? "",
     username: profile.username ?? "",
@@ -142,7 +143,6 @@ export function ProfileSection({
   }
 
   const hasChanges = useMemo(() => {
-    if (values.display_name !== initialValues.display_name) return true;
     if (values.first_name !== initialValues.first_name) return true;
     if (values.last_name !== initialValues.last_name) return true;
     if (values.username.trim().toLowerCase() !== initialValues.username) return true;
@@ -205,7 +205,6 @@ export function ProfileSection({
         accountEmail.trim().toLowerCase();
 
       const profileFieldsChanged =
-        values.display_name !== initialValues.display_name ||
         values.first_name !== initialValues.first_name ||
         values.last_name !== initialValues.last_name ||
         values.username.trim().toLowerCase() !== initialValues.username ||
@@ -219,7 +218,6 @@ export function ProfileSection({
 
       if (profileFieldsChanged) {
         const result = await updateProfileAction({
-          display_name: values.display_name,
           first_name: values.first_name,
           last_name: values.last_name,
           username: values.username,
@@ -281,10 +279,9 @@ export function ProfileSection({
           error={visibleErrors.username}
         />
 
-        <AnimatedDisplayNameField
-          value={values.display_name}
-          onChange={(v) => update("display_name", v)}
-        />
+        {/* OPS-47 — le champ "Nom d'affichage" a été déplacé dans
+            ProfileHero (inline-edit sous la photo). Il ne figure plus
+            ici pour éviter le doublon mentionné dans le ticket. */}
         <div
           style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}
         >
@@ -435,91 +432,13 @@ function TextField({
   );
 }
 
-// ============================================================================
-// AnimatedDisplayNameField — input avec placeholder qui cycle entre
-// plusieurs questions ouvertes pour donner envie de remplir le champ.
-// Le cycle s'arrête dès que l'utilisateur a tapé quelque chose.
-// ============================================================================
-const DISPLAY_NAME_PLACEHOLDERS = [
-  "Comment veux-tu qu'on t'appelle ?",
-  "Ton prénom, ton pseudo… c'est toi qui choisis",
-  "Le nom qui s'affichera partout dans l'app",
-];
-
-function AnimatedDisplayNameField({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [index, setIndex] = useState(0);
-  const [visible, setVisible] = useState(true);
-
-  const isEmpty = value.length === 0;
-
-  useEffect(() => {
-    if (!isEmpty) return;
-    const cycle = setInterval(() => {
-      setVisible(false);
-      const swap = setTimeout(() => {
-        setIndex((i) => (i + 1) % DISPLAY_NAME_PLACEHOLDERS.length);
-        setVisible(true);
-      }, 260);
-      return () => clearTimeout(swap);
-    }, 3400);
-    return () => clearInterval(cycle);
-  }, [isEmpty]);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <label
-        htmlFor="display_name"
-        style={{
-          fontSize: 13,
-          fontWeight: 500,
-          color: "var(--color-text-secondary)",
-        }}
-      >
-        Nom d&apos;affichage
-      </label>
-      <div style={{ position: "relative" }}>
-        <input
-          id="display_name"
-          name="display_name"
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          autoComplete="nickname"
-          className="nc-input"
-          aria-label="Nom d'affichage"
-        />
-        {isEmpty && (
-          <span
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: 14,
-              transform: "translateY(-50%)",
-              fontSize: 14,
-              color: "var(--color-text-muted)",
-              opacity: visible ? 0.75 : 0,
-              transition: "opacity 240ms ease",
-              pointerEvents: "none",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              maxWidth: "calc(100% - 28px)",
-            }}
-          >
-            {DISPLAY_NAME_PLACEHOLDERS[index]}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
+// OPS-46 / OPS-47 — AnimatedDisplayNameField + DISPLAY_NAME_PLACEHOLDERS
+// retirés. Le nom d'affichage vit désormais dans ProfileHero (inline-edit
+// dans la pill blanche chevauchant la photo) plutôt que dans ce
+// formulaire. Voir EditableDisplayName dans ProfileHero.tsx.
+// → OPS-46 (retrait du placeholder "Si tu devais te présenter en un
+//   mot ?") est de facto livré par cette suppression : tout le cycle de
+//   placeholders n'existe plus.
 
 // ============================================================================
 // UsernameField — input avec préfixe "@" et helper text dédié
@@ -563,9 +482,16 @@ function UsernameField({
         >
           @
         </span>
+        {/* OPS-56 — neutralise l'auto-fill du gestionnaire de mots de passe
+            OS (Apple Passwords, 1Password, LastPass, Dashlane…). Sans ces
+            attributs, Apple Passwords détectait le champ comme un email
+            (à cause d'autoComplete="username") et proposait de remplir.
+            Combo qui marche en pratique : autoComplete="off" + name non
+            standard ("nc-handle") + data-1p-ignore + data-lpignore +
+            data-form-type="other" (Dashlane). */}
         <input
           id="username"
-          name="username"
+          name="nc-handle"
           type="text"
           value={value}
           onChange={(e) => {
@@ -577,13 +503,17 @@ function UsernameField({
             onChange(filtered);
           }}
           onBlur={onBlur}
-          autoComplete="username"
+          autoComplete="off"
           autoCapitalize="none"
+          autoCorrect="off"
           spellCheck={false}
           maxLength={30}
           placeholder="ton-username"
           aria-invalid={error ? true : undefined}
           className="nc-input"
+          data-1p-ignore="true"
+          data-lpignore="true"
+          data-form-type="other"
           style={{
             paddingLeft: 30,
             borderColor: error ? "var(--color-brand)" : undefined,
