@@ -132,15 +132,14 @@ function renderBlock(block: ContentBlock, idx: number) {
 
 export default async function ResourceDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const resource = getResourceBySlug(slug);
+  const resource = await getResourceBySlug(slug);
 
   if (!resource) {
     notFound();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const hasAccess = canAccess(mockCurrentUser.capability, resource!.visibilite);
-  const relatedResources = getRelatedResources(resource.relatedSlugs ?? []);
+  const hasAccess = canAccess(mockCurrentUser.capability, resource.visibilite);
+  const relatedResources = getRelatedResources();
 
   return (
     <>
@@ -158,7 +157,9 @@ export default async function ResourceDetailPage({ params }: PageProps) {
               <div style={{ marginBottom: 32 }}>
                 <ResourceBreadcrumb
                   items={[
-                    { label: resource.type, href: `/ressources?type=${encodeURIComponent(resource.type)}` },
+                    ...(resource.type[0]
+                      ? [{ label: resource.type[0], href: `/ressources?type=${encodeURIComponent(resource.type[0])}` }]
+                      : []),
                     { label: resource.titre },
                   ]}
                 />
@@ -209,8 +210,12 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <ResourceBadge variant="ressource" label="Ressource" />
-                  <ResourceBadge variant="formation" label={resource.formation} />
-                  <ResourceBadge variant="type" label={resource.type} />
+                  {resource.formation.map((f) => (
+                    <ResourceBadge key={f} variant="formation" label={f} />
+                  ))}
+                  {resource.type.map((t) => (
+                    <ResourceBadge key={t} variant="type" label={t} />
+                  ))}
                 </div>
 
                 {/* Séparateur */}

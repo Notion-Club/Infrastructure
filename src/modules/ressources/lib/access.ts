@@ -7,6 +7,7 @@ const CAPABILITY_RANK: Record<UserCapability, number> = {
 };
 
 const VISIBILITY_RANK: Record<ResourceVisibility, number> = {
+  Publique: -1,
   'Challenge Gratuit': 0,
   Formation: 1,
   Accompagnement: 2,

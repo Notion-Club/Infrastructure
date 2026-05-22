@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // package-lock.json plus haut dans l'arbo iCloud, cf. warning au build).
   // process.cwd() est universel (CJS + ESM, local + Vercel) ; __dirname
   // n'existe pas en ESM, ce qui plantait next.config.ts à l'exécution.
+  // Note OPS-63 : ce commentaire a été touché pour invalider le cache Vercel
+  // après la migration ressources mock → Notion live.
   turbopack: {
     root: process.cwd(),
   },
@@ -26,13 +28,38 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Headers PWA :
+  //   • `/sw.js` ne doit JAMAIS être servi depuis un cache (browser ou edge)
+  //     sinon une nouvelle version du SW peut mettre des heures à se
+  //     propager après un déploiement Vercel.
+  //   • Le `Service-Worker-Allowed: /` n'est pas strictement nécessaire
+  //     (le SW est servi depuis la racine) mais le rend explicite — utile
+  //     si on déplace le fichier plus tard.
+  //   • `/manifest.webmanifest` peut être mis en cache court pour réduire
+  //     la charge sans bloquer les itérations sur le manifest.
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, must-revalidate",
+          },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      {
+        source: "/manifest.webmanifest",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600, must-revalidate",
+          },
+        ],
+      },
+    ];
+  },
 };
-
-// Note PWA : les headers HTTP critiques (`Cache-Control` no-cache sur
-// `/sw.js`, `Service-Worker-Allowed: /`, cache court sur le manifest)
-// vivent dans `vercel.json` à la racine du repo. Une définition via
-// `async headers()` ici cassait l'étape "Applying modifyConfig from
-// Vercel" sur Next 16.2 + Vercel CLI 54 (cf. PR #62, déploiement du
-// 2026-05-22).
 
 export default nextConfig;

@@ -27,14 +27,14 @@ function formatDate(iso: string): string {
 
 export default async function TemplateDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const template = getTemplateBySlug(slug);
+  const template = await getTemplateBySlug(slug);
 
   if (!template) {
     notFound();
   }
 
   const hasAccess = canAccess(mockCurrentUser.capability, template.visibilite);
-  const relatedTemplates = getRelatedTemplates(template.relatedSlugs ?? []);
+  const relatedTemplates = getRelatedTemplates();
 
   return (
     <>
