@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Camera, LoaderCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Camera, LoaderCircle, Pencil } from "lucide-react";
 
 import { DEFAULT_AVATAR_COLOR } from "@/modules/settings";
 import { AvatarPicker } from "./AvatarPicker";
@@ -41,13 +41,21 @@ function getInitials(
 // chevauchement contrôlé).
 const AVATAR_SIZE = 124;
 const BADGE_SIZE = 40;
-// PILL_WIDTH = 360 → contient confortablement le plus long placeholder
-// "Ton prénom, ton pseudo… c'est toi qui choisis" à 13px / 600 (≈ 295 px
-// de glyphes), avec marge pour le padding gauche/droit.
-const PILL_WIDTH = 360;
 const PILL_HEIGHT = 40;
 const PILL_OVERLAP = 6;
 const PILL_FONT_SIZE = 13;
+const PILL_PADDING_LEFT = 22;
+// Padding-right plus large pour réserver la place du crayon brand en
+// position absolute au coin droit (sans qu'il chevauche le texte).
+const PILL_PADDING_RIGHT = 36;
+// Bornes utilisées en mode "filled" (nom utilisateur affiché) ; en
+// mode "empty" (placeholder cyclant), la largeur est animée entre les
+// 3 valeurs mesurées via le keyframe nc-pill-width-cycle.
+const PILL_MIN_WIDTH = 200;
+const PILL_MAX_WIDTH = 380;
+// Largeur fallback utilisée avant la mesure JS (1er paint / SSR) et
+// pour le mode édition. Cohérente avec les fallbacks dans globals.css.
+const PILL_FALLBACK_WIDTH = 320;
 
 type ProfileHeroProps = {
   avatarUrl: string | null;
@@ -343,32 +351,21 @@ function PlaceholderCycle() {
 }
 
 // ============================================================================
-// EditableDisplayName — pill de taille fixe (PILL_WIDTH × PILL_HEIGHT)
-// qui chevauche le bas de l'avatar via marginTop négatif.
+// EditableDisplayName — pill qui chevauche le bas de l'avatar.
 //
-// Choix de design (OPS-62 v3) :
-//   - Largeur FIXE (320 px) → le cycle de placeholders ne déclenche
-//     plus aucun redimensionnement, transition parfaitement smooth.
-//   - Pas de crayon visible : pas de "2e colonne" qui décale le texte ;
-//     l'affordance d'édition est portée par le hover (background passe
-//     à `--color-surface-raised`) + le curseur pointer.
-//   - Padding-right légèrement plus grand que padding-left
-//     (PILL_TEXT_PADDING_RIGHT vs PILL_TEXT_PADDING_LEFT) pour laisser
-//     un "rest visuel" sous le badge caméra qui flotte par-dessus le
-//     coin supérieur droit de la pill — le texte ne tombera jamais
-//     sous le badge ni horizontalement ni verticalement.
-//   - Police 13 px / weight 600 (cohérent avec les boutons du DS).
-//   - z-index 2 → chevauche l'avatar (z-index 1) mais reste sous le
-//     badge caméra (z-index 3).
+// Trois modes :
+//   - empty   : 3 placeholders cyclent en slot-machine + la LARGEUR de
+//               la pill est animée en parallèle pour épouser chaque
+//               message (largeurs mesurées en JS, animation CSS sync).
+//   - filled  : nom utilisateur affiché, pill en `fit-content` avec min/max.
+//   - editing : input centré, largeur fallback fixe.
+//
+// Toujours visible : un crayon brand color au coin droit, position
+// absolute (hors flow flex) → ne décale plus le centrage du texte.
 //
 // Sync de la valeur upstream : `key={value}` côté parent → remount au
 // lieu d'un useEffect + setState (anti-pattern React 19).
 // ============================================================================
-
-// Padding asymétrique : un peu plus à droite pour ne pas que le texte
-// passe trop près de la zone où le badge caméra dépasse par-dessus.
-const PILL_TEXT_PADDING_LEFT = 22;
-const PILL_TEXT_PADDING_RIGHT = 32;
 
 function EditableDisplayName({
   value,
@@ -380,6 +377,43 @@ function EditableDisplayName({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [busy, setBusy] = useState(false);
+
+  // Mesure JS des largeurs des 3 placeholders pour piloter le keyframe
+  // nc-pill-width-cycle (via les CSS vars --nc-pill-w-1/2/3). On attend
+  // explicitement `document.fonts.ready` parce que SF Pro Display est
+  // self-hostée → si on mesure avec la font système fallback, les
+  // largeurs sont 5-10% différentes et la pill jump quand la vraie
+  // font arrive.
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [pillVars, setPillVars] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    let cancelled = false;
+
+    function measure() {
+      if (cancelled || !measureRef.current) return;
+      const items =
+        measureRef.current.querySelectorAll<HTMLSpanElement>("[data-pw]");
+      if (items.length !== PLACEHOLDERS.length) return;
+      const next: Record<string, string> = {};
+      items.forEach((el, i) => {
+        const textW = Math.ceil(el.getBoundingClientRect().width);
+        const pillW = textW + PILL_PADDING_LEFT + PILL_PADDING_RIGHT;
+        next[`--nc-pill-w-${i + 1}`] = `${pillW}px`;
+      });
+      setPillVars(next);
+    }
+
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(measure);
+    } else {
+      measure();
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function commit() {
     const trimmed = draft.trim();
@@ -406,14 +440,38 @@ function EditableDisplayName({
     setEditing(false);
   }
 
-  // Wrapper de TAILLE FIXE — c'est le levier principal qui fixe le
-  // problème de saccade : la pill ne se redimensionne JAMAIS pendant
-  // le cycle de placeholders, le crossfade reste smooth.
+  // Mesure cachée des 3 placeholders avec exactement la même typo que
+  // la pill (même fontSize/weight/letter-spacing). Position off-screen
+  // pour ne pas affecter la mise en page ni l'accessibilité.
+  const measurementSpans = (
+    <span
+      ref={measureRef}
+      aria-hidden
+      style={{
+        position: "absolute",
+        visibility: "hidden",
+        pointerEvents: "none",
+        top: -9999,
+        left: -9999,
+        fontSize: PILL_FONT_SIZE,
+        fontWeight: 600,
+        letterSpacing: "-0.01em",
+        fontFamily: "inherit",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {PLACEHOLDERS.map((t, i) => (
+        <span key={i} data-pw style={{ display: "block" }}>
+          {t}
+        </span>
+      ))}
+    </span>
+  );
+
   const wrapperBase: React.CSSProperties = {
     position: "relative",
     marginTop: -PILL_OVERLAP,
     zIndex: 2,
-    width: PILL_WIDTH,
     height: PILL_HEIGHT,
     display: "flex",
     alignItems: "center",
@@ -422,105 +480,151 @@ function EditableDisplayName({
 
   if (editing) {
     return (
-      <div style={wrapperBase}>
-        <input
-          autoFocus
-          type="text"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-            if (e.key === "Escape") cancel();
-          }}
-          disabled={busy}
-          maxLength={60}
-          placeholder={PLACEHOLDERS[0]}
-          aria-label="Nom d'affichage"
-          style={{
-            width: "100%",
-            height: "100%",
-            fontSize: PILL_FONT_SIZE,
-            fontWeight: 600,
-            letterSpacing: "-0.01em",
-            color: "var(--color-text-primary)",
-            background: "white",
-            border: "1px solid var(--color-brand)",
-            borderRadius: 9999,
-            padding: `0 ${PILL_TEXT_PADDING_RIGHT}px 0 ${PILL_TEXT_PADDING_LEFT}px`,
-            textAlign: "center",
-            outline: "none",
-            boxShadow:
-              "0 0 0 3px rgba(224, 98, 90, 0.15), var(--nc-shadow-3)",
-            fontFamily: "inherit",
-          }}
-        />
-        {busy && (
-          <LoaderCircle
-            size={14}
-            className="animate-spin"
+      <>
+        {measurementSpans}
+        <div style={{ ...wrapperBase, width: PILL_FALLBACK_WIDTH }}>
+          <input
+            autoFocus
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              if (e.key === "Escape") cancel();
+            }}
+            disabled={busy}
+            maxLength={60}
+            placeholder={PLACEHOLDERS[0]}
+            aria-label="Nom d'affichage"
             style={{
-              position: "absolute",
-              right: 12,
-              top: "50%",
-              transform: "translateY(-50%)",
-              color: "var(--color-text-muted)",
-              pointerEvents: "none",
+              width: "100%",
+              height: "100%",
+              fontSize: PILL_FONT_SIZE,
+              fontWeight: 600,
+              letterSpacing: "-0.01em",
+              color: "var(--color-text-primary)",
+              background: "white",
+              border: "1px solid var(--color-brand)",
+              borderRadius: 9999,
+              padding: `0 ${PILL_PADDING_RIGHT}px 0 ${PILL_PADDING_LEFT}px`,
+              textAlign: "center",
+              outline: "none",
+              boxShadow:
+                "0 0 0 3px rgba(224, 98, 90, 0.15), var(--nc-shadow-3)",
+              fontFamily: "inherit",
             }}
           />
-        )}
-      </div>
+          {busy && (
+            <LoaderCircle
+              size={14}
+              className="animate-spin"
+              style={{
+                position: "absolute",
+                right: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--color-text-muted)",
+                pointerEvents: "none",
+              }}
+            />
+          )}
+        </div>
+      </>
     );
   }
 
   const display = value.trim();
   const isEmpty = display.length === 0;
 
+  // Largeur de la pill :
+  //   - empty   : la classe `nc-pill-width-cycle` pilote la width via
+  //               les vars --nc-pill-w-1/2/3 (animation CSS 9 s, en
+  //               phase parfaite avec nc-placeholder-scroll).
+  //   - filled  : fit-content (la pill épouse le nom), bornée par
+  //               PILL_MIN_WIDTH / PILL_MAX_WIDTH.
+  // Une transition CSS `width 350ms` couvre les changements de mode
+  // (empty ↔ filled) pour rester smooth.
+  const widthStyle: React.CSSProperties = isEmpty
+    ? {}
+    : {
+        width: "fit-content",
+        minWidth: PILL_MIN_WIDTH,
+        maxWidth: PILL_MAX_WIDTH,
+      };
+
   return (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
-      aria-label={
-        isEmpty ? "Ajouter un nom d'affichage" : "Modifier le nom d'affichage"
-      }
-      className="hover:bg-[var(--color-surface-raised)] focus-visible:bg-[var(--color-surface-raised)]"
-      style={{
-        ...wrapperBase,
-        background: "white",
-        border: "1px solid var(--color-border-default)",
-        borderRadius: 9999,
-        cursor: "pointer",
-        color: isEmpty
-          ? "var(--color-text-muted)"
-          : "var(--color-text-primary)",
-        fontSize: PILL_FONT_SIZE,
-        fontWeight: 600,
-        letterSpacing: "-0.01em",
-        fontStyle: isEmpty ? "italic" : "normal",
-        outline: "none",
-        // var(--nc-shadow-3) — ombre du design system pour rester cohérent
-        // avec les autres cards/pills du dashboard.
-        boxShadow: "var(--nc-shadow-3)",
-        transition: "background 150ms ease, box-shadow 150ms ease",
-        padding: `0 ${PILL_TEXT_PADDING_RIGHT}px 0 ${PILL_TEXT_PADDING_LEFT}px`,
-      }}
-    >
-      {isEmpty ? (
-        <PlaceholderCycle />
-      ) : (
-        <span
+    <>
+      {measurementSpans}
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        aria-label={
+          isEmpty ? "Ajouter un nom d'affichage" : "Modifier le nom d'affichage"
+        }
+        className={`hover:bg-[var(--color-surface-raised)] focus-visible:bg-[var(--color-surface-raised)] ${
+          isEmpty ? "nc-pill-width-cycle" : ""
+        }`}
+        style={{
+          ...wrapperBase,
+          ...pillVars,
+          ...widthStyle,
+          background: "white",
+          border: "1px solid var(--color-border-default)",
+          borderRadius: 9999,
+          cursor: "pointer",
+          color: isEmpty
+            ? "var(--color-text-muted)"
+            : "var(--color-text-primary)",
+          fontSize: PILL_FONT_SIZE,
+          fontWeight: 600,
+          letterSpacing: "-0.01em",
+          fontStyle: isEmpty ? "italic" : "normal",
+          outline: "none",
+          boxShadow: "var(--nc-shadow-3)",
+          transition:
+            "background 150ms ease, box-shadow 150ms ease, width 350ms cubic-bezier(0.76, 0, 0.24, 1)",
+          padding: `0 ${PILL_PADDING_RIGHT}px 0 ${PILL_PADDING_LEFT}px`,
+        }}
+      >
+        {isEmpty ? (
+          <PlaceholderCycle />
+        ) : (
+          <span
+            style={{
+              flex: 1,
+              textAlign: "center",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              minWidth: 0,
+            }}
+          >
+            {display}
+          </span>
+        )}
+        {/*
+          Crayon signature brand color au coin droit. Position absolute
+          (hors flow flex) → ne décale jamais le centrage du texte (c'est
+          le bug originel de la v2 que je corrige enfin proprement).
+          pointer-events: none → le click reste capté par le <button>
+          parent, pas d'interception bizarre.
+        */}
+        <Pencil
+          size={13}
+          strokeWidth={2.5}
+          aria-hidden
           style={{
-            flex: 1,
-            textAlign: "center",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            minWidth: 0,
+            position: "absolute",
+            right: 14,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "var(--color-brand)",
+            pointerEvents: "none",
+            flexShrink: 0,
           }}
-        >
-          {display}
-        </span>
-      )}
-    </button>
+        />
+      </button>
+    </>
   );
 }

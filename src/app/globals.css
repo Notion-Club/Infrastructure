@@ -190,9 +190,48 @@ html {
   animation: nc-placeholder-scroll 9s cubic-bezier(0.76, 0, 0.24, 1) infinite;
 }
 
+/*
+ * Animation de redimensionnement de la pill — STRICTEMENT synchronisée
+ * avec nc-placeholder-scroll : mêmes breakpoints %, même durée 9 s, même
+ * courbe d'easing. La largeur passe progressivement de --nc-pill-w-1 →
+ * --nc-pill-w-2 → --nc-pill-w-3 → --nc-pill-w-1 (loop) au rythme exact
+ * où le slot-machine affiche chaque placeholder, donc la pill épouse
+ * toujours le texte visible.
+ *
+ * Les 3 variables --nc-pill-w-N sont injectées en JS depuis
+ * EditableDisplayName, qui mesure la largeur réelle de chaque
+ * placeholder une fois la font chargée. Fallbacks raisonnables ici en
+ * cas de SSR / pas-encore-mesuré.
+ */
+@keyframes nc-pill-width-cycle {
+  0%,
+  27% {
+    width: var(--nc-pill-w-1, 320px);
+  }
+  33%,
+  60% {
+    width: var(--nc-pill-w-2, 360px);
+  }
+  67%,
+  93% {
+    width: var(--nc-pill-w-3, 340px);
+  }
+  100% {
+    width: var(--nc-pill-w-1, 320px);
+  }
+}
+
+.nc-pill-width-cycle {
+  animation: nc-pill-width-cycle 9s cubic-bezier(0.76, 0, 0.24, 1) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .nc-placeholder-scroll {
+  .nc-placeholder-scroll,
+  .nc-pill-width-cycle {
     animation: none;
+  }
+  .nc-pill-width-cycle {
+    width: var(--nc-pill-w-1, 320px);
   }
 }
 
