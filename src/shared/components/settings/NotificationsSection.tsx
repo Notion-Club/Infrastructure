@@ -13,27 +13,25 @@ import {
   type NotificationChannel,
   type NotificationSettings,
 } from "@/modules/settings";
-import { SettingsCard, SettingsDivider } from "./SettingsCard";
+import { SettingsCard } from "./SettingsCard";
 import type { UserOffer } from "./types";
 
-// OPS-53 — Redesign de la section Notifications :
-// 1. Canaux en row horizontale (3 "cards" Mail / InApp / WhatsApp avec
-//    icône + label + iOS switcher), même langage visuel que le segmented
-//    pill du community-page (feed / messages privés).
-// 2. Types de notifications en table moderne : rows = catégories,
-//    cols = canaux. Chaque cellule = mini switch. Si le canal est OFF
-//    au-dessus, sa colonne est grisée + disabled.
+// OPS-53 v2 — Une SEULE matrix intégrée, plus de section "Canaux" séparée.
+// Le header de chaque colonne canal est un BOUTON cliquable (icône + label
+// empilés verticalement) avec fond brand red quand le canal est activé.
+// Click sur le header = toggle ON/OFF de toute la colonne, équivalent à
+// l'ancien switcher de canal.
+//
+// Layout grid `minmax(0,1fr) repeat(3, 56px)` → tout tient inline sur
+// mobile, plus de scroll horizontal. Les labels de type wrappent sur
+// 2 lignes au besoin sur les viewports étroits, ce qui reste lisible.
 
 type Category = {
   key: NotificationCategory;
   label: string;
-  description?: string;
   requiresOffer?: UserOffer;
 };
 
-// L'ordre + les libellés UI vivent côté composant. Les valeurs autorisées
-// (clés) viennent de @/modules/settings — source unique de vérité partagée
-// avec le schema zod et les `check` côté DB.
 const CATEGORIES: Category[] = [
   { key: "new_modules", label: "Nouveaux modules disponibles" },
   { key: "formation_reminders", label: "Rappels de formation" },
@@ -52,9 +50,6 @@ type ChannelMeta = {
   Icon: typeof Mail;
 };
 
-// Cf. brief OPS-53 : "Mail (icône mail), InApp (logo InApp), WhatsApp".
-// Pas de SVG WhatsApp officiel dans lucide → MessageCircle (chat rond)
-// est l'approximation la plus lisible.
 const CHANNELS: ChannelMeta[] = [
   { key: "email", label: "Mail", Icon: Mail },
   { key: "in_app", label: "InApp", Icon: Bell },
@@ -78,8 +73,6 @@ function buildDefaults(): NotificationSettings {
 type NotificationsSectionProps = {
   userOffer: UserOffer;
   isMocked: boolean;
-  // null = mode démo / user non auth (le Server Component n'a pas pu fetch).
-  // undefined ne devrait jamais arriver — typage défensif uniquement.
   initialSettings: NotificationSettings | null;
 };
 
@@ -159,17 +152,14 @@ export function NotificationsSection({
   return (
     <SettingsCard
       title="Notifications"
-      description="Choisissez les canaux et les types de notifications que vous souhaitez recevoir."
+      description="Cliquez sur un canal en-tête pour activer/désactiver toutes ses notifications, ou utilisez les switches pour ajuster chaque type."
     >
-      <ChannelsRow channels={channels} onToggle={toggleChannel} />
-
-      <SettingsDivider />
-
-      <TypesMatrix
+      <NotificationsMatrix
         categories={visibleCategories}
         channels={channels}
         prefs={prefs}
-        onToggle={togglePref}
+        onToggleChannel={toggleChannel}
+        onTogglePref={togglePref}
       />
 
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -203,309 +193,226 @@ export function NotificationsSection({
 }
 
 // ============================================================================
-// ChannelsRow — rangée horizontale des 3 canaux (Mail / InApp / WhatsApp).
-// Inspirée du segmented pill du community-page (feed / messages) : surface
-// plate sur fond raised, cards blanches avec ombre douce quand le canal
-// est actif. Chaque card = icône + label + iOS switch.
+// NotificationsMatrix — table intégrée unique.
+//
+// Layout grid : `minmax(0, 1fr) repeat(3, 56px)` → la 1re colonne (Type)
+// prend la place restante en s'adaptant, les 3 colonnes canaux sont fixes
+// à 56 px. Avec ~ 320 px de contenu disponible dans une SettingsCard
+// mobile, ça donne 152 px pour les labels de type → les longs labels
+// wrappent sur 2 lignes proprement au lieu d'un scroll horizontal.
+//
+// Header :
+//   - Cellule (0,0) : petit label "Type" en uppercase muted.
+//   - Cellules (0,1..3) : ChannelHeaderButton (icône + label empilés
+//     verticalement). Click = toggle on/off de toute la colonne. Fond
+//     brand red + ombre quand actif, transparent + muted quand off.
+//
+// Body :
+//   - Cellule (i,0) : label du type, lineHeight 1.3 pour rester lisible
+//     même en cas de wrap sur 2 lignes.
+//   - Cellules (i,1..3) : mini SwitchToggle (size sm). Quand la colonne
+//     est OFF, opacity 0.4 + disabled.
 // ============================================================================
-function ChannelsRow({
-  channels,
-  onToggle,
-}: {
-  channels: ChannelMap;
-  onToggle: (ch: NotificationChannel) => void;
-}) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <h3
-        style={{
-          margin: 0,
-          fontSize: 14,
-          fontWeight: 600,
-          color: "var(--color-text-primary)",
-        }}
-      >
-        Canaux
-      </h3>
-      <p
-        style={{
-          margin: "0 0 8px",
-          fontSize: 12,
-          color: "var(--color-text-muted)",
-        }}
-      >
-        Désactiver un canal coupera toutes les notifications de ce type.
-      </p>
-
-      <div
-        role="group"
-        aria-label="Canaux de notification"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 8,
-          padding: 4,
-          background: "var(--color-surface-raised)",
-          borderRadius: 14,
-        }}
-      >
-        {CHANNELS.map(({ key, label, Icon }) => {
-          const active = channels[key];
-          return (
-            <div
-              key={key}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "10px 12px",
-                borderRadius: 10,
-                background: active ? "white" : "transparent",
-                boxShadow: active
-                  ? "0 1px 4px rgba(0,0,0,0.06), 0 0 0 0.5px rgba(0,0,0,0.06)"
-                  : "none",
-                transition:
-                  "background 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease)",
-                minWidth: 0,
-              }}
-            >
-              <Icon
-                size={18}
-                strokeWidth={2}
-                aria-hidden
-                style={{
-                  color: active
-                    ? "var(--color-brand)"
-                    : "var(--color-text-muted)",
-                  flexShrink: 0,
-                  transition: "color 200ms ease",
-                }}
-              />
-              <span
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: active
-                    ? "var(--color-text-primary)"
-                    : "var(--color-text-secondary)",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  transition: "color 200ms ease",
-                }}
-              >
-                {label}
-              </span>
-              <SwitchToggle
-                checked={active}
-                onChange={() => onToggle(key)}
-                ariaLabel={`Canal ${label}`}
-              />
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// TypesMatrix — table moderne : rows = types de notifications, cols =
-// canaux. Cellules = mini iOS switch. Header de col = icône du canal.
-// Si le canal est OFF, sa colonne entière est désaturée + disabled.
-// Overflow-x: auto pour la responsivité mobile.
-// ============================================================================
-function TypesMatrix({
+function NotificationsMatrix({
   categories,
   channels,
   prefs,
-  onToggle,
+  onToggleChannel,
+  onTogglePref,
 }: {
   categories: Category[];
   channels: ChannelMap;
   prefs: PreferenceMap;
-  onToggle: (cat: NotificationCategory, ch: NotificationChannel) => void;
+  onToggleChannel: (ch: NotificationChannel) => void;
+  onTogglePref: (cat: NotificationCategory, ch: NotificationChannel) => void;
 }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <h3
-        style={{
-          margin: 0,
-          fontSize: 14,
-          fontWeight: 600,
-          color: "var(--color-text-primary)",
-        }}
-      >
-        Types de notifications
-      </h3>
-      <p
-        style={{
-          margin: "0 0 4px",
-          fontSize: 12,
-          color: "var(--color-text-muted)",
-        }}
-      >
-        Pour chaque type, choisissez par quel canal vous souhaitez le recevoir.
-      </p>
+  const gridCols = "minmax(0, 1fr) repeat(3, 56px)";
 
+  return (
+    <div
+      role="table"
+      aria-label="Préférences de notification par type et canal"
+      style={{
+        borderRadius: 14,
+        border: "1px solid var(--color-border-default)",
+        background: "white",
+        boxShadow: "var(--nc-shadow-3)",
+        overflow: "hidden",
+      }}
+    >
+      {/* HEADER */}
       <div
+        role="row"
         style={{
-          // overflow-x pour permettre de scroller la table sur mobile sans
-          // déformer son layout interne (les colonnes de canaux sont
-          // alignées verticalement, on préfère scroller plutôt que wrapper).
-          overflowX: "auto",
-          borderRadius: 14,
-          border: "1px solid var(--color-border-default)",
-          background: "white",
-          boxShadow: "var(--nc-shadow-3)",
+          display: "grid",
+          gridTemplateColumns: gridCols,
+          gap: 4,
+          padding: 6,
+          background: "var(--color-surface-raised)",
+          borderBottom: "1px solid var(--color-border-default)",
+          alignItems: "stretch",
         }}
       >
-        <table
+        <div
+          role="columnheader"
           style={{
-            width: "100%",
-            minWidth: 380,
-            borderCollapse: "collapse",
-            tableLayout: "fixed",
+            display: "flex",
+            alignItems: "center",
+            padding: "0 12px",
+            fontSize: 11,
+            fontWeight: 600,
+            color: "var(--color-text-muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
           }}
         >
-          <thead>
-            <tr
-              style={{
-                background: "var(--color-surface-raised)",
-                borderBottom: "1px solid var(--color-border-default)",
-              }}
-            >
-              <th
-                scope="col"
-                style={{
-                  ...CELL_BASE_STYLE,
-                  textAlign: "left",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "var(--color-text-muted)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.04em",
-                  width: "auto",
-                }}
-              >
-                Type
-              </th>
-              {CHANNELS.map(({ key, label, Icon }) => {
-                const active = channels[key];
-                return (
-                  <th
-                    key={key}
-                    scope="col"
-                    style={{
-                      ...CELL_BASE_STYLE,
-                      width: 80,
-                      textAlign: "center",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "inline-flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: 2,
-                        color: active
-                          ? "var(--color-text-primary)"
-                          : "var(--color-text-muted)",
-                        opacity: active ? 1 : 0.55,
-                        transition: "opacity 200ms ease, color 200ms ease",
-                      }}
-                    >
-                      <Icon size={16} strokeWidth={2} aria-hidden />
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {label}
-                      </span>
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-
-          <tbody>
-            {categories.map((cat, i) => (
-              <tr
-                key={cat.key}
-                style={{
-                  borderBottom:
-                    i === categories.length - 1
-                      ? "none"
-                      : "1px solid var(--color-border-default)",
-                }}
-              >
-                <th
-                  scope="row"
-                  style={{
-                    ...CELL_BASE_STYLE,
-                    textAlign: "left",
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "var(--color-text-primary)",
-                    width: "auto",
-                  }}
-                >
-                  {cat.label}
-                </th>
-                {CHANNELS.map(({ key }) => {
-                  const channelOff = !channels[key];
-                  const checked = prefs[cat.key][key] && channels[key];
-                  return (
-                    <td
-                      key={key}
-                      style={{
-                        ...CELL_BASE_STYLE,
-                        textAlign: "center",
-                        width: 80,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: channelOff ? 0.4 : 1,
-                          transition: "opacity 200ms ease",
-                        }}
-                      >
-                        <SwitchToggle
-                          size="sm"
-                          checked={checked}
-                          disabled={channelOff}
-                          onChange={() => onToggle(cat.key, key)}
-                          ariaLabel={`${cat.label} via ${key}`}
-                        />
-                      </div>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          Type
+        </div>
+        {CHANNELS.map(({ key, label, Icon }) => (
+          <div key={key} role="columnheader">
+            <ChannelHeaderButton
+              label={label}
+              Icon={Icon}
+              active={channels[key]}
+              onClick={() => onToggleChannel(key)}
+            />
+          </div>
+        ))}
       </div>
+
+      {/* BODY */}
+      {categories.map((cat, i) => (
+        <div
+          key={cat.key}
+          role="row"
+          style={{
+            display: "grid",
+            gridTemplateColumns: gridCols,
+            gap: 4,
+            padding: 6,
+            borderBottom:
+              i === categories.length - 1
+                ? "none"
+                : "1px solid var(--color-border-default)",
+            alignItems: "center",
+          }}
+        >
+          <div
+            role="rowheader"
+            style={{
+              padding: "8px 12px",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "var(--color-text-primary)",
+              lineHeight: 1.3,
+              // Sur viewport étroit, les longs labels wrappent sur 2 lignes
+              // au lieu d'overflow → reste lisible sans scroll horizontal.
+              wordBreak: "normal",
+              overflowWrap: "break-word",
+            }}
+          >
+            {cat.label}
+          </div>
+          {CHANNELS.map(({ key, label: chLabel }) => {
+            const channelOff = !channels[key];
+            const checked = prefs[cat.key][key] && channels[key];
+            return (
+              <div
+                key={key}
+                role="cell"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 8,
+                  opacity: channelOff ? 0.4 : 1,
+                  transition: "opacity 200ms ease",
+                }}
+              >
+                <SwitchToggle
+                  size="sm"
+                  checked={checked}
+                  disabled={channelOff}
+                  onChange={() => onTogglePref(cat.key, key)}
+                  ariaLabel={`${cat.label} via ${chLabel}`}
+                />
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
 
-const CELL_BASE_STYLE: React.CSSProperties = {
-  padding: "12px 14px",
-  verticalAlign: "middle",
-};
+// ============================================================================
+// ChannelHeaderButton — bouton cliquable dans le header de la matrix.
+//   - Icône + label empilés verticalement (compact, tient en 56 px).
+//   - Fond brand red + ombre douce quand actif → l'utilisateur voit
+//     d'un coup d'œil quels canaux sont allumés.
+//   - Click = toggle de toute la colonne.
+//   - role="switch" pour qu'un lecteur d'écran annonce bien l'état.
+// ============================================================================
+function ChannelHeaderButton({
+  label,
+  Icon,
+  active,
+  onClick,
+}: {
+  label: string;
+  Icon: typeof Mail;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={active}
+      aria-label={`Canal ${label}`}
+      onClick={onClick}
+      style={{
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 3,
+        padding: "8px 4px",
+        borderRadius: 10,
+        border: "none",
+        background: active ? "var(--color-brand)" : "transparent",
+        color: active ? "white" : "var(--color-text-muted)",
+        cursor: "pointer",
+        transition:
+          "background 200ms var(--nc-ease), color 200ms ease, box-shadow 200ms ease",
+        boxShadow: active
+          ? "0 4px 14px -4px rgba(224, 98, 90, 0.55)"
+          : "none",
+        minHeight: 48,
+        outline: "none",
+        fontFamily: "inherit",
+      }}
+      className="hover:bg-[rgba(0,0,0,0.04)] focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+    >
+      <Icon size={16} strokeWidth={active ? 2.5 : 2} aria-hidden />
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: "-0.005em",
+        }}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
 
 // ============================================================================
-// SwitchToggle — iOS-like switch, brand-color quand activé. Deux tailles :
-// `md` (défaut, ligne canaux) et `sm` (cellules de la matrice).
+// SwitchToggle — iOS-like switch utilisé dans les cellules de la matrix.
+// Taille `sm` par défaut, `md` dispo pour de futurs usages. Brand color
+// quand activé, gris quand off, knob blanc avec transition left 200 ms.
 // ============================================================================
 function SwitchToggle({
   checked,
