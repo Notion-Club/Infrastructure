@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono } from "next/font/google";
 import { Toaster } from "@/shared/components/ui/sonner";
 import { ThemeProvider } from "@/shared/components/theme/ThemeProvider";
+import ServiceWorkerRegistrar from "@/shared/components/pwa/ServiceWorkerRegistrar";
 import { sfProDisplay } from "@/shared/lib/fonts";
 import "./globals.css";
 
@@ -10,9 +11,50 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// PWA — métadonnées consommées par les navigateurs pour proposer
+// l'installation (manifest) et par iOS Safari pour le mode standalone
+// (apple-mobile-web-app-*). Next génère automatiquement les link/meta tags
+// correspondants depuis ce bloc.
 export const metadata: Metadata = {
   title: "Notion Club",
   description: "Plateforme de delivery — Notion Club.",
+  manifest: "/manifest.webmanifest",
+  applicationName: "Notion Club",
+  appleWebApp: {
+    capable: true,
+    title: "Notion Club",
+    // "default" garde la status bar iOS lisible sur fond clair (#f5f2f2).
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  // Next 16 émet uniquement le tag standard `mobile-web-app-capable`. iOS
+  // 16 / 17 acceptent les deux mais préfèrent encore l'alias `apple-…` ;
+  // on ajoute l'ancien nom explicitement pour garantir le mode standalone
+  // sur tous les iPhone supportés.
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
+};
+
+// `viewport-fit=cover` est requis pour que les pages s'étendent sous
+// l'encoche iPhone — combiné aux `env(safe-area-inset-*)` déjà utilisés
+// dans MobileHeader / BottomNav. `themeColor` aligne la status bar iOS et
+// la barre Chrome Android sur la couleur de fond de page (#f5f2f2).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#f5f2f2",
 };
 
 // Inline script runs before paint to avoid a flash of incorrect theme.
@@ -36,6 +78,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col font-sans">
         <ThemeProvider>{children}</ThemeProvider>
         <Toaster />
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );

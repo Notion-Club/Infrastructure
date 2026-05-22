@@ -381,3 +381,34 @@ html {
     animation-delay: 0s !important;
   }
 }
+
+/* ---------- PWA / iOS standalone ---------- */
+/*
+ * Pas de surlignage bleu au tap sur iOS — l'app doit se comporter comme
+ * une application native une fois installée. `transparent` désactive le
+ * flash, l'effet `:active` reste contrôlé par chaque composant.
+ */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * Quand l'app est lancée depuis l'écran d'accueil (standalone), Safari
+ * coupe les contrôles de zoom. On désactive le `text-size-adjust`
+ * automatique pour que les tailles restent prévisibles dans ce mode.
+ */
+@media (display-mode: standalone) {
+  html,
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+    overscroll-behavior-y: none;
+  }
+  /* Les inputs / textarea doivent rester sélectionnables et copiables. */
+  input,
+  textarea,
+  [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
