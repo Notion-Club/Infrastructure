@@ -132,14 +132,15 @@ function renderBlock(block: ContentBlock, idx: number) {
 
 export default async function ResourceDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const resource = await getResourceBySlug(slug);
+  const resource = getResourceBySlug(slug);
 
   if (!resource) {
     notFound();
   }
 
-  const hasAccess = canAccess(mockCurrentUser.capability, resource.visibilite);
-  const relatedResources = getRelatedResources();
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const hasAccess = canAccess(mockCurrentUser.capability, resource!.visibilite);
+  const relatedResources = getRelatedResources(resource.relatedSlugs ?? []);
 
   return (
     <>
@@ -157,9 +158,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
               <div style={{ marginBottom: 32 }}>
                 <ResourceBreadcrumb
                   items={[
-                    ...(resource.type[0]
-                      ? [{ label: resource.type[0], href: `/ressources?type=${encodeURIComponent(resource.type[0])}` }]
-                      : []),
+                    { label: resource.type, href: `/ressources?type=${encodeURIComponent(resource.type)}` },
                     { label: resource.titre },
                   ]}
                 />
@@ -210,12 +209,8 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <ResourceBadge variant="ressource" label="Ressource" />
-                  {resource.formation.map((f) => (
-                    <ResourceBadge key={f} variant="formation" label={f} />
-                  ))}
-                  {resource.type.map((t) => (
-                    <ResourceBadge key={t} variant="type" label={t} />
-                  ))}
+                  <ResourceBadge variant="formation" label={resource.formation} />
+                  <ResourceBadge variant="type" label={resource.type} />
                 </div>
 
                 {/* Séparateur */}

@@ -6,8 +6,8 @@ import { ResourcesGrid } from '@/modules/ressources/components/ResourcesGrid';
 import { getAllResourceItems } from '@/modules/ressources/lib/fetch';
 import { GradualBlurOverlay } from '@/shared/components/GradualBlurOverlay';
 
-export default async function RessourcesPage() {
-  const items = await getAllResourceItems();
+export default function RessourcesPage() {
+  const items = getAllResourceItems();
 
   return (
     <>

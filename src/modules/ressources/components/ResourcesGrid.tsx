@@ -19,7 +19,6 @@ const METIER_TYPES: ResourceMetierType[] = [
   'Acquisition',
   'Sales',
   'Business',
-  'Rediffusion de Live',
 ];
 
 interface ResourcesGridProps {
@@ -75,8 +74,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     if (primaryFilter === 'Ressources' && item.category !== 'resource') return false;
     if (primaryFilter === 'Templates' && item.category !== 'template') return false;
     if (selectedTypes.size > 0 && item.category === 'resource') {
-      const hasMatchingType = item.type.some((t) => selectedTypes.has(t));
-      if (!hasMatchingType) return false;
+      if (!selectedTypes.has(item.type)) return false;
     }
     return true;
   });

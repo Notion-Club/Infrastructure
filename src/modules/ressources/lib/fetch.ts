@@ -1,38 +1,28 @@
-// Server-side data access for Ressources & Templates.
-// Branchements: Notion API via `./notion.ts`. The Server Components consuming
-// these functions (page index + detail pages) re-render via Next.js ISR
-// (revalidate 60s on each fetch).
-
-import {
-  fetchResources,
-  fetchTemplates,
-  fetchResourceBySlug,
-  fetchTemplateBySlug,
-} from './notion';
+import { mockResources, mockTemplates, mockResourceItems } from './mock-data';
 import type { Resource, Template, ResourceItem } from '../types';
 
-export async function getAllResourceItems(): Promise<ResourceItem[]> {
-  const [resources, templates] = await Promise.all([fetchResources(), fetchTemplates()]);
-  return [...resources, ...templates].sort(
-    (a, b) => new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime(),
-  );
+export function getAllResourceItems(): ResourceItem[] {
+  return mockResourceItems;
 }
 
-export async function getResourceBySlug(slug: string): Promise<Resource | null> {
-  return fetchResourceBySlug(slug);
+export function getResourceBySlug(slug: string): Resource | undefined {
+  return mockResources.find((r) => r.slug === slug);
 }
 
-export async function getTemplateBySlug(slug: string): Promise<Template | null> {
-  return fetchTemplateBySlug(slug);
+export function getTemplateBySlug(slug: string): Template | undefined {
+  return mockTemplates.find((t) => t.slug === slug);
 }
 
-// Phase 2: "ressources liées" — pas de propriété Relation sur les bases Notion
-// actuelles. Pour cette PR, on renvoie systématiquement une liste vide ; la
-// section "Ces ressources peuvent aussi t'intéresser" disparaît automatiquement
-// dans `ResourcePageFooter` / `TemplatePageFooter` quand le tableau est vide.
-export function getRelatedResources(): Resource[] {
-  return [];
+// TODO(backend): remplacer par Supabase .from('resources').select().in('slug', slugs)
+// La colonne attendue : resources.related_resource_ids uuid[]
+export function getRelatedResources(slugs: string[]): Resource[] {
+  if (!slugs.length) return [];
+  return mockResources.filter((r) => slugs.includes(r.slug));
 }
-export function getRelatedTemplates(): Template[] {
-  return [];
+
+// TODO(backend): remplacer par Supabase .from('templates').select().in('slug', slugs)
+// La colonne attendue : templates.related_template_ids uuid[]
+export function getRelatedTemplates(slugs: string[]): Template[] {
+  if (!slugs.length) return [];
+  return mockTemplates.filter((t) => slugs.includes(t.slug));
 }

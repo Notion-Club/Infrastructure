@@ -1,16 +1,10 @@
 export type ResourceCategory = 'resource' | 'template';
 export type ResourceFormation = 'Notion Business' | 'Notion Architecte';
-export type ResourceMetierType =
-  | 'Relation Client'
-  | 'Production'
-  | 'Acquisition'
-  | 'Sales'
-  | 'Business'
-  | 'Rediffusion de Live';
-export type TemplateType = 'Pour les Consultants Notion' | 'Système Généraliste';
+export type ResourceMetierType = 'Relation Client' | 'Production' | 'Acquisition' | 'Sales' | 'Business';
+export type TemplateType = 'Pour les consultants Notion' | 'Système Généraliste';
 
 export type UserCapability = 'challenge' | 'formation' | 'accompagnement';
-export type ResourceVisibility = 'Publique' | 'Challenge Gratuit' | 'Formation' | 'Accompagnement';
+export type ResourceVisibility = 'Challenge Gratuit' | 'Formation' | 'Accompagnement';
 
 export type ContentBlock =
   | { type: 'paragraph'; text: string }
@@ -21,15 +15,17 @@ export type ContentBlock =
 
 export interface Resource {
   category: 'resource';
-  /** ID Notion 32 chars sans tirets — sert d'URL slug. */
   slug: string;
   titre: string;
   description: string;
-  formation: ResourceFormation[];
-  type: ResourceMetierType[];
+  formation: ResourceFormation;
+  type: ResourceMetierType;
   visibilite: ResourceVisibility;
   dateCreation: string;
   content: ContentBlock[];
+  // Slugs des ressources liées — relation Notion self-referencing.
+  // TODO(backend): alimenter depuis resources.related_resource_ids uuid[] en Supabase.
+  relatedSlugs?: string[];
 }
 
 export interface Template {
@@ -42,6 +38,9 @@ export interface Template {
   urlNotionPublicPage: string;
   urlTella?: string;
   dateCreation: string;
+  // Slugs des templates liés — relation Notion self-referencing.
+  // TODO(backend): alimenter depuis templates.related_template_ids uuid[] en Supabase.
+  relatedSlugs?: string[];
 }
 
 export type ResourceItem = Resource | Template;
