@@ -25,7 +25,13 @@ export function BottomNav() {
       aria-label="Navigation principale"
       style={{
         position: "fixed",
-        bottom: 10,
+        // En mode standalone iOS, env(safe-area-inset-bottom) vaut ~34px ;
+        // on pousse la pill au-dessus de la barre Home en jouant sur `bottom`
+        // plutôt que sur un padding intérieur (sinon `box-sizing: border-box`
+        // de Tailwind v4 réduit la content-box du nav et les boutons flex se
+        // recentrent dans une zone plus petite que l'encadré blanc visible —
+        // d'où un décalage vertical entre la pill et les boutons).
+        bottom: "calc(10px + env(safe-area-inset-bottom))",
         left: 12,
         right: 12,
         height: 56,
@@ -39,7 +45,6 @@ export function BottomNav() {
         display: "flex",
         alignItems: "center",
         padding: "0 6px",
-        paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
       {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
