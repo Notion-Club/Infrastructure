@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Camera, LoaderCircle, Pencil } from "lucide-react";
 
 import { DEFAULT_AVATAR_COLOR } from "@/modules/settings";
@@ -76,7 +76,11 @@ export function ProfileHero({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 14,
+        // OPS-62 — gap réduit à 0 entre l'avatar et la pill du nom :
+        // la pill est ensuite tirée vers le haut via marginTop négatif
+        // pour chevaucher le bas de l'avatar. Le bouton "Modifier l'avatar"
+        // récupère son propre espacement via marginTop.
+        gap: 0,
         padding: "8px 0 12px",
       }}
     >
@@ -163,6 +167,10 @@ export function ProfileHero({
       </button>
 
       <EditableDisplayName
+        // key sur la valeur upstream → remount propre quand un autre onglet
+        // / un revert optimistic modifie le profil. Évite un useEffect +
+        // setState (cf. commentaire dans EditableDisplayName).
+        key={displayName ?? ""}
         value={displayName ?? ""}
         onSave={onDisplayNameSave}
       />
@@ -174,6 +182,7 @@ export function ProfileHero({
         type="button"
         onClick={() => setPickerOpen(true)}
         style={{
+          marginTop: 14,
           padding: "6px 14px",
           borderRadius: 9999,
           border: "1px solid var(--color-border-default)",
@@ -209,13 +218,29 @@ export function ProfileHero({
 }
 
 // ============================================================================
-// EditableDisplayName — affiche le nom d'affichage sous l'avatar (OPS-47).
-// État par défaut : bouton qui mime un H1 + icône pencil au hover.
-// Clic → input du même style en focus immédiat ; Entrée / blur enregistre,
+// EditableDisplayName — pill nom d'affichage chevauchant le bas de l'avatar
+// (OPS-62). État par défaut : bouton-pill blanc avec icône pencil au hover.
+// Clic → input du même gabarit en focus immédiat ; Entrée / blur enregistre,
 // Échap annule. Optimistic update côté parent ; les erreurs réseau sont
 // gérées par le parent via toast (on relève juste l'exception ici pour ne
 // pas masquer l'erreur visuelle).
+//
+// Spécifications visuelles OPS-62 :
+//   - fond blanc, bord arrondi (radius pill 9999),
+//   - bordure fine + shadow douce pour démarquer la pill sur le halo,
+//   - chevauche le bas de l'avatar via marginTop négatif,
+//   - taille de police adaptée (15px) pour rester proportionné à la pill
+//     (l'ancien 22px débordait la pill quand le nom était long),
+//   - zIndex au-dessus du badge caméra du bouton avatar.
+//
+// Note implémentation : on utilise `key={value}` au niveau du composant
+// parent (via la prop `value`) pour re-synchroniser le draft quand la
+// valeur upstream change. Cela évite un useEffect + setState (anti-pattern
+// React 19 — cf. "you might not need an effect").
 // ============================================================================
+const PILL_FONT_SIZE = 15;
+const PILL_OVERLAP = 18; // px de chevauchement avec le bas de l'avatar
+
 function EditableDisplayName({
   value,
   onSave,
@@ -223,15 +248,12 @@ function EditableDisplayName({
   value: string;
   onSave: (next: string) => Promise<void>;
 }) {
+  // `value` est aussi passé comme `key` du composant par le parent —
+  // chaque changement upstream remount le composant et réinitialise
+  // proprement `draft` à la nouvelle valeur. Pas besoin de useEffect.
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [busy, setBusy] = useState(false);
-
-  // Re-sync draft when the upstream value changes while not editing
-  // (e.g. another tab updated the profile).
-  useEffect(() => {
-    if (!editing) setDraft(value);
-  }, [value, editing]);
 
   async function commit() {
     const trimmed = draft.trim();
@@ -258,16 +280,22 @@ function EditableDisplayName({
     setEditing(false);
   }
 
+  // Wrapper commun : positionnement relatif + chevauchement du bas de
+  // l'avatar via marginTop négatif. zIndex 2 pour passer au-dessus du
+  // badge caméra du bouton avatar (qui est en bottom: 4 du parent button).
+  const wrapperStyle: React.CSSProperties = {
+    position: "relative",
+    marginTop: -PILL_OVERLAP,
+    zIndex: 2,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    maxWidth: "min(360px, 90%)",
+  };
+
   if (editing) {
     return (
-      <div
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "2px 4px",
-        }}
-      >
+      <div style={wrapperStyle}>
         <input
           autoFocus
           type="text"
@@ -283,27 +311,34 @@ function EditableDisplayName({
           placeholder="Comment veux-tu qu'on t'appelle ?"
           aria-label="Nom d'affichage"
           style={{
-            fontSize: 22,
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
+            fontSize: PILL_FONT_SIZE,
+            fontWeight: 600,
+            letterSpacing: "-0.01em",
             color: "var(--color-text-primary)",
-            background: "var(--color-surface-raised)",
+            background: "white",
             border: "1px solid var(--color-brand)",
-            borderRadius: 10,
-            padding: "4px 12px",
+            borderRadius: 9999,
+            padding: "7px 18px",
             textAlign: "center",
-            minWidth: 240,
-            maxWidth: 360,
+            minWidth: 220,
+            maxWidth: 320,
             outline: "none",
-            boxShadow: "0 0 0 3px rgba(224, 98, 90, 0.15)",
+            boxShadow:
+              "0 0 0 3px rgba(224, 98, 90, 0.15), 0 8px 20px -10px rgba(0,0,0,0.15)",
             fontFamily: "inherit",
           }}
         />
         {busy && (
           <LoaderCircle
-            size={16}
+            size={14}
             className="animate-spin"
-            style={{ color: "var(--color-text-muted)" }}
+            style={{
+              position: "absolute",
+              right: 10,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "var(--color-text-muted)",
+            }}
           />
         )}
       </div>
@@ -322,28 +357,37 @@ function EditableDisplayName({
       }
       className="group hover:bg-[var(--color-surface-raised)] focus-visible:bg-[var(--color-surface-raised)]"
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        background: "transparent",
-        border: "none",
+        ...wrapperStyle,
+        background: "white",
+        border: "1px solid var(--color-border-default)",
+        borderRadius: 9999,
+        padding: "7px 16px 7px 18px",
         cursor: "pointer",
-        padding: "4px 10px",
-        borderRadius: 10,
-        transition: "background 150ms ease",
         color: isEmpty
           ? "var(--color-text-muted)"
           : "var(--color-text-primary)",
-        fontSize: 22,
-        fontWeight: 700,
-        letterSpacing: "-0.02em",
+        fontSize: PILL_FONT_SIZE,
+        fontWeight: 600,
+        letterSpacing: "-0.01em",
         fontStyle: isEmpty ? "italic" : "normal",
         outline: "none",
+        boxShadow:
+          "0 8px 24px -12px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.04)",
+        transition: "background 150ms ease, box-shadow 150ms ease",
       }}
     >
-      <span>{isEmpty ? "Choisis ton nom d'affichage" : display}</span>
+      <span
+        style={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          minWidth: 0,
+        }}
+      >
+        {isEmpty ? "Choisis ton nom d'affichage" : display}
+      </span>
       <Pencil
-        size={14}
+        size={13}
         className="opacity-0 group-hover:opacity-100 transition-opacity"
         style={{ color: "var(--color-text-muted)", flexShrink: 0 }}
       />
