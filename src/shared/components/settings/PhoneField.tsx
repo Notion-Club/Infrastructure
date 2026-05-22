@@ -2,9 +2,11 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
   type CSSProperties,
   type KeyboardEvent,
 } from "react";
@@ -25,24 +27,50 @@ export type PhoneValue = {
 };
 
 const DEFAULT_COUNTRY = "FR";
+// Limite absolue E.164 — au-delà on tronque silencieusement.
+const MAX_PHONE_DIGITS = 15;
+
+// Regroupe la chaîne de chiffres en paires lisibles. Règle premier-bloc
+// basée sur le premier chiffre :
+//   "0646262610" → "06 46 26 26 10"  (commence par 0 → premier bloc 2)
+//   "646262610"  → "6 46 26 26 10"   (sinon → premier bloc 1, puis paires)
+// Cette règle garantit qu'aucun groupe ne se réorganise en cours de
+// frappe : une paire formée reste une paire même si on ajoute un chiffre
+// avant.
+export function formatPhoneDigits(digits: string): string {
+  if (!digits) return "";
+  const firstBlockSize = digits[0] === "0" ? 2 : 1;
+  const groups: string[] = [digits.substring(0, firstBlockSize)];
+  for (let i = firstBlockSize; i < digits.length; i += 2) {
+    groups.push(digits.substring(i, i + 2));
+  }
+  return groups.join(" ");
+}
 
 // Parses a stored phone (e.g. "+33 6 12 34 56 78") into {country, national}.
 // Falls back to FR if no recognizable prefix.
+// Reformate le national au chargement pour qu'une donnée stockée
+// sans espaces ("+33 0646262610") s'affiche directement en paires.
 export function parsePhone(stored: string | null | undefined): PhoneValue {
   if (!stored || !stored.trim()) {
     return { countryCode: DEFAULT_COUNTRY, national: "" };
   }
   const trimmed = stored.trim();
   if (!trimmed.startsWith("+")) {
-    return { countryCode: DEFAULT_COUNTRY, national: trimmed };
+    const digits = trimmed.replace(/\D/g, "").slice(0, MAX_PHONE_DIGITS);
+    return {
+      countryCode: DEFAULT_COUNTRY,
+      national: formatPhoneDigits(digits),
+    };
   }
   const compact = trimmed.replace(/\s+/g, "");
   const match = findCountryByDial(compact);
   if (!match) {
     return { countryCode: DEFAULT_COUNTRY, national: trimmed };
   }
-  const national = compact.slice(match.dial.length).replace(/^[\s-]+/, "");
-  return { countryCode: match.code, national };
+  const rest = compact.slice(match.dial.length);
+  const digits = rest.replace(/\D/g, "").slice(0, MAX_PHONE_DIGITS);
+  return { countryCode: match.code, national: formatPhoneDigits(digits) };
 }
 
 export function formatPhone(value: PhoneValue): string {
@@ -72,6 +100,69 @@ export function PhoneField({
     findCountryByCode(value.countryCode) ??
     findCountryByCode(DEFAULT_COUNTRY)!;
 
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Position cible du curseur entre deux rendus React. On lit la valeur
+  // brute + sélection AVANT reformatage, on stocke la position cible, et
+  // useLayoutEffect repose le curseur APRÈS que React ait poussé la
+  // valeur formatée dans le DOM (avant le prochain paint).
+  const pendingCursorRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (pendingCursorRef.current === null) return;
+    const el = inputRef.current;
+    if (el && document.activeElement === el) {
+      const pos = pendingCursorRef.current;
+      try {
+        el.setSelectionRange(pos, pos);
+      } catch {
+        // setSelectionRange peut throw sur certains types d'input —
+        // on ignore silencieusement, le curseur retombera à la fin.
+      }
+    }
+    pendingCursorRef.current = null;
+  });
+
+  function handleNationalChange(e: ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value;
+    const cursor = e.target.selectionStart ?? raw.length;
+    // Nombre de chiffres avant le curseur dans la valeur brute — sert
+    // d'ancre pour replacer le curseur après reformatage.
+    const digitsBeforeCursor = (raw.slice(0, cursor).match(/\d/g) || []).length;
+    const digits = raw.replace(/\D/g, "").slice(0, MAX_PHONE_DIGITS);
+    const formatted = formatPhoneDigits(digits);
+
+    // Reparcourt la valeur formatée jusqu'à recroiser le même nombre
+    // de chiffres → curseur juste après ce chiffre-là.
+    let newCursor: number;
+    if (digitsBeforeCursor === 0) {
+      newCursor = 0;
+    } else {
+      newCursor = formatted.length;
+      let counted = 0;
+      for (let i = 0; i < formatted.length; i++) {
+        if (formatted.charCodeAt(i) >= 48 && formatted.charCodeAt(i) <= 57) {
+          counted++;
+          if (counted === digitsBeforeCursor) {
+            newCursor = i + 1;
+            break;
+          }
+        }
+      }
+    }
+    pendingCursorRef.current = newCursor;
+    onChange({ countryCode: value.countryCode, national: formatted });
+  }
+
+  function handleNationalBlur() {
+    // Filet de sécurité — autofill / scripts externes qui modifient
+    // la valeur sans déclencher onChange.
+    const digits = value.national.replace(/\D/g, "").slice(0, MAX_PHONE_DIGITS);
+    const formatted = formatPhoneDigits(digits);
+    if (formatted !== value.national) {
+      onChange({ countryCode: value.countryCode, national: formatted });
+    }
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <label
@@ -98,17 +189,14 @@ export function PhoneField({
           }
         />
         <input
+          ref={inputRef}
           id={id}
           name={id}
           type="tel"
           inputMode="tel"
           value={value.national}
-          onChange={(e) =>
-            onChange({
-              countryCode: value.countryCode,
-              national: e.target.value.replace(/[^\d\s\-]/g, ""),
-            })
-          }
+          onChange={handleNationalChange}
+          onBlur={handleNationalBlur}
           autoComplete="tel-national"
           placeholder="6 12 34 56 78"
           className="nc-input"
