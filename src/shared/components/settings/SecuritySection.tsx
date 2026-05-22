@@ -64,8 +64,22 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
     return () => ro.disconnect();
   }, []);
 
+  // OPS-49 — fusion visuelle des 2 blocs (trigger + form) dans un seul
+  // conteneur bordé. Le trigger n'a plus de border propre ; on ajoute juste
+  // un filet bas (border-bottom) quand le panel est ouvert pour séparer le
+  // header du formulaire à l'intérieur du même bloc.
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: 12,
+        border: "1px solid var(--color-border-default)",
+        overflow: "hidden",
+        background: open ? "var(--color-surface-raised)" : "white",
+        transition: "background 150ms ease",
+      }}
+    >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -76,13 +90,15 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
           justifyContent: "space-between",
           gap: 12,
           padding: "12px 14px",
-          borderRadius: 12,
-          border: "1px solid var(--color-border-default)",
-          background: open ? "var(--color-surface-raised)" : "white",
+          border: "none",
+          background: "transparent",
+          borderBottom: open
+            ? "1px solid var(--color-border-default)"
+            : "1px solid transparent",
           cursor: "pointer",
           width: "100%",
           textAlign: "left",
-          transition: "background 150ms ease",
+          transition: "border-color 150ms ease",
         }}
       >
         <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
@@ -145,9 +161,10 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
             "max-height 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease",
           maxHeight: open ? innerHeight + 8 : 0,
           opacity: open ? 1 : 0,
+          background: "white",
         }}
       >
-        <div ref={innerRef} style={{ paddingTop: 4 }}>
+        <div ref={innerRef} style={{ padding: "14px 14px 16px" }}>
           <PasswordChangeForm
             isMocked={isMocked}
             onSuccess={() => setOpen(false)}
