@@ -444,7 +444,6 @@ const DISPLAY_NAME_PLACEHOLDERS = [
   "Comment veux-tu qu'on t'appelle ?",
   "Ton prénom, ton pseudo… c'est toi qui choisis",
   "Le nom qui s'affichera partout dans l'app",
-  "Si tu devais te présenter en un mot ?",
 ];
 
 function AnimatedDisplayNameField({

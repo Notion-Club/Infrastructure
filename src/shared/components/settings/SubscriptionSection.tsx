@@ -140,7 +140,7 @@ export function SubscriptionSection() {
   return (
     <SettingsCard
       title="Échéances de paiement"
-      description="Historique de vos paiements Notion Club, synchronisé en temps réel avec la base interne."
+      description="Consultez l'historique de vos paiements en temps réel."
     >
       <div
         style={{
