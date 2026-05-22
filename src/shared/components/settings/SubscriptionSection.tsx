@@ -1,391 +1,348 @@
-import { CreditCard } from "lucide-react";
+"use client";
+
+import { useEffect, useState } from "react";
+import { ExternalLink, LoaderCircle } from "lucide-react";
 
 import { SettingsCard } from "./SettingsCard";
-import type {
-  PaymentHistoryItem,
-  PaymentMethod,
-  SubscriptionData,
-  SubscriptionStatus,
-} from "@/shared/lib/settings/mock-data";
 
-type SubscriptionSectionProps = {
-  subscription: SubscriptionData;
-  history: PaymentHistoryItem[];
-  paymentMethod: PaymentMethod | null;
+// Forme renvoyée par GET /api/payments/me. Un paiement = une ligne dans la
+// base Notion `Paiements` (DB ID 2a1bad05-…) reliée à l'utilisateur via la
+// relation `Lead` qui pointe vers un Call de la base `Calls` portant son
+// `E-mail Guest`.
+type Payment = {
+  notionId: string;
+  notionUrl: string | null;
+  label: string;
+  amount: number | null;
+  paymentDate: string | null;
+  source: string | null;
+  status: string | null;
+  statusCategory: "paid" | "due" | "refused" | "unknown";
 };
 
-const STATUS_LABEL: Record<SubscriptionStatus, string> = {
-  active: "Actif",
-  expired: "Expiré",
-  pending: "En attente",
-};
-
+// Style des badges Statut — aligné sur les couleurs des options Notion
+// ("Payé" vert, "À payer" bleu, "Refus" rouge).
 const STATUS_STYLE: Record<
-  SubscriptionStatus,
+  Payment["statusCategory"],
   { bg: string; fg: string; border: string }
 > = {
-  active: {
+  paid: {
     bg: "rgba(39,174,142,0.10)",
     fg: "#16805f",
     border: "rgba(39,174,142,0.25)",
   },
-  expired: {
+  due: {
+    bg: "rgba(91,141,239,0.10)",
+    fg: "#2d5bb3",
+    border: "rgba(91,141,239,0.25)",
+  },
+  refused: {
     bg: "rgba(224,98,90,0.10)",
     fg: "#b3433b",
     border: "rgba(224,98,90,0.25)",
   },
-  pending: {
-    bg: "rgba(237,157,58,0.12)",
-    fg: "#a36314",
-    border: "rgba(237,157,58,0.25)",
+  unknown: {
+    bg: "rgba(82,82,91,0.08)",
+    fg: "#52525b",
+    border: "rgba(82,82,91,0.20)",
   },
 };
 
-export function SubscriptionSection({
-  subscription,
-  history,
-  paymentMethod,
-}: SubscriptionSectionProps) {
-  const status = STATUS_STYLE[subscription.status];
-  const isExpired = subscription.status === "expired";
+// Style des badges Source — Stripe en violet (couleur option Notion),
+// virement bancaire en vert.
+function sourceStyle(source: string | null): {
+  bg: string;
+  fg: string;
+  border: string;
+} {
+  if (source === "Stripe") {
+    return {
+      bg: "rgba(138,108,242,0.10)",
+      fg: "#6b4dd1",
+      border: "rgba(138,108,242,0.25)",
+    };
+  }
+  if (source === "Virement bancaire") {
+    return {
+      bg: "rgba(39,174,142,0.08)",
+      fg: "#16805f",
+      border: "rgba(39,174,142,0.22)",
+    };
+  }
+  return {
+    bg: "rgba(82,82,91,0.08)",
+    fg: "#52525b",
+    border: "rgba(82,82,91,0.20)",
+  };
+}
+
+function formatEur(amount: number | null): string {
+  if (amount === null) return "—";
+  return amount.toLocaleString("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+  });
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+export function SubscriptionSection() {
+  const [payments, setPayments] = useState<Payment[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/payments/me", { cache: "no-store" });
+        if (!res.ok) {
+          if (res.status === 401) {
+            // Pas d'utilisateur authentifié (mode démo) — on tait l'erreur,
+            // l'écran affiche juste l'état "aucun paiement".
+            if (!cancelled) setPayments([]);
+            return;
+          }
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error ?? `Erreur ${res.status}`);
+        }
+        const data = await res.json();
+        if (!cancelled) setPayments(data.payments ?? []);
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Impossible de charger les paiements.",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <SettingsCard
-      title="Abonnement & facturation"
-      description="Gérez votre offre, consultez vos paiements et votre moyen de paiement."
+      title="Échéances de paiement"
+      description="Historique de vos paiements Notion Club, synchronisé en temps réel avec la base interne."
     >
-      {/* Current plan */}
       <div
         style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-          padding: 18,
-          borderRadius: 16,
           border: "1px solid var(--color-border-default)",
-          background: "var(--color-surface-raised)",
+          borderRadius: 12,
+          overflow: "hidden",
+          background: "white",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flexWrap: "wrap",
-          }}
-        >
-          <p
-            style={{
-              margin: 0,
-              fontSize: 16,
-              fontWeight: 600,
-              color: "var(--color-text-primary)",
-            }}
-          >
-            {subscription.planName}
-          </p>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              padding: "3px 10px",
-              borderRadius: 9999,
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.02em",
-              color: status.fg,
-              background: status.bg,
-              border: `1px solid ${status.border}`,
-            }}
-          >
-            {STATUS_LABEL[subscription.status]}
-          </span>
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gap: 10,
-            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-          }}
-        >
-          <KeyValue label="Prix" value={subscription.priceLabel} />
-          <KeyValue
-            label={isExpired ? "Date d'expiration" : "Prochain renouvellement"}
-            value={subscription.renewalDateLabel}
-          />
-        </div>
-        <div style={{ position: "relative", marginTop: 2 }}>
-          <button
-            type="button"
-            disabled
-            aria-disabled
-            title="Disponible prochainement"
-            style={{
-              padding: "9px 16px",
-              borderRadius: 9999,
-              border: "1px solid var(--color-border-default)",
-              background: "white",
-              color: "var(--color-text-secondary)",
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "not-allowed",
-              opacity: 0.7,
-            }}
-          >
-            Gérer mon abonnement
-          </button>
-        </div>
-      </div>
-
-      {/* Payment history */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <h3
-          style={{
-            margin: 0,
-            fontSize: 14,
-            fontWeight: 600,
-            color: "var(--color-text-primary)",
-          }}
-        >
-          Historique de paiements
-        </h3>
-        <div
-          style={{
-            border: "1px solid var(--color-border-default)",
-            borderRadius: 12,
-            overflow: "hidden",
-            background: "white",
-          }}
-        >
-          {history.length === 0 && (
-            <div
-              style={{
-                padding: "20px 14px",
-                fontSize: 13,
-                color: "var(--color-text-muted)",
-                textAlign: "center",
-              }}
-            >
-              Aucun paiement pour le moment.
-            </div>
-          )}
-          {history.map((item, idx) => (
-            <div
-              key={item.id}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr auto",
-                gap: 10,
-                padding: "12px 14px",
-                borderBottom:
-                  idx === history.length - 1
-                    ? "none"
-                    : "1px solid var(--color-border-default)",
-              }}
-            >
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}
-              >
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "var(--color-text-primary)",
-                  }}
-                >
-                  {item.description}
-                </p>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 12,
-                    color: "var(--color-text-muted)",
-                  }}
-                >
-                  {item.date} ·{" "}
-                  {item.status === "paid" ? "Payé" : "Remboursé"}
-                </p>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  flexShrink: 0,
-                }}
-              >
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--color-text-primary)",
-                  }}
-                >
-                  {item.amount}
-                </p>
-                <button
-                  type="button"
-                  disabled
-                  aria-disabled
-                  title="Disponible prochainement"
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "var(--color-text-muted)",
-                    background: "transparent",
-                    border: "none",
-                    cursor: "not-allowed",
-                    textDecoration: "underline",
-                    textUnderlineOffset: 3,
-                    opacity: 0.7,
-                  }}
-                >
-                  Télécharger
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Payment method */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <h3
-          style={{
-            margin: 0,
-            fontSize: 14,
-            fontWeight: 600,
-            color: "var(--color-text-primary)",
-          }}
-        >
-          Moyen de paiement
-        </h3>
-        {!paymentMethod ? (
+        {loading && (
           <div
             style={{
-              padding: "20px 14px",
-              fontSize: 13,
-              color: "var(--color-text-muted)",
-              textAlign: "center",
-              border: "1px dashed var(--color-border-default)",
-              borderRadius: 12,
-              background: "var(--color-surface-raised)",
-            }}
-          >
-            Aucun moyen de paiement enregistré.
-          </div>
-        ) : (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            padding: 14,
-            borderRadius: 12,
-            border: "1px solid var(--color-border-default)",
-            background: "white",
-          }}
-        >
-          <div
-            style={{
-              width: 42,
-              height: 28,
-              borderRadius: 6,
-              background:
-                paymentMethod.brand === "Visa"
-                  ? "linear-gradient(135deg, #1a1f71 0%, #2c388f 100%)"
-                  : "linear-gradient(135deg, #eb001b 0%, #f79e1b 100%)",
-              color: "white",
+              padding: "28px 14px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.05em",
-              flexShrink: 0,
+              gap: 10,
+              fontSize: 13,
+              color: "var(--color-text-muted)",
             }}
           >
-            {paymentMethod.brand === "Visa" ? "VISA" : "MC"}
+            <LoaderCircle size={14} className="animate-spin" />
+            Chargement des paiements…
           </div>
-          <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-            <p
-              style={{
-                margin: 0,
-                fontSize: 13,
-                fontWeight: 500,
-                color: "var(--color-text-primary)",
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              •••• •••• •••• {paymentMethod.last4}
-            </p>
-            <p
-              style={{
-                margin: 0,
-                fontSize: 12,
-                color: "var(--color-text-muted)",
-              }}
-            >
-              Expire {paymentMethod.expiry}
-            </p>
-          </div>
-          <button
-            type="button"
-            disabled
-            aria-disabled
-            title="Disponible prochainement"
+        )}
+
+        {!loading && error && (
+          <div
             style={{
-              padding: "7px 14px",
-              borderRadius: 9999,
-              border: "1px solid var(--color-border-default)",
-              background: "white",
-              color: "var(--color-text-secondary)",
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: "not-allowed",
-              opacity: 0.7,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
+              padding: "16px 14px",
+              fontSize: 13,
+              color: "#b3433b",
+              background: "rgba(224,98,90,0.05)",
+              lineHeight: 1.5,
             }}
           >
-            <CreditCard size={13} />
-            Modifier
-          </button>
-        </div>
+            {error}
+          </div>
+        )}
+
+        {!loading && !error && payments && payments.length === 0 && (
+          <div
+            style={{
+              padding: "28px 14px",
+              fontSize: 13,
+              color: "var(--color-text-muted)",
+              textAlign: "center",
+            }}
+          >
+            Aucun paiement enregistré pour le moment.
+          </div>
+        )}
+
+        {!loading && payments && payments.length > 0 && (
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {payments.map((p, idx) => {
+              const statusS = STATUS_STYLE[p.statusCategory];
+              const sourceS = sourceStyle(p.source);
+              return (
+                <li
+                  key={p.notionId}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "14px 14px",
+                    borderBottom:
+                      idx === payments.length - 1
+                        ? "none"
+                        : "1px solid var(--color-border-default)",
+                  }}
+                >
+                  {/* Colonne gauche : date + label */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 3,
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "var(--color-text-primary)",
+                      }}
+                    >
+                      {formatDate(p.paymentDate)}
+                    </p>
+                    {p.label && (
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 12,
+                          color: "var(--color-text-muted)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {p.label}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Badges Source + Statut */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      flexShrink: 0,
+                      flexWrap: "wrap",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    {p.source && (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          padding: "3px 9px",
+                          borderRadius: 9999,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          letterSpacing: "0.02em",
+                          color: sourceS.fg,
+                          background: sourceS.bg,
+                          border: `1px solid ${sourceS.border}`,
+                        }}
+                      >
+                        {p.source}
+                      </span>
+                    )}
+                    {p.status && (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          padding: "3px 9px",
+                          borderRadius: 9999,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          letterSpacing: "0.02em",
+                          color: statusS.fg,
+                          background: statusS.bg,
+                          border: `1px solid ${statusS.border}`,
+                        }}
+                      >
+                        {p.status}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Montant */}
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: "var(--color-text-primary)",
+                      fontVariantNumeric: "tabular-nums",
+                      flexShrink: 0,
+                      minWidth: 90,
+                      textAlign: "right",
+                    }}
+                  >
+                    {formatEur(p.amount)}
+                  </p>
+
+                  {/* Lien Notion */}
+                  {p.notionUrl && (
+                    <a
+                      href={p.notionUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Voir le paiement sur Notion"
+                      aria-label="Voir le paiement sur Notion"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 28,
+                        height: 28,
+                        borderRadius: 8,
+                        color: "var(--color-text-muted)",
+                        flexShrink: 0,
+                      }}
+                      className="hover:bg-[var(--color-surface-raised)]"
+                    >
+                      <ExternalLink size={13} />
+                    </a>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
     </SettingsCard>
-  );
-}
-
-function KeyValue({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <p
-        style={{
-          margin: 0,
-          fontSize: 11,
-          fontWeight: 500,
-          color: "var(--color-text-muted)",
-          textTransform: "uppercase",
-          letterSpacing: "0.04em",
-        }}
-      >
-        {label}
-      </p>
-      <p
-        style={{
-          margin: 0,
-          fontSize: 14,
-          fontWeight: 500,
-          color: "var(--color-text-primary)",
-        }}
-      >
-        {value}
-      </p>
-    </div>
   );
 }

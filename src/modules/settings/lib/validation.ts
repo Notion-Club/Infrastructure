@@ -129,7 +129,7 @@ export type AccountEmailChangeInput = z.infer<typeof accountEmailChangeSchema>;
 // ============================================================================
 // Le file lui-même n'est pas validé via zod (zod ne checkpas File/FormData) ;
 // on exporte les contraintes pour que client + serveur les utilisent.
-export const AVATAR_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+export const AVATAR_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 export const AVATAR_ALLOWED_MIME = [
   "image/png",
   "image/jpeg",

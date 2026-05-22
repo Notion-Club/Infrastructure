@@ -26,7 +26,7 @@ import {
   MOCK_PROFILE,
   MOCK_USER_OFFER,
 } from "@/shared/lib/settings/mock-data";
-import { findScenario, type ScenarioId } from "@/shared/lib/settings/scenarios";
+import { type ScenarioId } from "@/shared/lib/settings/scenarios";
 import type { NotificationSettings } from "@/modules/settings";
 
 type LoadState =
@@ -98,8 +98,6 @@ export function SettingsClient({
       cancelled = true;
     };
   }, []);
-
-  const scenario = findScenario(scenarioId);
 
   function patchAvatar(next: {
     avatarUrl?: string | null;
@@ -188,11 +186,7 @@ export function SettingsClient({
                   isMocked={state.isMocked}
                 />
                 <SecuritySection user={state.user} isMocked={state.isMocked} />
-                <SubscriptionSection
-                  subscription={scenario.subscription}
-                  history={scenario.history}
-                  paymentMethod={scenario.paymentMethod}
-                />
+                <SubscriptionSection />
                 <NotificationsSection
                   userOffer={MOCK_USER_OFFER}
                   isMocked={state.isMocked}
