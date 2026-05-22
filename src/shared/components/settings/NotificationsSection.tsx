@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { LoaderCircle } from "lucide-react";
+import { Bell, LoaderCircle, Mail, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -16,9 +16,18 @@ import {
 import { SettingsCard, SettingsDivider } from "./SettingsCard";
 import type { UserOffer } from "./types";
 
+// OPS-53 — Redesign de la section Notifications :
+// 1. Canaux en row horizontale (3 "cards" Mail / InApp / WhatsApp avec
+//    icône + label + iOS switcher), même langage visuel que le segmented
+//    pill du community-page (feed / messages privés).
+// 2. Types de notifications en table moderne : rows = catégories,
+//    cols = canaux. Chaque cellule = mini switch. Si le canal est OFF
+//    au-dessus, sa colonne est grisée + disabled.
+
 type Category = {
   key: NotificationCategory;
   label: string;
+  description?: string;
   requiresOffer?: UserOffer;
 };
 
@@ -37,11 +46,20 @@ const CATEGORIES: Category[] = [
   { key: "billing", label: "Informations de facturation" },
 ];
 
-const CHANNEL_LABELS: Record<NotificationChannel, string> = {
-  email: "Email",
-  in_app: "In-app",
-  whatsapp: "WhatsApp",
+type ChannelMeta = {
+  key: NotificationChannel;
+  label: string;
+  Icon: typeof Mail;
 };
+
+// Cf. brief OPS-53 : "Mail (icône mail), InApp (logo InApp), WhatsApp".
+// Pas de SVG WhatsApp officiel dans lucide → MessageCircle (chat rond)
+// est l'approximation la plus lisible.
+const CHANNELS: ChannelMeta[] = [
+  { key: "email", label: "Mail", Icon: Mail },
+  { key: "in_app", label: "InApp", Icon: Bell },
+  { key: "whatsapp", label: "WhatsApp", Icon: MessageCircle },
+];
 
 type PreferenceMap = NotificationSettings["preferences"];
 type ChannelMap = NotificationSettings["channels"];
@@ -89,7 +107,10 @@ export function NotificationsSection({
     setChannels((prev) => ({ ...prev, [channel]: !prev[channel] }));
   }
 
-  function togglePref(category: NotificationCategory, channel: NotificationChannel) {
+  function togglePref(
+    category: NotificationCategory,
+    channel: NotificationChannel,
+  ) {
     setPrefs((prev) => ({
       ...prev,
       [category]: {
@@ -140,152 +161,16 @@ export function NotificationsSection({
       title="Notifications"
       description="Choisissez les canaux et les types de notifications que vous souhaitez recevoir."
     >
-      {/* Channel toggles */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <h3
-          style={{
-            margin: 0,
-            fontSize: 14,
-            fontWeight: 600,
-            color: "var(--color-text-primary)",
-          }}
-        >
-          Canaux
-        </h3>
-        <p
-          style={{
-            margin: "0 0 6px",
-            fontSize: 12,
-            color: "var(--color-text-muted)",
-          }}
-        >
-          Désactiver un canal coupera toutes les notifications de ce type.
-        </p>
-        <ul
-          style={{
-            listStyle: "none",
-            padding: 0,
-            margin: 0,
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          {NOTIFICATION_CHANNELS.map((ch, idx) => (
-            <li
-              key={ch}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "10px 0",
-                borderBottom:
-                  idx === NOTIFICATION_CHANNELS.length - 1
-                    ? "none"
-                    : "1px solid var(--color-border-default)",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 14,
-                  color: "var(--color-text-primary)",
-                }}
-              >
-                {CHANNEL_LABELS[ch]}
-              </span>
-              <SwitchToggle
-                checked={channels[ch]}
-                onChange={() => toggleChannel(ch)}
-                ariaLabel={`Canal ${CHANNEL_LABELS[ch]}`}
-              />
-            </li>
-          ))}
-        </ul>
-      </div>
+      <ChannelsRow channels={channels} onToggle={toggleChannel} />
 
       <SettingsDivider />
 
-      {/* Categories matrix */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <h3
-          style={{
-            margin: 0,
-            fontSize: 14,
-            fontWeight: 600,
-            color: "var(--color-text-primary)",
-          }}
-        >
-          Types de notifications
-        </h3>
-        <div
-          style={{
-            display: "grid",
-            gap: 8,
-            gridTemplateColumns: "1fr",
-            marginTop: 8,
-          }}
-        >
-          {visibleCategories.map((cat) => (
-            <div
-              key={cat.key}
-              style={{
-                padding: 12,
-                borderRadius: 12,
-                border: "1px solid var(--color-border-default)",
-                background: "white",
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: "var(--color-text-primary)",
-                }}
-              >
-                {cat.label}
-              </p>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 16,
-                  flexWrap: "wrap",
-                }}
-              >
-                {NOTIFICATION_CHANNELS.map((ch) => {
-                  const channelOff = !channels[ch];
-                  return (
-                    <label
-                      key={ch}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 13,
-                        color: channelOff
-                          ? "var(--color-text-muted)"
-                          : "var(--color-text-secondary)",
-                        cursor: channelOff ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={prefs[cat.key][ch] && channels[ch]}
-                        onChange={() => togglePref(cat.key, ch)}
-                        disabled={channelOff}
-                        style={{ accentColor: "var(--color-brand)" }}
-                      />
-                      {CHANNEL_LABELS[ch]}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <TypesMatrix
+        categories={visibleCategories}
+        channels={channels}
+        prefs={prefs}
+        onToggle={togglePref}
+      />
 
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <button
@@ -317,32 +202,349 @@ export function NotificationsSection({
   );
 }
 
+// ============================================================================
+// ChannelsRow — rangée horizontale des 3 canaux (Mail / InApp / WhatsApp).
+// Inspirée du segmented pill du community-page (feed / messages) : surface
+// plate sur fond raised, cards blanches avec ombre douce quand le canal
+// est actif. Chaque card = icône + label + iOS switch.
+// ============================================================================
+function ChannelsRow({
+  channels,
+  onToggle,
+}: {
+  channels: ChannelMap;
+  onToggle: (ch: NotificationChannel) => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <h3
+        style={{
+          margin: 0,
+          fontSize: 14,
+          fontWeight: 600,
+          color: "var(--color-text-primary)",
+        }}
+      >
+        Canaux
+      </h3>
+      <p
+        style={{
+          margin: "0 0 8px",
+          fontSize: 12,
+          color: "var(--color-text-muted)",
+        }}
+      >
+        Désactiver un canal coupera toutes les notifications de ce type.
+      </p>
+
+      <div
+        role="group"
+        aria-label="Canaux de notification"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: 8,
+          padding: 4,
+          background: "var(--color-surface-raised)",
+          borderRadius: 14,
+        }}
+      >
+        {CHANNELS.map(({ key, label, Icon }) => {
+          const active = channels[key];
+          return (
+            <div
+              key={key}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: active ? "white" : "transparent",
+                boxShadow: active
+                  ? "0 1px 4px rgba(0,0,0,0.06), 0 0 0 0.5px rgba(0,0,0,0.06)"
+                  : "none",
+                transition:
+                  "background 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease)",
+                minWidth: 0,
+              }}
+            >
+              <Icon
+                size={18}
+                strokeWidth={2}
+                aria-hidden
+                style={{
+                  color: active
+                    ? "var(--color-brand)"
+                    : "var(--color-text-muted)",
+                  flexShrink: 0,
+                  transition: "color 200ms ease",
+                }}
+              />
+              <span
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: active
+                    ? "var(--color-text-primary)"
+                    : "var(--color-text-secondary)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  transition: "color 200ms ease",
+                }}
+              >
+                {label}
+              </span>
+              <SwitchToggle
+                checked={active}
+                onChange={() => onToggle(key)}
+                ariaLabel={`Canal ${label}`}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// TypesMatrix — table moderne : rows = types de notifications, cols =
+// canaux. Cellules = mini iOS switch. Header de col = icône du canal.
+// Si le canal est OFF, sa colonne entière est désaturée + disabled.
+// Overflow-x: auto pour la responsivité mobile.
+// ============================================================================
+function TypesMatrix({
+  categories,
+  channels,
+  prefs,
+  onToggle,
+}: {
+  categories: Category[];
+  channels: ChannelMap;
+  prefs: PreferenceMap;
+  onToggle: (cat: NotificationCategory, ch: NotificationChannel) => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <h3
+        style={{
+          margin: 0,
+          fontSize: 14,
+          fontWeight: 600,
+          color: "var(--color-text-primary)",
+        }}
+      >
+        Types de notifications
+      </h3>
+      <p
+        style={{
+          margin: "0 0 4px",
+          fontSize: 12,
+          color: "var(--color-text-muted)",
+        }}
+      >
+        Pour chaque type, choisissez par quel canal vous souhaitez le recevoir.
+      </p>
+
+      <div
+        style={{
+          // overflow-x pour permettre de scroller la table sur mobile sans
+          // déformer son layout interne (les colonnes de canaux sont
+          // alignées verticalement, on préfère scroller plutôt que wrapper).
+          overflowX: "auto",
+          borderRadius: 14,
+          border: "1px solid var(--color-border-default)",
+          background: "white",
+          boxShadow: "var(--nc-shadow-3)",
+        }}
+      >
+        <table
+          style={{
+            width: "100%",
+            minWidth: 380,
+            borderCollapse: "collapse",
+            tableLayout: "fixed",
+          }}
+        >
+          <thead>
+            <tr
+              style={{
+                background: "var(--color-surface-raised)",
+                borderBottom: "1px solid var(--color-border-default)",
+              }}
+            >
+              <th
+                scope="col"
+                style={{
+                  ...CELL_BASE_STYLE,
+                  textAlign: "left",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "var(--color-text-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  width: "auto",
+                }}
+              >
+                Type
+              </th>
+              {CHANNELS.map(({ key, label, Icon }) => {
+                const active = channels[key];
+                return (
+                  <th
+                    key={key}
+                    scope="col"
+                    style={{
+                      ...CELL_BASE_STYLE,
+                      width: 80,
+                      textAlign: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 2,
+                        color: active
+                          ? "var(--color-text-primary)"
+                          : "var(--color-text-muted)",
+                        opacity: active ? 1 : 0.55,
+                        transition: "opacity 200ms ease, color 200ms ease",
+                      }}
+                    >
+                      <Icon size={16} strokeWidth={2} aria-hidden />
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+
+          <tbody>
+            {categories.map((cat, i) => (
+              <tr
+                key={cat.key}
+                style={{
+                  borderBottom:
+                    i === categories.length - 1
+                      ? "none"
+                      : "1px solid var(--color-border-default)",
+                }}
+              >
+                <th
+                  scope="row"
+                  style={{
+                    ...CELL_BASE_STYLE,
+                    textAlign: "left",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "var(--color-text-primary)",
+                    width: "auto",
+                  }}
+                >
+                  {cat.label}
+                </th>
+                {CHANNELS.map(({ key }) => {
+                  const channelOff = !channels[key];
+                  const checked = prefs[cat.key][key] && channels[key];
+                  return (
+                    <td
+                      key={key}
+                      style={{
+                        ...CELL_BASE_STYLE,
+                        textAlign: "center",
+                        width: 80,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: channelOff ? 0.4 : 1,
+                          transition: "opacity 200ms ease",
+                        }}
+                      >
+                        <SwitchToggle
+                          size="sm"
+                          checked={checked}
+                          disabled={channelOff}
+                          onChange={() => onToggle(cat.key, key)}
+                          ariaLabel={`${cat.label} via ${key}`}
+                        />
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+const CELL_BASE_STYLE: React.CSSProperties = {
+  padding: "12px 14px",
+  verticalAlign: "middle",
+};
+
+// ============================================================================
+// SwitchToggle — iOS-like switch, brand-color quand activé. Deux tailles :
+// `md` (défaut, ligne canaux) et `sm` (cellules de la matrice).
+// ============================================================================
 function SwitchToggle({
   checked,
   onChange,
   ariaLabel,
+  disabled,
+  size = "md",
 }: {
   checked: boolean;
   onChange: () => void;
   ariaLabel: string;
+  disabled?: boolean;
+  size?: "md" | "sm";
 }) {
+  const w = size === "sm" ? 32 : 42;
+  const h = size === "sm" ? 20 : 24;
+  const knob = size === "sm" ? 16 : 20;
+  const knobLeft = checked ? w - knob - 2 : 2;
+
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={ariaLabel}
-      onClick={onChange}
+      onClick={disabled ? undefined : onChange}
+      disabled={disabled}
       style={{
-        width: 42,
-        height: 24,
+        width: w,
+        height: h,
         borderRadius: 9999,
-        background: checked ? "var(--color-brand)" : "rgba(0,0,0,0.12)",
+        background:
+          checked && !disabled ? "var(--color-brand)" : "rgba(0,0,0,0.12)",
         border: "none",
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         position: "relative",
         transition: "background 200ms ease",
         flexShrink: 0,
+        padding: 0,
       }}
     >
       <span
@@ -350,9 +552,9 @@ function SwitchToggle({
         style={{
           position: "absolute",
           top: 2,
-          left: checked ? 20 : 2,
-          width: 20,
-          height: 20,
+          left: knobLeft,
+          width: knob,
+          height: knob,
           borderRadius: "50%",
           background: "white",
           boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
