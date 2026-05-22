@@ -92,14 +92,19 @@ const bioField = trimmedOrNull.pipe(
   z.string().max(500, "500 caractères maximum").nullable(),
 );
 
+// OPS-47 — l'edit du nom d'affichage se fait désormais en inline depuis
+// ProfileHero, séparément du gros submit du formulaire. On accepte donc
+// des partial updates côté serveur (chaque champ devient optionnel).
+// Supabase ignore les clés undefined dans .update(), donc seul ce qu'on
+// envoie explicitement est touché.
 export const profileUpdateSchema = z.object({
-  display_name: displayName,
-  first_name: personName,
-  last_name: personName,
-  username: usernameField,
-  bio: bioField,
-  phone: phoneField,
-  notion_email: optionalEmail,
+  display_name: displayName.optional(),
+  first_name: personName.optional(),
+  last_name: personName.optional(),
+  username: usernameField.optional(),
+  bio: bioField.optional(),
+  phone: phoneField.optional(),
+  notion_email: optionalEmail.optional(),
 });
 
 export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
