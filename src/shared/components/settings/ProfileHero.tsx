@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Camera, LoaderCircle, Pencil } from "lucide-react";
+import { Camera, LoaderCircle } from "lucide-react";
 
 import { DEFAULT_AVATAR_COLOR } from "@/modules/settings";
 import { AvatarPicker } from "./AvatarPicker";
@@ -34,6 +34,17 @@ function getInitials(
   const local = email.split("@")[0] ?? "";
   return local.slice(0, 2).toUpperCase() || "?";
 }
+
+// Constantes de mise en page partagées avec EditableDisplayName plus bas.
+// On les définit ici pour qu'elles soient cohérentes entre l'avatar
+// (badge caméra positionné en absolute) et la pill (largeur fixe +
+// chevauchement contrôlé).
+const AVATAR_SIZE = 124;
+const BADGE_SIZE = 40;
+const PILL_WIDTH = 320;
+const PILL_HEIGHT = 40;
+const PILL_OVERLAP = 6;
+const PILL_FONT_SIZE = 13;
 
 type ProfileHeroProps = {
   avatarUrl: string | null;
@@ -70,116 +81,150 @@ export function ProfileHero({
   const initials = getInitials(firstName, lastName, displayName, email);
   const bg = avatarColor ?? DEFAULT_AVATAR_COLOR;
 
+  function openPicker() {
+    setPickerOpen(true);
+  }
+
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        // OPS-62 v2 — pas de gap, on chevauche la pill via marginTop négatif.
-        // Plus de bouton "Modifier l'avatar" secondaire en dessous : le badge
-        // caméra sur l'avatar est désormais le seul CTA pour ouvrir le picker.
+        // Pas de gap : la pill chevauche via marginTop négatif (PILL_OVERLAP).
         gap: 0,
         padding: "8px 0 12px",
       }}
     >
-      <button
-        type="button"
-        onClick={() => setPickerOpen(true)}
-        aria-label="Modifier ma photo de profil"
-        // group permet au badge caméra de scaler au hover du bouton entier
-        className="group"
+      {/*
+        Wrapper relatif autour de l'avatar. Le badge caméra est sorti du
+        <button> avatar pour devenir un sibling positionné en absolute :
+        c'est la seule manière de lui donner un z-index plus haut que la
+        pill (z-index 2) — un span inside le button avatar serait coincé
+        dans le stacking context du bouton, donc forcément en-dessous de
+        la pill quoi qu'on fasse.
+
+        Stacking final dans le contexte parent :
+          - Avatar (z-index 1) … pill couvre son bas (chevauchement OK)
+          - Pill (z-index 2)   … plate-forme blanche du nom
+          - Badge (z-index 3)  … flotte par-dessus la pill au coin sup. droit
+        Le wrapper lui-même n'a PAS de z-index → ne crée pas de stacking
+        context, ses enfants participent au contexte parent et peuvent
+        donc être comparés en z-index avec la pill, qui est sibling.
+      */}
+      <div
         style={{
           position: "relative",
-          width: 124,
-          height: 124,
-          borderRadius: "50%",
-          border: "none",
-          padding: 0,
-          cursor: "pointer",
-          background: "transparent",
-          flexShrink: 0,
+          width: AVATAR_SIZE,
+          height: AVATAR_SIZE,
         }}
       >
-        <span
-          aria-hidden
+        <button
+          type="button"
+          onClick={openPicker}
+          aria-label="Modifier ma photo de profil"
           style={{
-            position: "absolute",
-            inset: -6,
+            position: "relative",
+            width: "100%",
+            height: "100%",
             borderRadius: "50%",
-            background:
-              "conic-gradient(from 0deg, rgba(224,98,90,0.0), rgba(224,98,90,0.55) 35%, rgba(224,98,90,0.0) 65%)",
-            filter: "blur(10px)",
-            opacity: 0.7,
-            pointerEvents: "none",
-          }}
-        />
-        <span
-          aria-hidden
-          style={{
-            position: "absolute",
-            inset: 0,
-            borderRadius: "50%",
-            background: avatarUrl ? "transparent" : bg,
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 42,
-            fontWeight: 700,
-            letterSpacing: "0.02em",
-            border: "4px solid white",
-            boxShadow:
-              "0 14px 32px -10px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.06)",
-            overflow: "hidden",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            background: "transparent",
+            zIndex: 1,
           }}
         >
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt=""
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          ) : (
-            initials
-          )}
-        </span>
-        {/* OPS-62 v2 — Badge caméra promu en CTA principal pour modifier la
-            photo, maintenant que le bouton secondaire en dessous est retiré.
-            Évolutions vs version précédente :
-              - taille 40×40 au lieu de 36×36 (touch-target confortable),
-              - position légèrement décalée (right/bottom: -2) pour flotter
-                hors du cercle et éviter le chevauchement avec la pill du
-                nom d'affichage qui vient juste en dessous,
-              - shadow brand-tinted (rgba 224,98,90) renforcée pour le
-                mettre en valeur — c'est désormais le seul point d'entrée
-                visible pour le picker depuis le hero,
-              - hover scale 110% (via group-hover sur le bouton parent)
-                pour le rendre clairement clickable. */}
-        <span
-          aria-hidden
-          className="transition-transform duration-200 group-hover:scale-110"
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: -6,
+              borderRadius: "50%",
+              background:
+                "conic-gradient(from 0deg, rgba(224,98,90,0.0), rgba(224,98,90,0.55) 35%, rgba(224,98,90,0.0) 65%)",
+              filter: "blur(10px)",
+              opacity: 0.7,
+              pointerEvents: "none",
+            }}
+          />
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: "50%",
+              background: avatarUrl ? "transparent" : bg,
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 42,
+              fontWeight: 700,
+              letterSpacing: "0.02em",
+              border: "4px solid white",
+              boxShadow:
+                "0 14px 32px -10px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.06)",
+              overflow: "hidden",
+            }}
+          >
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              initials
+            )}
+          </span>
+        </button>
+
+        {/*
+          Badge caméra — bouton à part entière (cliquable indépendamment
+          du bouton avatar, même handler). Positionné en absolute dans le
+          wrapper, légèrement décalé hors du cercle (right/bottom : -2)
+          pour bien le démarquer.
+
+          Z-index 3 : passe au-dessus de la pill (z-index 2) sur la zone
+          de chevauchement. Comme la pill a un padding-top de PILL_HEIGHT/2
+          environ (texte centré verticalement, line-height 1.2), le bord
+          inférieur du badge (qui dépasse de quelques px dans le haut de
+          la pill) tombe TOUJOURS dans le padding de la pill, jamais sur
+          le texte.
+
+          Hover : scale 110% pour signaler la cliquabilité.
+        */}
+        <button
+          type="button"
+          onClick={openPicker}
+          aria-label="Modifier ma photo de profil"
+          className="transition-transform duration-200 hover:scale-110 focus-visible:scale-110"
           style={{
             position: "absolute",
-            right: -2,
             bottom: -2,
-            width: 40,
-            height: 40,
+            right: -2,
+            width: BADGE_SIZE,
+            height: BADGE_SIZE,
             borderRadius: "50%",
             background: "var(--color-brand)",
             color: "white",
+            border: "3px solid white",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            border: "3px solid white",
+            cursor: "pointer",
+            padding: 0,
             boxShadow:
               "0 10px 24px -8px rgba(224,98,90,0.55), 0 2px 8px rgba(0,0,0,0.08)",
+            zIndex: 3,
+            outline: "none",
           }}
         >
           <Camera size={16} strokeWidth={2.25} />
-        </span>
-      </button>
+        </button>
+      </div>
 
       <EditableDisplayName
         // key sur la valeur upstream → remount propre quand un autre onglet
@@ -192,8 +237,8 @@ export function ProfileHero({
       {/* Note OPS-47 : l'email n'est plus affiché ici. Il reste consultable
           dans l'encadré "Informations du profil" via le composant EmailField,
           qui est aussi le seul endroit où on peut le modifier.
-          Note OPS-62 v2 : le bouton "Modifier l'avatar" secondaire a été
-          retiré, le badge caméra ci-dessus est le seul CTA photo. */}
+          Note OPS-62 v3 : le bouton "Modifier l'avatar" secondaire est
+          supprimé et le badge caméra ci-dessus est le seul CTA photo. */}
 
       {pickerOpen && (
         <AvatarPicker
@@ -211,55 +256,32 @@ export function ProfileHero({
 }
 
 // ============================================================================
-// EditableDisplayName — pill nom d'affichage chevauchant le bas de l'avatar
-// (OPS-62 v2). État par défaut : bouton-pill blanc avec icône pencil au hover.
-// Clic → input du même gabarit en focus immédiat ; Entrée / blur enregistre,
-// Échap annule.
-//
-// Spécifications visuelles OPS-62 v2 :
-//   - fond blanc, bord arrondi pill (radius 9999),
-//   - bordure fine `var(--color-border-default)` + shadow `--nc-shadow-3`
-//     pour rester cohérent avec le reste du design system,
-//   - chevauche le bas de l'avatar via marginTop négatif,
-//   - taille de police 13px (cohérente avec les boutons du design system —
-//     ni trop gros, ni trop crammé),
-//   - largeur min 220 / max 340 → la pill garde une taille stable et
-//     les placeholders cyclants (jusqu'à 47 chars) tiennent en entier sans
-//     ellipsis dans le cas standard,
-//   - zIndex 2 pour passer au-dessus de l'avatar mais reste derrière le
-//     badge caméra qui flotte hors du cercle (right/bottom: -2).
-//
-// Empty state : un cycle de 3 placeholders (PlaceholderCycle) tourne
-// toutes les 3.4s avec fade in/out 260ms — invite l'utilisateur à
-// remplir le champ. Cycle interrompu dès que la valeur upstream est non
-// vide. Respecte prefers-reduced-motion.
-//
-// Note implémentation : `value` est passé comme `key` du composant par le
-// parent → chaque changement upstream remount le composant et réinitialise
-// proprement `draft`. Pas besoin de useEffect + setState (anti-pattern
-// React 19 — cf. "you might not need an effect").
+// PLACEHOLDERS — 3 messages cyclants. Liste consolidée après OPS-46.
 // ============================================================================
-const PILL_FONT_SIZE = 13;
-const PILL_OVERLAP = 16;
-const PILL_MIN_WIDTH = 220;
-const PILL_MAX_WIDTH = 340;
-
-// 3 placeholders cyclants pour inviter à remplir le champ. Liste consolidée
-// après OPS-46 (qui a retiré "Si tu devais te présenter en un mot ?").
 const PLACEHOLDERS = [
   "Comment veux-tu qu'on t'appelle ?",
   "Ton prénom, ton pseudo… c'est toi qui choisis",
   "Le nom qui s'affichera partout dans l'app",
 ] as const;
 
+// ============================================================================
+// PlaceholderCycle — crossfade entre 3 messages dans un container de
+// dimensions fixes (pas de saccade de redimensionnement de la pill).
+//
+// Implémentation : les 3 spans sont tous montés en `position: absolute`
+// dans le même container, et on bascule simplement l'opacité de l'item
+// courant (1) vs les autres (0). Transition 500ms ease.
+//
+// Avantage vs un pattern "fade-out → swap → fade-in" : pas de trou où
+// rien n'est visible pendant la transition, et le container garde une
+// taille parfaitement stable car la pill au-dessus a une largeur fixée.
+//
+// Respect de prefers-reduced-motion → fige sur le 1er message.
+// ============================================================================
 function PlaceholderCycle() {
-  const [index, setIndex] = useState(0);
-  const [visible, setVisible] = useState(true);
+  const [current, setCurrent] = useState(0);
 
   useEffect(() => {
-    // Respect de prefers-reduced-motion — on fige sur le 1er message au
-    // lieu de cycler (évite la fatigue visuelle pour les utilisateurs
-    // sensibles aux animations).
     if (
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
@@ -267,12 +289,7 @@ function PlaceholderCycle() {
       return;
     }
     const cycle = setInterval(() => {
-      setVisible(false);
-      const swap = setTimeout(() => {
-        setIndex((i) => (i + 1) % PLACEHOLDERS.length);
-        setVisible(true);
-      }, 260);
-      return () => clearTimeout(swap);
+      setCurrent((c) => (c + 1) % PLACEHOLDERS.length);
     }, 3400);
     return () => clearInterval(cycle);
   }, []);
@@ -280,16 +297,64 @@ function PlaceholderCycle() {
   return (
     <span
       style={{
-        display: "inline-block",
-        opacity: visible ? 1 : 0,
-        transition: "opacity 260ms ease",
-        whiteSpace: "nowrap",
+        position: "relative",
+        display: "block",
+        width: "100%",
+        height: "1.5em",
+        // Le container a une hauteur fixe (1.5em ≈ line-height du texte)
+        // pour que les items en absolute aient une zone définie.
       }}
     >
-      {PLACEHOLDERS[index]}
+      {PLACEHOLDERS.map((text, i) => (
+        <span
+          key={i}
+          aria-hidden={i !== current}
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: i === current ? 1 : 0,
+            transition: "opacity 500ms ease",
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+          }}
+        >
+          {text}
+        </span>
+      ))}
     </span>
   );
 }
+
+// ============================================================================
+// EditableDisplayName — pill de taille fixe (PILL_WIDTH × PILL_HEIGHT)
+// qui chevauche le bas de l'avatar via marginTop négatif.
+//
+// Choix de design (OPS-62 v3) :
+//   - Largeur FIXE (320 px) → le cycle de placeholders ne déclenche
+//     plus aucun redimensionnement, transition parfaitement smooth.
+//   - Pas de crayon visible : pas de "2e colonne" qui décale le texte ;
+//     l'affordance d'édition est portée par le hover (background passe
+//     à `--color-surface-raised`) + le curseur pointer.
+//   - Padding-right légèrement plus grand que padding-left
+//     (PILL_TEXT_PADDING_RIGHT vs PILL_TEXT_PADDING_LEFT) pour laisser
+//     un "rest visuel" sous le badge caméra qui flotte par-dessus le
+//     coin supérieur droit de la pill — le texte ne tombera jamais
+//     sous le badge ni horizontalement ni verticalement.
+//   - Police 13 px / weight 600 (cohérent avec les boutons du DS).
+//   - z-index 2 → chevauche l'avatar (z-index 1) mais reste sous le
+//     badge caméra (z-index 3).
+//
+// Sync de la valeur upstream : `key={value}` côté parent → remount au
+// lieu d'un useEffect + setState (anti-pattern React 19).
+// ============================================================================
+
+// Padding asymétrique : un peu plus à droite pour ne pas que le texte
+// passe trop près de la zone où le badge caméra dépasse par-dessus.
+const PILL_TEXT_PADDING_LEFT = 22;
+const PILL_TEXT_PADDING_RIGHT = 32;
 
 function EditableDisplayName({
   value,
@@ -327,18 +392,18 @@ function EditableDisplayName({
     setEditing(false);
   }
 
-  // Wrapper commun aux deux états (display / edit). marginTop négatif
-  // pour chevaucher l'avatar. zIndex 2 → au-dessus de l'avatar mais
-  // toujours derrière le badge caméra qui flotte hors du cercle.
+  // Wrapper de TAILLE FIXE — c'est le levier principal qui fixe le
+  // problème de saccade : la pill ne se redimensionne JAMAIS pendant
+  // le cycle de placeholders, le crossfade reste smooth.
   const wrapperBase: React.CSSProperties = {
     position: "relative",
     marginTop: -PILL_OVERLAP,
     zIndex: 2,
-    display: "inline-flex",
+    width: PILL_WIDTH,
+    height: PILL_HEIGHT,
+    display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    minWidth: PILL_MIN_WIDTH,
-    maxWidth: PILL_MAX_WIDTH,
   };
 
   if (editing) {
@@ -360,6 +425,7 @@ function EditableDisplayName({
           aria-label="Nom d'affichage"
           style={{
             width: "100%",
+            height: "100%",
             fontSize: PILL_FONT_SIZE,
             fontWeight: 600,
             letterSpacing: "-0.01em",
@@ -367,7 +433,7 @@ function EditableDisplayName({
             background: "white",
             border: "1px solid var(--color-brand)",
             borderRadius: 9999,
-            padding: "8px 18px",
+            padding: `0 ${PILL_TEXT_PADDING_RIGHT}px 0 ${PILL_TEXT_PADDING_LEFT}px`,
             textAlign: "center",
             outline: "none",
             boxShadow:
@@ -403,14 +469,12 @@ function EditableDisplayName({
       aria-label={
         isEmpty ? "Ajouter un nom d'affichage" : "Modifier le nom d'affichage"
       }
-      className="group hover:bg-[var(--color-surface-raised)] focus-visible:bg-[var(--color-surface-raised)]"
+      className="hover:bg-[var(--color-surface-raised)] focus-visible:bg-[var(--color-surface-raised)]"
       style={{
         ...wrapperBase,
-        gap: 6,
         background: "white",
         border: "1px solid var(--color-border-default)",
         borderRadius: 9999,
-        padding: "8px 16px 8px 18px",
         cursor: "pointer",
         color: isEmpty
           ? "var(--color-text-muted)"
@@ -420,33 +484,29 @@ function EditableDisplayName({
         letterSpacing: "-0.01em",
         fontStyle: isEmpty ? "italic" : "normal",
         outline: "none",
-        // var(--nc-shadow-3) du design system — ombre fine cohérente
+        // var(--nc-shadow-3) — ombre du design system pour rester cohérent
         // avec les autres cards/pills du dashboard.
         boxShadow: "var(--nc-shadow-3)",
         transition: "background 150ms ease, box-shadow 150ms ease",
+        padding: `0 ${PILL_TEXT_PADDING_RIGHT}px 0 ${PILL_TEXT_PADDING_LEFT}px`,
       }}
     >
-      <span
-        style={{
-          flex: 1,
-          minWidth: 0,
-          textAlign: "center",
-          whiteSpace: "nowrap",
-          // textOverflow ellipsis uniquement en cas de débordement extrême
-          // (nom > 50 chars). Les 3 placeholders cyclants tiennent en
-          // entier dans la fourchette 220-340 ; les noms réels aussi
-          // dans 99% des cas.
-          textOverflow: "ellipsis",
-          overflow: "hidden",
-        }}
-      >
-        {isEmpty ? <PlaceholderCycle /> : display}
-      </span>
-      <Pencil
-        size={13}
-        className="opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ color: "var(--color-text-muted)", flexShrink: 0 }}
-      />
+      {isEmpty ? (
+        <PlaceholderCycle />
+      ) : (
+        <span
+          style={{
+            flex: 1,
+            textAlign: "center",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            minWidth: 0,
+          }}
+        >
+          {display}
+        </span>
+      )}
     </button>
   );
 }
