@@ -13,12 +13,24 @@
 // le purpose `maskable` (Android peut découper jusqu'à 20% des bords ; le
 // logo reste centré dans la safe zone).
 //
-// Dépendance : `sharp` (devDependency). Usage : `node scripts/generate-pwa-icons.mjs`.
+// Dépendance : `sharp` — NON inclus dans package.json (Vercel CLI 54 patche
+// `next.config` pour câbler sharp dans l'image optimizer, et la simple
+// présence de sharp dans node_modules cassait l'étape "Applying modifyConfig
+// from Vercel" sur cette version). Installer ponctuellement :
+//   `npm i --no-save sharp`
+// puis lancer `node scripts/generate-pwa-icons.mjs`.
 
-import sharp from "sharp";
 import { mkdirSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+let sharp;
+try {
+  ({ default: sharp } = await import("sharp"));
+} catch {
+  console.error("✗ sharp introuvable. Lancer : npm i --no-save sharp");
+  process.exit(1);
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SOURCE = resolve(__dirname, "pwa-icon-source.png");
