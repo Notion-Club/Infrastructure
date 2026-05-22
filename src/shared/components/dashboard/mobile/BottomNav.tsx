@@ -25,7 +25,13 @@ export function BottomNav() {
       aria-label="Navigation principale"
       style={{
         position: "fixed",
-        bottom: 10,
+        // En PWA standalone, `env(safe-area-inset-bottom)` vaut ~34px sur
+        // iPhone (home indicator). On le combine au bottom de base pour
+        // remonter la pill au-dessus de la zone système ; appliquer un
+        // padding-bottom dilaterait la pill sans déplacer les icônes (la
+        // height fixe ne contient pas le padding) — visuellement, on
+        // verrait l'encadré décalé sous les boutons.
+        bottom: "calc(10px + env(safe-area-inset-bottom))",
         left: 12,
         right: 12,
         height: 56,
@@ -39,7 +45,6 @@ export function BottomNav() {
         display: "flex",
         alignItems: "center",
         padding: "0 6px",
-        paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
       {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
