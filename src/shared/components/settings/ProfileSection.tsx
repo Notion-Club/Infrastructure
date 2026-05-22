@@ -432,9 +432,13 @@ function TextField({
   );
 }
 
-// OPS-47 — AnimatedDisplayNameField + DISPLAY_NAME_PLACEHOLDERS retirés.
-// Le nom d'affichage vit désormais dans ProfileHero (inline-edit) plutôt que
-// dans ce formulaire. Voir EditableDisplayName dans ProfileHero.tsx.
+// OPS-46 / OPS-47 — AnimatedDisplayNameField + DISPLAY_NAME_PLACEHOLDERS
+// retirés. Le nom d'affichage vit désormais dans ProfileHero (inline-edit
+// dans la pill blanche chevauchant la photo) plutôt que dans ce
+// formulaire. Voir EditableDisplayName dans ProfileHero.tsx.
+// → OPS-46 (retrait du placeholder "Si tu devais te présenter en un
+//   mot ?") est de facto livré par cette suppression : tout le cycle de
+//   placeholders n'existe plus.
 
 // ============================================================================
 // UsernameField — input avec préfixe "@" et helper text dédié
