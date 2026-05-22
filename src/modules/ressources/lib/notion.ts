@@ -1,0 +1,259 @@
+// Server-only fetchers for Notion-backed Ressources & Templates.
+// Auth: NOTION_API_TOKEN env var (already configured for the feedback widget — Brique 4).
+// The Notion integration MUST be connected to both databases — open each DB in
+// Notion → "..." → Connections → add the NotionClub integration. Without that,
+// Notion returns 404 "object_not_found".
+//
+// - Resources DB: 147bad056a9580e69178ded1262ab4d7
+// - Templates DB: 176bad056a95800293cbc3f4ad63562f
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import type {
+  Resource,
+  Template,
+  ContentBlock,
+  ResourceFormation,
+  ResourceMetierType,
+  ResourceVisibility,
+  TemplateType,
+} from "../types";
+
+const NOTION_API = "https://api.notion.com/v1";
+const NOTION_VERSION = "2022-06-28";
+const REVALIDATE_SECONDS = 60;
+
+const RESOURCES_DB_ID = "147bad056a9580e69178ded1262ab4d7";
+const TEMPLATES_DB_ID = "176bad056a95800293cbc3f4ad63562f";
+
+function notionHeaders() {
+  const token = process.env.NOTION_API_TOKEN;
+  if (!token) {
+    throw new Error("NOTION_API_TOKEN missing");
+  }
+  return {
+    Authorization: `Bearer ${token}`,
+    "Notion-Version": NOTION_VERSION,
+    "Content-Type": "application/json",
+  };
+}
+
+// ─── ID / slug helpers ──────────────────────────────────────────────
+// Notion page IDs are 36-char UUIDs with dashes. We use a dashless 32-char
+// form in URLs (shorter + same form Notion itself accepts).
+
+function notionIdToSlug(id: string): string {
+  return id.replace(/-/g, "");
+}
+
+export function slugToNotionId(slug: string): string {
+  if (slug.length !== 32) return slug;
+  return `${slug.slice(0, 8)}-${slug.slice(8, 12)}-${slug.slice(12, 16)}-${slug.slice(16, 20)}-${slug.slice(20)}`;
+}
+
+// ─── Property extractors ────────────────────────────────────────────
+
+function getTitle(prop: any): string {
+  return prop?.title?.map((t: any) => t.plain_text).join("") ?? "";
+}
+function getRichText(prop: any): string {
+  return prop?.rich_text?.map((t: any) => t.plain_text).join("") ?? "";
+}
+function getSelect(prop: any): string | null {
+  return prop?.select?.name ?? null;
+}
+function getMultiSelect(prop: any): string[] {
+  return (prop?.multi_select ?? []).map((o: any) => o.name);
+}
+function getUrl(prop: any): string | null {
+  return prop?.url ?? null;
+}
+
+// ─── Resources ──────────────────────────────────────────────────────
+
+export async function fetchResources(): Promise<Resource[]> {
+  const res = await fetch(`${NOTION_API}/databases/${RESOURCES_DB_ID}/query`, {
+    method: "POST",
+    headers: notionHeaders(),
+    body: JSON.stringify({
+      filter: {
+        property: "Rédaction",
+        status: { equals: "En diffusion" },
+      },
+      sorts: [{ timestamp: "created_time", direction: "descending" }],
+    }),
+    next: { revalidate: REVALIDATE_SECONDS },
+  });
+  if (!res.ok) {
+    console.error("[notion] fetchResources failed", res.status, await res.text());
+    return [];
+  }
+  const data = await res.json();
+  return (data.results ?? []).map(notionPageToResource);
+}
+
+function notionPageToResource(page: any): Resource {
+  const p = page.properties ?? {};
+  return {
+    category: "resource",
+    slug: notionIdToSlug(page.id),
+    titre: getTitle(p["Titre"]),
+    description: getRichText(p["Description"]),
+    formation: getMultiSelect(p["Formation"]) as ResourceFormation[],
+    type: getMultiSelect(p["Type"]) as ResourceMetierType[],
+    visibilite: (getSelect(p["Visibilité"]) ?? "Challenge Gratuit") as ResourceVisibility,
+    dateCreation: page.created_time,
+    content: [],
+  };
+}
+
+export async function fetchResourceBySlug(slug: string): Promise<Resource | null> {
+  const pageId = slugToNotionId(slug);
+  const [pageRes, blocks] = await Promise.all([
+    fetch(`${NOTION_API}/pages/${pageId}`, {
+      headers: notionHeaders(),
+      next: { revalidate: REVALIDATE_SECONDS },
+    }),
+    fetchAllBlocks(pageId),
+  ]);
+
+  if (!pageRes.ok) {
+    if (pageRes.status !== 404) {
+      console.error("[notion] fetchResourceBySlug failed", pageRes.status);
+    }
+    return null;
+  }
+  const page = await pageRes.json();
+  const resource = notionPageToResource(page);
+  resource.content = blocksToContent(blocks);
+  return resource;
+}
+
+// ─── Templates ──────────────────────────────────────────────────────
+
+export async function fetchTemplates(): Promise<Template[]> {
+  const res = await fetch(`${NOTION_API}/databases/${TEMPLATES_DB_ID}/query`, {
+    method: "POST",
+    headers: notionHeaders(),
+    body: JSON.stringify({
+      filter: {
+        property: "Conception",
+        status: { equals: "Prêt à être dupliqué" },
+      },
+      sorts: [{ timestamp: "created_time", direction: "descending" }],
+    }),
+    next: { revalidate: REVALIDATE_SECONDS },
+  });
+  if (!res.ok) {
+    console.error("[notion] fetchTemplates failed", res.status, await res.text());
+    return [];
+  }
+  const data = await res.json();
+  return (data.results ?? []).map(notionPageToTemplate);
+}
+
+function notionPageToTemplate(page: any): Template {
+  const p = page.properties ?? {};
+  return {
+    category: "template",
+    slug: notionIdToSlug(page.id),
+    titre: getTitle(p["Name"]),
+    description: getRichText(p["Description"]),
+    type: (getSelect(p["Type"]) ?? "Système Généraliste") as TemplateType,
+    visibilite: (getSelect(p["Visibilité"]) ?? "Challenge Gratuit") as ResourceVisibility,
+    urlNotionPublicPage: getUrl(p["URL Notion Public Page"]) ?? "",
+    urlTella: getUrl(p["URL Tella"]) ?? undefined,
+    dateCreation: page.created_time,
+  };
+}
+
+export async function fetchTemplateBySlug(slug: string): Promise<Template | null> {
+  const pageId = slugToNotionId(slug);
+  const res = await fetch(`${NOTION_API}/pages/${pageId}`, {
+    headers: notionHeaders(),
+    next: { revalidate: REVALIDATE_SECONDS },
+  });
+  if (!res.ok) {
+    if (res.status !== 404) {
+      console.error("[notion] fetchTemplateBySlug failed", res.status);
+    }
+    return null;
+  }
+  const page = await res.json();
+  return notionPageToTemplate(page);
+}
+
+// ─── Block fetch + conversion ────────────────────────────────────────
+
+async function fetchAllBlocks(blockId: string): Promise<any[]> {
+  const all: any[] = [];
+  let cursor: string | undefined;
+  do {
+    const url = new URL(`${NOTION_API}/blocks/${blockId}/children`);
+    if (cursor) url.searchParams.set("start_cursor", cursor);
+    const res = await fetch(url.toString(), {
+      headers: notionHeaders(),
+      next: { revalidate: REVALIDATE_SECONDS },
+    });
+    if (!res.ok) break;
+    const data = await res.json();
+    all.push(...(data.results ?? []));
+    cursor = data.has_more ? data.next_cursor : undefined;
+  } while (cursor);
+  return all;
+}
+
+function richTextToString(rt: any[] | undefined): string {
+  return (rt ?? []).map((t: any) => t.plain_text).join("");
+}
+
+function blocksToContent(blocks: any[]): ContentBlock[] {
+  const out: ContentBlock[] = [];
+  let currentList: string[] | null = null;
+
+  const flushList = () => {
+    if (currentList && currentList.length > 0) {
+      out.push({ type: "list", items: currentList });
+    }
+    currentList = null;
+  };
+
+  for (const block of blocks) {
+    const type = block.type;
+    if (type === "bulleted_list_item" || type === "numbered_list_item") {
+      const text = richTextToString(block[type]?.rich_text);
+      if (!currentList) currentList = [];
+      if (text) currentList.push(text);
+      continue;
+    }
+    flushList();
+
+    if (type === "paragraph") {
+      const text = richTextToString(block.paragraph?.rich_text);
+      if (text) out.push({ type: "paragraph", text });
+    } else if (type === "heading_1" || type === "heading_2") {
+      const text = richTextToString(block[type]?.rich_text);
+      if (text) out.push({ type: "heading", level: 2, text });
+    } else if (type === "heading_3") {
+      const text = richTextToString(block.heading_3?.rich_text);
+      if (text) out.push({ type: "heading", level: 3, text });
+    } else if (type === "image") {
+      const url =
+        block.image?.type === "external"
+          ? block.image.external?.url
+          : block.image?.file?.url;
+      if (url) {
+        const alt = richTextToString(block.image?.caption) || undefined;
+        out.push({ type: "image", url, alt });
+      }
+    } else if (type === "embed" || type === "video" || type === "bookmark") {
+      const url = block[type]?.url ?? "";
+      if (url.includes("tella.tv") || url.includes("tella.video")) {
+        out.push({ type: "tella_embed", url });
+      }
+    }
+    // Skip: divider, callout, quote, code, table, child_page, etc.
+  }
+  flushList();
+  return out;
+}
