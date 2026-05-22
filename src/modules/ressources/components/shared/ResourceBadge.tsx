@@ -19,13 +19,14 @@ const FORMATION_COLOR: Record<string, BadgeColor> = {
 // Color per type label — type="modern" (white bg, colored dot)
 const TYPE_COLOR: Record<string, BadgeColor> = {
   // ResourceMetierType
-  'Relation Client': 'brand',
-  'Production':      'blue',
-  'Acquisition':     'green',
-  'Sales':           'purple',
-  'Business':        'orange',
+  'Relation Client':     'brand',
+  'Production':          'blue',
+  'Acquisition':         'green',
+  'Sales':               'purple',
+  'Business':            'orange',
+  'Rediffusion de Live': 'gray',
   // TemplateType
-  'Pour les consultants Notion': 'purple',
+  'Pour les Consultants Notion': 'purple',
   'Système Généraliste':         'blue',
 };
 
