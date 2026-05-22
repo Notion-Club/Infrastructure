@@ -639,7 +639,7 @@ export default function FeedbackWidget() {
                       <p className={styles.actionCardText}>
                         Sélectionner précisément un bloc de la page et décrire ce qu&apos;il faut changer dessus.
                       </p>
-                      <span className={styles.actionCardCta}>Sélectionner →</span>
+                      <span className={styles.actionCardCta}>Sélectionner</span>
                     </button>
 
                     <button className={styles.actionCard} onClick={startGeneralFeedback}>
@@ -650,7 +650,7 @@ export default function FeedbackWidget() {
                       <p className={styles.actionCardText}>
                         Remarque globale sur la page entière, sans cibler un élément précis (ex. favicon, ressenti global).
                       </p>
-                      <span className={styles.actionCardCta}>Écrire →</span>
+                      <span className={styles.actionCardCta}>Écrire</span>
                     </button>
                   </div>
 
