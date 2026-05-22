@@ -1,7 +1,3 @@
-"use client";
-
-import { useEffect, useState } from "react";
-
 const LAYERS = [
   { blur: 2, from: 0, to: 20 },
   { blur: 5, from: 15, to: 40 },
@@ -14,33 +10,12 @@ const LAYERS = [
 interface GradualBlurOverlayProps {
   height?: number;
   zIndex?: number;
-  /** Distance en px avant le bas du document à partir de laquelle le voile s'efface, pour ne pas masquer le footer. */
-  fadeBeforeBottom?: number;
 }
 
 export function GradualBlurOverlay({
-  height = 180,
+  height = 120,
   zIndex = 30,
-  fadeBeforeBottom = 350,
 }: GradualBlurOverlayProps) {
-  const [faded, setFaded] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => {
-      const remaining =
-        document.documentElement.scrollHeight -
-        (window.scrollY + window.innerHeight);
-      setFaded(remaining < fadeBeforeBottom);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, [fadeBeforeBottom]);
-
   return (
     <div
       aria-hidden
@@ -52,8 +27,6 @@ export function GradualBlurOverlay({
         height,
         pointerEvents: "none",
         zIndex,
-        opacity: faded ? 0 : 1,
-        transition: "opacity 240ms ease",
       }}
     >
       {LAYERS.map((l, i) => (
