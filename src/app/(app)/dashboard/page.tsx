@@ -1,18 +1,46 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Search } from "lucide-react";
 import { Topbar } from "@/shared/components/dashboard/Topbar";
 import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { FormationWidget } from "@/shared/components/dashboard/widgets/FormationWidget";
 import { ProfilWidget } from "@/shared/components/dashboard/widgets/ProfilWidget";
+import { EmailVerifiedToast, LogoutButton } from "@/modules/auth";
+import { EmailConfirmBanner } from "@/shared/components/dashboard/EmailConfirmBanner";
+import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Accueil — Notion Club",
 };
 
-const MOCK_USER = { prenom: "Théo" };
+// Récupère le prénom du user courant pour le greeting. Fallback :
+//   1. profiles.first_name (renseigné au signup email/password)
+//   2. profiles.display_name (cas où first_name absent, ex: Google OAuth)
+//   3. partie locale de l'email (fallback ultime)
+//   4. "à toi" si pas de user connecté (la page n'est pas encore protégée
+//      par middleware, donc un visiteur anon peut tomber dessus)
+async function getGreetingFirstName(): Promise<string> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return "à toi";
 
-export default function DashboardPage() {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("first_name, display_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile?.first_name) return profile.first_name;
+  if (profile?.display_name) return profile.display_name;
+  if (user.email) return user.email.split("@")[0];
+  return "à toi";
+}
+
+export default async function DashboardPage() {
+  const firstName = await getGreetingFirstName();
   return (
     <>
       {/* Éléments fixed hors de nc-page-halo pour éviter que isolation:isolate
@@ -35,6 +63,13 @@ export default function DashboardPage() {
           }}
           className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10"
         >
+          {/* Toast post-clic du lien de confirmation (?email_verified=…).
+              Wrappé en Suspense car useSearchParams empêche le prerender
+              statique sinon. */}
+          <Suspense fallback={null}>
+            <EmailVerifiedToast />
+          </Suspense>
+
           {/* Greeting + search — desktop uniquement */}
           <div className="hidden md:flex flex-col gap-5">
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -57,7 +92,7 @@ export default function DashboardPage() {
                   lineHeight: 1.1,
                 }}
               >
-                Salut {MOCK_USER.prenom}&nbsp;👋
+                Salut {firstName}&nbsp;👋
               </h1>
             </div>
 
@@ -121,7 +156,7 @@ export default function DashboardPage() {
                 lineHeight: 1.1,
               }}
             >
-              Salut {MOCK_USER.prenom}&nbsp;👋
+              Salut {firstName}&nbsp;👋
             </h1>
           </div>
 
@@ -141,6 +176,7 @@ export default function DashboardPage() {
 
           {/* Widgets */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <EmailConfirmBanner />
             <FormationWidget />
             <ProfilWidget />
 
@@ -171,6 +207,11 @@ export default function DashboardPage() {
               </span>
               Communauté · Coaching · à venir
             </div>
+          </div>
+
+          {/* Logout temporaire (OPS-15) — à déplacer dans le menu utilisateur du Topbar */}
+          <div className="flex justify-center pt-4">
+            <LogoutButton />
           </div>
         </div>
       </main>

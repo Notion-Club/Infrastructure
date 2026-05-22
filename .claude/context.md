@@ -223,3 +223,98 @@ Remplacée par `Topbar.tsx` pour desktop.
 - ✅ Données mockées uniquement
 - ✅ `useState` pour interactions UI
 - ✅ `router.push()` statique
+
+---
+
+## Outil de feedback admin (widget intégré)
+
+> 📘 **Point d'entrée canonique** : [`docs/feedback-widget/README.md`](../docs/feedback-widget/README.md) — recap complet, prompt de reprise de contexte, journal des commits, ambiguïtés ouvertes, next steps.
+
+Origine : repris de `theogouman/random-project` (Swiss Serenity Plus), simplifié pour ne garder que les 2 flows de feedback utiles à NotionClub. Le flow "Création d'article de blog" + ses dépendances (`CustomSelect`, `RichTextEditor`, route `/api/blog-posts`) ont été supprimés.
+
+### Emplacement dans le repo
+
+```
+src/shared/components/feedback-widget/
+  FeedbackWidget.tsx           ← cœur — 2 flows
+  FeedbackWidget.module.css
+  FeedbackWidgetLoader.tsx     ← dynamic(ssr:false) wrapper
+
+src/app/api/
+  feedback/route.ts            ← POST  → Notion DB (NOTION_DATABASE_ID)
+  tickets/route.ts             ← GET (liste) / DELETE (archive) — même DB
+```
+
+Monté dans `src/app/(app)/layout.tsx` (visible uniquement après auth Supabase, pas sur `/login` ni `/signup`).
+
+### Les 2 flows
+
+1. **Feedback sur un élément** — mode inspection visuel : clic sur "Sélectionner un élément" → curseur crosshair + overlay highlight brand → clic sur n'importe quel élément de la page → l'élément est annoté (avec son ancre `#id` pour deep-link), choix d'une action parmi 9 (Modifier du texte, Ajouter du texte, Ajouter une image, Changer une couleur, Modifier la mise en page, Supprimer un élément, Ajouter un lien, Corriger une faute, Autre), choix du côté (Frontend ou Backend, optionnel), saisie du retour, ajout au draft.
+2. **Feedback général** — feedback page entière sans sélection (même formulaire, Action optionnelle).
+
+Vue grille des tickets déjà envoyés disponible depuis le hub (lecture/suppression directe via `/api/tickets`).
+
+### Comment l'administrateur note rapidement dans le ticket de la roadmap
+
+1. Naviguer sur n'importe quelle page du dashboard (le widget est disponible partout sous `(app)/`).
+2. Cliquer sur le bouton flottant en bas à droite.
+3. Choisir un des 2 flows :
+   - **"Retour sur un élément"** quand la modification porte sur un bloc précis — Composant + URL avec ancre envoyés à Notion.
+   - **"Feedback général"** pour une note de page entière.
+4. Cocher éventuellement Frontend / Backend pour cibler la stack.
+5. Rédiger, ajouter au draft. Plusieurs retours peuvent s'accumuler avant envoi.
+6. "Envoyer" → un ticket est créé par retour dans la base Notion jointe.
+7. Onglet "Tickets envoyés" (icône grille) : voir/supprimer les tickets existants.
+
+### Connexion à la base Notion
+
+URL fournie en session par l'administrateur :
+
+```
+https://www.notion.so/gouman/c4209ec95e2b496888c843e6c4672eda?v=a981d5a0b73149c29454699f4f0ca8c3&source=copy_link
+```
+
+→ ID de la base (format UUID Notion) : `c4209ec9-5e2b-4968-88c8-43e6c4672eda`
+
+ID hardcodé comme défaut dans les 2 routes (`/api/feedback`, `/api/tickets`). `NOTION_API_TOKEN` existante (Brique 4 Notion sync) suffit. Voir `.env.example` pour le détail.
+
+### Schéma de la base Notion roadmap (5 propriétés + /End)
+
+Le code écrit/lit exactement ce que contient la base aujourd'hui — pas plus, pas moins. Tout écart provoquera une erreur `validation_error` Notion.
+
+| Propriété (libellé exact) | Type Notion | Source côté code |
+|---|---|---|
+| `Composant` | Select | nom du bloc annoté (auto-clip à 100 chars, virgules → espaces) |
+| `Action` | Select | une des 9 actions du formulaire |
+| `/End` | Select | `Frontend` ou `Backend` (optionnel) |
+| `Feedback` | Texte (rich_text) | texte du retour (clip 2000 chars en property, débordement écrit en blocs paragraphes dans le body) |
+| `User Agent` | Texte (rich_text) | header HTTP côté serveur — pour distinguer mobile / desktop |
+| `URL` | URL | deep-link `https://app.notionclub.fr/page#anchor` |
+
+Notion auto-crée les options de Select au premier write — pas besoin de seeder la base.
+
+### Adaptations effectuées au code source
+
+1. **Suppression flow blog** : route `/api/blog-posts`, composants `CustomSelect` + `RichTextEditor`, formulaire complet + CSS associé. Le widget ne porte plus que les 2 flows de feedback.
+2. **`PAGE_MAP`** dans `FeedbackWidget.tsx` : routes NC réelles. Routes dynamiques retombent sur `"Home"` (note : `Page concernée` n'est plus écrit côté Notion — propriété absente du schéma actuel).
+3. **Palette CSS alignée DA NotionClub** : `FeedbackWidget.module.css` réécrit sur les tokens du projet (`--color-brand`, `--color-text-*`, `--color-surface-*`, `--color-border-default`, `--nc-radius-*`, `--nc-shadow-2/3`, `--nc-ease`, `--nc-duration-*`). Pattern hover lift `translateY(-2px)` + border brand-tinted + halo dot pattern repris du `FormationWidget`.
+4. **Trigger** : icône Lucide `<MessageSquarePlus>` sur fond brand, halo pulse au hover.
+5. **Overlay sélection** : couleurs brand `rgba(224,98,90,…)` au lieu du taupe Swiss-Serenity original.
+
+### Points d'ambiguïté — laissés ouverts
+
+Décisions tranchées :
+- **Token Notion unifié** : les routes consomment `NOTION_API_TOKEN` (variable existante de la Brique 4 Notion sync).
+- **Base Notion unique** : `c4209ec9-5e2b-4968-88c8-43e6c4672eda` hardcodée comme défaut. Schéma : voir tableau ci-dessus.
+- **Pas de blog dans le widget** : `outil pour faire des articles de blog` retiré (cf. session 2026-05-22).
+
+Restant ouvert :
+- **Gating admin** : le widget est aujourd'hui monté pour **tous les utilisateurs authentifiés** via `(app)/layout.tsx`. À restreindre aux administrateurs ? Si oui, sur quel critère (rôle Supabase, email allowlist, env var) ?
+- **Thème sombre** : palette alignée sur le light theme NC. Le projet utilise `next-themes` ; l'apparence en mode dark n'a pas encore été testée.
+
+### Setup à effectuer côté Vercel/Notion
+
+1. Vérifier que l'intégration Notion liée à `NOTION_API_TOKEN` est connectée à la base "ticket roadmap" (`c4209ec9-...`) : ouvrir la base → `...` → `Connections` → ajouter l'intégration. **Sans cette étape, Notion renvoie un 404 "object_not_found".**
+2. S'assurer que la base contient les 6 propriétés du tableau ci-dessus (Composant / Action / /End / Feedback / User Agent / URL) — les options des Select sont auto-créées au premier write.
+3. `NOTION_API_TOKEN` est déjà configurée côté Vercel (Brique 4 Notion sync). Aucune nouvelle var requise.
+4. `NOTION_DATABASE_ID` reste dispo en override optionnel (preview/staging vers une base de test).

@@ -14,6 +14,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
+import {
+  computeIdentityInitials,
+  useProfileIdentityContext,
+} from "@/shared/components/identity/ProfileIdentityProvider";
+
 type NavItem = { label: string; icon: LucideIcon; href: string };
 
 const LOGO_SRC =
@@ -27,18 +33,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Ressources", icon: Library, href: "/ressources" },
 ];
 
-const MOCK_USER = { prenom: "Théo", nom: "Martin" };
 const UNREAD_COUNT = 2;
-
-const DROPDOWN_ITEMS = [
-  { label: "Mon profil", href: "/profil", danger: false },
-  { label: "Réglages", href: "/reglages", danger: false },
-  { label: "Se déconnecter", href: "/login", danger: true },
-];
-
-function getInitials(prenom: string, nom: string) {
-  return `${prenom[0] ?? ""}${nom[0] ?? ""}`.toUpperCase();
-}
 
 const SEPARATOR = (
   <div
@@ -69,7 +64,10 @@ export function Topbar() {
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [avatarOpen]);
 
-  const initials = getInitials(MOCK_USER.prenom, MOCK_USER.nom);
+  const { identity } = useProfileIdentityContext();
+  const initials = computeIdentityInitials(identity);
+  const avatarUrl = identity?.avatarUrl ?? null;
+  const avatarColor = identity?.avatarColor ?? "#e0625a";
 
   return (
     <header
@@ -82,6 +80,11 @@ export function Topbar() {
         zIndex: 50,
         padding: "14px 40px",
         background: "transparent",
+        // Force a GPU layer so position:fixed isn't broken by ancestor
+        // filters/transforms. Avoid `contain: paint` here — it would clip
+        // the dropdown that extends below the header.
+        transform: "translateZ(0)",
+        willChange: "transform",
       }}
     >
       {/* Pill — élargie pour respirer avec 5 items de nav + groupe droit */}
@@ -103,14 +106,20 @@ export function Topbar() {
       >
         {/* ── Gauche : logo + séparateur + nav ── */}
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <Image
-            src={LOGO_SRC}
-            alt="Notion Club"
-            width={120}
-            height={40}
-            priority
-            style={{ height: 32, width: "auto", display: "block", flexShrink: 0 }}
-          />
+          <Link
+            href="/dashboard"
+            aria-label="Notion Club — retour à l'accueil"
+            style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}
+          >
+            <Image
+              src={LOGO_SRC}
+              alt="Notion Club"
+              width={120}
+              height={40}
+              priority
+              style={{ height: 32, width: "auto", display: "block", flexShrink: 0 }}
+            />
+          </Link>
 
           {SEPARATOR}
 
@@ -203,7 +212,7 @@ export function Topbar() {
               width: 36,
               height: 36,
               borderRadius: "50%",
-              background: "#e0625a",
+              background: avatarUrl ? "transparent" : avatarColor,
               color: "#fff",
               display: "flex",
               alignItems: "center",
@@ -215,10 +224,25 @@ export function Topbar() {
               cursor: "pointer",
               flexShrink: 0,
               transition: "opacity 150ms ease",
+              overflow: "hidden",
+              padding: 0,
             }}
             className="hover:opacity-85"
           >
-            {initials}
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt=""
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+              />
+            ) : (
+              initials
+            )}
           </button>
 
           {avatarOpen && (
@@ -228,7 +252,7 @@ export function Topbar() {
                 position: "absolute",
                 top: "calc(100% + 10px)",
                 right: 0,
-                minWidth: 168,
+                minWidth: 220,
                 borderRadius: 16,
                 boxShadow:
                   "rgba(0,0,0,0.03) 0px -2px 16px -4px, rgba(0,0,0,0.08) 0px 16px 40px -8px, rgba(0,0,0,0.04) 0px 1px 3px 0px",
@@ -236,36 +260,47 @@ export function Topbar() {
                 border: "1px solid #e5e7eb",
                 overflow: "hidden",
                 zIndex: 60,
+                padding: 6,
               }}
             >
-              {DROPDOWN_ITEMS.map((item, idx) => (
-                <div key={item.href}>
-                  {idx === DROPDOWN_ITEMS.length - 1 && (
-                    <div
-                      style={{
-                        height: 1,
-                        background: "#e5e7eb",
-                        margin: "4px 0",
-                      }}
-                    />
-                  )}
-                  <a
-                    href={item.href}
-                    role="menuitem"
-                    style={{
-                      display: "block",
-                      padding: "10px 14px",
-                      fontSize: 14,
-                      color: item.danger ? "#e0625a" : "#000",
-                      textDecoration: "none",
-                      transition: "background 150ms ease",
-                    }}
-                    className="hover:bg-[#f5f5f5]"
-                  >
-                    {item.label}
-                  </a>
-                </div>
-              ))}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  padding: "8px 10px",
+                }}
+              >
+                <span style={{ fontSize: 14, color: "#000" }}>
+                  Mode sombre
+                </span>
+                <ThemeToggle />
+              </div>
+              <div
+                style={{
+                  height: 1,
+                  background: "#e5e7eb",
+                  margin: "4px 0",
+                }}
+              />
+              <Link
+                href="/settings"
+                role="menuitem"
+                onClick={() => setAvatarOpen(false)}
+                style={{
+                  display: "block",
+                  padding: "10px 10px",
+                  fontSize: 14,
+                  color: "#000",
+                  textDecoration: "none",
+                  borderRadius: 10,
+                  transition: "background 150ms ease",
+                }}
+                className="hover:bg-[#f5f5f5]"
+              >
+                Réglages
+              </Link>
             </div>
           )}
         </div>{/* fin avatarRef */}

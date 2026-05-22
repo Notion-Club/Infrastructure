@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Image from "next/image";
 import { AuthMockup } from "@/modules/auth";
 
@@ -28,7 +29,12 @@ export default function SignupPage() {
           </h1>
         </header>
 
-        <AuthMockup initialState="signup-empty" showDevPanel={isDev} />
+        {/* AuthMockup → AuthCard utilise useSearchParams() pour lire ?error=…
+            après un échec OAuth. Next.js 16 exige un Suspense autour pour
+            permettre la pré-génération statique de cette page. */}
+        <Suspense fallback={null}>
+          <AuthMockup initialState="signup-empty" showDevPanel={isDev} />
+        </Suspense>
       </div>
     </main>
   );

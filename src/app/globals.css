@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+html {
+  scroll-behavior: smooth;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -154,6 +158,83 @@
   }
 }
 
+/*
+ * Slot-machine vertical scroll animation pour les placeholders cyclants
+ * (cf. PlaceholderCycle dans ProfileHero.tsx). On translate une pile de 4
+ * items [msg1, msg2, msg3, msg1] de 0 → -25% → -50% → -75% sur un cycle
+ * de 9 s, easing cubic-bezier(0.76, 0, 0.24, 1) — chaque message reste
+ * ~2.4 s à l'écran, transition ~0.6 s entre eux. Le 4e item (duplicat de
+ * msg1) rend la boucle parfaitement seamless : visuellement, après -75%
+ * on revient à 0% sans aucun saut puisque les deux frames affichent
+ * msg1.
+ */
+@keyframes nc-placeholder-scroll {
+  0%,
+  27% {
+    transform: translateY(0%);
+  }
+  33%,
+  60% {
+    transform: translateY(-25%);
+  }
+  67%,
+  93% {
+    transform: translateY(-50%);
+  }
+  100% {
+    transform: translateY(-75%);
+  }
+}
+
+.nc-placeholder-scroll {
+  animation: nc-placeholder-scroll 9s cubic-bezier(0.76, 0, 0.24, 1) infinite;
+}
+
+/*
+ * Animation de redimensionnement de la pill — STRICTEMENT synchronisée
+ * avec nc-placeholder-scroll : mêmes breakpoints %, même durée 9 s, même
+ * courbe d'easing. La largeur passe progressivement de --nc-pill-w-1 →
+ * --nc-pill-w-2 → --nc-pill-w-3 → --nc-pill-w-1 (loop) au rythme exact
+ * où le slot-machine affiche chaque placeholder, donc la pill épouse
+ * toujours le texte visible.
+ *
+ * Les 3 variables --nc-pill-w-N sont injectées en JS depuis
+ * EditableDisplayName, qui mesure la largeur réelle de chaque
+ * placeholder une fois la font chargée. Fallbacks raisonnables ici en
+ * cas de SSR / pas-encore-mesuré.
+ */
+@keyframes nc-pill-width-cycle {
+  0%,
+  27% {
+    width: var(--nc-pill-w-1, 320px);
+  }
+  33%,
+  60% {
+    width: var(--nc-pill-w-2, 360px);
+  }
+  67%,
+  93% {
+    width: var(--nc-pill-w-3, 340px);
+  }
+  100% {
+    width: var(--nc-pill-w-1, 320px);
+  }
+}
+
+.nc-pill-width-cycle {
+  animation: nc-pill-width-cycle 9s cubic-bezier(0.76, 0, 0.24, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nc-placeholder-scroll,
+  .nc-pill-width-cycle {
+    animation: none;
+  }
+  .nc-pill-width-cycle {
+    width: var(--nc-pill-w-1, 320px);
+  }
+}
+
 .nc-page-halo {
   background-color: var(--color-surface-page);
   position: relative;
@@ -230,6 +311,17 @@
 
 .nc-mode-in {
   animation: nc-mode-in var(--nc-duration-normal) var(--nc-ease) both;
+}
+
+@keyframes nc-sheet-in {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @keyframes nc-modal-in {
