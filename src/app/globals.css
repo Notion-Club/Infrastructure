@@ -236,6 +236,26 @@ html {
   animation: nc-mode-in var(--nc-duration-normal) var(--nc-ease) both;
 }
 
+/*
+ * Grid responsive pour la matrix NotificationsSection.
+ * Mobile (< md = 768 px) : colonnes channels compactes 56 px, gap 4 px
+ *   → la matrix tient inline sur les viewports ≥ 320 px.
+ * Desktop (≥ 768 px) : colonnes channels élargies à 96 px et gap 10 px
+ *   → le titre du type respire et les 3 boutons canaux sont mieux
+ *   distribués sur la ligne (plus de grand vide central).
+ */
+.nc-notif-grid {
+  grid-template-columns: minmax(0, 1fr) repeat(3, 56px);
+  gap: 4px;
+}
+
+@media (min-width: 768px) {
+  .nc-notif-grid {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 96px);
+    gap: 10px;
+  }
+}
+
 @keyframes nc-sheet-in {
   from {
     transform: translateY(100%);
