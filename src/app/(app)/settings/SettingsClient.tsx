@@ -232,8 +232,13 @@ export function SettingsClient({
                   isMocked={state.isMocked}
                   initialSettings={initialNotificationSettings ?? null}
                 />
-                <AppearanceSection />
-                <DangerZone isMocked={state.isMocked} />
+                <div
+                  className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start"
+                  style={{ width: "100%" }}
+                >
+                  <AppearanceSection />
+                  <DangerZone isMocked={state.isMocked} />
+                </div>
               </>
             )}
           </div>

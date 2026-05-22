@@ -2,13 +2,14 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, LoaderCircle, Trash2 } from "lucide-react";
+import { Eye, EyeOff, LoaderCircle, LogOut, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
   ACCOUNT_DELETION_CONFIRMATION_PHRASE,
   deleteAccountAction,
 } from "@/modules/settings";
+import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import { SettingsCard } from "./SettingsCard";
 
 type DangerZoneProps = {
@@ -16,15 +17,59 @@ type DangerZoneProps = {
 };
 
 export function DangerZone({ isMocked }: DangerZoneProps) {
+  const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function handleSignOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Redirect happens anyway — login page handles a stale session.
+    } finally {
+      router.push("/login");
+    }
+  }
 
   return (
     <SettingsCard
       title="Zone de danger"
-      description="La suppression de votre compte est définitive. Toutes vos données identifiantes seront anonymisées et vos accès révoqués."
+      description="Déconnecte-toi de cet appareil, ou supprime définitivement ton compte. Toutes les données identifiantes seront anonymisées et tes accès révoqués."
       tone="danger"
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          disabled={signingOut}
+          style={{
+            alignSelf: "flex-start",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 18px",
+            borderRadius: 9999,
+            border: "1px solid var(--color-border-default)",
+            background: "white",
+            color: "var(--color-text-primary)",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: signingOut ? "wait" : "pointer",
+            opacity: signingOut ? 0.6 : 1,
+            transition: "background 150ms ease",
+          }}
+          className="hover:bg-[var(--color-surface-raised)]"
+        >
+          {signingOut ? (
+            <LoaderCircle size={14} className="animate-spin" />
+          ) : (
+            <LogOut size={14} />
+          )}
+          {signingOut ? "Déconnexion…" : "Se déconnecter"}
+        </button>
         <button
           type="button"
           onClick={() => setModalOpen(true)}

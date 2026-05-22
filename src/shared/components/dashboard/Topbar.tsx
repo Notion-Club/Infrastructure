@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Home,
   BookOpen,
@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
-import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import {
   computeIdentityInitials,
   useProfileIdentityContext,
@@ -51,9 +50,7 @@ const SEPARATOR = (
 
 export function Topbar() {
   const pathname = usePathname();
-  const router = useRouter();
   const [avatarOpen, setAvatarOpen] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -66,19 +63,6 @@ export function Topbar() {
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [avatarOpen]);
-
-  async function handleSignOut() {
-    if (signingOut) return;
-    setSigningOut(true);
-    try {
-      const supabase = createSupabaseBrowserClient();
-      await supabase.auth.signOut();
-    } catch {
-      // Ignore — the redirect below brings the user back to login either way.
-    } finally {
-      router.push("/login");
-    }
-  }
 
   const { identity } = useProfileIdentityContext();
   const initials = computeIdentityInitials(identity);
@@ -317,35 +301,6 @@ export function Topbar() {
               >
                 Réglages
               </Link>
-              <div
-                style={{
-                  height: 1,
-                  background: "#e5e7eb",
-                  margin: "4px 0",
-                }}
-              />
-              <button
-                type="button"
-                onClick={handleSignOut}
-                disabled={signingOut}
-                role="menuitem"
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "10px 10px",
-                  fontSize: 14,
-                  color: "#e0625a",
-                  background: "transparent",
-                  border: "none",
-                  borderRadius: 10,
-                  cursor: signingOut ? "wait" : "pointer",
-                  opacity: signingOut ? 0.6 : 1,
-                  transition: "background 150ms ease",
-                }}
-                className="hover:bg-[#f5f5f5]"
-              >
-                {signingOut ? "Déconnexion…" : "Se déconnecter"}
-              </button>
             </div>
           )}
         </div>{/* fin avatarRef */}
