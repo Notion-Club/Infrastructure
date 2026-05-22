@@ -826,7 +826,17 @@ function PhotoDropZone({ onFile }: { onFile: (file: File) => void }) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/png,image/jpeg,image/webp"
+        // OPS-65 — `accept="image/*"` au lieu d'une liste MIME stricte.
+        // Sur macOS, une liste accept restrictive (image/png, image/jpeg,
+        // image/webp) ralentit l'ouverture du NSOpenPanel car le système
+        // doit filtrer chaque fichier individuellement avant d'afficher la
+        // boîte de dialogue (curseur "moulinant" perçu par l'utilisateur).
+        // Avec `image/*` le picker s'ouvre en mode natif rapide. La
+        // validation stricte des MIME (PNG / JPEG / WebP uniquement) reste
+        // intégralement faite par `ingestFile` côté JS : si un fichier
+        // sélectionné n'est pas dans `AVATAR_ALLOWED_MIME`, on toast une
+        // erreur et on n'ouvre pas le cropper.
+        accept="image/*"
         onChange={handleFileSelect}
         style={{ display: "none" }}
       />
