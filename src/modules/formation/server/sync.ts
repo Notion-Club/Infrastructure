@@ -10,6 +10,17 @@
 import { createSupabaseAdminClient } from "@/shared/lib/supabase/admin";
 import { fetchFormationsTree, slugify } from "./notion";
 
+// Garantit l'unicité d'un slug dans un parent : suffixe la position en cas
+// de collision (rare — deux items au même titre dans le même module).
+function uniqueSlug(base: string, used: Set<string>, position: number): string {
+  let slug = base;
+  if (used.has(slug)) slug = `${base}-${position}`;
+  let n = 2;
+  while (used.has(slug)) slug = `${base}-${position}-${n++}`;
+  used.add(slug);
+  return slug;
+}
+
 export type SyncReport = {
   formations: number;
   modules: number;
@@ -54,7 +65,16 @@ export async function syncFormationsFromNotion(): Promise<SyncReport> {
     const formationId = fRow.id;
     formationCount++;
 
+    // Slugs uniques par formation (modules) — dédoublonnage par suffixe position.
+    const usedModuleSlugs = new Set<string>();
+
     for (const mod of formation.modules) {
+      const moduleSlug = uniqueSlug(
+        slugify(mod.name) || `module-${mod.position}`,
+        usedModuleSlugs,
+        mod.position,
+      );
+
       // 2. Module
       const { data: mRow, error: mErr } = await admin
         .from("formation_modules")
@@ -63,6 +83,7 @@ export async function syncFormationsFromNotion(): Promise<SyncReport> {
             notion_id: mod.notionId,
             formation_id: formationId,
             name: mod.name,
+            slug: moduleSlug,
             position: mod.position,
             cover_url: mod.coverUrl,
             synced_at: now,
@@ -82,12 +103,18 @@ export async function syncFormationsFromNotion(): Promise<SyncReport> {
 
       // 3. Cours du module
       if (mod.courses.length === 0) continue;
+      const usedCourseSlugs = new Set<string>();
       const { error: cErr } = await admin.from("formation_courses").upsert(
         mod.courses.map((c) => ({
           notion_id: c.notionId,
           module_id: moduleId,
           formation_id: formationId,
           name: c.name,
+          slug: uniqueSlug(
+            slugify(c.name) || `cours-${c.position}`,
+            usedCourseSlugs,
+            c.position,
+          ),
           description: c.description || null,
           position: c.position,
           is_default: c.isDefault,
