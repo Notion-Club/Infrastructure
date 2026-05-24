@@ -183,14 +183,23 @@ function findFirstVideoUrl(blocks: NotionBlock[]): string | null {
   return null;
 }
 
-// Retire les blocs vidéo du body : la vidéo est déjà affichée dans le player
-// en tête de carte, on évite le doublon. Le reste du body est conservé.
-function stripVideos(blocks: NotionBlock[]): NotionBlock[] {
-  return blocks
-    .filter((b) => b.type !== "video")
-    .map((b) =>
-      b.children ? { ...b, children: stripVideos(b.children) } : b,
-    );
+// Retire UNIQUEMENT la première vidéo du body (celle utilisée comme player
+// en tête de carte) pour éviter le doublon. Les vidéos suivantes (cours à
+// plusieurs vidéos) sont conservées et rendues inline dans le body.
+function stripFirstVideo(blocks: NotionBlock[]): NotionBlock[] {
+  let removed = false;
+  const walk = (list: NotionBlock[]): NotionBlock[] => {
+    const out: NotionBlock[] = [];
+    for (const b of list) {
+      if (!removed && b.type === "video") {
+        removed = true; // on saute la première vidéo, une seule fois
+        continue;
+      }
+      out.push(b.children ? { ...b, children: walk(b.children) } : b);
+    }
+    return out;
+  };
+  return walk(blocks);
 }
 
 async function resolveResourceLink(
@@ -249,7 +258,7 @@ export async function fetchLessonContent(
 
   return {
     videoUrl: findFirstVideoUrl(blocks),
-    blocks: stripVideos(blocks),
+    blocks: stripFirstVideo(blocks),
     synthese: getRichText(page, "Synthèse"),
     resources: [...resources, ...templates].filter(
       (r): r is LessonResourceLink => r !== null && r.title.trim() !== "",

@@ -62,6 +62,8 @@ export function LessonView({
         resources={content.resources}
         courseId={course.id}
         initialNote={view.noteContent}
+        formationName={formation.name}
+        moduleName={mod.name}
       />
 
       <LessonNavigation

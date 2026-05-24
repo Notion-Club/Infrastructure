@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 
 import type { NotionBlock, RichSpan } from "@/shared/lib/notion/blocks";
+import { toEmbedSrc } from "@/shared/lib/notion/video";
 
 // Renderer fidèle d'un arbre de blocs Notion normalisés. Les listes
 // consécutives sont regroupées en <ul>/<ol>. Les vidéos Tella sont
@@ -91,19 +92,11 @@ function RichText({ spans }: { spans?: RichSpan[] }) {
   );
 }
 
-function tellaEmbedUrl(url: string): string | null {
-  // https://www.tella.tv/video/<id>/view → /embed
-  const m = url.match(/tella\.tv\/video\/([^/?#]+)/);
-  if (!m) return null;
-  return `https://www.tella.tv/video/${m[1]}/embed`;
-}
-
 function VideoBlock({ url }: { url: string | null }) {
   if (!url) return null;
-  const tella = tellaEmbedUrl(url);
-  const src = tella ?? url;
+  const src = toEmbedSrc(url);
   // Fichiers vidéo bruts (mp4…) : balise <video>. Sinon iframe (Tella, YT…).
-  const isFile = /\.(mp4|webm|mov)(\?|$)/i.test(url) && !tella;
+  const isFile = /\.(mp4|webm|mov)(\?|$)/i.test(url) && !url.includes("tella.tv");
   return (
     <div
       style={{
