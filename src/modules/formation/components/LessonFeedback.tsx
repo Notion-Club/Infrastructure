@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowRight, Check, MessageSquarePlus, X } from "lucide-react";
+import { ArrowRight, Check, SmilePlus, X } from "lucide-react";
 
 import { submitCourseFeedback } from "../server/actions";
 
@@ -25,21 +25,27 @@ type Phase = "form" | "sending" | "done";
 
 export function LessonFeedback({ courseName, formationName, moduleName }: Props) {
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [phase, setPhase] = useState<Phase>("form");
   const [avis, setAvis] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function reset() {
-    setPhase("form");
-    setAvis(null);
-    setComment("");
+  function openPopup() {
+    setClosing(false);
+    setOpen(true);
   }
   function close() {
-    setOpen(false);
     if (closeTimer.current) clearTimeout(closeTimer.current);
-    // Laisse l'animation de fermeture avant de reset l'état interne.
-    setTimeout(reset, 250);
+    // Joue l'animation de sortie, puis démonte et réinitialise.
+    setClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+      setPhase("form");
+      setAvis(null);
+      setComment("");
+    }, 210);
   }
 
   async function submit() {
@@ -61,7 +67,7 @@ export function LessonFeedback({ courseName, formationName, moduleName }: Props)
       {/* Pill déclencheur dans la ligne du titre */}
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openPopup}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -76,24 +82,11 @@ export function LessonFeedback({ courseName, formationName, moduleName }: Props)
           fontWeight: 600,
           cursor: "pointer",
           whiteSpace: "nowrap",
-          transition: "border-color 200ms ease, transform 200ms ease",
+          transition: "border-color 200ms ease, color 200ms ease",
         }}
-        className="hover:border-[rgba(224,98,90,0.4)] hover:-translate-y-px"
+        className="hover:border-[rgba(224,98,90,0.4)] hover:text-[var(--color-brand)]"
       >
-        <span style={{ position: "relative", display: "inline-flex" }}>
-          <span style={{ fontSize: 15, lineHeight: 1 }}>🙂</span>
-          <MessageSquarePlus
-            size={11}
-            style={{
-              position: "absolute",
-              top: -5,
-              right: -7,
-              color: "var(--color-brand)",
-              background: "var(--color-surface-raised)",
-              borderRadius: "50%",
-            }}
-          />
-        </span>
+        <SmilePlus size={16} style={{ color: "var(--color-brand)" }} />
         Un feedback ?
       </button>
 
@@ -103,6 +96,8 @@ export function LessonFeedback({ courseName, formationName, moduleName }: Props)
               role="dialog"
               aria-modal="true"
               onClick={close}
+              className="nc-pop-overlay"
+              data-closing={closing}
               style={{
                 position: "fixed",
                 inset: 0,
@@ -117,7 +112,8 @@ export function LessonFeedback({ courseName, formationName, moduleName }: Props)
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="nc-modal-in"
+                className="nc-pop-card"
+                data-closing={closing}
                 style={{
                   width: "100%",
                   maxWidth: 460,
