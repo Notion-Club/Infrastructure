@@ -187,23 +187,32 @@ function SwitchButton({
 
 // ─── Vidéo (full-bleed) ──────────────────────────────────────────────────
 
-function tellaEmbedUrl(url: string): string | null {
+// Construit le src de l'iframe en PRÉSERVANT la query string de l'URL
+// (paramètres d'affichage Tella : ?b=0&title=0&a=1…). On ne reconstruit
+// jamais l'URL en jetant ses paramètres — sinon les réglages du player
+// posés dans Notion ne se reflètent pas.
+function toEmbedSrc(url: string): string {
+  // Déjà une URL /embed (cas du body Notion) → on la garde telle quelle.
+  if (/\/embed(\?|#|$)/.test(url)) return url;
+  // Lien /view ou /video/<id> → /embed, en conservant la query string.
   const m = url.match(/tella\.tv\/video\/([^/?#]+)/);
-  if (!m) return null;
-  return `https://www.tella.tv/video/${m[1]}/embed`;
+  if (m) {
+    const q = url.indexOf("?");
+    return `https://www.tella.tv/video/${m[1]}/embed${q >= 0 ? url.slice(q) : ""}`;
+  }
+  return url;
 }
 
 function VideoEmbed({ url, title }: { url: string | null; title: string }) {
   if (!url) return null;
-  const tella = tellaEmbedUrl(url);
-  const isFile = /\.(mp4|webm|mov)(\?|$)/i.test(url) && !tella;
+  const isFile = /\.(mp4|webm|mov)(\?|$)/i.test(url) && !url.includes("tella.tv");
   return (
     <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", background: "#000" }}>
       {isFile ? (
         <video src={url} controls style={{ width: "100%", height: "100%" }} />
       ) : (
         <iframe
-          src={tella ?? url}
+          src={toEmbedSrc(url)}
           title={title}
           allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
@@ -392,7 +401,7 @@ function RichTextNotes({ courseId, initialNote }: { courseId: string; initialNot
     const url = window.prompt("URL de la vidéo (YouTube, Tella, Loom…) :");
     if (!url) return;
     editorRef.current?.focus();
-    const src = tellaEmbedUrl(url) ?? url;
+    const src = toEmbedSrc(url);
     document.execCommand(
       "insertHTML",
       false,
