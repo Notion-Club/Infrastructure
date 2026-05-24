@@ -1305,3 +1305,39 @@
 .toast_success { background: #10b981; }
 .toast_error   { background: var(--color-brand); }
 .toast_partial { background: #f59e0b; }
+
+/* ============================================================
+   Dark mode overrides
+   :global(.dark) needed because CSS Modules scope class names
+   ============================================================ */
+
+/* Modal — inner white ring atténuée */
+:global(.dark) .modal {
+  box-shadow:
+    0 32px 80px -16px rgba(0, 0, 0, 0.56),
+    0 8px 24px -8px rgba(0, 0, 0, 0.32),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Icônes hub — rgba noir invisible sur fond sombre */
+:global(.dark) .iconBlue {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+:global(.dark) .iconTaupe {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+/* Select — chevron SVG adapté couleur text-secondary dark */
+:global(.dark) .select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a89e9b' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+}
+
+/* Status badges — texte clair sur fond sombre */
+:global(.dark) .statusPending { color: #fbbf24; }
+:global(.dark) .statusProgress { color: #60a5fa; }
+:global(.dark) .statusDone     { color: #34d399; }
+:global(.dark) .statusRefused  { color: var(--color-brand); }
+:global(.dark) .statusDefault  { color: #94a3b8; }

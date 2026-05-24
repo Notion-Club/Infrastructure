@@ -10,6 +10,7 @@ import {
   MessageSquarePlus, Globe, LayoutGrid, ArrowLeft,
 } from "lucide-react";
 import styles from "./FeedbackWidget.module.css";
+import { useTheme } from "@/shared/lib/hooks/useTheme";
 
 // Map adaptée aux routes existantes de NotionClub Infra. Toute route non listée
 // (ex. routes dynamiques /communaute/post/[id]) retombe sur "Home" — comportement
@@ -59,12 +60,13 @@ const PLACEHOLDERS: Record<string, string> = {
   default: "Décrivez précisément votre retour : contexte, attente, exemple si possible.",
 };
 
-const STATUS_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
-  "À traiter": { dot: "#f59e0b", bg: "rgba(245,158,11,0.08)", text: "#92400e" },
-  "En cours":  { dot: "#3b82f6", bg: "rgba(59,130,246,0.08)", text: "#1e40af" },
-  "Traité":    { dot: "#10b981", bg: "rgba(16,185,129,0.08)", text: "#065f46" },
-  "Résolu":    { dot: "#10b981", bg: "rgba(16,185,129,0.08)", text: "#065f46" },
-  "Refusé":    { dot: "#e0625a", bg: "rgba(224,98,90,0.08)",  text: "#9a3a35" },
+type StatusColors = { dot: string; bg: string; textLight: string; textDark: string; cssClass: string };
+const STATUS_COLORS: Record<string, StatusColors> = {
+  "À traiter": { dot: "#f59e0b", bg: "rgba(245,158,11,0.08)", textLight: "#92400e", textDark: "#fbbf24", cssClass: styles.statusPending },
+  "En cours":  { dot: "#3b82f6", bg: "rgba(59,130,246,0.08)", textLight: "#1e40af", textDark: "#60a5fa", cssClass: styles.statusProgress },
+  "Traité":    { dot: "#10b981", bg: "rgba(16,185,129,0.08)", textLight: "#065f46", textDark: "#34d399", cssClass: styles.statusDone },
+  "Résolu":    { dot: "#10b981", bg: "rgba(16,185,129,0.08)", textLight: "#065f46", textDark: "#34d399", cssClass: styles.statusDone },
+  "Refusé":    { dot: "#e0625a", bg: "rgba(224,98,90,0.08)",  textLight: "#9a3a35", textDark: "#e0625a", cssClass: styles.statusRefused },
 };
 
 function getCurrentPage(): string {
@@ -558,10 +560,11 @@ export default function FeedbackWidget() {
 
   const currentPlaceholder = PLACEHOLDERS[pendingAction] ?? PLACEHOLDERS.default;
 
+  const { theme } = useTheme();
   function StatusBadge({ status }: { status: string }) {
-    const s = STATUS_COLORS[status] ?? { dot: "#9CA3AF", bg: "rgba(156,163,175,0.1)", text: "#6B7280" };
+    const s = STATUS_COLORS[status] ?? { dot: "#9CA3AF", bg: "rgba(156,163,175,0.1)", textLight: "#6B7280", textDark: "#94a3b8", cssClass: styles.statusDefault };
     return (
-      <span className={styles.statusBadge} style={{ background: s.bg, color: s.text }}>
+      <span className={`${styles.statusBadge} ${s.cssClass}`} style={{ background: s.bg, color: theme === "dark" ? s.textDark : s.textLight }}>
         <span className={styles.statusDot} style={{ background: s.dot }} />
         {status}
       </span>

@@ -546,3 +546,28 @@ html {
     user-select: text;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   html.dark — specificity [0,1,1] reinforcement block
+   Garantit que les tokens NC dark gagnent sur toute règle :root
+   issue de @theme inline (Tailwind v4) ou d'autres imports.
+   Cette règle doit rester en DERNIER dans le fichier.
+   ══════════════════════════════════════════════════════════════ */
+html.dark {
+  --color-brand: #e0625a;
+  --color-text-primary: #f2edeb;
+  --color-text-secondary: #a89e9b;
+  --color-text-muted: #857a77;
+  --color-surface-page: #141211;
+  --color-surface-raised: #201d1b;
+  --color-surface-card: #2a2725;
+  --color-border-default: #332e2b;
+  --nc-nav-active-bg: rgba(255, 255, 255, 0.09);
+  --nc-nav-hover-bg: rgba(255, 255, 255, 0.05);
+  --nc-segmented-active-bg: rgba(255, 255, 255, 0.92);
+  --nc-segmented-active-text: #141211;
+  --nc-btn-dark-bg: #ede9e6;
+  --nc-btn-dark-text: #141211;
+  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
+  --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
+}
