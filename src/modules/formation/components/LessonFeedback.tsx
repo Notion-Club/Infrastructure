@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowRight, Check, SmilePlus, X } from "lucide-react";
 
@@ -13,7 +13,7 @@ type Props = {
 };
 
 // Réactions = options exactes du select « Avis » de la base Notion Feedbacks.
-const AVIS = [
+export const AVIS = [
   "👍 C'est clair",
   "😊 Ça m'a beaucoup aidé!",
   "😬 Je n'ai rien compris - c'était confus",
@@ -23,12 +23,10 @@ const AVIS = [
 
 type Phase = "form" | "sending" | "done";
 
+// Pill + modale centrée (déclenchée manuellement depuis l'en-tête du cours).
 export function LessonFeedback({ courseName, formationName, moduleName }: Props) {
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
-  const [phase, setPhase] = useState<Phase>("form");
-  const [avis, setAvis] = useState<string | null>(null);
-  const [comment, setComment] = useState("");
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function openPopup() {
@@ -37,29 +35,12 @@ export function LessonFeedback({ courseName, formationName, moduleName }: Props)
   }
   function close() {
     if (closeTimer.current) clearTimeout(closeTimer.current);
-    // Joue l'animation de sortie, puis démonte et réinitialise.
+    // Joue l'animation de sortie, puis démonte.
     setClosing(true);
-    setTimeout(() => {
+    closeTimer.current = setTimeout(() => {
       setOpen(false);
       setClosing(false);
-      setPhase("form");
-      setAvis(null);
-      setComment("");
     }, 210);
-  }
-
-  async function submit() {
-    if (!avis) return;
-    setPhase("sending");
-    await submitCourseFeedback({
-      avis,
-      suggestion: comment,
-      courseName,
-      formationName,
-      moduleName,
-    });
-    setPhase("done");
-    closeTimer.current = setTimeout(close, 5000);
   }
 
   return (
@@ -124,165 +105,211 @@ export function LessonFeedback({ courseName, formationName, moduleName }: Props)
                   overflow: "hidden",
                 }}
               >
-                {phase === "done" ? (
-                  <DonePanel />
-                ) : (
-                  <div style={{ padding: 22 }}>
-                    <header
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        marginBottom: 16,
-                      }}
-                    >
-                      <h3
-                        style={{
-                          fontSize: 17,
-                          fontWeight: 600,
-                          color: "var(--color-text-primary)",
-                          margin: 0,
-                        }}
-                      >
-                        Qu&apos;as-tu pensé de cette vidéo ?
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={close}
-                        aria-label="Fermer"
-                        style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 8,
-                          border: "none",
-                          background: "transparent",
-                          color: "var(--color-text-muted)",
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                        className="hover:bg-[var(--color-surface-raised)]"
-                      >
-                        <X size={17} />
-                      </button>
-                    </header>
-
-                    {/* Tags réaction */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {AVIS.map((label) => {
-                        const active = avis === label;
-                        return (
-                          <button
-                            key={label}
-                            type="button"
-                            onClick={() => setAvis(label)}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 10,
-                              padding: "11px 14px",
-                              borderRadius: 12,
-                              border: "1px solid",
-                              borderColor: active
-                                ? "var(--color-brand)"
-                                : "var(--color-border-default)",
-                              background: active
-                                ? "rgba(224,98,90,0.08)"
-                                : "var(--color-surface-raised)",
-                              color: "var(--color-text-primary)",
-                              fontSize: 14,
-                              fontWeight: active ? 600 : 500,
-                              cursor: "pointer",
-                              textAlign: "left",
-                              transition: "border-color 150ms ease, background 150ms ease",
-                            }}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Deuxième question — révélée en douceur au choix d'une réaction */}
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateRows: avis ? "1fr" : "0fr",
-                        transition: "grid-template-rows 300ms var(--nc-ease)",
-                      }}
-                    >
-                      <div style={{ overflow: "hidden" }}>
-                        <div style={{ paddingTop: 16 }}>
-                          <label
-                            style={{
-                              display: "block",
-                              fontSize: 14,
-                              fontWeight: 600,
-                              color: "var(--color-text-primary)",
-                              marginBottom: 8,
-                            }}
-                          >
-                            As-tu un commentaire à nous partager ?
-                          </label>
-                          <textarea
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value.slice(0, 1900))}
-                            placeholder="Optionnel — ton retour nous aide à améliorer le Notion Club…"
-                            rows={3}
-                            style={{
-                              width: "100%",
-                              border: "1px solid var(--color-border-default)",
-                              borderRadius: 12,
-                              padding: 12,
-                              fontSize: 14,
-                              lineHeight: 1.6,
-                              color: "var(--color-text-primary)",
-                              background: "var(--color-surface-raised)",
-                              fontFamily: "inherit",
-                              resize: "vertical",
-                              outline: "none",
-                            }}
-                            className="focus:border-[rgba(224,98,90,0.4)]"
-                          />
-                          <button
-                            type="button"
-                            onClick={submit}
-                            disabled={phase === "sending"}
-                            style={{
-                              marginTop: 12,
-                              width: "100%",
-                              background: "var(--color-brand)",
-                              color: "white",
-                              border: "none",
-                              borderRadius: 9999,
-                              padding: "12px 18px",
-                              fontSize: 14,
-                              fontWeight: 700,
-                              cursor: phase === "sending" ? "wait" : "pointer",
-                              opacity: phase === "sending" ? 0.7 : 1,
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              gap: 8,
-                            }}
-                          >
-                            {phase === "sending" ? "Envoi…" : "Envoyer mon feedback"}
-                            <ArrowRight size={15} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <FeedbackBody
+                  courseName={courseName}
+                  formationName={formationName}
+                  moduleName={moduleName}
+                  onClose={close}
+                />
               </div>
             </div>,
             document.body,
           )
         : null}
     </>
+  );
+}
+
+// Corps partagé du feedback : réactions + commentaire + envoi + panneau de
+// remerciement. Réutilisé par la modale (pill) et par la pop-up de coin.
+export function FeedbackBody({
+  courseName,
+  formationName,
+  moduleName,
+  onClose,
+}: {
+  courseName: string;
+  formationName: string;
+  moduleName: string;
+  onClose: () => void;
+}) {
+  const [phase, setPhase] = useState<Phase>("form");
+  const [avis, setAvis] = useState<string | null>(null);
+  const [comment, setComment] = useState("");
+  const doneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (doneTimer.current) clearTimeout(doneTimer.current);
+    };
+  }, []);
+
+  async function submit() {
+    if (!avis) return;
+    setPhase("sending");
+    await submitCourseFeedback({
+      avis,
+      suggestion: comment,
+      courseName,
+      formationName,
+      moduleName,
+    });
+    setPhase("done");
+    doneTimer.current = setTimeout(onClose, 5000);
+  }
+
+  if (phase === "done") return <DonePanel />;
+
+  return (
+    <div style={{ padding: 22 }}>
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
+        <h3
+          style={{
+            fontSize: 17,
+            fontWeight: 600,
+            color: "var(--color-text-primary)",
+            margin: 0,
+          }}
+        >
+          Qu&apos;as-tu pensé de cette vidéo ?
+        </h3>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fermer"
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 8,
+            border: "none",
+            background: "transparent",
+            color: "var(--color-text-muted)",
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+          className="hover:bg-[var(--color-surface-raised)]"
+        >
+          <X size={17} />
+        </button>
+      </header>
+
+      {/* Tags réaction */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {AVIS.map((label) => {
+          const active = avis === label;
+          return (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setAvis(label)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "11px 14px",
+                borderRadius: 12,
+                border: "1px solid",
+                borderColor: active
+                  ? "var(--color-brand)"
+                  : "var(--color-border-default)",
+                background: active
+                  ? "rgba(224,98,90,0.08)"
+                  : "var(--color-surface-raised)",
+                color: "var(--color-text-primary)",
+                fontSize: 14,
+                fontWeight: active ? 600 : 500,
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "border-color 150ms ease, background 150ms ease",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Deuxième question — révélée en douceur au choix d'une réaction */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateRows: avis ? "1fr" : "0fr",
+          transition: "grid-template-rows 300ms var(--nc-ease)",
+        }}
+      >
+        <div style={{ overflow: "hidden" }}>
+          <div style={{ paddingTop: 16 }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "var(--color-text-primary)",
+                marginBottom: 8,
+              }}
+            >
+              As-tu un commentaire à nous partager ?
+            </label>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value.slice(0, 1900))}
+              placeholder="Optionnel — ton retour nous aide à améliorer le Notion Club…"
+              rows={3}
+              style={{
+                width: "100%",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: 12,
+                padding: 12,
+                fontSize: 14,
+                lineHeight: 1.6,
+                color: "var(--color-text-primary)",
+                background: "var(--color-surface-raised)",
+                fontFamily: "inherit",
+                resize: "vertical",
+                outline: "none",
+              }}
+              className="focus:border-[rgba(224,98,90,0.4)]"
+            />
+            <button
+              type="button"
+              onClick={submit}
+              disabled={phase === "sending"}
+              style={{
+                marginTop: 12,
+                width: "100%",
+                background: "var(--color-brand)",
+                color: "white",
+                border: "none",
+                borderRadius: 9999,
+                padding: "12px 18px",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: phase === "sending" ? "wait" : "pointer",
+                opacity: phase === "sending" ? 0.7 : 1,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+              }}
+            >
+              {phase === "sending" ? "Envoi…" : "Envoyer mon feedback"}
+              <ArrowRight size={15} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

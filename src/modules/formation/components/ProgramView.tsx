@@ -6,11 +6,23 @@ import type { ProgramDetail } from "../types";
 import { ModuleAccordion } from "./ModuleAccordion";
 
 // Page programme (Server Component). Le module contenant la prochaine leçon
-// à faire est ouvert par défaut.
-export function ProgramView({ detail }: { detail: ProgramDetail }) {
+// à faire est ouvert par défaut. `openModuleSlug` (deep-link depuis le fil
+// d'Ariane d'une leçon) prend le dessus et déclenche le dépliage animé.
+export function ProgramView({
+  detail,
+  openModuleSlug,
+}: {
+  detail: ProgramDetail;
+  openModuleSlug?: string;
+}) {
   const isComplete = detail.percent === 100 && detail.totalCourses > 0;
 
+  const deepLinkModule = openModuleSlug
+    ? detail.modules.find((m) => m.slug === openModuleSlug)
+    : undefined;
+
   const defaultOpenModuleId =
+    deepLinkModule?.id ??
     detail.modules.find((m) => m.courses.some((c) => c.isNext))?.id ??
     detail.modules[0]?.id ??
     null;
@@ -89,6 +101,7 @@ export function ProgramView({ detail }: { detail: ProgramDetail }) {
             programSlug={detail.slug}
             module={m}
             defaultOpen={m.id === defaultOpenModuleId}
+            animateOpen={deepLinkModule != null && m.id === deepLinkModule.id}
           />
         ))}
       </section>

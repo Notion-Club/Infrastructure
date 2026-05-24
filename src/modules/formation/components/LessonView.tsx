@@ -4,12 +4,12 @@ import { ChevronRight } from "lucide-react";
 import type { LessonView as LessonViewModel } from "../types";
 import type { LessonContent } from "../server/notion";
 import { LessonPlayerCard } from "./LessonPlayerCard";
+import { LessonNotebook } from "./LessonNotebook";
 import { LessonNavigation } from "./LessonNavigation";
 
-// Page leçon — colonne unique centrée (alignée sur la nav). Tout le cours
-// (titre, description, vidéo, body, notes, synthèse, ressources) vit dans
-// une seule carte « player ». Pas d'eyebrow module : le fil d'Ariane le
-// porte déjà.
+// Page leçon — colonne unique centrée (alignée sur la nav). Le player (titre,
+// description, vidéo, body) vit dans une carte ; le carnet (notes, synthèse,
+// ressources) le suit dans une carte collée juste en dessous.
 export function LessonView({
   view,
   content,
@@ -48,27 +48,41 @@ export function LessonView({
           {formation.name}
         </Link>
         <ChevronRight size={11} />
-        <span>{mod.name}</span>
+        <Link
+          href={`/formation/${formation.slug}?module=${mod.slug}`}
+          style={{ color: "inherit", textDecoration: "none" }}
+          className="hover:text-[var(--color-text-primary)] transition-colors"
+        >
+          {mod.name}
+        </Link>
         <ChevronRight size={11} />
         <span style={{ color: "var(--color-text-primary)" }}>{course.name}</span>
       </nav>
 
-      <LessonPlayerCard
-        title={course.name}
-        description={course.description}
-        videoUrl={content.videoUrl}
-        blocks={content.blocks}
-        synthese={content.synthese}
-        resources={content.resources}
-        courseId={course.id}
-        initialNote={view.noteContent}
-        formationName={formation.name}
-        moduleName={mod.name}
-      />
+      {/* Player + carnet : groupés serrés pour qu'ils se suivent (collés). */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <LessonPlayerCard
+          title={course.name}
+          description={course.description}
+          videoUrl={content.videoUrl}
+          blocks={content.blocks}
+          formationName={formation.name}
+          moduleName={mod.name}
+        />
+
+        <LessonNotebook
+          synthese={content.synthese}
+          resources={content.resources}
+          courseId={course.id}
+          initialNote={view.noteContent}
+        />
+      </div>
 
       <LessonNavigation
         programSlug={formation.slug}
+        formationName={formation.name}
         moduleName={mod.name}
+        courseName={course.name}
         courseId={course.id}
         completed={view.completed}
         prev={view.prev}

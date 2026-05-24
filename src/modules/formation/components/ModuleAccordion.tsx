@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -18,10 +18,44 @@ type Props = {
   programSlug: string;
   module: ModuleWithCourses;
   defaultOpen?: boolean;
+  // Deep-link depuis le fil d'Ariane d'une leçon : le module démarre fermé
+  // puis se déplie tout seul (et scroll dans le viewport) au montage.
+  animateOpen?: boolean;
 };
 
-export function ModuleAccordion({ programSlug, module, defaultOpen = false }: Props) {
-  const [open, setOpen] = useState(defaultOpen);
+export function ModuleAccordion({
+  programSlug,
+  module,
+  defaultOpen = false,
+  animateOpen = false,
+}: Props) {
+  // animateOpen → on part fermé pour rejouer l'animation de dépliage au montage.
+  const [open, setOpen] = useState(defaultOpen && !animateOpen);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [innerHeight, setInnerHeight] = useState(0);
+
+  // Mesure la hauteur réelle du contenu pour animer max-height en douceur.
+  useEffect(() => {
+    if (!innerRef.current) return;
+    const el = innerRef.current;
+    const update = () => setInnerHeight(el.scrollHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Dépliage auto + scroll quand on arrive via le fil d'Ariane.
+  useEffect(() => {
+    if (!animateOpen) return;
+    const t = setTimeout(() => {
+      setOpen(true);
+      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 280);
+    return () => clearTimeout(t);
+  }, [animateOpen]);
+
   const percent =
     module.totalCount === 0
       ? 0
@@ -30,6 +64,7 @@ export function ModuleAccordion({ programSlug, module, defaultOpen = false }: Pr
 
   return (
     <div
+      ref={rootRef}
       style={{
         background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
@@ -37,6 +72,7 @@ export function ModuleAccordion({ programSlug, module, defaultOpen = false }: Pr
         overflow: "hidden",
         boxShadow: open ? "var(--nc-shadow-3)" : "none",
         transition: "box-shadow 250ms ease",
+        scrollMarginTop: 120,
       }}
     >
       <button
@@ -99,14 +135,26 @@ export function ModuleAccordion({ programSlug, module, defaultOpen = false }: Pr
           style={{
             color: "var(--color-text-muted)",
             flexShrink: 0,
-            transition: "transform 200ms ease",
+            transition: "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
             transform: open ? "rotate(180deg)" : "none",
           }}
         />
       </button>
 
-      {open && (
+      {/* Collapsible — toujours monté, animé via max-height (pas de saccade) */}
+      <div
+        style={{
+          overflow: "hidden",
+          maxHeight: open ? innerHeight : 0,
+          opacity: open ? 1 : 0,
+          transition:
+            "max-height 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease",
+          pointerEvents: open ? "auto" : "none",
+        }}
+        aria-hidden={!open}
+      >
         <div
+          ref={innerRef}
           style={{
             padding: "4px 12px 16px 12px",
             display: "flex",
@@ -124,7 +172,7 @@ export function ModuleAccordion({ programSlug, module, defaultOpen = false }: Pr
             />
           ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }

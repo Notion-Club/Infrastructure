@@ -8,9 +8,17 @@ export const metadata: Metadata = {
 };
 
 type Params = Promise<{ programSlug: string }>;
+type Search = Promise<{ module?: string }>;
 
-export default async function ProgramPage({ params }: { params: Params }) {
+export default async function ProgramPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Search;
+}) {
   const { programSlug } = await params;
+  const { module: openModuleSlug } = await searchParams;
   const detail = await getProgramDetail(programSlug);
 
   // RLS : si la formation n'est pas accessible (ou inexistante), getProgramDetail
@@ -19,5 +27,5 @@ export default async function ProgramPage({ params }: { params: Params }) {
     redirect("/formation?notice=denied");
   }
 
-  return <ProgramView detail={detail} />;
+  return <ProgramView detail={detail} openModuleSlug={openModuleSlug} />;
 }
