@@ -1,108 +1,67 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 
-import type { FormationModule, Lesson, Program } from "../types";
-import { useFormationContext } from "../hooks/useFormationMocks";
+import type { LessonNeighbour } from "../types";
+import { markCourseCompleted } from "../server/actions";
 
 type Props = {
-  program: Program;
-  module: FormationModule;
-  lesson: Lesson;
+  programSlug: string;
+  moduleName: string;
+  courseId: string;
+  completed: boolean;
+  prev: LessonNeighbour | null;
+  next: LessonNeighbour | null;
 };
 
-type Neighbour = {
-  module: FormationModule;
-  lesson: Lesson;
-} | null;
-
-function findNeighbours(
-  program: Program,
-  lesson: Lesson,
-): { prev: Neighbour; next: Neighbour } {
-  const flat = program.modules
-    .slice()
-    .sort((a, b) => a.position - b.position)
-    .flatMap((m) =>
-      m.lessons
-        .slice()
-        .sort((a, b) => a.position - b.position)
-        .map((l) => ({ module: m, lesson: l })),
-    );
-
-  const idx = flat.findIndex((x) => x.lesson.id === lesson.id);
-  return {
-    prev: idx > 0 ? flat[idx - 1] : null,
-    next: idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null,
-  };
-}
-
-export function LessonNavigation({ program, module, lesson }: Props) {
+export function LessonNavigation({
+  programSlug,
+  moduleName,
+  courseId,
+  completed,
+  prev,
+  next,
+}: Props) {
   const router = useRouter();
-  const { progress, markCompleted, setLastAccessed } = useFormationContext();
-  const completed = progress.completedLessonIds.includes(lesson.id);
+  const [pending, startTransition] = useTransition();
+  const [done, setDone] = useState(completed);
 
-  const { prev, next } = findNeighbours(program, lesson);
-
-  function goTo(target: Neighbour) {
-    if (!target) return;
-    setLastAccessed(target.lesson.id);
-    router.push(
-      `/formation/${program.slug}/${target.module.slug}/${target.lesson.slug}`,
-    );
+  function navTo(n: LessonNeighbour | null) {
+    if (!n) return;
+    router.push(`/formation/${programSlug}/${n.moduleSlug}/${n.courseSlug}`);
   }
 
-  function handleMainCta() {
-    if (!completed) markCompleted(lesson.id);
-    if (next) {
-      goTo(next);
-    } else {
-      router.push(`/formation/${program.slug}`);
-    }
+  function handleMain() {
+    startTransition(async () => {
+      if (!done) {
+        await markCourseCompleted(courseId);
+        setDone(true);
+      }
+      if (next) {
+        navTo(next);
+      } else {
+        router.push(`/formation/${programSlug}`);
+      }
+    });
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        padding: "20px 0 4px 0",
-      }}
-    >
-      {completed && (
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 12,
-            fontWeight: 600,
-            color: "var(--color-brand)",
-            alignSelf: "flex-end",
-          }}
-        >
-          <CheckCircle2 size={13} />
-          Leçon complétée
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "20px 0 4px 0" }}>
+      {done && (
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--color-brand)", alignSelf: "flex-end" }}>
+          <CheckCircle2 size={13} /> Leçon complétée
         </div>
       )}
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         {prev ? (
           <button
             type="button"
-            onClick={() => goTo(prev)}
+            onClick={() => navTo(prev)}
             style={{
-              background: "var(--color-surface-card)",
+              background: "white",
               color: "var(--color-text-primary)",
               border: "1px solid var(--color-border-default)",
               borderRadius: 9999,
@@ -113,12 +72,10 @@ export function LessonNavigation({ program, module, lesson }: Props) {
               alignItems: "center",
               gap: 7,
               cursor: "pointer",
-              transition: "background 200ms ease, border-color 200ms ease",
             }}
             className="hover:bg-[var(--color-surface-raised)]"
           >
-            <ArrowLeft size={14} />
-            Leçon précédente
+            <ArrowLeft size={14} /> Leçon précédente
           </button>
         ) : (
           <span aria-hidden />
@@ -126,7 +83,8 @@ export function LessonNavigation({ program, module, lesson }: Props) {
 
         <button
           type="button"
-          onClick={handleMainCta}
+          onClick={handleMain}
+          disabled={pending}
           style={{
             background: "var(--color-brand)",
             color: "white",
@@ -138,20 +96,19 @@ export function LessonNavigation({ program, module, lesson }: Props) {
             display: "inline-flex",
             alignItems: "center",
             gap: 8,
-            cursor: "pointer",
+            cursor: pending ? "wait" : "pointer",
+            opacity: pending ? 0.7 : 1,
             boxShadow: "0 8px 24px -8px rgba(224,98,90,0.5)",
-            transition: "transform 200ms ease, box-shadow 200ms ease",
           }}
-          className="hover:-translate-y-0.5"
         >
-          {completed ? "Leçon suivante" : "J'ai terminé"}
+          {done ? (next ? "Leçon suivante" : "Retour au programme") : "J'ai terminé"}
           <ArrowRight size={14} />
         </button>
       </div>
 
       <button
         type="button"
-        onClick={() => router.push(`/formation/${program.slug}`)}
+        onClick={() => router.push(`/formation/${programSlug}`)}
         style={{
           alignSelf: "center",
           background: "transparent",
@@ -163,10 +120,8 @@ export function LessonNavigation({ program, module, lesson }: Props) {
           textUnderlineOffset: 3,
           marginTop: 4,
         }}
-        className="hover:text-[var(--color-text-secondary)]"
-        title={`Retour au programme ${program.name}`}
       >
-        Retour au module · {module.name}
+        Retour au module · {moduleName}
       </button>
     </div>
   );
