@@ -44,7 +44,7 @@ export function LessonNotes({ lessonId }: Props) {
   return (
     <div
       style={{
-        background: "white",
+        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         borderRadius: 18,
         padding: 20,
@@ -116,7 +116,7 @@ export function LessonNotes({ lessonId }: Props) {
           transition:
             "border-color 200ms ease, box-shadow 200ms ease, background 200ms ease",
         }}
-        className="focus:bg-white focus:border-[rgba(224,98,90,0.4)] focus:shadow-[0_0_0_3px_rgba(224,98,90,0.10)]"
+        className="focus:bg-[var(--color-surface-card)] focus:border-[rgba(224,98,90,0.4)] focus:shadow-[0_0_0_3px_rgba(224,98,90,0.10)]"
       />
 
       {showCounter && (

@@ -75,7 +75,7 @@ export function FilloutModal({ isOpen, onClose, type }: FilloutModalProps) {
         style={{
           width: '100%',
           maxWidth: 660,
-          background: '#ffffff',
+          background: 'var(--color-surface-card)',
           borderRadius: 12,
           overflow: 'hidden',
           display: 'flex',

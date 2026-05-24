@@ -84,7 +84,7 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
             maxWidth: 320,
             padding: "10px 14px",
             borderRadius: isSelf ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-            background: isSelf ? "var(--color-brand)" : "white",
+            background: isSelf ? "var(--color-brand)" : "var(--color-surface-card)",
             color: isSelf ? "#fff" : "var(--color-text-primary)",
             border: isSelf ? "none" : "1px solid var(--color-border-default)",
             fontSize: 14,
@@ -117,7 +117,7 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
                 onClick={() => setShowEmojiPicker((o) => !o)}
                 style={{
                   width: 28, height: 28, borderRadius: "50%", border: "1px solid var(--color-border-default)",
-                  background: "white", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "var(--color-surface-card)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
                 😊
@@ -125,7 +125,7 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
               {showEmojiPicker && (
                 <div style={{
                   position: "absolute", [isSelf ? "right" : "left"]: 0, bottom: "calc(100% + 4px)",
-                  background: "white", border: "1px solid var(--color-border-default)", borderRadius: 12,
+                  background: "var(--color-surface-card)", border: "1px solid var(--color-border-default)", borderRadius: 12,
                   boxShadow: "var(--nc-shadow-3)", padding: 8, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 2, zIndex: 100,
                 }}>
                   {EMOJIS.map((e) => (
@@ -144,7 +144,7 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
                   onClick={() => setShowMenu((o) => !o)}
                   style={{
                     width: 28, height: 28, borderRadius: "50%", border: "1px solid var(--color-border-default)",
-                    background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                    background: "var(--color-surface-card)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                     color: "var(--color-text-muted)",
                   }}
                 >
@@ -157,7 +157,7 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
                       position: "absolute",
                       right: 0,
                       top: "calc(100% + 4px)",
-                      background: "white",
+                      background: "var(--color-surface-card)",
                       border: "1px solid var(--color-border-default)",
                       borderRadius: 12,
                       boxShadow: "var(--nc-shadow-3)",
@@ -212,7 +212,7 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
           {Object.entries(grouped).map(([emoji, count]) => (
             <span key={emoji} onClick={() => handleReaction(emoji)}
               style={{
-                fontSize: 12, padding: "2px 8px", borderRadius: 9999, background: "white",
+                fontSize: 12, padding: "2px 8px", borderRadius: 9999, background: "var(--color-surface-card)",
                 border: "1px solid var(--color-border-default)", cursor: "pointer",
                 display: "inline-flex", alignItems: "center", gap: 4,
               }}

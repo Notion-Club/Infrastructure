@@ -63,6 +63,12 @@ html {
   --nc-nav-hover-bg: rgba(255, 255, 255, 0.05);
   --nc-segmented-active-bg: rgba(255, 255, 255, 0.92);
   --nc-segmented-active-text: #141211;
+  /* Boutons CTA sombres inversés en dark */
+  --nc-btn-dark-bg: #ede9e6;
+  --nc-btn-dark-text: #141211;
+  /* BottomNav pill — fond sombre translucide */
+  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
+  --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
 }
 
 @theme inline {
@@ -120,21 +126,21 @@ html {
   --nc-nav-hover-bg: rgba(0, 0, 0, 0.04);
   --nc-segmented-active-bg: #ffffff;
   --nc-segmented-active-text: #000000;
+  /* Boutons CTA sombres — s'inversent en dark mode */
+  --nc-btn-dark-bg: #1a1a1a;
+  --nc-btn-dark-text: #ffffff;
+  /* BottomNav pill */
+  --nc-bottom-nav-bg: rgba(255, 255, 255, 0.92);
+  --nc-bottom-nav-border: rgba(229, 231, 235, 0.9);
 }
 
 /* ══════════════════════════════════════════════════════════
    Dark mode — overrides des classes utilitaires NC
    ══════════════════════════════════════════════════════════ */
 
-/* Halo de page — opacités réduites sur fond sombre */
+/* Halo de page — supprimé en dark mode (fond uni warm near-black #141211) */
 .dark .nc-page-halo::before {
-  background:
-    radial-gradient(circle at 0% 0%, rgba(224, 99, 90, 0.15) 0%, transparent 35%),
-    radial-gradient(circle at 100% 0%, rgba(224, 99, 90, 0.12) 0%, transparent 34%),
-    radial-gradient(circle at 0% 100%, rgba(224, 99, 90, 0.10) 0%, transparent 34%),
-    radial-gradient(circle at 100% 100%, rgba(224, 99, 90, 0.13) 0%, transparent 35%),
-    radial-gradient(ellipse at 0% 50%, rgba(224, 99, 90, 0.06) 0%, transparent 20%),
-    radial-gradient(ellipse at 100% 50%, rgba(224, 99, 90, 0.06) 0%, transparent 20%);
+  background: none;
 }
 
 /* Carte auth — fond sombre en dark mode */
@@ -539,4 +545,29 @@ html {
     -webkit-user-select: text;
     user-select: text;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   html.dark — specificity [0,1,1] reinforcement block
+   Garantit que les tokens NC dark gagnent sur toute règle :root
+   issue de @theme inline (Tailwind v4) ou d'autres imports.
+   Cette règle doit rester en DERNIER dans le fichier.
+   ══════════════════════════════════════════════════════════════ */
+html.dark {
+  --color-brand: #e0625a;
+  --color-text-primary: #f2edeb;
+  --color-text-secondary: #a89e9b;
+  --color-text-muted: #857a77;
+  --color-surface-page: #141211;
+  --color-surface-raised: #201d1b;
+  --color-surface-card: #2a2725;
+  --color-border-default: #332e2b;
+  --nc-nav-active-bg: rgba(255, 255, 255, 0.09);
+  --nc-nav-hover-bg: rgba(255, 255, 255, 0.05);
+  --nc-segmented-active-bg: rgba(255, 255, 255, 0.92);
+  --nc-segmented-active-text: #141211;
+  --nc-btn-dark-bg: #ede9e6;
+  --nc-btn-dark-text: #141211;
+  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
+  --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
 }

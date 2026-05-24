@@ -13,8 +13,8 @@ export function MacOSWindowBar({ onClose }: MacOSWindowBarProps) {
     <div
       style={{
         height: 32,
-        background: "#f5f5f5",
-        borderBottom: "1px solid #e5e7eb",
+        background: "var(--color-surface-raised)",
+        borderBottom: "1px solid var(--color-border-default)",
         display: "flex",
         alignItems: "center",
         padding: "0 12px",

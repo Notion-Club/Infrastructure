@@ -102,7 +102,7 @@ export function LessonNavigation({ program, module, lesson }: Props) {
             type="button"
             onClick={() => goTo(prev)}
             style={{
-              background: "white",
+              background: "var(--color-surface-card)",
               color: "var(--color-text-primary)",
               border: "1px solid var(--color-border-default)",
               borderRadius: 9999,

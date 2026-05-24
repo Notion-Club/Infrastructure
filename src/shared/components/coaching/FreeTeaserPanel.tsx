@@ -7,7 +7,7 @@ export function FreeTeaserPanel() {
         position: "relative",
         borderRadius: 16,
         overflow: "hidden",
-        background: "#fff",
+        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         minHeight: 320,
       }}
@@ -36,10 +36,10 @@ export function FreeTeaserPanel() {
           <div
             key={i}
             style={{
-              background: "#f5f5f5",
+              background: "var(--color-surface-raised)",
               borderRadius: 12,
               padding: "16px 20px",
-              border: "1px solid #e5e7eb",
+              border: "1px solid var(--color-border-default)",
             }}
           >
             <div
@@ -55,7 +55,7 @@ export function FreeTeaserPanel() {
               style={{
                 height: 10,
                 width: "40%",
-                background: "#e5e7eb",
+                background: "var(--color-border-default)",
                 borderRadius: 6,
                 marginBottom: 12,
               }}
@@ -64,7 +64,7 @@ export function FreeTeaserPanel() {
               style={{
                 height: 10,
                 width: "90%",
-                background: "#e5e7eb",
+                background: "var(--color-border-default)",
                 borderRadius: 6,
                 marginBottom: 6,
               }}
@@ -73,7 +73,7 @@ export function FreeTeaserPanel() {
               style={{
                 height: 10,
                 width: "75%",
-                background: "#e5e7eb",
+                background: "var(--color-border-default)",
                 borderRadius: 6,
               }}
             />

@@ -45,7 +45,7 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
                 padding: "7px 14px",
                 borderRadius: 9999,
                 border: isActive ? "1.5px solid var(--color-brand)" : "1px solid var(--color-border-default)",
-                background: isActive ? "rgba(224,98,90,0.08)" : "white",
+                background: isActive ? "rgba(224,98,90,0.08)" : "var(--color-surface-card)",
                 color: isActive ? "var(--color-brand)" : "var(--color-text-secondary)",
                 fontSize: 13,
                 fontWeight: 600,
@@ -54,7 +54,7 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
                 whiteSpace: "nowrap",
                 textAlign: "center",
               }}
-              className={!isActive ? "hover:bg-[rgba(0,0,0,0.04)]" : ""}
+              className={!isActive ? "hover:bg-[var(--nc-nav-hover-bg)]" : ""}
             >
               {f.label}
             </button>

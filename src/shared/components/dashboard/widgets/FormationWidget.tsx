@@ -22,7 +22,7 @@ export function FormationWidget() {
     <article
       onClick={() => router.push(MOCK_FORMATION.formationUrl)}
       style={{
-        background: "white",
+        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         borderRadius: 16,
         padding: 20,

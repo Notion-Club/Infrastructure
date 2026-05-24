@@ -102,7 +102,7 @@ export default async function DashboardPage() {
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
-                background: "white",
+                background: "var(--color-surface-card)",
                 border: "1px solid var(--color-border-default)",
                 borderRadius: 9999,
                 padding: "11px 20px",
@@ -162,7 +162,7 @@ export default async function DashboardPage() {
 
           {/* Search bar — mobile uniquement */}
           <div
-            className="md:hidden flex items-center gap-2 bg-white border border-[#e5e7eb] rounded-full px-4 py-2.5"
+            className="md:hidden flex items-center gap-2 bg-[var(--color-surface-card)] border border-[var(--color-border-default)] rounded-full px-4 py-2.5"
             style={{ cursor: "pointer" }}
           >
             <Search

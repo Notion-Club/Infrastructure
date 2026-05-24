@@ -272,7 +272,7 @@ export default function CoachingPage() {
               ) : allCallsEmpty ? (
                 <div
                   style={{
-                    background: "#ffffff",
+                    background: "var(--color-surface-card)",
                     border: "1px solid var(--color-border-default)",
                     borderRadius: 20,
                     padding: "48px 32px",

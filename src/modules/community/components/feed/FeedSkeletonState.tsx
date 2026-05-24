@@ -2,7 +2,7 @@ function SkeletonCard() {
   return (
     <div
       style={{
-        background: "white",
+        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         borderRadius: 16,
         padding: 20,
@@ -13,22 +13,22 @@ function SkeletonCard() {
     >
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#f0f0f0" }} />
+        <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--color-surface-raised)" }} />
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ width: 120, height: 12, borderRadius: 6, background: "#f0f0f0" }} />
-          <div style={{ width: 80, height: 10, borderRadius: 6, background: "#f5f5f5" }} />
+          <div style={{ width: 120, height: 12, borderRadius: 6, background: "var(--color-surface-raised)" }} />
+          <div style={{ width: 80, height: 10, borderRadius: 6, background: "var(--color-border-default)" }} />
         </div>
       </div>
       {/* Body */}
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{ width: "90%", height: 12, borderRadius: 6, background: "#f0f0f0" }} />
-        <div style={{ width: "75%", height: 12, borderRadius: 6, background: "#f5f5f5" }} />
-        <div style={{ width: "60%", height: 12, borderRadius: 6, background: "#f5f5f5" }} />
+        <div style={{ width: "90%", height: 12, borderRadius: 6, background: "var(--color-surface-raised)" }} />
+        <div style={{ width: "75%", height: 12, borderRadius: 6, background: "var(--color-border-default)" }} />
+        <div style={{ width: "60%", height: 12, borderRadius: 6, background: "var(--color-border-default)" }} />
       </div>
       {/* Footer */}
       <div style={{ display: "flex", gap: 12 }}>
-        <div style={{ width: 60, height: 10, borderRadius: 6, background: "#f0f0f0" }} />
-        <div style={{ width: 60, height: 10, borderRadius: 6, background: "#f0f0f0" }} />
+        <div style={{ width: 60, height: 10, borderRadius: 6, background: "var(--color-surface-raised)" }} />
+        <div style={{ width: 60, height: 10, borderRadius: 6, background: "var(--color-surface-raised)" }} />
       </div>
     </div>
   );

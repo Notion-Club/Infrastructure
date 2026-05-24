@@ -22,7 +22,7 @@ export function TemplatePageFooter({
     <div
       style={{
         marginTop: 48,
-        background: '#ffffff',
+        background: 'var(--color-surface-card)',
         border: '1px solid var(--color-border-default)',
         borderRadius: 20,
         boxShadow: 'var(--nc-shadow-3)',

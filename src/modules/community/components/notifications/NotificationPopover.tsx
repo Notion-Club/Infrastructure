@@ -70,7 +70,7 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
-          color: "#52525b",
+          color: "var(--color-text-secondary)",
           position: "relative",
           flexShrink: 0,
           transition: "background 150ms ease",
@@ -112,7 +112,7 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
             width: 360,
             maxHeight: 480,
             overflowY: "auto",
-            background: "white",
+            background: "var(--color-surface-card)",
             border: "1px solid var(--color-border-default)",
             borderRadius: 16,
             boxShadow: "var(--nc-shadow-2)",
@@ -130,7 +130,7 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
               borderBottom: "1px solid var(--color-border-default)",
               position: "sticky",
               top: 0,
-              background: "white",
+              background: "var(--color-surface-card)",
               zIndex: 1,
             }}
           >

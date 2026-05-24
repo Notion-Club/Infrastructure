@@ -154,7 +154,7 @@ export function CommentComposer({
             border: `1px solid ${editorFocused ? "var(--color-brand)" : "var(--color-border-default)"}`,
             borderRadius: 12,
             overflow: "hidden",
-            background: "white",
+            background: "var(--color-surface-card)",
             transition: "border-color 150ms ease",
           }}
           onFocusCapture={() => setEditorFocused(true)}
@@ -237,7 +237,7 @@ export function CommentComposer({
 
         {/* Mention suggestions */}
         {suggestions.length > 0 && mentionPos && (
-          <div style={{ position: "fixed", top: mentionPos.top, left: mentionPos.left, background: "white", border: "1px solid var(--color-border-default)", borderRadius: 12, boxShadow: "var(--nc-shadow-3)", overflow: "hidden", zIndex: 500, minWidth: 200 }}>
+          <div style={{ position: "fixed", top: mentionPos.top, left: mentionPos.left, background: "var(--color-surface-card)", border: "1px solid var(--color-border-default)", borderRadius: 12, boxShadow: "var(--nc-shadow-3)", overflow: "hidden", zIndex: 500, minWidth: 200 }}>
             {suggestions.map((u) => (
               <button
                 key={u.id}
@@ -255,7 +255,7 @@ export function CommentComposer({
 
         {/* URL input flottant */}
         {urlVisible && (
-          <div style={{ position: "fixed", top: urlPos.top, left: urlPos.left, background: "white", border: "1px solid var(--color-border-default)", borderRadius: 12, boxShadow: "var(--nc-shadow-3)", padding: "8px 10px", display: "flex", alignItems: "center", gap: 6, zIndex: 500, animation: "nc-mode-in 150ms var(--nc-ease) both" }}>
+          <div style={{ position: "fixed", top: urlPos.top, left: urlPos.left, background: "var(--color-surface-card)", border: "1px solid var(--color-border-default)", borderRadius: 12, boxShadow: "var(--nc-shadow-3)", padding: "8px 10px", display: "flex", alignItems: "center", gap: 6, zIndex: 500, animation: "nc-mode-in 150ms var(--nc-ease) both" }}>
             <input
               autoFocus
               type="url"

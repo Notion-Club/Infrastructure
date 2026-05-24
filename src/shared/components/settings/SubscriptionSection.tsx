@@ -147,7 +147,7 @@ export function SubscriptionSection() {
           border: "1px solid var(--color-border-default)",
           borderRadius: 12,
           overflow: "hidden",
-          background: "white",
+          background: "var(--color-surface-card)",
         }}
       >
         {loading && (

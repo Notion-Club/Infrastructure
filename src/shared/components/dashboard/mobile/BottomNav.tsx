@@ -36,10 +36,10 @@ export function BottomNav() {
         right: 12,
         height: 56,
         zIndex: 50,
-        background: "rgba(255,255,255,0.92)",
+        background: "var(--nc-bottom-nav-bg)",
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
-        border: "0.5px solid rgba(229,231,235,0.9)",
+        border: "0.5px solid var(--nc-bottom-nav-border)",
         borderRadius: 9999,
         boxShadow: "0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)",
         display: "flex",
@@ -64,7 +64,7 @@ export function BottomNav() {
               height: 44,
               margin: "0 1px",
               borderRadius: 9999,
-              background: isActive ? "rgba(0,0,0,0.07)" : "transparent",
+              background: isActive ? "var(--nc-nav-active-bg)" : "transparent",
               transition: "background 150ms ease",
               textDecoration: "none",
             }}
@@ -72,14 +72,14 @@ export function BottomNav() {
             <Icon
               size={19}
               strokeWidth={isActive ? 2.5 : 2}
-              style={{ color: "#000", flexShrink: 0 }}
+              style={{ color: "var(--color-text-primary)", flexShrink: 0 }}
             />
             <span
               style={{
                 fontSize: 9,
                 fontWeight: isActive ? 600 : 500,
                 letterSpacing: "0.01em",
-                color: "#000",
+                color: "var(--color-text-primary)",
                 lineHeight: 1,
               }}
             >

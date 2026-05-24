@@ -243,7 +243,7 @@ function NotificationsMatrix({
       style={{
         borderRadius: 14,
         border: "1px solid var(--color-border-default)",
-        background: "white",
+        background: "var(--color-surface-card)",
         boxShadow: "var(--nc-shadow-3)",
         overflow: "hidden",
       }}
@@ -474,7 +474,7 @@ function SwitchToggle({
           width: knob,
           height: knob,
           borderRadius: "50%",
-          background: "white",
+          background: "var(--color-surface-card)",
           boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
           // transform/translateX au lieu de `left` → GPU compositing,
           // animation fluide sur mobile (Safari iOS / Chrome Android
