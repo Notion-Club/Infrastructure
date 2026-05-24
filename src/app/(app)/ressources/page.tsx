@@ -19,7 +19,7 @@ export default async function RessourcesPage() {
       <GradualBlurOverlay />
       <div className="nc-page-halo" style={{ minHeight: '100dvh' }}>
         <main style={{ position: 'relative', zIndex: 1 }}>
-          <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
+          <div className="px-4 pt-[96px] pb-[176px] md:px-10 md:pt-[148px] md:pb-[140px]">
             <div
               style={{
                 maxWidth: 1040,

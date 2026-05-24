@@ -17,21 +17,47 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      position="bottom-right"
       icons={{
-        success: <CircleCheckIcon className="size-4" />,
-        info: <InfoIcon className="size-4" />,
-        warning: <TriangleAlertIcon className="size-4" />,
-        error: <OctagonXIcon className="size-4" />,
+        success: (
+          <CircleCheckIcon className="size-4" style={{ color: "#16a34a" }} />
+        ),
+        info: (
+          <InfoIcon
+            className="size-4"
+            style={{ color: "var(--color-text-secondary)" }}
+          />
+        ),
+        warning: (
+          <TriangleAlertIcon className="size-4" style={{ color: "#d97706" }} />
+        ),
+        error: (
+          <OctagonXIcon
+            className="size-4"
+            style={{ color: "var(--color-brand)" }}
+          />
+        ),
         loading: <Loader2Icon className="size-4 animate-spin" />,
       }}
       style={
         {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
+          // Alignés sur le design system NotionClub (tokens surface/border/text)
+          // plutôt que le fond générique sombre par défaut de Sonner.
+          "--normal-bg": "var(--color-surface-card)",
+          "--normal-text": "var(--color-text-primary)",
+          "--normal-border": "var(--color-border-default)",
+          "--border-radius": "14px",
         } as React.CSSProperties
       }
+      toastOptions={{
+        style: {
+          boxShadow: "var(--nc-shadow-2)",
+          borderRadius: "14px",
+          padding: "14px 16px",
+          fontFamily: "inherit",
+          fontSize: "14px",
+        },
+      }}
       {...props}
     />
   )

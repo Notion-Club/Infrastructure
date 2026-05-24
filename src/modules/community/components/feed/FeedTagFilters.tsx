@@ -62,12 +62,13 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
         })}
       </div>
 
+      {/* Desktop : bouton inline. Mobile : remplacé par un FAB flottant
+          (cf. nc-feed-fab dans CommunityPage) → masqué ici en < md. */}
       <button
         type="button"
         onClick={onNewPost}
-        className="nc-btn-shine"
+        className="nc-btn-shine hidden md:inline-flex"
         style={{
-          display: "inline-flex",
           alignItems: "center",
           gap: 6,
           padding: "8px 16px",
