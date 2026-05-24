@@ -163,6 +163,7 @@ export type LessonResourceLink = {
 
 export type LessonContent = {
   videoUrl: string | null;
+  blocks: NotionBlock[];
   synthese: string;
   resources: LessonResourceLink[];
 };
@@ -180,6 +181,16 @@ function findFirstVideoUrl(blocks: NotionBlock[]): string | null {
     }
   }
   return null;
+}
+
+// Retire les blocs vidéo du body : la vidéo est déjà affichée dans le player
+// en tête de carte, on évite le doublon. Le reste du body est conservé.
+function stripVideos(blocks: NotionBlock[]): NotionBlock[] {
+  return blocks
+    .filter((b) => b.type !== "video")
+    .map((b) =>
+      b.children ? { ...b, children: stripVideos(b.children) } : b,
+    );
 }
 
 async function resolveResourceLink(
@@ -238,6 +249,7 @@ export async function fetchLessonContent(
 
   return {
     videoUrl: findFirstVideoUrl(blocks),
+    blocks: stripVideos(blocks),
     synthese: getRichText(page, "Synthèse"),
     resources: [...resources, ...templates].filter(
       (r): r is LessonResourceLink => r !== null && r.title.trim() !== "",

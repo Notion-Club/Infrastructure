@@ -4,37 +4,47 @@ import { useEffect, useRef, useState } from "react";
 import {
   Bold,
   Check,
+  ExternalLink,
+  FileText,
   Image as ImageIcon,
   Italic,
+  LayoutTemplate,
+  Lightbulb,
   Link as LinkIcon,
   List,
-  Lightbulb,
   Pencil,
-  Play,
   Video as VideoIcon,
 } from "lucide-react";
 
+import type { NotionBlock } from "@/shared/lib/notion/blocks";
+import { NotionBlocks } from "./notion/NotionBlocks";
+import type { LessonResourceLink } from "../server/notion";
 import { saveCourseNote } from "../server/actions";
 
-type Tab = "notes" | "synthese";
+type Tab = "notes" | "synthese" | "resources";
 
 type Props = {
   title: string;
   description: string | null;
   videoUrl: string | null;
+  blocks: NotionBlock[];
   synthese: string;
+  resources: LessonResourceLink[];
   courseId: string;
   initialNote: string;
 };
 
-// Carte « player » : header (titre) ▸ description + vidéo ▸ switcher
-// Notes / À garder en tête. Mime un lecteur vidéo (coins arrondis, header
-// séparé). Largeur pleine de la colonne centrale.
+// Carte « player » unique en 3 sections : (1) titre + description,
+// (2) player vidéo full-bleed + body du cours, (3) switcher 3 onglets
+// (Mes notes / À garder en tête / Ressources) dont le contenu est intégré
+// directement sous les onglets — un seul composant.
 export function LessonPlayerCard({
   title,
   description,
   videoUrl,
+  blocks,
   synthese,
+  resources,
   courseId,
   initialNote,
 }: Props) {
@@ -50,64 +60,46 @@ export function LessonPlayerCard({
         boxShadow: "var(--nc-shadow-2)",
       }}
     >
-      {/* Header — titre séparé du corps par une bordure */}
-      <header
-        style={{
-          padding: "16px 22px",
-          borderBottom: "1px solid var(--color-border-default)",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          background: "var(--color-surface-raised)",
-        }}
-      >
-        <span
-          aria-hidden
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: "var(--color-brand)",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <Play size={14} fill="white" strokeWidth={0} />
-        </span>
+      {/* 1 — Titre + description */}
+      <div style={{ padding: "22px 24px 18px" }}>
         <h1
           style={{
-            fontSize: 18,
-            fontWeight: 600,
+            fontSize: 24,
+            fontWeight: 700,
             color: "var(--color-text-primary)",
             margin: 0,
-            lineHeight: 1.3,
-            letterSpacing: "-0.01em",
+            lineHeight: 1.2,
+            letterSpacing: "-0.02em",
           }}
         >
           {title}
         </h1>
-      </header>
-
-      {/* Corps : description + vidéo */}
-      <div style={{ padding: 22, display: "flex", flexDirection: "column", gap: 18 }}>
         {description && (
           <p
             style={{
               fontSize: 15,
               lineHeight: 1.6,
               color: "var(--color-text-secondary)",
-              margin: 0,
+              margin: "8px 0 0 0",
             }}
           >
             {description}
           </p>
         )}
+      </div>
 
-        <VideoEmbed url={videoUrl} title={title} />
+      {/* 2 — Player full-bleed (aucune marge latérale) */}
+      <VideoEmbed url={videoUrl} title={title} />
 
-        {/* Switcher Notes / À garder en tête */}
+      {/* Body du cours (tout le contenu Notion hors vidéo) */}
+      {blocks.length > 0 && (
+        <div style={{ padding: "18px 24px 4px" }}>
+          <NotionBlocks blocks={blocks} />
+        </div>
+      )}
+
+      {/* 3 — Switcher intégré */}
+      <div style={{ padding: "16px 24px 24px" }}>
         <div
           style={{
             display: "flex",
@@ -117,25 +109,16 @@ export function LessonPlayerCard({
             gap: 2,
           }}
         >
-          <SwitchButton
-            active={tab === "notes"}
-            onClick={() => setTab("notes")}
-            icon={<Pencil size={15} strokeWidth={tab === "notes" ? 2.5 : 2} />}
-            label="Mes notes"
-          />
-          <SwitchButton
-            active={tab === "synthese"}
-            onClick={() => setTab("synthese")}
-            icon={<Lightbulb size={15} strokeWidth={tab === "synthese" ? 2.5 : 2} />}
-            label="À garder en tête"
-          />
+          <SwitchButton active={tab === "notes"} onClick={() => setTab("notes")} icon={<Pencil size={15} strokeWidth={tab === "notes" ? 2.5 : 2} />} label="Mes notes" />
+          <SwitchButton active={tab === "synthese"} onClick={() => setTab("synthese")} icon={<Lightbulb size={15} strokeWidth={tab === "synthese" ? 2.5 : 2} />} label="À garder en tête" />
+          <SwitchButton active={tab === "resources"} onClick={() => setTab("resources")} icon={<FileText size={15} strokeWidth={tab === "resources" ? 2.5 : 2} />} label="Ressources" badge={resources.length} />
         </div>
 
-        {tab === "notes" ? (
-          <RichTextNotes courseId={courseId} initialNote={initialNote} />
-        ) : (
-          <SynthesePanel synthese={synthese} />
-        )}
+        <div style={{ marginTop: 14 }}>
+          {tab === "notes" && <RichTextNotes courseId={courseId} initialNote={initialNote} />}
+          {tab === "synthese" && <SynthesePanel synthese={synthese} />}
+          {tab === "resources" && <ResourcesPanel items={resources} />}
+        </div>
       </div>
     </div>
   );
@@ -146,11 +129,13 @@ function SwitchButton({
   onClick,
   icon,
   label,
+  badge,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
+  badge?: number;
 }) {
   return (
     <button
@@ -162,13 +147,11 @@ function SwitchButton({
         alignItems: "center",
         justifyContent: "center",
         gap: 7,
-        padding: "8px 16px",
+        padding: "8px 14px",
         borderRadius: 8,
         border: "none",
         background: active ? "var(--nc-segmented-active-bg)" : "transparent",
-        boxShadow: active
-          ? "0 1px 4px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)"
-          : "none",
+        boxShadow: active ? "0 1px 4px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)" : "none",
         color: active ? "var(--nc-segmented-active-text)" : "var(--color-text-muted)",
         fontSize: 14,
         fontWeight: active ? 600 : 400,
@@ -179,11 +162,30 @@ function SwitchButton({
     >
       {icon}
       {label}
+      {badge !== undefined && badge > 0 && (
+        <span
+          style={{
+            minWidth: 16,
+            height: 16,
+            background: active ? "var(--color-brand)" : "var(--color-border-default)",
+            color: active ? "#fff" : "var(--color-text-muted)",
+            borderRadius: 9999,
+            fontSize: 10,
+            fontWeight: 700,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "0 4px",
+          }}
+        >
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
 
-// ─── Vidéo (Tella en iframe, fichier brut en <video>) ───────────────────
+// ─── Vidéo (full-bleed) ──────────────────────────────────────────────────
 
 function tellaEmbedUrl(url: string): string | null {
   const m = url.match(/tella\.tv\/video\/([^/?#]+)/);
@@ -196,16 +198,7 @@ function VideoEmbed({ url, title }: { url: string | null; title: string }) {
   const tella = tellaEmbedUrl(url);
   const isFile = /\.(mp4|webm|mov)(\?|$)/i.test(url) && !tella;
   return (
-    <div
-      style={{
-        position: "relative",
-        width: "100%",
-        aspectRatio: "16 / 9",
-        borderRadius: 14,
-        overflow: "hidden",
-        background: "#000",
-      }}
-    >
+    <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", background: "#000" }}>
       {isFile ? (
         <video src={url} controls style={{ width: "100%", height: "100%" }} />
       ) : (
@@ -224,40 +217,131 @@ function VideoEmbed({ url, title }: { url: string | null; title: string }) {
 // ─── Onglet « À garder en tête » (Synthèse, lecture seule) ──────────────
 
 function SynthesePanel({ synthese }: { synthese: string }) {
+  if (!synthese.trim()) {
+    return (
+      <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0, fontStyle: "italic" }}>
+        La synthèse de ce cours n&apos;est pas encore disponible.
+      </p>
+    );
+  }
+  return (
+    <p
+      style={{
+        fontSize: 14,
+        lineHeight: 1.7,
+        color: "var(--color-text-primary)",
+        margin: 0,
+        whiteSpace: "pre-wrap",
+      }}
+    >
+      {synthese}
+    </p>
+  );
+}
+
+// ─── Onglet « Ressources » ───────────────────────────────────────────────
+
+const CATEGORY: Record<
+  LessonResourceLink["category"],
+  { label: string; bg: string; color: string; dot: string }
+> = {
+  resource: { label: "Ressource", bg: "rgba(37,99,235,0.10)", color: "#1d4ed8", dot: "#3b82f6" },
+  template: { label: "Template", bg: "rgba(124,58,237,0.10)", color: "#6d28d9", dot: "#8b5cf6" },
+};
+
+function ResourcesPanel({ items }: { items: LessonResourceLink[] }) {
+  if (items.length === 0) {
+    return (
+      <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0, fontStyle: "italic" }}>
+        Aucune ressource liée à ce cours.
+      </p>
+    );
+  }
   return (
     <div
       style={{
-        background: "var(--color-surface-raised)",
         border: "1px solid var(--color-border-default)",
-        borderRadius: 14,
-        padding: 18,
-        minHeight: 140,
+        borderRadius: 12,
+        overflow: "hidden",
       }}
     >
-      {synthese.trim() ? (
-        <p
-          style={{
-            fontSize: 14,
-            lineHeight: 1.7,
-            color: "var(--color-text-primary)",
-            margin: 0,
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {synthese}
-        </p>
-      ) : (
-        <p
-          style={{
-            fontSize: 13,
-            color: "var(--color-text-muted)",
-            margin: 0,
-            fontStyle: "italic",
-          }}
-        >
-          La synthèse de ce cours n&apos;est pas encore disponible.
-        </p>
-      )}
+      {items.map((item, i) => {
+        const cat = CATEGORY[item.category];
+        const Icon = item.category === "template" ? LayoutTemplate : FileText;
+        return (
+          <a
+            key={item.notionId}
+            href={item.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group hover:bg-[var(--color-surface-raised)]"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              padding: "12px 14px",
+              textDecoration: "none",
+              borderTop: i === 0 ? "none" : "1px solid var(--color-border-default)",
+              transition: "background 200ms var(--nc-ease)",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 9,
+                background: "var(--color-surface-raised)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                color: "var(--color-text-secondary)",
+              }}
+            >
+              <Icon size={16} />
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: "var(--color-text-primary)",
+                  margin: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {item.title}
+              </p>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginTop: 5,
+                  padding: "3px 10px 3px 8px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  lineHeight: 1.4,
+                  background: cat.bg,
+                  color: cat.color,
+                }}
+              >
+                <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: cat.dot }} />
+                {cat.label}
+              </span>
+            </div>
+            <ExternalLink
+              size={16}
+              className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              style={{ color: "var(--color-brand)", flexShrink: 0 }}
+            />
+          </a>
+        );
+      })}
     </div>
   );
 }
@@ -266,19 +350,12 @@ function SynthesePanel({ synthese }: { synthese: string }) {
 
 const MAX = 50_000;
 
-function RichTextNotes({
-  courseId,
-  initialNote,
-}: {
-  courseId: string;
-  initialNote: string;
-}) {
+function RichTextNotes({ courseId, initialNote }: { courseId: string; initialNote: string }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [saved, setSaved] = useState(false);
   const [empty, setEmpty] = useState(initialNote.trim() === "");
 
-  // Init du contenu une seule fois (contentEditable non contrôlé).
   useEffect(() => {
     if (editorRef.current && initialNote) {
       editorRef.current.innerHTML = initialNote;
@@ -286,8 +363,10 @@ function RichTextNotes({
   }, [initialNote]);
 
   function persist() {
-    const html = editorRef.current?.innerHTML ?? "";
-    setEmpty((editorRef.current?.textContent ?? "").trim() === "" && !html.includes("<img") && !html.includes("<iframe"));
+    const el = editorRef.current;
+    const html = el?.innerHTML ?? "";
+    const hasMedia = html.includes("<img") || html.includes("<iframe");
+    setEmpty((el?.textContent ?? "").trim() === "" && !hasMedia);
     setSaved(false);
     if (debounce.current) clearTimeout(debounce.current);
     debounce.current = setTimeout(async () => {
@@ -301,7 +380,6 @@ function RichTextNotes({
     document.execCommand(command, false, value);
     persist();
   }
-
   function addLink() {
     const url = window.prompt("URL du lien :");
     if (url) exec("createLink", url);
@@ -327,9 +405,9 @@ function RichTextNotes({
     <div
       style={{
         border: "1px solid var(--color-border-default)",
-        borderRadius: 14,
+        borderRadius: 12,
         overflow: "hidden",
-        background: "var(--color-surface-card)",
+        background: "var(--color-surface-raised)",
       }}
     >
       {/* Toolbar */}
@@ -338,35 +416,21 @@ function RichTextNotes({
           display: "flex",
           alignItems: "center",
           gap: 2,
-          padding: "8px 10px",
+          padding: "6px 8px",
           borderBottom: "1px solid var(--color-border-default)",
-          background: "var(--color-surface-raised)",
         }}
       >
-        <ToolbarButton onClick={() => exec("bold")} title="Gras">
-          <Bold size={15} />
-        </ToolbarButton>
-        <ToolbarButton onClick={() => exec("italic")} title="Italique">
-          <Italic size={15} />
-        </ToolbarButton>
-        <ToolbarButton onClick={() => exec("insertUnorderedList")} title="Liste">
-          <List size={15} />
-        </ToolbarButton>
-        <ToolbarButton onClick={addLink} title="Lien">
-          <LinkIcon size={15} />
-        </ToolbarButton>
-        <ToolbarButton onClick={addImage} title="Image">
-          <ImageIcon size={15} />
-        </ToolbarButton>
-        <ToolbarButton onClick={addVideo} title="Vidéo">
-          <VideoIcon size={15} />
-        </ToolbarButton>
-
+        <ToolbarButton onClick={() => exec("bold")} title="Gras"><Bold size={15} /></ToolbarButton>
+        <ToolbarButton onClick={() => exec("italic")} title="Italique"><Italic size={15} /></ToolbarButton>
+        <ToolbarButton onClick={() => exec("insertUnorderedList")} title="Liste"><List size={15} /></ToolbarButton>
+        <ToolbarButton onClick={addLink} title="Lien"><LinkIcon size={15} /></ToolbarButton>
+        <ToolbarButton onClick={addImage} title="Image"><ImageIcon size={15} /></ToolbarButton>
+        <ToolbarButton onClick={addVideo} title="Vidéo"><VideoIcon size={15} /></ToolbarButton>
         <span
           style={{
             marginLeft: "auto",
             fontSize: 11,
-            color: saved ? "var(--color-brand)" : "var(--color-text-muted)",
+            color: "var(--color-brand)",
             display: "inline-flex",
             alignItems: "center",
             gap: 4,
@@ -378,7 +442,7 @@ function RichTextNotes({
         </span>
       </div>
 
-      {/* Zone éditable */}
+      {/* Zone éditable (fond surface-raised, distinct de la carte) */}
       <div style={{ position: "relative" }}>
         {empty && (
           <span
@@ -405,7 +469,7 @@ function RichTextNotes({
           aria-label="Mes notes"
           className="nc-notes-editor"
           style={{
-            minHeight: 180,
+            minHeight: 160,
             padding: 16,
             fontSize: 14,
             lineHeight: 1.7,
@@ -430,7 +494,6 @@ function ToolbarButton({
   return (
     <button
       type="button"
-      // onMouseDown preventDefault : garde le focus/sélection dans l'éditeur
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       title={title}

@@ -4,13 +4,12 @@ import { ChevronRight } from "lucide-react";
 import type { LessonView as LessonViewModel } from "../types";
 import type { LessonContent } from "../server/notion";
 import { LessonPlayerCard } from "./LessonPlayerCard";
-import { LessonResources } from "./LessonResources";
 import { LessonNavigation } from "./LessonNavigation";
 
-// Page leçon — colonne unique centrée (alignée sur la nav), vidéo large.
-// Plus de colonne notes à droite : les notes vivent dans la carte player
-// (onglet « Mes notes »). Plus d'eyebrow module au-dessus du titre : le fil
-// d'Ariane porte déjà cette info.
+// Page leçon — colonne unique centrée (alignée sur la nav). Tout le cours
+// (titre, description, vidéo, body, notes, synthèse, ressources) vit dans
+// une seule carte « player ». Pas d'eyebrow module : le fil d'Ariane le
+// porte déjà.
 export function LessonView({
   view,
   content,
@@ -58,12 +57,12 @@ export function LessonView({
         title={course.name}
         description={course.description}
         videoUrl={content.videoUrl}
+        blocks={content.blocks}
         synthese={content.synthese}
+        resources={content.resources}
         courseId={course.id}
         initialNote={view.noteContent}
       />
-
-      <LessonResources items={content.resources} />
 
       <LessonNavigation
         programSlug={formation.slug}
