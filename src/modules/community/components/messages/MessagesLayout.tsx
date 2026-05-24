@@ -85,7 +85,7 @@ export function MessagesLayout({ currentUser, initialConversationId, embedded }:
           ...containerStyle,
           gridTemplateColumns: "280px 1fr",
           height: "calc(100dvh - 148px)",
-          background: "white",
+          background: "var(--color-surface-card)",
         }}
       >
         <ConversationList
@@ -109,7 +109,7 @@ export function MessagesLayout({ currentUser, initialConversationId, embedded }:
         className="md:hidden"
         style={{
           ...containerStyle,
-          background: "white",
+          background: "var(--color-surface-card)",
           height: "calc(100dvh - 200px)",
         }}
       >

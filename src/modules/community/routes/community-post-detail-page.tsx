@@ -68,7 +68,7 @@ export function CommunityPostDetailPage({ post, devRole }: CommunityPostDetailPa
       {/* Post complet */}
       <article
         style={{
-          background: "white",
+          background: "var(--color-surface-card)",
           border: "1px solid var(--color-border-default)",
           borderRadius: 16,
           padding: 24,
@@ -160,7 +160,7 @@ export function CommunityPostDetailPage({ post, devRole }: CommunityPostDetailPa
       <div
         id="comments"
         style={{
-          background: "white",
+          background: "var(--color-surface-card)",
           border: "1px solid var(--color-border-default)",
           borderRadius: 16,
           padding: 24,

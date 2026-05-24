@@ -41,7 +41,7 @@ function BottomSheet({ reactions, onClose }: { reactions: Reaction[]; onClose: (
     >
       <div
         style={{
-          background: "white", borderRadius: "20px 20px 0 0",
+          background: "var(--color-surface-card)", borderRadius: "20px 20px 0 0",
           padding: "20px 16px 32px", width: "100%",
           maxHeight: "60dvh", overflowY: "auto",
           animation: "nc-sheet-in 300ms ease both",
@@ -150,7 +150,7 @@ function ReactionPill({ emoji, count, userReacted, compact, onReact, allReaction
               bottom: "calc(100% + 6px)",
               left: "50%",
               transform: "translateX(-50%)",
-              background: "white",
+              background: "var(--color-surface-card)",
               border: "1px solid var(--color-border-default)",
               borderRadius: 12,
               boxShadow: "var(--nc-shadow-2)",

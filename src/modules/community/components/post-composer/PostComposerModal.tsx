@@ -205,7 +205,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
             position: "fixed",
             top: urlMenuPos.top,
             left: urlMenuPos.left,
-            background: "white",
+            background: "var(--color-surface-card)",
             border: "1px solid var(--color-border-default)",
             borderRadius: 12,
             boxShadow: "var(--nc-shadow-3)",
@@ -271,7 +271,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
 
       <div
         style={{
-          background: "white",
+          background: "var(--color-surface-card)",
           borderRadius: 20,
           width: "100%",
           maxWidth: 580,
@@ -568,12 +568,12 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
           padding: "14px 20px",
           borderTop: "1px solid var(--color-border-default)",
           flexShrink: 0,
-          background: "white",
+          background: "var(--color-surface-card)",
         }}>
           <button type="button" onClick={onClose}
             style={{
               padding: "9px 20px", border: "1px solid var(--color-border-default)",
-              background: "white", borderRadius: 9999, fontSize: 14, fontWeight: 500,
+              background: "var(--color-surface-card)", borderRadius: 9999, fontSize: 14, fontWeight: 500,
               cursor: "pointer", color: "var(--color-text-secondary)", transition: "background 150ms ease",
             }}
             className="hover:bg-[rgba(0,0,0,0.04)]"

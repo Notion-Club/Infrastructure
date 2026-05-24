@@ -74,7 +74,7 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
       {/* Global container card */}
       <div
         style={{
-          background: "white",
+          background: "var(--color-surface-card)",
           border: "1px solid var(--color-border-default)",
           borderRadius: 20,
           boxShadow: "var(--nc-shadow-3)",
@@ -86,7 +86,7 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
           style={{
             padding: "12px 16px",
             borderBottom: "1px solid var(--color-border-default)",
-            background: "white",
+            background: "var(--color-surface-card)",
           }}
         >
           <div
@@ -119,11 +119,11 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
                     padding: "8px 16px",
                     borderRadius: 8,
                     border: "none",
-                    background: isActive ? "white" : "transparent",
+                    background: isActive ? "var(--nc-segmented-active-bg)" : "transparent",
                     boxShadow: isActive
                       ? "0 1px 4px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)"
                       : "none",
-                    color: isActive ? "var(--color-text-primary)" : "var(--color-text-muted)",
+                    color: isActive ? "var(--nc-segmented-active-text)" : "var(--color-text-muted)",
                     fontSize: 14,
                     fontWeight: isActive ? 600 : 400,
                     cursor: "pointer",
