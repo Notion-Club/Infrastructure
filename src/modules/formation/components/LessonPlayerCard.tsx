@@ -17,7 +17,9 @@ import {
 } from "lucide-react";
 
 import type { NotionBlock } from "@/shared/lib/notion/blocks";
+import { toEmbedSrc } from "@/shared/lib/notion/video";
 import { NotionBlocks } from "./notion/NotionBlocks";
+import { LessonFeedback } from "./LessonFeedback";
 import type { LessonResourceLink } from "../server/notion";
 import { saveCourseNote } from "../server/actions";
 
@@ -32,6 +34,8 @@ type Props = {
   resources: LessonResourceLink[];
   courseId: string;
   initialNote: string;
+  formationName: string;
+  moduleName: string;
 };
 
 // Carte « player » unique en 3 sections : (1) titre + description,
@@ -47,6 +51,8 @@ export function LessonPlayerCard({
   resources,
   courseId,
   initialNote,
+  formationName,
+  moduleName,
 }: Props) {
   const [tab, setTab] = useState<Tab>("notes");
 
@@ -60,20 +66,27 @@ export function LessonPlayerCard({
         boxShadow: "var(--nc-shadow-2)",
       }}
     >
-      {/* 1 — Titre + description */}
+      {/* 1 — Titre + description (+ pill feedback) */}
       <div style={{ padding: "22px 24px 18px" }}>
-        <h1
-          style={{
-            fontSize: 24,
-            fontWeight: 700,
-            color: "var(--color-text-primary)",
-            margin: 0,
-            lineHeight: 1.2,
-            letterSpacing: "-0.02em",
-          }}
-        >
-          {title}
-        </h1>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <h1
+            style={{
+              fontSize: 24,
+              fontWeight: 700,
+              color: "var(--color-text-primary)",
+              margin: 0,
+              lineHeight: 1.2,
+              letterSpacing: "-0.02em",
+            }}
+          >
+            {title}
+          </h1>
+          <LessonFeedback
+            courseName={title}
+            formationName={formationName}
+            moduleName={moduleName}
+          />
+        </div>
         {description && (
           <p
             style={{
@@ -186,22 +199,6 @@ function SwitchButton({
 }
 
 // ─── Vidéo (full-bleed) ──────────────────────────────────────────────────
-
-// Construit le src de l'iframe en PRÉSERVANT la query string de l'URL
-// (paramètres d'affichage Tella : ?b=0&title=0&a=1…). On ne reconstruit
-// jamais l'URL en jetant ses paramètres — sinon les réglages du player
-// posés dans Notion ne se reflètent pas.
-function toEmbedSrc(url: string): string {
-  // Déjà une URL /embed (cas du body Notion) → on la garde telle quelle.
-  if (/\/embed(\?|#|$)/.test(url)) return url;
-  // Lien /view ou /video/<id> → /embed, en conservant la query string.
-  const m = url.match(/tella\.tv\/video\/([^/?#]+)/);
-  if (m) {
-    const q = url.indexOf("?");
-    return `https://www.tella.tv/video/${m[1]}/embed${q >= 0 ? url.slice(q) : ""}`;
-  }
-  return url;
-}
 
 function VideoEmbed({ url, title }: { url: string | null; title: string }) {
   if (!url) return null;

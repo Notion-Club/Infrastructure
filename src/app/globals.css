@@ -677,3 +677,12 @@ html.dark {
 .nc-notes-editor:focus {
   outline: none;
 }
+
+/* ---------- Formation — feedback popup : barre de fermeture auto (5s) ---------- */
+@keyframes nc-feedback-countdown {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+.nc-feedback-countdown {
+  animation: nc-feedback-countdown 5s linear forwards;
+}
