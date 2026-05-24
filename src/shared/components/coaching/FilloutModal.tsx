@@ -67,7 +67,7 @@ export function FilloutModal({
           width: "100%",
           maxWidth: 700,
           maxHeight: "85vh",
-          background: "#ffffff",
+          background: "var(--color-surface-card)",
           borderRadius: 12,
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
           overflow: "hidden",

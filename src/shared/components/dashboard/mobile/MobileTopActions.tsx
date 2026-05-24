@@ -12,23 +12,6 @@ import {
 
 const UNREAD_COUNT = 2;
 
-const CIRCLE: React.CSSProperties = {
-  width: 38,
-  height: 38,
-  borderRadius: "50%",
-  background: "rgba(255,255,255,0.92)",
-  backdropFilter: "blur(16px)",
-  WebkitBackdropFilter: "blur(16px)",
-  border: "0.5px solid rgba(229,231,235,0.9)",
-  boxShadow: "0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  flexShrink: 0,
-  position: "relative",
-};
-
 export function MobileTopActions() {
   const [avatarOpen, setAvatarOpen] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
@@ -67,7 +50,8 @@ export function MobileTopActions() {
       <button
         type="button"
         aria-label={`${UNREAD_COUNT} notifications`}
-        style={{ ...CIRCLE, color: "var(--color-text-secondary)", border: "0.5px solid rgba(229,231,235,0.9)" }}
+        className="nc-mobile-action-btn"
+        style={{ color: "var(--color-text-secondary)" }}
       >
         <Bell size={16} />
         {UNREAD_COUNT > 0 && (
@@ -141,16 +125,13 @@ export function MobileTopActions() {
         {avatarOpen && (
           <div
             role="menu"
+            className="nc-dropdown-panel"
             style={{
               position: "absolute",
               top: "calc(100% + 8px)",
               right: 0,
               minWidth: 220,
               borderRadius: 16,
-              boxShadow:
-                "rgba(0,0,0,0.03) 0px -2px 16px -4px, rgba(0,0,0,0.08) 0px 16px 40px -8px, rgba(0,0,0,0.04) 0px 1px 3px 0px",
-              background: "white",
-              border: "1px solid var(--color-border-default)",
               overflow: "hidden",
               zIndex: 60,
               padding: 6,

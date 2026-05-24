@@ -14,7 +14,7 @@ export function CommunityRestrictedPage() {
     >
       <div
         style={{
-          background: "white",
+          background: "var(--color-surface-card)",
           border: "1px solid var(--color-border-default)",
           borderRadius: 24,
           padding: "48px 40px",

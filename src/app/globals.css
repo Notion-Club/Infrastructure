@@ -48,6 +48,27 @@ html {
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+
+  /* ── NC design tokens — dark mode ──────────────────────── */
+  /* near-black warm backgrounds — éviter le noir pur */
+  --color-brand: #e0625a;
+  --color-text-primary: #f2edeb;     /* ~15:1 sur fond page */
+  --color-text-secondary: #a89e9b;   /* ~7:1  sur fond page */
+  --color-text-muted: #857a77;       /* ~4.5:1 — placeholders, hints */
+  --color-surface-page: #141211;     /* page bg — near-black chaud */
+  --color-surface-raised: #201d1b;   /* nav pills, inputs */
+  --color-surface-card: #2a2725;     /* dropdowns, modals, cards */
+  --color-border-default: #332e2b;   /* bordures subtiles */
+  --nc-nav-active-bg: rgba(255, 255, 255, 0.09);
+  --nc-nav-hover-bg: rgba(255, 255, 255, 0.05);
+  --nc-segmented-active-bg: rgba(255, 255, 255, 0.92);
+  --nc-segmented-active-text: #141211;
+  /* Boutons CTA sombres inversés en dark */
+  --nc-btn-dark-bg: #ede9e6;
+  --nc-btn-dark-text: #141211;
+  /* BottomNav pill — fond sombre translucide */
+  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
+  --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
 }
 
 @theme inline {
@@ -84,6 +105,7 @@ html {
   --color-surface-page: #f5f2f2;
   --color-surface-raised: #f5f5f5;
   --color-border-default: #e5e7eb;
+  --color-surface-card: #ffffff;     /* elevated surfaces (modals, dropdowns, cards) */
 }
 
 :root {
@@ -100,6 +122,152 @@ html {
   --nc-duration-fast: 200ms;
   --nc-duration-normal: 250ms;
   --nc-duration-slow: 300ms;
+  --nc-nav-active-bg: rgba(0, 0, 0, 0.07);
+  --nc-nav-hover-bg: rgba(0, 0, 0, 0.04);
+  --nc-segmented-active-bg: #ffffff;
+  --nc-segmented-active-text: #000000;
+  /* Boutons CTA sombres — s'inversent en dark mode */
+  --nc-btn-dark-bg: #1a1a1a;
+  --nc-btn-dark-text: #ffffff;
+  /* BottomNav pill */
+  --nc-bottom-nav-bg: rgba(255, 255, 255, 0.92);
+  --nc-bottom-nav-border: rgba(229, 231, 235, 0.9);
+}
+
+/* ══════════════════════════════════════════════════════════
+   Dark mode — overrides des classes utilitaires NC
+   ══════════════════════════════════════════════════════════ */
+
+/* Halo de page — supprimé en dark mode (fond uni warm near-black #141211) */
+.dark .nc-page-halo::before {
+  background: none;
+}
+
+/* Carte auth — fond sombre en dark mode */
+.dark .nc-shine-card__inner {
+  background: var(--color-surface-card);
+}
+
+/* Input NC en dark mode */
+.dark .nc-input {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
+}
+.dark .nc-input::placeholder {
+  color: var(--color-text-muted);
+}
+.dark .nc-input:focus {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(224, 98, 90, 0.15);
+}
+
+/* ── Boutons flottants mobile (Bell, etc.) ── */
+.nc-mobile-action-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 0.5px solid rgba(229, 231, 235, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+.dark .nc-mobile-action-btn {
+  background: rgba(28, 25, 23, 0.88);
+  border-color: rgba(55, 50, 47, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+
+/* ── Pill Topbar ── */
+.nc-topbar-pill {
+  background: var(--color-surface-card);
+  border: 0.5px solid var(--color-border-default);
+  border-radius: 9999px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.dark .nc-topbar-pill {
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.4),
+    0 1px 4px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.04);
+}
+
+/* ── Dropdown/popover panel ── */
+.nc-dropdown-panel {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-default);
+  box-shadow:
+    rgba(0, 0, 0, 0.03) 0px -2px 16px -4px,
+    rgba(0, 0, 0, 0.08) 0px 16px 40px -8px,
+    rgba(0, 0, 0, 0.04) 0px 1px 3px 0px;
+}
+.dark .nc-dropdown-panel {
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.5),
+    0 4px 12px rgba(0, 0, 0, 0.32),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+}
+
+/* ── FAB "Nouveau post" mobile (feed communauté) ── */
+.nc-feed-fab {
+  position: fixed;
+  right: 20px;
+  /* au-dessus de la BottomNav (bottom:10 + height:56) + marge confort */
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+  z-index: 45;
+  width: 56px;
+  height: 56px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-brand);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow:
+    0 8px 24px -6px rgba(224, 98, 90, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.12);
+  transition: transform 180ms var(--nc-ease), box-shadow 180ms var(--nc-ease);
+}
+.nc-feed-fab:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 28px -6px rgba(224, 98, 90, 0.6),
+    0 3px 8px rgba(0, 0, 0, 0.14);
+}
+.nc-feed-fab:active {
+  transform: scale(0.94);
+}
+
+/* ── Compteur de ressources (chip lisible, intégré au design system) ── */
+.nc-resource-count {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: 9999px;
+  padding: 6px 12px;
+}
+/* Desktop : poussé à droite de la barre de filtres. Mobile : reste dans le
+   flux, inline après le bouton Filtres (plus de ligne orpheline en dessous). */
+@media (min-width: 768px) {
+  .nc-resource-count {
+    margin-left: auto;
+  }
 }
 
 @layer base {
@@ -313,6 +481,26 @@ html {
   animation: nc-mode-in var(--nc-duration-normal) var(--nc-ease) both;
 }
 
+/*
+ * Grid responsive pour la matrix NotificationsSection.
+ * Mobile (< md = 768 px) : colonnes channels compactes 56 px, gap 4 px
+ *   → la matrix tient inline sur les viewports ≥ 320 px.
+ * Desktop (≥ 768 px) : colonnes channels élargies à 96 px et gap 10 px
+ *   → le titre du type respire et les 3 boutons canaux sont mieux
+ *   distribués sur la ligne (plus de grand vide central).
+ */
+.nc-notif-grid {
+  grid-template-columns: minmax(0, 1fr) repeat(3, 56px);
+  gap: 4px;
+}
+
+@media (min-width: 768px) {
+  .nc-notif-grid {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 96px);
+    gap: 10px;
+  }
+}
+
 @keyframes nc-sheet-in {
   from {
     transform: translateY(100%);
@@ -411,4 +599,29 @@ html {
     -webkit-user-select: text;
     user-select: text;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   html.dark — specificity [0,1,1] reinforcement block
+   Garantit que les tokens NC dark gagnent sur toute règle :root
+   issue de @theme inline (Tailwind v4) ou d'autres imports.
+   Cette règle doit rester en DERNIER dans le fichier.
+   ══════════════════════════════════════════════════════════════ */
+html.dark {
+  --color-brand: #e0625a;
+  --color-text-primary: #f2edeb;
+  --color-text-secondary: #a89e9b;
+  --color-text-muted: #857a77;
+  --color-surface-page: #141211;
+  --color-surface-raised: #201d1b;
+  --color-surface-card: #2a2725;
+  --color-border-default: #332e2b;
+  --nc-nav-active-bg: rgba(255, 255, 255, 0.09);
+  --nc-nav-hover-bg: rgba(255, 255, 255, 0.05);
+  --nc-segmented-active-bg: rgba(255, 255, 255, 0.92);
+  --nc-segmented-active-text: #141211;
+  --nc-btn-dark-bg: #ede9e6;
+  --nc-btn-dark-text: #141211;
+  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
+  --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
 }

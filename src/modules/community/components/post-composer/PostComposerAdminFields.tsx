@@ -113,7 +113,7 @@ export function PostComposerAdminFields({
               style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
                 padding: "4px 10px", border: "1px solid var(--color-border-default)",
-                borderRadius: 9999, background: "white", fontSize: 12,
+                borderRadius: 9999, background: "var(--color-surface-card)", fontSize: 12,
                 color: "var(--color-text-primary)", cursor: "pointer",
               }}
             >
@@ -122,7 +122,7 @@ export function PostComposerAdminFields({
             {durationOpen && (
               <div style={{
                 position: "absolute", top: "calc(100% + 4px)", left: 0,
-                background: "white", border: "1px solid var(--color-border-default)",
+                background: "var(--color-surface-card)", border: "1px solid var(--color-border-default)",
                 borderRadius: 10, boxShadow: "var(--nc-shadow-3)", padding: 4, zIndex: 100,
               }}>
                 {DURATION_OPTIONS.map((d) => (

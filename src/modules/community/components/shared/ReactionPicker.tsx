@@ -46,7 +46,7 @@ export function ReactionPicker({
           cursor: "pointer",
           transition: "background 150ms ease, border-color 150ms ease",
         }}
-        className="hover:bg-[rgba(0,0,0,0.04)] hover:border-[rgba(0,0,0,0.15)]"
+        className="hover:bg-[var(--nc-nav-hover-bg)] hover:border-[rgba(0,0,0,0.15)]"
       >
         <SmilePlus size={14} />
         {label}
@@ -58,7 +58,7 @@ export function ReactionPicker({
             position: "absolute",
             bottom: "calc(100% + 6px)",
             left: 0,
-            background: "white",
+            background: "var(--color-surface-card)",
             border: "1px solid var(--color-border-default)",
             borderRadius: 12,
             boxShadow: "var(--nc-shadow-3)",

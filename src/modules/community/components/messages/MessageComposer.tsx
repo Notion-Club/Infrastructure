@@ -128,7 +128,7 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
     <div
       style={{
         borderTop: "1px solid var(--color-border-default)",
-        background: "white",
+        background: "var(--color-surface-card)",
       }}
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
       onDragLeave={() => setDragging(false)}
@@ -248,7 +248,7 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
           style={{
             width: 36, height: 36, borderRadius: "50%",
             border: "1px solid var(--color-border-default)",
-            background: "white", cursor: "pointer",
+            background: "var(--color-surface-card)", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
             color: "var(--color-text-muted)", flexShrink: 0,
             transition: "background 150ms ease",
@@ -434,7 +434,7 @@ function FileLightbox({
             height: "90vh",
             border: "none",
             borderRadius: 12,
-            background: "white",
+            background: "var(--color-surface-card)",
             boxShadow: "0 24px 48px -12px rgba(0, 0, 0, 0.5)",
             display: "block",
           }}

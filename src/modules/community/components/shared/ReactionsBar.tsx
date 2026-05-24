@@ -41,14 +41,14 @@ function BottomSheet({ reactions, onClose }: { reactions: Reaction[]; onClose: (
     >
       <div
         style={{
-          background: "white", borderRadius: "20px 20px 0 0",
+          background: "var(--color-surface-card)", borderRadius: "20px 20px 0 0",
           padding: "20px 16px 32px", width: "100%",
           maxHeight: "60dvh", overflowY: "auto",
           animation: "nc-sheet-in 300ms ease both",
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 9999, background: "#e5e7eb", margin: "0 auto 16px" }} />
+        <div style={{ width: 36, height: 4, borderRadius: 9999, background: "var(--color-border-default)", margin: "0 auto 16px" }} />
         <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>
           {all.length} réaction{all.length !== 1 ? "s" : ""}
         </p>
@@ -150,7 +150,7 @@ function ReactionPill({ emoji, count, userReacted, compact, onReact, allReaction
               bottom: "calc(100% + 6px)",
               left: "50%",
               transform: "translateX(-50%)",
-              background: "white",
+              background: "var(--color-surface-card)",
               border: "1px solid var(--color-border-default)",
               borderRadius: 12,
               boxShadow: "var(--nc-shadow-2)",

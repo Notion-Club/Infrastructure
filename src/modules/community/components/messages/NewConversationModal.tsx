@@ -41,7 +41,7 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
     >
       <div
         style={{
-          background: "white",
+          background: "var(--color-surface-card)",
           borderRadius: 20,
           width: "100%",
           maxWidth: 440,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, Users } from "lucide-react";
+import { MessageCircle, Users, SquarePen } from "lucide-react";
 import type { PostTag } from "../types/post.types";
 import { useDevRoleToggle } from "../hooks/useDevRoleToggle";
 import { useCurrentUser } from "../hooks/useCurrentUser";
@@ -74,7 +74,7 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
       {/* Global container card */}
       <div
         style={{
-          background: "white",
+          background: "var(--color-surface-card)",
           border: "1px solid var(--color-border-default)",
           borderRadius: 20,
           boxShadow: "var(--nc-shadow-3)",
@@ -86,7 +86,7 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
           style={{
             padding: "12px 16px",
             borderBottom: "1px solid var(--color-border-default)",
-            background: "white",
+            background: "var(--color-surface-card)",
           }}
         >
           <div
@@ -119,11 +119,11 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
                     padding: "8px 16px",
                     borderRadius: 8,
                     border: "none",
-                    background: isActive ? "white" : "transparent",
+                    background: isActive ? "var(--nc-segmented-active-bg)" : "transparent",
                     boxShadow: isActive
                       ? "0 1px 4px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)"
                       : "none",
-                    color: isActive ? "var(--color-text-primary)" : "var(--color-text-muted)",
+                    color: isActive ? "var(--nc-segmented-active-text)" : "var(--color-text-muted)",
                     fontSize: 14,
                     fontWeight: isActive ? 600 : 400,
                     cursor: "pointer",
@@ -169,7 +169,16 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
                 overflowY: "auto",
               }}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 16,
+                  /* Réserve la hauteur du voile de flou sticky (120px) pour
+                     que le dernier post reste entièrement lisible au scroll. */
+                  paddingBottom: 120,
+                }}
+              >
                 <FeedTagFilters
                   active={activeTag}
                   onChange={setActiveTag}
@@ -202,6 +211,19 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
           )}
         </div>
       </div>
+
+      {/* FAB mobile — accès rapide à l'éditeur de post, sous le pouce,
+          au-dessus de la BottomNav. Masqué sur desktop (bouton inline). */}
+      {activeTab === "feed" && (
+        <button
+          type="button"
+          onClick={() => setShowComposer(true)}
+          className="nc-feed-fab md:hidden"
+          aria-label="Nouveau post"
+        >
+          <SquarePen size={22} strokeWidth={2.25} />
+        </button>
+      )}
 
       {showComposer && (
         <PostComposerModal

@@ -27,14 +27,14 @@ function formatDate(iso: string): string {
 
 export default async function TemplateDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const template = getTemplateBySlug(slug);
+  const template = await getTemplateBySlug(slug);
 
   if (!template) {
     notFound();
   }
 
   const hasAccess = canAccess(mockCurrentUser.capability, template.visibilite);
-  const relatedTemplates = getRelatedTemplates(template.relatedSlugs ?? []);
+  const relatedTemplates = getRelatedTemplates();
 
   return (
     <>
@@ -61,7 +61,7 @@ export default async function TemplateDetailPage({ params }: PageProps) {
               {/* Header card — title, description, badges, video */}
               <div
                 style={{
-                  background: '#ffffff',
+                  background: 'var(--color-surface-card)',
                   borderRadius: 20,
                   padding: '32px',
                   boxShadow: 'var(--nc-shadow-3)',

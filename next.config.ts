@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // package-lock.json plus haut dans l'arbo iCloud, cf. warning au build).
   // process.cwd() est universel (CJS + ESM, local + Vercel) ; __dirname
   // n'existe pas en ESM, ce qui plantait next.config.ts à l'exécution.
+  // Note OPS-63 : ce commentaire a été touché pour invalider le cache Vercel
+  // après la migration ressources mock → Notion live.
   turbopack: {
     root: process.cwd(),
   },

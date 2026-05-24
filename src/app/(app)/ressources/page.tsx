@@ -6,8 +6,8 @@ import { ResourcesGrid } from '@/modules/ressources/components/ResourcesGrid';
 import { getAllResourceItems } from '@/modules/ressources/lib/fetch';
 import { GradualBlurOverlay } from '@/shared/components/GradualBlurOverlay';
 
-export default function RessourcesPage() {
-  const items = getAllResourceItems();
+export default async function RessourcesPage() {
+  const items = await getAllResourceItems();
 
   return (
     <>
@@ -19,7 +19,7 @@ export default function RessourcesPage() {
       <GradualBlurOverlay />
       <div className="nc-page-halo" style={{ minHeight: '100dvh' }}>
         <main style={{ position: 'relative', zIndex: 1 }}>
-          <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
+          <div className="px-4 pt-[96px] pb-[176px] md:px-10 md:pt-[148px] md:pb-[140px]">
             <div
               style={{
                 maxWidth: 1040,

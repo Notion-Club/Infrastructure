@@ -60,7 +60,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
     <article
       onClick={handleCardClick}
       style={{
-        background: "white",
+        background: "var(--color-surface-card)",
         border: pinned ? "1.5px solid var(--color-brand)" : "1px solid var(--color-border-default)",
         borderRadius: 16,
         padding: 20,

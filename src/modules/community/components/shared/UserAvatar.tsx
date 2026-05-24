@@ -29,13 +29,13 @@ export function UserAvatar({ user, size = 40, className }: UserAvatarProps) {
           width: size,
           height: size,
           borderRadius: "50%",
-          background: "#e5e7eb",
+          background: "var(--color-border-default)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontSize: fs,
           fontWeight: 700,
-          color: "#9ca3af",
+          color: "var(--color-text-muted)",
           flexShrink: 0,
         }}
       >

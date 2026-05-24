@@ -41,7 +41,7 @@ const SEPARATOR = (
     style={{
       width: 0.5,
       height: 22,
-      background: "#e5e7eb",
+      background: "var(--color-border-default)",
       flexShrink: 0,
       alignSelf: "center",
     }}
@@ -89,6 +89,7 @@ export function Topbar() {
     >
       {/* Pill — élargie pour respirer avec 5 items de nav + groupe droit */}
       <div
+        className="nc-topbar-pill"
         style={{
           width: "100%",
           maxWidth: 920,
@@ -96,11 +97,7 @@ export function Topbar() {
           alignItems: "center",
           justifyContent: "space-between",
           gap: 32,
-          background: "#ffffff",
-          border: "0.5px solid #e5e7eb",
           borderRadius: 9999,
-          boxShadow:
-            "0 2px 16px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04)",
           padding: "10px 10px 10px 22px",
         }}
       >
@@ -117,6 +114,7 @@ export function Topbar() {
               width={120}
               height={40}
               priority
+              className="dark:invert"
               style={{ height: 32, width: "auto", display: "block", flexShrink: 0 }}
             />
           </Link>
@@ -138,13 +136,13 @@ export function Topbar() {
                     borderRadius: 999,
                     fontSize: 14,
                     fontWeight: isActive ? 600 : 400,
-                    color: "#000",
-                    background: isActive ? "rgba(0,0,0,0.07)" : "transparent",
+                    color: "var(--color-text-primary)",
+                    background: isActive ? "var(--nc-nav-active-bg)" : "transparent",
                     textDecoration: "none",
                     transition: "background 150ms ease",
                     whiteSpace: "nowrap",
                   }}
-                  className={!isActive ? "hover:bg-[rgba(0,0,0,0.04)]" : ""}
+                  className={!isActive ? "hover:bg-[var(--nc-nav-hover-bg)]" : ""}
                 >
                   <Icon size={16} strokeWidth={isActive ? 2.5 : 2} style={{ flexShrink: 0 }} />
                   {label}
@@ -170,7 +168,7 @@ export function Topbar() {
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
-              color: "#52525b",
+              color: "var(--color-text-secondary)",
               position: "relative",
               flexShrink: 0,
               transition: "background 150ms ease",
@@ -248,16 +246,13 @@ export function Topbar() {
           {avatarOpen && (
             <div
               role="menu"
+              className="nc-dropdown-panel"
               style={{
                 position: "absolute",
                 top: "calc(100% + 10px)",
                 right: 0,
                 minWidth: 220,
                 borderRadius: 16,
-                boxShadow:
-                  "rgba(0,0,0,0.03) 0px -2px 16px -4px, rgba(0,0,0,0.08) 0px 16px 40px -8px, rgba(0,0,0,0.04) 0px 1px 3px 0px",
-                background: "white",
-                border: "1px solid #e5e7eb",
                 overflow: "hidden",
                 zIndex: 60,
                 padding: 6,
@@ -272,7 +267,7 @@ export function Topbar() {
                   padding: "8px 10px",
                 }}
               >
-                <span style={{ fontSize: 14, color: "#000" }}>
+                <span style={{ fontSize: 14, color: "var(--color-text-primary)" }}>
                   Mode sombre
                 </span>
                 <ThemeToggle />
@@ -280,7 +275,7 @@ export function Topbar() {
               <div
                 style={{
                   height: 1,
-                  background: "#e5e7eb",
+                  background: "var(--color-border-default)",
                   margin: "4px 0",
                 }}
               />
@@ -292,12 +287,12 @@ export function Topbar() {
                   display: "block",
                   padding: "10px 10px",
                   fontSize: 14,
-                  color: "#000",
+                  color: "var(--color-text-primary)",
                   textDecoration: "none",
                   borderRadius: 10,
                   transition: "background 150ms ease",
                 }}
-                className="hover:bg-[#f5f5f5]"
+                className="hover:bg-[var(--color-surface-raised)]"
               >
                 Réglages
               </Link>

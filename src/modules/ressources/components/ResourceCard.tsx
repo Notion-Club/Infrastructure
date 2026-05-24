@@ -28,7 +28,7 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
       }}
       className="group hover:border-[rgba(224,98,90,0.32)]"
       style={{
-        background: '#ffffff',
+        background: 'var(--color-surface-card)',
         border: '1px solid var(--color-border-default)',
         boxShadow: 'var(--nc-shadow-3)',
         borderRadius: 16,
@@ -99,8 +99,12 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
       </div>
 
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <ResourceBadge variant="formation" label={resource.formation} />
-        <ResourceBadge variant="type" label={resource.type} />
+        {resource.formation.map((f) => (
+          <ResourceBadge key={f} variant="formation" label={f} />
+        ))}
+        {resource.type.map((t) => (
+          <ResourceBadge key={t} variant="type" label={t} />
+        ))}
       </div>
     </div>
   );

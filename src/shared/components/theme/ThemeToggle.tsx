@@ -57,9 +57,9 @@ export function ThemeToggle({
                 fontSize: 13,
                 fontWeight: active ? 600 : 500,
                 color: active
-                  ? "var(--color-text-primary)"
+                  ? "var(--nc-segmented-active-text)"
                   : "var(--color-text-muted)",
-                background: active ? "white" : "transparent",
+                background: active ? "var(--nc-segmented-active-bg)" : "transparent",
                 border: "none",
                 cursor: "pointer",
                 boxShadow: active ? "var(--nc-shadow-3)" : "none",
@@ -103,7 +103,7 @@ export function ThemeToggle({
           width: 16,
           height: 16,
           borderRadius: "50%",
-          background: "white",
+          background: "var(--nc-segmented-active-bg)",
           boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
           display: "flex",
           alignItems: "center",

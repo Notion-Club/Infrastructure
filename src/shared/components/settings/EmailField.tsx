@@ -59,7 +59,7 @@ export function EmailField({
         borderRadius: 14,
         border: "1px solid var(--color-border-default)",
         overflow: "hidden",
-        background: "white",
+        background: "var(--color-surface-card)",
       }}
     >
       {/* Top half — platform email */}
@@ -69,7 +69,7 @@ export function EmailField({
           display: "flex",
           flexDirection: "column",
           gap: 6,
-          background: "white",
+          background: "var(--color-surface-card)",
         }}
       >
         <label
@@ -94,7 +94,7 @@ export function EmailField({
           className="nc-input"
           placeholder="vous@exemple.com"
           style={{
-            background: "white",
+            background: "var(--color-surface-card)",
             borderColor: platformEmailError ? "var(--color-brand)" : undefined,
           }}
         />
@@ -199,7 +199,7 @@ export function EmailField({
               placeholder="vous@notion.com"
               disabled={!useSeparateNotionEmail}
               style={{
-                background: "white",
+                background: "var(--color-surface-card)",
                 borderColor: notionEmailError
                   ? "var(--color-brand)"
                   : undefined,

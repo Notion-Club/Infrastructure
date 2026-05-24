@@ -17,7 +17,7 @@ export function SettingsCard({
   return (
     <section
       style={{
-        background: "white",
+        background: "var(--color-surface-card)",
         border: isDanger
           ? "1px solid rgba(224,98,90,0.35)"
           : "1px solid var(--color-border-default)",

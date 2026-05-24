@@ -55,7 +55,7 @@ export function ConversationThread({ conversation, currentUser, onBack }: Conver
           gap: 10,
           padding: "14px 16px",
           borderBottom: "1px solid var(--color-border-default)",
-          background: "white",
+          background: "var(--color-surface-card)",
           flexShrink: 0,
         }}
       >

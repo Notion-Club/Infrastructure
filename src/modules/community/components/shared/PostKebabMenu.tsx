@@ -52,7 +52,7 @@ export function PostKebabMenu({ onEdit, onDelete }: PostKebabMenuProps) {
             top: "calc(100% + 4px)",
             right: 0,
             minWidth: 160,
-            background: "white",
+            background: "var(--color-surface-card)",
             border: "1px solid var(--color-border-default)",
             borderRadius: 12,
             boxShadow: "var(--nc-shadow-3)",

@@ -25,21 +25,21 @@ export function BottomNav() {
       aria-label="Navigation principale"
       style={{
         position: "fixed",
-        // En mode standalone iOS, env(safe-area-inset-bottom) vaut ~34px ;
-        // on pousse la pill au-dessus de la barre Home en jouant sur `bottom`
-        // plutôt que sur un padding intérieur (sinon `box-sizing: border-box`
-        // de Tailwind v4 réduit la content-box du nav et les boutons flex se
-        // recentrent dans une zone plus petite que l'encadré blanc visible —
-        // d'où un décalage vertical entre la pill et les boutons).
+        // En PWA standalone, `env(safe-area-inset-bottom)` vaut ~34px sur
+        // iPhone (home indicator). On le combine au bottom de base pour
+        // remonter la pill au-dessus de la zone système ; appliquer un
+        // padding-bottom dilaterait la pill sans déplacer les icônes (la
+        // height fixe ne contient pas le padding) — visuellement, on
+        // verrait l'encadré décalé sous les boutons.
         bottom: "calc(10px + env(safe-area-inset-bottom))",
         left: 12,
         right: 12,
         height: 56,
         zIndex: 50,
-        background: "rgba(255,255,255,0.92)",
+        background: "var(--nc-bottom-nav-bg)",
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
-        border: "0.5px solid rgba(229,231,235,0.9)",
+        border: "0.5px solid var(--nc-bottom-nav-border)",
         borderRadius: 9999,
         boxShadow: "0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)",
         display: "flex",
@@ -64,7 +64,7 @@ export function BottomNav() {
               height: 44,
               margin: "0 1px",
               borderRadius: 9999,
-              background: isActive ? "rgba(0,0,0,0.07)" : "transparent",
+              background: isActive ? "var(--nc-nav-active-bg)" : "transparent",
               transition: "background 150ms ease",
               textDecoration: "none",
             }}
@@ -72,14 +72,14 @@ export function BottomNav() {
             <Icon
               size={19}
               strokeWidth={isActive ? 2.5 : 2}
-              style={{ color: "#000", flexShrink: 0 }}
+              style={{ color: "var(--color-text-primary)", flexShrink: 0 }}
             />
             <span
               style={{
                 fontSize: 9,
                 fontWeight: isActive ? 600 : 500,
                 letterSpacing: "0.01em",
-                color: "#000",
+                color: "var(--color-text-primary)",
                 lineHeight: 1,
               }}
             >
