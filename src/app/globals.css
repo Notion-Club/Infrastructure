@@ -656,3 +656,24 @@ html.dark {
   --nc-tag-annonce-bg: rgba(224, 98, 90, 0.12);
   --nc-tag-annonce-text: var(--color-brand);
 }
+
+/* ---------- Formation — éditeur de notes (rich text contentEditable) ---------- */
+.nc-notes-editor a {
+  color: var(--color-brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.nc-notes-editor ul {
+  margin: 6px 0;
+  padding-left: 22px;
+  list-style: disc;
+}
+.nc-notes-editor img,
+.nc-notes-editor iframe {
+  max-width: 100%;
+  border-radius: 10px;
+  margin: 8px 0;
+}
+.nc-notes-editor:focus {
+  outline: none;
+}

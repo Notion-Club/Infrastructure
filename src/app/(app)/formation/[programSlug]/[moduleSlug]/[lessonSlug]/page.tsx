@@ -5,8 +5,8 @@ import {
   LessonView,
   getLessonView,
   touchCourseAccess,
+  fetchLessonContent,
 } from "@/modules/formation";
-import { fetchPageBlocks } from "@/shared/lib/notion/blocks";
 
 export const metadata: Metadata = {
   title: "Leçon — Formation — Notion Club",
@@ -27,12 +27,12 @@ export default async function LessonPage({ params }: { params: Params }) {
     redirect(`${res.redirectTo}?notice=${code}`);
   }
 
-  // Lazy : le body Notion n'est fetché qu'à l'ouverture de la leçon.
-  // Marque la leçon comme "vue" (pour le Reprendre) en parallèle.
-  const [blocks] = await Promise.all([
-    fetchPageBlocks(res.view.course.notionId),
+  // Lazy : vidéo + Synthèse + ressources liées récupérés à l'ouverture.
+  // Marque la leçon comme « vue » (Reprendre) en parallèle.
+  const [content] = await Promise.all([
+    fetchLessonContent(res.view.course.notionId),
     touchCourseAccess(res.view.course.id),
   ]);
 
-  return <LessonView view={res.view} blocks={blocks} />;
+  return <LessonView view={res.view} content={content} />;
 }
