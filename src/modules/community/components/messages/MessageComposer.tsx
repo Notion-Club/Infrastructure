@@ -248,12 +248,12 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
           style={{
             width: 36, height: 36, borderRadius: "50%",
             border: "1px solid var(--color-border-default)",
-            background: "var(--color-surface-card)", cursor: "pointer",
+            background: "var(--color-surface-raised)", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
             color: "var(--color-text-muted)", flexShrink: 0,
             transition: "background 150ms ease",
           }}
-          className="hover:bg-[rgba(0,0,0,0.04)]"
+          className="hover:bg-[var(--nc-nav-hover-bg)]"
           aria-label="Joindre un fichier"
         >
           <Paperclip size={16} />
@@ -292,10 +292,10 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
           disabled={!canSend}
           style={{
             width: 36, height: 36, borderRadius: "50%",
-            background: canSend ? "var(--color-brand)" : "#e5e7eb",
+            background: canSend ? "var(--color-brand)" : "var(--nc-btn-disabled-bg)",
             border: "none", cursor: canSend ? "pointer" : "not-allowed",
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: canSend ? "#fff" : "#9ca3af",
+            color: canSend ? "#fff" : "var(--nc-btn-disabled-text)",
             flexShrink: 0,
             transition: "all 150ms ease",
           }}

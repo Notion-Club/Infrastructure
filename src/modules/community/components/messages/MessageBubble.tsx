@@ -84,7 +84,7 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
             maxWidth: 320,
             padding: "10px 14px",
             borderRadius: isSelf ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-            background: isSelf ? "var(--color-brand)" : "var(--color-surface-card)",
+            background: isSelf ? "var(--color-brand)" : "var(--color-surface-raised)",
             color: isSelf ? "#fff" : "var(--color-text-primary)",
             border: isSelf ? "none" : "1px solid var(--color-border-default)",
             fontSize: 14,

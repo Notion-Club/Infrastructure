@@ -154,7 +154,7 @@ export function CommentComposer({
             border: `1px solid ${editorFocused ? "var(--color-brand)" : "var(--color-border-default)"}`,
             borderRadius: 12,
             overflow: "hidden",
-            background: "var(--color-surface-card)",
+            background: "var(--color-surface-raised)",
             transition: "border-color 150ms ease",
           }}
           onFocusCapture={() => setEditorFocused(true)}
@@ -174,7 +174,7 @@ export function CommentComposer({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => { document.execCommand(cmd, false); editorRef.current?.focus(); syncEmpty(); }}
                 style={{ width: 26, height: 26, borderRadius: 5, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", transition: "background 100ms ease" }}
-                className="hover:bg-[rgba(0,0,0,0.06)]"
+                className="hover:bg-[var(--nc-nav-hover-bg)]"
               >
                 <Icon size={13} />
               </button>
@@ -244,7 +244,7 @@ export function CommentComposer({
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); insertMention(u.name); }}
                 style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", fontSize: 13, color: "var(--color-text-primary)" }}
-                className="hover:bg-[#f5f5f5]"
+                className="hover:bg-[var(--color-surface-raised)]"
               >
                 <UserAvatar user={u} size={24} />
                 {u.name}
@@ -277,8 +277,8 @@ export function CommentComposer({
             disabled={editorEmpty}
             style={{
               padding: "7px 18px",
-              background: !editorEmpty ? "var(--color-brand)" : "#e5e7eb",
-              color: !editorEmpty ? "#fff" : "#9ca3af",
+              background: !editorEmpty ? "var(--color-brand)" : "var(--nc-btn-disabled-bg)",
+              color: !editorEmpty ? "#fff" : "var(--nc-btn-disabled-text)",
               border: "none",
               borderRadius: 9999,
               fontSize: 13,

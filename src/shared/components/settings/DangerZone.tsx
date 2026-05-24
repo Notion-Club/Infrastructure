@@ -53,7 +53,7 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
             padding: "10px 18px",
             borderRadius: 9999,
             border: "1px solid var(--color-border-default)",
-            background: "var(--color-surface-card)",
+            background: "var(--color-surface-raised)",
             color: "var(--color-text-primary)",
             fontSize: 13,
             fontWeight: 600,
@@ -61,7 +61,7 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
             opacity: signingOut ? 0.6 : 1,
             transition: "background 150ms ease",
           }}
-          className="hover:bg-[var(--color-surface-raised)]"
+          className="hover:bg-[var(--color-surface-card)]"
         >
           {signingOut ? (
             <LoaderCircle size={14} className="animate-spin" />

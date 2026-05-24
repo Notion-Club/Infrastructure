@@ -48,7 +48,7 @@ export function FormationWidget() {
           height: 180,
           pointerEvents: "none",
           backgroundImage:
-            "radial-gradient(circle, rgba(224,98,90,0.28) 1px, transparent 1.4px)",
+            "radial-gradient(circle, var(--nc-card-dot-color) 1px, transparent 1.4px)",
           backgroundSize: "11px 11px",
           maskImage:
             "radial-gradient(circle at top right, black 0%, transparent 70%)",

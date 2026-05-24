@@ -150,6 +150,13 @@ html {
   --nc-tag-presentation-text: #15803d;
   --nc-tag-annonce-bg: rgba(224, 98, 90, 0.12);
   --nc-tag-annonce-text: #c0392b;
+  /* Badges de statut coaching */
+  --nc-status-upcoming-bg: #fef3f2;
+  --nc-status-upcoming-text: #e0625a;
+  --nc-status-accepted-bg: #dcfce7;
+  --nc-status-accepted-text: #166534;
+  --nc-status-noshown-bg: #fee2e2;
+  --nc-status-noshown-text: #991b1b;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -655,6 +662,12 @@ html.dark {
   --nc-tag-presentation-text: #4ade80;
   --nc-tag-annonce-bg: rgba(224, 98, 90, 0.12);
   --nc-tag-annonce-text: var(--color-brand);
+  --nc-status-upcoming-bg: rgba(224, 98, 90, 0.15);
+  --nc-status-upcoming-text: var(--color-brand);
+  --nc-status-accepted-bg: rgba(34, 197, 94, 0.12);
+  --nc-status-accepted-text: #4ade80;
+  --nc-status-noshown-bg: rgba(229, 62, 62, 0.12);
+  --nc-status-noshown-text: #f87171;
 }
 
 /* ---------- Formation — éditeur de notes (rich text contentEditable) ---------- */

@@ -41,9 +41,9 @@ function getUpcomingLabel(iso: string): string {
 }
 
 const STATUS_STYLES = {
-  accepted: { bg: "#dcfce7", text: "#166534", label: "Effectué" },
-  no_show: { bg: "#fee2e2", text: "#991b1b", label: "No-show" },
-  upcoming: { bg: "#fef3f2", text: "#e0625a", label: "" },
+  accepted: { bg: "var(--nc-status-accepted-bg)", text: "var(--nc-status-accepted-text)", label: "Effectué" },
+  no_show: { bg: "var(--nc-status-noshown-bg)", text: "var(--nc-status-noshown-text)", label: "No-show" },
+  upcoming: { bg: "var(--nc-status-upcoming-bg)", text: "var(--nc-status-upcoming-text)", label: "" },
 } as const;
 
 interface CallCardProps {
@@ -307,7 +307,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                       justifyContent: "center",
                       gap: 7,
                       padding: "8px 12px",
-                      background: "var(--color-surface-card)",
+                      background: "var(--color-surface-raised)",
                       border: "1px solid var(--color-border-default)",
                       borderRadius: 9999,
                       fontSize: 13,
@@ -341,7 +341,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                       justifyContent: "center",
                       gap: 7,
                       padding: "8px 12px",
-                      background: "var(--color-surface-card)",
+                      background: "var(--color-surface-raised)",
                       border: "1px solid var(--color-border-default)",
                       borderRadius: 9999,
                       fontSize: 13,
