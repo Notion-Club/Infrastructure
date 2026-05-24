@@ -8,15 +8,19 @@
 
 import {
   queryDatabaseAll,
+  getPage,
   getTitle,
   getRichText,
   getNumber,
   getCheckbox,
+  getSelect,
+  getMultiSelect,
   getRelationIds,
   getFirstFileUrl,
   normalizeNotionId,
   type NotionPage,
 } from "@/shared/lib/notion/client";
+import { fetchPageBlocks, type NotionBlock } from "@/shared/lib/notion/blocks";
 
 // Database IDs (API publique Notion) — dérivés des URLs des bases.
 export const FORMATION_DB_IDS = {
@@ -138,3 +142,117 @@ export async function fetchFormationsTree(): Promise<NotionFormation[]> {
 }
 
 export { slugify };
+
+// ─── Contenu d'une leçon (lazy, à l'ouverture du cours) ─────────────────
+//
+// Récupère depuis Notion ce qui n'est pas dans le cache Supabase :
+//   - l'URL de la vidéo (premier bloc vidéo du body),
+//   - la Synthèse (propriété texte « Synthèse » du cours → onglet « À garder
+//     en tête »),
+//   - les ressources/templates liés (relations « Ressources » + « Templates »)
+//     résolus en titre + type + lien vers la page détail /ressources.
+
+export type LessonResourceLink = {
+  notionId: string;
+  slug: string; // id sans tirets (format slug des routes /ressources)
+  title: string;
+  category: "resource" | "template";
+  typeLabel: string | null;
+  href: string;
+};
+
+export type LessonContent = {
+  videoUrl: string | null;
+  blocks: NotionBlock[];
+  synthese: string;
+  resources: LessonResourceLink[];
+};
+
+function dashless(notionId: string): string {
+  return notionId.replace(/-/g, "");
+}
+
+function findFirstVideoUrl(blocks: NotionBlock[]): string | null {
+  for (const b of blocks) {
+    if (b.type === "video" && b.url) return b.url;
+    if (b.children) {
+      const nested = findFirstVideoUrl(b.children);
+      if (nested) return nested;
+    }
+  }
+  return null;
+}
+
+// Retire les blocs vidéo du body : la vidéo est déjà affichée dans le player
+// en tête de carte, on évite le doublon. Le reste du body est conservé.
+function stripVideos(blocks: NotionBlock[]): NotionBlock[] {
+  return blocks
+    .filter((b) => b.type !== "video")
+    .map((b) =>
+      b.children ? { ...b, children: stripVideos(b.children) } : b,
+    );
+}
+
+async function resolveResourceLink(
+  notionId: string,
+): Promise<LessonResourceLink | null> {
+  try {
+    const page = await getPage(notionId);
+    const slug = dashless(notionId);
+    return {
+      notionId,
+      slug,
+      title: getTitle(page, "Titre"),
+      category: "resource",
+      typeLabel: getMultiSelect(page, "Type")[0] ?? null,
+      href: `/ressources/ressource/${slug}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function resolveTemplateLink(
+  notionId: string,
+): Promise<LessonResourceLink | null> {
+  try {
+    const page = await getPage(notionId);
+    const slug = dashless(notionId);
+    return {
+      notionId,
+      slug,
+      title: getTitle(page, "Name"),
+      category: "template",
+      typeLabel: getSelect(page, "Type"),
+      href: `/ressources/template/${slug}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchLessonContent(
+  courseNotionId: string,
+): Promise<LessonContent> {
+  const [page, blocks] = await Promise.all([
+    getPage(courseNotionId),
+    fetchPageBlocks(courseNotionId),
+  ]);
+
+  const resourceIds = getRelationIds(page, "Ressources");
+  const templateIds = getRelationIds(page, "Templates");
+
+  const [resources, templates] = await Promise.all([
+    Promise.all(resourceIds.map(resolveResourceLink)),
+    Promise.all(templateIds.map(resolveTemplateLink)),
+  ]);
+
+  return {
+    videoUrl: findFirstVideoUrl(blocks),
+    blocks: stripVideos(blocks),
+    synthese: getRichText(page, "Synthèse"),
+    resources: [...resources, ...templates].filter(
+      (r): r is LessonResourceLink => r !== null && r.title.trim() !== "",
+    ),
+  };
+}

@@ -110,6 +110,7 @@ export type NotionPropertyValue = {
   url?: string | null;
   status?: { name: string } | null;
   select?: { name: string } | null;
+  multi_select?: Array<{ name: string }>;
   relation?: Array<{ id: string }>;
   files?: Array<{
     name: string;
@@ -153,6 +154,14 @@ export function getNumber(page: NotionPage, prop: string): number | null {
 
 export function getCheckbox(page: NotionPage, prop: string): boolean {
   return page.properties[prop]?.checkbox ?? false;
+}
+
+export function getSelect(page: NotionPage, prop: string): string | null {
+  return page.properties[prop]?.select?.name ?? null;
+}
+
+export function getMultiSelect(page: NotionPage, prop: string): string[] {
+  return (page.properties[prop]?.multi_select ?? []).map((o) => o.name);
 }
 
 export function getRelationIds(page: NotionPage, prop: string): string[] {

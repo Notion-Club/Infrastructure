@@ -24,6 +24,10 @@ export {
 // Sync Notion → Supabase
 export { syncFormationsFromNotion } from "./server/sync";
 
+// Contenu leçon lazy (vidéo + Synthèse + ressources/templates liés)
+export { fetchLessonContent } from "./server/notion";
+export type { LessonContent, LessonResourceLink } from "./server/notion";
+
 export type {
   FormationAccessMode,
   ProgramSummary,
