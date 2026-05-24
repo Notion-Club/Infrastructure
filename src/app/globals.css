@@ -216,6 +216,60 @@ html {
     inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
 }
 
+/* ── FAB "Nouveau post" mobile (feed communauté) ── */
+.nc-feed-fab {
+  position: fixed;
+  right: 20px;
+  /* au-dessus de la BottomNav (bottom:10 + height:56) + marge confort */
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+  z-index: 45;
+  width: 56px;
+  height: 56px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-brand);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow:
+    0 8px 24px -6px rgba(224, 98, 90, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.12);
+  transition: transform 180ms var(--nc-ease), box-shadow 180ms var(--nc-ease);
+}
+.nc-feed-fab:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 28px -6px rgba(224, 98, 90, 0.6),
+    0 3px 8px rgba(0, 0, 0, 0.14);
+}
+.nc-feed-fab:active {
+  transform: scale(0.94);
+}
+
+/* ── Compteur de ressources (chip lisible, intégré au design system) ── */
+.nc-resource-count {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: 9999px;
+  padding: 6px 12px;
+}
+/* Desktop : poussé à droite de la barre de filtres. Mobile : reste dans le
+   flux, inline après le bouton Filtres (plus de ligne orpheline en dessous). */
+@media (min-width: 768px) {
+  .nc-resource-count {
+    margin-left: auto;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, Users } from "lucide-react";
+import { MessageCircle, Users, SquarePen } from "lucide-react";
 import type { PostTag } from "../types/post.types";
 import { useDevRoleToggle } from "../hooks/useDevRoleToggle";
 import { useCurrentUser } from "../hooks/useCurrentUser";
@@ -169,7 +169,16 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
                 overflowY: "auto",
               }}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 16,
+                  /* Réserve la hauteur du voile de flou sticky (120px) pour
+                     que le dernier post reste entièrement lisible au scroll. */
+                  paddingBottom: 120,
+                }}
+              >
                 <FeedTagFilters
                   active={activeTag}
                   onChange={setActiveTag}
@@ -202,6 +211,19 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
           )}
         </div>
       </div>
+
+      {/* FAB mobile — accès rapide à l'éditeur de post, sous le pouce,
+          au-dessus de la BottomNav. Masqué sur desktop (bouton inline). */}
+      {activeTab === "feed" && (
+        <button
+          type="button"
+          onClick={() => setShowComposer(true)}
+          className="nc-feed-fab md:hidden"
+          aria-label="Nouveau post"
+        >
+          <SquarePen size={22} strokeWidth={2.25} />
+        </button>
+      )}
 
       {showComposer && (
         <PostComposerModal

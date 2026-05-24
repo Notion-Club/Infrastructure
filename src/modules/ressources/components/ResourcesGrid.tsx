@@ -56,12 +56,21 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   });
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
+  // Aligne le dropdown à droite quand l'ancrage gauche le ferait déborder
+  // hors du viewport (cas mobile : bouton trop à droite de l'écran).
+  const [alignRight, setAlignRight] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  const filterBtnRef = useRef<HTMLButtonElement>(null);
 
   const currentCapability: UserCapability = mockCurrentUser.capability;
 
   useEffect(() => {
     if (!filterOpen) return;
+    const DROPDOWN_WIDTH = 240;
+    const rect = filterBtnRef.current?.getBoundingClientRect();
+    if (rect) {
+      setAlignRight(rect.left + DROPDOWN_WIDTH > window.innerWidth - 12);
+    }
     function onClickOutside(e: MouseEvent) {
       if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
         setFilterOpen(false);
@@ -154,6 +163,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
         {showTypeFilter && (
           <div ref={filterRef} style={{ position: 'relative' }}>
             <button
+              ref={filterBtnRef}
               type="button"
               onClick={() => setFilterOpen((o) => !o)}
               style={{
@@ -202,8 +212,10 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 style={{
                   position: 'absolute',
                   top: 'calc(100% + 8px)',
-                  left: 0,
+                  left: alignRight ? 'auto' : 0,
+                  right: alignRight ? 0 : 'auto',
                   minWidth: 220,
+                  maxWidth: 'calc(100vw - 24px)',
                   background: 'var(--color-surface-card)',
                   border: '1px solid var(--color-border-default)',
                   borderRadius: 16,
@@ -311,13 +323,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
         )}
 
         {/* Count */}
-        <span
-          style={{
-            fontSize: 13,
-            color: 'var(--color-text-muted)',
-            marginLeft: 'auto',
-          }}
-        >
+        <span className="nc-resource-count">
           {pluralizeCount(filteredItems.length, primaryFilter)}
         </span>
       </div>
