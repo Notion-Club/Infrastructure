@@ -31,7 +31,7 @@ export function ModuleAccordion({ programSlug, module, defaultOpen = false }: Pr
   return (
     <div
       style={{
-        background: "white",
+        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         borderRadius: 18,
         overflow: "hidden",

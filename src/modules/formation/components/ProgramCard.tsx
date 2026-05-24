@@ -14,7 +14,7 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
   return (
     <article
       style={{
-        background: "white",
+        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         borderRadius: 20,
         padding: 28,
