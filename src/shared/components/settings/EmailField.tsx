@@ -94,7 +94,6 @@ export function EmailField({
           className="nc-input"
           placeholder="vous@exemple.com"
           style={{
-            background: "var(--color-surface-card)",
             borderColor: platformEmailError ? "var(--color-brand)" : undefined,
           }}
         />
@@ -199,7 +198,6 @@ export function EmailField({
               placeholder="vous@notion.com"
               disabled={!useSeparateNotionEmail}
               style={{
-                background: "var(--color-surface-card)",
                 borderColor: notionEmailError
                   ? "var(--color-brand)"
                   : undefined,
@@ -256,7 +254,7 @@ function Checkbox({
           border: checked
             ? "1.5px solid var(--color-brand)"
             : "1.5px solid var(--color-border-default)",
-          background: checked ? "var(--color-brand)" : "white",
+          background: checked ? "var(--color-brand)" : "var(--color-surface-card)",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
