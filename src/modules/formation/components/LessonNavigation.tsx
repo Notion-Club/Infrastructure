@@ -6,10 +6,13 @@ import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 
 import type { LessonNeighbour } from "../types";
 import { markCourseCompleted } from "../server/actions";
+import { emitLessonFeedback } from "./LessonFeedbackPrompt";
 
 type Props = {
   programSlug: string;
+  formationName: string;
   moduleName: string;
+  courseName: string;
   courseId: string;
   completed: boolean;
   prev: LessonNeighbour | null;
@@ -18,7 +21,9 @@ type Props = {
 
 export function LessonNavigation({
   programSlug,
+  formationName,
   moduleName,
+  courseName,
   courseId,
   completed,
   prev,
@@ -34,6 +39,12 @@ export function LessonNavigation({
   }
 
   function handleMain() {
+    // À la première complétion, on ouvre la pop-up de feedback de coin
+    // immédiatement : elle vit dans le layout et fait le pont pendant le
+    // chargement du cours suivant (transition entre les deux).
+    if (!done) {
+      emitLessonFeedback({ courseName, formationName, moduleName });
+    }
     startTransition(async () => {
       if (!done) {
         await markCourseCompleted(courseId);
