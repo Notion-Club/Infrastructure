@@ -80,7 +80,7 @@ export function NotificationPopover() {
           height: 34,
           borderRadius: "50%",
           border: "1px solid var(--color-border-default)",
-          background: "white",
+          background: "var(--color-surface-card)",
           cursor: "pointer",
           color: "var(--color-text-secondary)",
           flexShrink: 0,
@@ -129,7 +129,7 @@ export function NotificationPopover() {
             boxShadow:
               "rgba(0,0,0,0.03) 0px -2px 16px -4px, rgba(0,0,0,0.08) 0px 16px 40px -8px, rgba(0,0,0,0.04) 0px 1px 3px 0px",
             border: "1px solid var(--color-border-default)",
-            background: "white",
+            background: "var(--color-surface-card)",
             zIndex: 50,
             overflow: "hidden",
           }}

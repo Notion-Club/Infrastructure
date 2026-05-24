@@ -70,7 +70,7 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
-          color: "#52525b",
+          color: "var(--color-text-secondary)",
           position: "relative",
           flexShrink: 0,
           transition: "background 150ms ease",

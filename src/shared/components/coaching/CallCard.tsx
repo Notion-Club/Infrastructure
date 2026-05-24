@@ -86,7 +86,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
       ref={cardRef}
       onClick={() => { if (isOpen) closeCard(); }}
       style={{
-        background: "#ffffff",
+        background: "var(--color-surface-card)",
         border: `1px solid ${isOpen ? "rgba(224,98,90,0.25)" : "var(--color-border-default)"}`,
         borderRadius: 14,
         overflow: "hidden",
@@ -112,7 +112,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
           padding: "16px 18px",
           cursor: isExpandable ? "pointer" : "default",
           userSelect: "none",
-          background: "#ffffff",
+          background: "var(--color-surface-card)",
           transition: "background 200ms ease",
         }}
         className={isExpandable ? "hover:bg-[rgba(0,0,0,0.018)]" : ""}
@@ -307,7 +307,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                       justifyContent: "center",
                       gap: 7,
                       padding: "8px 12px",
-                      background: "#ffffff",
+                      background: "var(--color-surface-card)",
                       border: "1px solid var(--color-border-default)",
                       borderRadius: 9999,
                       fontSize: 13,
@@ -341,7 +341,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                       justifyContent: "center",
                       gap: 7,
                       padding: "8px 12px",
-                      background: "#ffffff",
+                      background: "var(--color-surface-card)",
                       border: "1px solid var(--color-border-default)",
                       borderRadius: 9999,
                       fontSize: 13,
@@ -425,7 +425,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                 <p
                   style={{
                     fontSize: 11,
-                    color: "#6b7280",
+                    color: "var(--color-text-muted)",
                     margin: "10px 0 0",
                     display: "flex",
                     alignItems: "flex-start",

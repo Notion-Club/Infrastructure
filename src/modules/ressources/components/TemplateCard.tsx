@@ -28,7 +28,7 @@ export function TemplateCard({ template, currentCapability }: TemplateCardProps)
       }}
       className="group hover:border-[rgba(224,98,90,0.32)]"
       style={{
-        background: '#ffffff',
+        background: 'var(--color-surface-card)',
         border: '1px solid var(--color-border-default)',
         boxShadow: 'var(--nc-shadow-3)',
         borderRadius: 16,

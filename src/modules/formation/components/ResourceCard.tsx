@@ -18,7 +18,7 @@ export function ResourceCard({ resource }: Props) {
         display: "flex",
         flexDirection: "column",
         gap: 10,
-        background: "white",
+        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         borderRadius: 16,
         padding: 16,

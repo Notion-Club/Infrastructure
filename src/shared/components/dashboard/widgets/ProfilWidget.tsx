@@ -19,7 +19,7 @@ export function ProfilWidget() {
   return (
     <article
       style={{
-        background: "white",
+        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         borderRadius: 16,
         padding: 20,

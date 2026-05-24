@@ -23,7 +23,7 @@ export function ModuleAccordion({ program, module, defaultOpen = false }: Props)
   return (
     <div
       style={{
-        background: "white",
+        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         borderRadius: 18,
         overflow: "hidden",

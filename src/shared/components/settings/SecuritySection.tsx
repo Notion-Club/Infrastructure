@@ -161,7 +161,7 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
             "max-height 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease",
           maxHeight: open ? innerHeight + 8 : 0,
           opacity: open ? 1 : 0,
-          background: "white",
+          background: "var(--color-surface-card)",
         }}
       >
         <div ref={innerRef} style={{ padding: "14px 14px 16px" }}>
@@ -261,7 +261,7 @@ function PasswordChangeForm({
         padding: 14,
         borderRadius: 12,
         border: "1px solid var(--color-border-default)",
-        background: "white",
+        background: "var(--color-surface-card)",
       }}
     >
       <PasswordField
@@ -554,7 +554,7 @@ function GoogleIdentityBlock({
             padding: "8px 14px",
             borderRadius: 9999,
             border: "1px solid var(--color-border-default)",
-            background: "white",
+            background: "var(--color-surface-card)",
             color: "var(--color-text-primary)",
             fontSize: 13,
             fontWeight: 500,
@@ -588,7 +588,7 @@ function GoogleIdentityBlock({
                 padding: "6px 12px",
                 borderRadius: 8,
                 border: "1px solid var(--color-border-default)",
-                background: "white",
+                background: "var(--color-surface-card)",
                 fontSize: 12,
                 cursor: "pointer",
               }}

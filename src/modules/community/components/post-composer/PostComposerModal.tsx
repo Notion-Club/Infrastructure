@@ -441,8 +441,8 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
                     top: "calc(100% + 6px)",
                     left: "50%",
                     transform: "translateX(-50%)",
-                    background: "#1a1a1a",
-                    color: "#fff",
+                    background: "var(--nc-btn-dark-bg)",
+                    color: "var(--nc-btn-dark-text)",
                     fontSize: 11,
                     fontWeight: 500,
                     padding: "5px 10px",
@@ -586,8 +586,8 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
             disabled={!canPublish}
             style={{
               padding: "9px 24px",
-              background: canPublish ? "var(--color-brand)" : "#e5e7eb",
-              color: canPublish ? "#fff" : "#9ca3af",
+              background: canPublish ? "var(--color-brand)" : "var(--color-border-default)",
+              color: canPublish ? "#fff" : "var(--color-text-muted)",
               border: "none", borderRadius: 9999, fontSize: 14, fontWeight: 600,
               cursor: canPublish ? "pointer" : "not-allowed",
               transition: "all 150ms ease",

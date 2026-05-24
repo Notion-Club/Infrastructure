@@ -48,7 +48,7 @@ function BottomSheet({ reactions, onClose }: { reactions: Reaction[]; onClose: (
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 9999, background: "#e5e7eb", margin: "0 auto 16px" }} />
+        <div style={{ width: 36, height: 4, borderRadius: 9999, background: "var(--color-border-default)", margin: "0 auto 16px" }} />
         <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>
           {all.length} réaction{all.length !== 1 ? "s" : ""}
         </p>

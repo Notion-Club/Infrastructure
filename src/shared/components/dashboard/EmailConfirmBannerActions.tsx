@@ -68,7 +68,7 @@ export function EmailConfirmBannerActions({
             width: 36,
             height: 36,
             borderRadius: "50%",
-            background: "white",
+            background: "var(--color-surface-card)",
             border: "1px solid var(--color-border-default)",
             display: "flex",
             alignItems: "center",

@@ -245,7 +245,7 @@ function ModeToggle({
             className={cn(
               "relative z-10 rounded-full px-4 py-2 text-[14px] font-semibold transition-all duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60",
               active
-                ? "bg-white text-[var(--color-text-primary)] shadow-[var(--nc-shadow-3)]"
+                ? "bg-[var(--nc-segmented-active-bg)] text-[var(--nc-segmented-active-text)] shadow-[var(--nc-shadow-3)]"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
             )}
           >

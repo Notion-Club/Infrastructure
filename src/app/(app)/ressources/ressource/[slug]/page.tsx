@@ -168,7 +168,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
               {/* Encadré blanc : header + contenu complet */}
               <div
                 style={{
-                  background: '#ffffff',
+                  background: 'var(--color-surface-card)',
                   borderRadius: 20,
                   padding: '32px',
                   boxShadow: 'var(--nc-shadow-3)',

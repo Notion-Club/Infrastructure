@@ -61,7 +61,7 @@ export default async function TemplateDetailPage({ params }: PageProps) {
               {/* Header card — title, description, badges, video */}
               <div
                 style={{
-                  background: '#ffffff',
+                  background: 'var(--color-surface-card)',
                   borderRadius: 20,
                   padding: '32px',
                   boxShadow: 'var(--nc-shadow-3)',
