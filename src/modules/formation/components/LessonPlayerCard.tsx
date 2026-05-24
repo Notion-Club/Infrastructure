@@ -111,23 +111,31 @@ export function LessonPlayerCard({
         </div>
       )}
 
-      {/* 3 — Switcher intégré */}
+      {/* 3 — Switcher : un seul bloc attaché (onglets + panneau collé) */}
       <div style={{ padding: "16px 24px 24px" }}>
         <div
           style={{
-            display: "flex",
+            border: "1px solid var(--color-border-default)",
+            borderRadius: 16,
+            overflow: "hidden",
             background: "var(--color-surface-raised)",
-            borderRadius: 10,
-            padding: 3,
-            gap: 2,
           }}
         >
-          <SwitchButton active={tab === "notes"} onClick={() => setTab("notes")} icon={<Pencil size={15} strokeWidth={tab === "notes" ? 2.5 : 2} />} label="Mes notes" />
-          <SwitchButton active={tab === "synthese"} onClick={() => setTab("synthese")} icon={<Lightbulb size={15} strokeWidth={tab === "synthese" ? 2.5 : 2} />} label="À garder en tête" />
-          <SwitchButton active={tab === "resources"} onClick={() => setTab("resources")} icon={<FileText size={15} strokeWidth={tab === "resources" ? 2.5 : 2} />} label="Ressources" badge={resources.length} />
-        </div>
+          {/* Onglets */}
+          <div
+            style={{
+              display: "flex",
+              gap: 2,
+              padding: 6,
+              borderBottom: "1px solid var(--color-border-default)",
+            }}
+          >
+            <SwitchButton active={tab === "notes"} onClick={() => setTab("notes")} icon={<Pencil size={15} strokeWidth={tab === "notes" ? 2.5 : 2} />} label="Mes notes" />
+            <SwitchButton active={tab === "synthese"} onClick={() => setTab("synthese")} icon={<Lightbulb size={15} strokeWidth={tab === "synthese" ? 2.5 : 2} />} label="À garder en tête" />
+            <SwitchButton active={tab === "resources"} onClick={() => setTab("resources")} icon={<FileText size={15} strokeWidth={tab === "resources" ? 2.5 : 2} />} label="Ressources" badge={resources.length} />
+          </div>
 
-        <div style={{ marginTop: 14 }}>
+          {/* Panneau attaché — coulé directement sous les onglets */}
           {tab === "notes" && <RichTextNotes courseId={courseId} initialNote={initialNote} />}
           {tab === "synthese" && <SynthesePanel synthese={synthese} />}
           {tab === "resources" && <ResourcesPanel items={resources} />}
@@ -180,8 +188,8 @@ function SwitchButton({
           style={{
             minWidth: 16,
             height: 16,
-            background: active ? "var(--color-brand)" : "var(--color-border-default)",
-            color: active ? "#fff" : "var(--color-text-muted)",
+            background: "var(--color-brand)",
+            color: "#fff",
             borderRadius: 9999,
             fontSize: 10,
             fontWeight: 700,
@@ -220,28 +228,88 @@ function VideoEmbed({ url, title }: { url: string | null; title: string }) {
   );
 }
 
+// ─── Empty state réutilisable (icône + message centrés) ─────────────────
+
+function EmptyState({
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  icon: typeof Lightbulb;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: "40px 24px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        textAlign: "center",
+        gap: 12,
+      }}
+    >
+      <span
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: 14,
+          background: "var(--color-surface-card)",
+          color: "var(--color-text-muted)",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Icon size={22} />
+      </span>
+      <div>
+        <p style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", margin: 0 }}>
+          {title}
+        </p>
+        <p
+          style={{
+            fontSize: 13,
+            color: "var(--color-text-muted)",
+            margin: "4px 0 0 0",
+            maxWidth: 300,
+            lineHeight: 1.5,
+          }}
+        >
+          {subtitle}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Onglet « À garder en tête » (Synthèse, lecture seule) ──────────────
 
 function SynthesePanel({ synthese }: { synthese: string }) {
   if (!synthese.trim()) {
     return (
-      <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0, fontStyle: "italic" }}>
-        La synthèse de ce cours n&apos;est pas encore disponible.
-      </p>
+      <EmptyState
+        icon={Lightbulb}
+        title="Pas encore de synthèse"
+        subtitle="Le récapitulatif des points clés de ce cours arrivera bientôt ici."
+      />
     );
   }
   return (
-    <p
-      style={{
-        fontSize: 14,
-        lineHeight: 1.7,
-        color: "var(--color-text-primary)",
-        margin: 0,
-        whiteSpace: "pre-wrap",
-      }}
-    >
-      {synthese}
-    </p>
+    <div style={{ padding: "20px 22px" }}>
+      <p
+        style={{
+          fontSize: 14,
+          lineHeight: 1.7,
+          color: "var(--color-text-primary)",
+          margin: 0,
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        {synthese}
+      </p>
+    </div>
   );
 }
 
@@ -258,19 +326,15 @@ const CATEGORY: Record<
 function ResourcesPanel({ items }: { items: LessonResourceLink[] }) {
   if (items.length === 0) {
     return (
-      <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0, fontStyle: "italic" }}>
-        Aucune ressource liée à ce cours.
-      </p>
+      <EmptyState
+        icon={FileText}
+        title="Aucune ressource liée"
+        subtitle="Les ressources et templates rattachés à ce cours apparaîtront ici."
+      />
     );
   }
   return (
-    <div
-      style={{
-        border: "1px solid var(--color-border-default)",
-        borderRadius: 12,
-        overflow: "hidden",
-      }}
-    >
+    <div>
       {items.map((item, i) => {
         const cat = CATEGORY[item.category];
         const Icon = item.category === "template" ? LayoutTemplate : FileText;
@@ -280,12 +344,12 @@ function ResourcesPanel({ items }: { items: LessonResourceLink[] }) {
             href={item.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="group hover:bg-[var(--color-surface-raised)]"
+            className="group hover:bg-[var(--color-surface-card)]"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 14,
-              padding: "12px 14px",
+              padding: "14px 18px",
               textDecoration: "none",
               borderTop: i === 0 ? "none" : "1px solid var(--color-border-default)",
               transition: "background 200ms var(--nc-ease)",
@@ -297,7 +361,7 @@ function ResourcesPanel({ items }: { items: LessonResourceLink[] }) {
                 width: 34,
                 height: 34,
                 borderRadius: 9,
-                background: "var(--color-surface-raised)",
+                background: "var(--color-surface-card)",
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -408,21 +472,14 @@ function RichTextNotes({ courseId, initialNote }: { courseId: string; initialNot
   }
 
   return (
-    <div
-      style={{
-        border: "1px solid var(--color-border-default)",
-        borderRadius: 12,
-        overflow: "hidden",
-        background: "var(--color-surface-raised)",
-      }}
-    >
-      {/* Toolbar */}
+    <div>
+      {/* Toolbar — collée sous les onglets */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: 2,
-          padding: "6px 8px",
+          padding: "6px 10px",
           borderBottom: "1px solid var(--color-border-default)",
         }}
       >
