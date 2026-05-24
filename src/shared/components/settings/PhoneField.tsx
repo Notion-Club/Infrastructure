@@ -319,7 +319,7 @@ function CountryPicker({
           height: 44,
           borderRadius: 12,
           border: "1px solid var(--color-border-default)",
-          background: "var(--color-surface-card)",
+          background: "var(--color-surface-raised)",
           color: "var(--color-text-primary)",
           fontSize: 14,
           cursor: "pointer",

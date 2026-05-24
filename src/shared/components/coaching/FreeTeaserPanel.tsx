@@ -86,7 +86,7 @@ export function FreeTeaserPanel() {
         style={{
           position: "absolute",
           inset: 0,
-          background: "rgba(255,255,255,0.7)",
+          background: "var(--nc-lock-overlay-bg)",
           backdropFilter: "blur(2px)",
           display: "flex",
           flexDirection: "column",

@@ -130,6 +130,15 @@ Les `var(--color-*)` dans les CSS Modules héritent bien du cascade — seuls le
 | `--nc-segmented-active-text` | `#000000` | `#141211` | Texte sur onglet actif |
 | `--nc-bottom-nav-bg` | `rgba(255,255,255,0.92)` | `rgba(28,25,23,0.88)` | Pill BottomNav mobile |
 | `--nc-bottom-nav-border` | `rgba(229,231,235,0.9)` | `rgba(55,50,47,0.9)` | Bordure BottomNav |
+| `--nc-card-dot-color` | `rgba(224,98,90,0.28)` | `rgba(255,255,255,0.18)` | Dots hover sur resource/template cards |
+| `--nc-lock-overlay-bg` | `rgba(255,255,255,0.72)` | `rgba(20,18,17,0.87)` | Overlay frosted glass (FreeTeaserPanel) |
+| `--nc-switch-off-bg` | `rgba(0,0,0,0.12)` | `rgba(255,255,255,0.14)` | SwitchToggle fond OFF |
+| `--nc-btn-disabled-bg` | `#e5e7eb` | `rgba(255,255,255,0.08)` | Fond bouton désactivé |
+| `--nc-btn-disabled-text` | `#9ca3af` | `rgba(255,255,255,0.28)` | Texte bouton désactivé |
+| `--nc-tag-general-bg/text` | `rgba(0,0,0,0.06)` / secondary | `rgba(255,255,255,0.07)` / secondary | Tag "Général" |
+| `--nc-tag-question-bg/text` | `rgba(59,130,246,0.10)` / `#1d4ed8` | `rgba(59,130,246,0.12)` / `#60a5fa` | Tag "Question" |
+| `--nc-tag-presentation-bg/text` | `rgba(34,197,94,0.10)` / `#15803d` | `rgba(34,197,94,0.09)` / `#4ade80` | Tag "Présentation" |
+| `--nc-tag-annonce-bg/text` | `rgba(224,98,90,0.12)` / `#c0392b` | same / brand | Tag "Annonce" |
 
 ---
 

@@ -90,8 +90,8 @@ export function CoachingCTACard({
               style={{
                 padding: "12px 22px",
                 borderRadius: 9999,
-                background: disabled ? "#e5e7eb" : "var(--color-brand)",
-                color: disabled ? "#9ca3af" : "#fff",
+                background: disabled ? "var(--nc-btn-disabled-bg)" : "var(--color-brand)",
+                color: disabled ? "var(--nc-btn-disabled-text)" : "#fff",
                 fontSize: 14,
                 fontWeight: 600,
                 border: "none",

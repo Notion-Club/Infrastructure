@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
+import { useTheme } from "@/shared/lib/hooks/useTheme";
 import {
   computeIdentityInitials,
   useProfileIdentityContext,
@@ -22,8 +23,10 @@ import {
 
 type NavItem = { label: string; icon: LucideIcon; href: string };
 
-const LOGO_SRC =
+const LOGO_LIGHT =
   "https://res.cloudinary.com/dceobxyts/image/upload/v1777034233/Notion_Club_-_Black_-_Sans_BG_hcvk9k.png";
+const LOGO_DARK =
+  "https://res.cloudinary.com/dceobxyts/image/upload/v1777935553/Notion_Club_-_White_-_Sans_BG_du43oh.png";
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Accueil", icon: Home, href: "/dashboard" },
@@ -64,6 +67,7 @@ export function Topbar() {
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [avatarOpen]);
 
+  const { theme } = useTheme();
   const { identity } = useProfileIdentityContext();
   const initials = computeIdentityInitials(identity);
   const avatarUrl = identity?.avatarUrl ?? null;
@@ -109,12 +113,11 @@ export function Topbar() {
             style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}
           >
             <Image
-              src={LOGO_SRC}
+              src={theme === "dark" ? LOGO_DARK : LOGO_LIGHT}
               alt="Notion Club"
               width={120}
               height={40}
               priority
-              className="dark:invert"
               style={{ height: 32, width: "auto", display: "block", flexShrink: 0 }}
             />
           </Link>

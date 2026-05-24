@@ -76,7 +76,7 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
         borderRadius: 12,
         border: "1px solid var(--color-border-default)",
         overflow: "hidden",
-        background: open ? "var(--color-surface-raised)" : "white",
+        background: open ? "var(--color-surface-raised)" : "var(--color-surface-card)",
         transition: "background 150ms ease",
       }}
     >
