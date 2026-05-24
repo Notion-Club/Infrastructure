@@ -131,7 +131,7 @@ function ReactionPill({ emoji, count, userReacted, compact, onReact, allReaction
           cursor: "pointer",
           padding: compact ? "2px 7px" : "3px 9px",
           borderRadius: 9999,
-          background: userReacted ? "rgba(224,98,90,0.08)" : "white",
+          background: userReacted ? "rgba(224,98,90,0.08)" : "var(--color-surface-card)",
           border: `1px solid ${userReacted ? "rgba(224,98,90,0.25)" : "var(--color-border-default)"}`,
           transition: "background 150ms ease, border-color 150ms ease",
           userSelect: "none",

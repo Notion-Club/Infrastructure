@@ -400,7 +400,7 @@ function ChannelHeaderButton({
         outline: "none",
         fontFamily: "inherit",
       }}
-      className="hover:bg-[rgba(0,0,0,0.04)] focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+      className="hover:bg-[var(--nc-nav-hover-bg)] focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
     >
       <Icon size={16} strokeWidth={active ? 2.25 : 2} aria-hidden />
       <span
@@ -456,7 +456,7 @@ function SwitchToggle({
         height: h,
         borderRadius: 9999,
         background:
-          checked && !disabled ? "var(--color-brand)" : "rgba(0,0,0,0.12)",
+          checked && !disabled ? "var(--color-brand)" : "var(--nc-switch-off-bg)",
         border: "none",
         cursor: disabled ? "not-allowed" : "pointer",
         position: "relative",
@@ -474,7 +474,7 @@ function SwitchToggle({
           width: knob,
           height: knob,
           borderRadius: "50%",
-          background: "var(--color-surface-card)",
+          background: "white",
           boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
           // transform/translateX au lieu de `left` → GPU compositing,
           // animation fluide sur mobile (Safari iOS / Chrome Android

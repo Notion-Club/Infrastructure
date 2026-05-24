@@ -316,7 +316,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                       textDecoration: "none",
                       transition: "background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
                     }}
-                    className="hover:bg-[#f0fdf4] hover:border-[#86efac] hover:shadow-[0_2px_8px_rgba(34,197,94,0.12)]"
+                    className="hover:bg-[#f0fdf4] hover:border-[#86efac] hover:shadow-[0_2px_8px_rgba(34,197,94,0.12)] dark:hover:bg-[rgba(34,197,94,0.07)] dark:hover:border-[rgba(134,239,172,0.2)] dark:hover:shadow-none"
                   >
                     <Image
                       src={CHATGPT_LOGO}
@@ -350,7 +350,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                       textDecoration: "none",
                       transition: "background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
                     }}
-                    className="hover:bg-[#fff8f7] hover:border-[rgba(224,98,90,0.35)] hover:shadow-[0_2px_8px_rgba(224,98,90,0.12)]"
+                    className="hover:bg-[#fff8f7] hover:border-[rgba(224,98,90,0.35)] hover:shadow-[0_2px_8px_rgba(224,98,90,0.12)] dark:hover:bg-[rgba(224,98,90,0.07)] dark:hover:border-[rgba(224,98,90,0.28)] dark:hover:shadow-none"
                   >
                     <Image
                       src={CLAUDE_LOGO}

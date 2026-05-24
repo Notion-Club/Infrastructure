@@ -42,12 +42,12 @@ export function TemplatePageFooter({
             justifyContent: 'center',
             gap: 10,
             padding: '18px 24px',
-            background: '#000000',
-            color: '#ffffff',
+            background: 'var(--nc-btn-dark-bg)',
+            color: 'var(--nc-btn-dark-text)',
             fontSize: 15,
             fontWeight: 600,
             textDecoration: 'none',
-            borderBottom: hasRelated ? '1px solid rgba(255,255,255,0.1)' : 'none',
+            borderBottom: hasRelated ? '1px solid var(--color-border-default)' : 'none',
             transition: 'opacity 150ms ease',
           }}
           className="hover:opacity-85"

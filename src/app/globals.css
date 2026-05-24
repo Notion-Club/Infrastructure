@@ -132,6 +132,24 @@ html {
   /* BottomNav pill */
   --nc-bottom-nav-bg: rgba(255, 255, 255, 0.92);
   --nc-bottom-nav-border: rgba(229, 231, 235, 0.9);
+  /* Dots pattern hover sur resource/template cards */
+  --nc-card-dot-color: rgba(224, 98, 90, 0.28);
+  /* Overlay de contenu verrouillé (FreeTeaserPanel) */
+  --nc-lock-overlay-bg: rgba(255, 255, 255, 0.72);
+  /* SwitchToggle — fond OFF */
+  --nc-switch-off-bg: rgba(0, 0, 0, 0.12);
+  /* Boutons désactivés */
+  --nc-btn-disabled-bg: #e5e7eb;
+  --nc-btn-disabled-text: #9ca3af;
+  /* Tags communauté */
+  --nc-tag-general-bg: rgba(0, 0, 0, 0.06);
+  --nc-tag-general-text: var(--color-text-secondary);
+  --nc-tag-question-bg: rgba(59, 130, 246, 0.10);
+  --nc-tag-question-text: #1d4ed8;
+  --nc-tag-presentation-bg: rgba(34, 197, 94, 0.10);
+  --nc-tag-presentation-text: #15803d;
+  --nc-tag-annonce-bg: rgba(224, 98, 90, 0.12);
+  --nc-tag-annonce-text: #c0392b;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -624,4 +642,17 @@ html.dark {
   --nc-btn-dark-text: #141211;
   --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
   --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
+  --nc-card-dot-color: rgba(255, 255, 255, 0.18);
+  --nc-lock-overlay-bg: rgba(20, 18, 17, 0.87);
+  --nc-switch-off-bg: rgba(255, 255, 255, 0.14);
+  --nc-btn-disabled-bg: rgba(255, 255, 255, 0.08);
+  --nc-btn-disabled-text: rgba(255, 255, 255, 0.28);
+  --nc-tag-general-bg: rgba(255, 255, 255, 0.07);
+  --nc-tag-general-text: var(--color-text-secondary);
+  --nc-tag-question-bg: rgba(59, 130, 246, 0.12);
+  --nc-tag-question-text: #60a5fa;
+  --nc-tag-presentation-bg: rgba(34, 197, 94, 0.09);
+  --nc-tag-presentation-text: #4ade80;
+  --nc-tag-annonce-bg: rgba(224, 98, 90, 0.12);
+  --nc-tag-annonce-text: var(--color-brand);
 }

@@ -74,7 +74,7 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
       {/* Global container card */}
       <div
         style={{
-          background: "var(--color-surface-card)",
+          background: "var(--color-surface-raised)",
           border: "1px solid var(--color-border-default)",
           borderRadius: 20,
           boxShadow: "var(--nc-shadow-3)",

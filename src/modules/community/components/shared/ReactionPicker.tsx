@@ -87,7 +87,7 @@ export function ReactionPicker({
                 justifyContent: "center",
                 transition: "background 100ms ease",
               }}
-              className="hover:bg-[rgba(0,0,0,0.06)]"
+              className="hover:bg-[var(--nc-nav-hover-bg)]"
             >
               {emoji}
             </button>
