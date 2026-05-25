@@ -6,6 +6,7 @@ import type { LessonContent } from "../server/notion";
 import { LessonPlayerCard } from "./LessonPlayerCard";
 import { LessonNotebook } from "./LessonNotebook";
 import { LessonNavigation } from "./LessonNavigation";
+import { LessonReady } from "./LessonTransition";
 
 // Page leçon — colonne unique centrée (alignée sur la nav). Le player (titre,
 // description, vidéo, body) vit dans une carte ; le carnet (notes, synthèse,
@@ -88,6 +89,9 @@ export function LessonView({
         prev={view.prev}
         next={view.next}
       />
+
+      {/* Signale au voile de transition que le contenu du cours est rendu. */}
+      <LessonReady />
     </div>
   );
 }

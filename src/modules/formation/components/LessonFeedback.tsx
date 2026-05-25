@@ -127,11 +127,15 @@ export function FeedbackBody({
   formationName,
   moduleName,
   onClose,
+  onDone,
+  closable = true,
 }: {
   courseName: string;
   formationName: string;
   moduleName: string;
   onClose: () => void;
+  onDone?: () => void;
+  closable?: boolean;
 }) {
   const [phase, setPhase] = useState<Phase>("form");
   const [avis, setAvis] = useState<string | null>(null);
@@ -155,10 +159,16 @@ export function FeedbackBody({
       moduleName,
     });
     setPhase("done");
-    doneTimer.current = setTimeout(onClose, 5000);
+    // Mode externe (voile de transition) : la fermeture est pilotée par le
+    // parent qui réutilise la barre du haut. Sinon (modale pill) : auto-close 2s.
+    if (onDone) {
+      onDone();
+    } else {
+      doneTimer.current = setTimeout(onClose, 2000);
+    }
   }
 
-  if (phase === "done") return <DonePanel />;
+  if (phase === "done") return <DonePanel showCountdown={!onDone} />;
 
   return (
     <div style={{ padding: 22 }}>
@@ -181,27 +191,29 @@ export function FeedbackBody({
         >
           Qu&apos;as-tu pensé de cette vidéo ?
         </h3>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Fermer"
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            border: "none",
-            background: "transparent",
-            color: "var(--color-text-muted)",
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-          className="hover:bg-[var(--color-surface-raised)]"
-        >
-          <X size={17} />
-        </button>
+        {closable && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              border: "none",
+              background: "transparent",
+              color: "var(--color-text-muted)",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+            className="nc-fade-in hover:bg-[var(--color-surface-raised)]"
+          >
+            <X size={17} />
+          </button>
+        )}
       </header>
 
       {/* Tags réaction */}
@@ -313,11 +325,11 @@ export function FeedbackBody({
   );
 }
 
-function DonePanel() {
+function DonePanel({ showCountdown = true }: { showCountdown?: boolean }) {
   return (
     <div
       style={{
-        padding: "32px 24px 0",
+        padding: showCountdown ? "32px 24px 0" : "32px 24px",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -351,18 +363,21 @@ function DonePanel() {
       >
         Merci pour ton retour, on est à l&apos;écoute pour améliorer le Notion Club
       </p>
-      {/* Barre de progression : illustre la fermeture auto dans 5 s */}
-      <div
-        style={{
-          width: "100%",
-          height: 3,
-          background: "var(--color-border-default)",
-          marginTop: 18,
-          overflow: "hidden",
-        }}
-      >
-        <div className="nc-feedback-countdown" style={{ height: "100%", background: "var(--color-brand)" }} />
-      </div>
+      {/* Barre de fermeture auto (modale pill uniquement). Dans le voile de
+          transition, c'est la barre du haut qui sert de compte à rebours. */}
+      {showCountdown && (
+        <div
+          style={{
+            width: "100%",
+            height: 3,
+            background: "var(--color-border-default)",
+            marginTop: 18,
+            overflow: "hidden",
+          }}
+        >
+          <div className="nc-feedback-countdown" style={{ height: "100%", background: "var(--color-brand)" }} />
+        </div>
+      )}
     </div>
   );
 }

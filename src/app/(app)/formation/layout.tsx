@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { Topbar } from "@/shared/components/dashboard/Topbar";
 import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
-import { FormationToasts, LessonFeedbackPrompt } from "@/modules/formation";
+import { FormationToasts, LessonTransition } from "@/modules/formation";
 
 // Layout de la section /formation/* — chrome standard de l'app.
 // Les données viennent désormais de Supabase/Notion (plus de provider mock).
@@ -25,7 +25,9 @@ export default function FormationLayout({ children }: { children: ReactNode }) {
             className="px-4 pt-[96px] pb-[120px] md:px-10 md:pt-[148px] md:pb-12"
             style={{ maxWidth: 1100, margin: "0 auto" }}
           >
-            <div className="nc-mode-in">{children}</div>
+            {/* Transition leçon → leçon intégrée dans la colonne de contenu
+                (masque l'ancien cours, héberge le feedback, révèle le nouveau). */}
+            <LessonTransition>{children}</LessonTransition>
           </div>
         </main>
       </div>
@@ -33,9 +35,6 @@ export default function FormationLayout({ children }: { children: ReactNode }) {
       <Suspense fallback={null}>
         <FormationToasts />
       </Suspense>
-
-      {/* Pop-up de feedback de coin — pont pendant la transition entre cours */}
-      <LessonFeedbackPrompt />
     </>
   );
 }

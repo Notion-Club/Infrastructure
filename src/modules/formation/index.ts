@@ -6,7 +6,7 @@ export { FormationIndex } from "./components/FormationIndex";
 export { ProgramView } from "./components/ProgramView";
 export { LessonView } from "./components/LessonView";
 export { FormationToasts } from "./components/FormationToasts";
-export { LessonFeedbackPrompt } from "./components/LessonFeedbackPrompt";
+export { LessonTransition, LessonReady } from "./components/LessonTransition";
 
 // Lecture (server)
 export {

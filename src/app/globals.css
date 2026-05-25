@@ -769,7 +769,7 @@ html.dark {
   to { width: 0%; }
 }
 .nc-feedback-countdown {
-  animation: nc-feedback-countdown 5s linear forwards;
+  animation: nc-feedback-countdown 2s linear forwards;
 }
 
 /* ---------- Formation — popup feedback : ouverture / fermeture premium ---------- */
@@ -808,36 +808,69 @@ html.dark {
   }
 }
 
-/* ---------- Formation — pop-up feedback de coin (notification) ---------- */
-@keyframes nc-corner-in {
-  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+/* ---------- Formation — transition leçon → leçon (carte intégrée) ---------- */
+/* La carte de transition prend la place du contenu (player-card) dans la
+   colonne, sans fond plein écran. Elle apparaît, héberge progression +
+   feedback, puis se dissout au-dessus du nouveau cours pour le révéler. */
+@keyframes nc-lt-card-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-@keyframes nc-corner-out {
-  from { opacity: 1; transform: translateY(0) scale(1); }
-  to { opacity: 0; transform: translateY(16px) scale(0.97); }
+.nc-lt-card {
+  animation: nc-lt-card-in 300ms var(--nc-ease) both;
 }
-.nc-feedback-corner {
-  right: 20px;
-  bottom: 20px;
-  transform-origin: bottom right;
-  animation: nc-corner-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+.nc-lt-layer[data-revealing="true"] .nc-lt-card {
+  animation: nc-lt-card-in 240ms var(--nc-ease) reverse both;
 }
-.nc-feedback-corner[data-closing="true"] {
-  animation: nc-corner-out 220ms cubic-bezier(0.4, 0, 1, 1) both;
+
+/* Scrim de contraste : assombrit + floute légèrement le skeleton derrière le
+   form pour le détacher (sinon ton sur ton). */
+.nc-lt-scrim {
+  background: rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(4px) saturate(0.9);
+  -webkit-backdrop-filter: blur(4px) saturate(0.9);
 }
-/* Mobile : remonter au-dessus de la BottomNav (pill ~56px + offset). */
-@media (max-width: 767px) {
-  .nc-feedback-corner {
-    right: 12px;
-    left: 12px;
-    bottom: calc(82px + env(safe-area-inset-bottom));
-    width: auto !important;
-  }
+html.dark .nc-lt-scrim {
+  background: rgba(0, 0, 0, 0.34);
 }
+
+/* Form de feedback en surimpression : fine bordure shimmer (conic-gradient
+   animé, 1 arc discret, lent) sur les coins extérieurs pour attirer l'œil sans
+   concurrencer la barre de progression. Réutilise --nc-shine-angle / nc-shine-rotate. */
+.nc-lt-form {
+  --nc-shine-angle: 0deg;
+  position: relative;
+  border-radius: 20px;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--nc-shine-angle),
+    rgba(224, 98, 90, 0) 0%,
+    rgba(224, 98, 90, 0.4) 12%,
+    rgba(224, 98, 90, 0) 30%,
+    rgba(224, 98, 90, 0) 100%
+  );
+  animation: nc-shine-rotate 5s linear infinite;
+  box-shadow: var(--nc-shadow-3);
+}
+.nc-lt-form__inner {
+  border-radius: 19px;
+  overflow: hidden;
+  background: var(--color-surface-card);
+}
+
+/* Apparition douce (croix de fermeture, etc.) */
+.nc-fade-in {
+  animation: nc-pop-overlay-in 260ms var(--nc-ease) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .nc-feedback-corner, .nc-feedback-corner[data-closing="true"] {
+  .nc-lt-card,
+  .nc-lt-layer[data-revealing="true"] .nc-lt-card,
+  .nc-fade-in {
     animation-duration: 1ms;
+  }
+  .nc-lt-form {
+    animation: none;
   }
 }
 
