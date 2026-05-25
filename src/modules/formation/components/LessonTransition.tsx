@@ -15,10 +15,11 @@ type StartDetail = { feedback?: LessonFeedbackDetail };
 const START = "nc:lesson-transition-start";
 const READY = "nc:lesson-ready";
 
-const MIN_VISIBLE = 600; // anti-flash sur chargement rapide
+const READ_MS = 12000; // fenêtre minimale pour lire / répondre au feedback
+const ACTIVITY_GRACE = 6000; // rallonge la fenêtre après chaque interaction
 const FADE_MS = 280; // doit matcher la sortie .nc-lt-card
 const CLOSE_MS = 2000; // compte à rebours de fermeture après envoi du feedback
-const SAFETY_MS = 12000; // garde-fou si "ready" n'arrive jamais
+const SAFETY_MS = 22000; // garde-fou ultime (révèle même si "ready" perdu)
 
 // Déclenché par la navigation leçon → leçon, AVANT le router.push : il faut
 // que le slot soit armé avant que React ne garde l'ancien contenu (la nav vit
@@ -79,11 +80,10 @@ export function LessonTransition({ children }: { children: ReactNode }) {
 
   // Valeurs lues dans des callbacks asynchrones → refs (anti stale-closure).
   const activeRef = useRef(false);
-  const feedbackRef = useRef<LessonFeedbackDetail | null>(null);
-  const showFormRef = useRef(false);
-  const engagedRef = useRef(false);
   const readyRef = useRef(false);
+  const countingRef = useRef(false);
   const startTimeRef = useRef(0);
+  const deadlineRef = useRef(0); // instant cible de révélation auto
 
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -99,18 +99,12 @@ export function LessonTransition({ children }: { children: ReactNode }) {
   }
 
   function reveal() {
-    if (progressTimer.current) clearInterval(progressTimer.current);
-    if (safetyTimer.current) clearTimeout(safetyTimer.current);
-    if (revealTimer.current) clearTimeout(revealTimer.current);
-    progressTimer.current = null;
-    safetyTimer.current = null;
+    clearTimers();
     setRevealing(true);
     revealTimer.current = setTimeout(() => {
       activeRef.current = false;
-      feedbackRef.current = null;
-      showFormRef.current = false;
-      engagedRef.current = false;
       readyRef.current = false;
+      countingRef.current = false;
       setActive(false);
       setRevealing(false);
       setFeedback(null);
@@ -120,27 +114,22 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     }, FADE_MS);
   }
 
-  function decideReveal() {
-    if (!activeRef.current || !readyRef.current) return;
-    // On garde le slot tant que l'utilisateur donne son feedback : le contenu
-    // est déjà chargé derrière, on ne le coupe pas en plein milieu.
-    const stay = !!feedbackRef.current && engagedRef.current && showFormRef.current;
-    if (stay) return;
-    const elapsed = performance.now() - startTimeRef.current;
-    const wait = Math.max(120, MIN_VISIBLE - elapsed);
+  // (Re)programme la révélation auto à l'échéance, une fois le contenu prêt.
+  function scheduleReveal() {
+    if (!activeRef.current || !readyRef.current || countingRef.current) return;
     if (revealTimer.current) clearTimeout(revealTimer.current);
-    revealTimer.current = setTimeout(reveal, wait);
+    const delay = Math.max(120, deadlineRef.current - performance.now());
+    revealTimer.current = setTimeout(reveal, delay);
   }
 
   function onStart(detail: StartDetail) {
     clearTimers();
     const fb = detail.feedback ?? null;
     activeRef.current = true;
-    feedbackRef.current = fb;
-    showFormRef.current = !!fb;
-    engagedRef.current = false;
     readyRef.current = false;
+    countingRef.current = false;
     startTimeRef.current = performance.now();
+    deadlineRef.current = startTimeRef.current + READ_MS;
 
     setFeedback(fb);
     setShowForm(!!fb);
@@ -150,40 +139,40 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     setSeq((s) => s + 1);
     setActive(true);
 
+    // La barre du haut = minuteur de la fenêtre [start → deadline] (montant,
+    // monotone pour ne jamais reculer si la fenêtre s'étend à l'interaction).
     progressTimer.current = setInterval(() => {
-      const elapsed = performance.now() - startTimeRef.current;
-      // Approche asymptotique de 90 % : rapide au début, puis ralentit.
-      const p = 90 * (1 - Math.exp(-elapsed / 1100));
-      setProgress((prev) => (prev >= 100 ? prev : Math.max(prev, p)));
+      if (countingRef.current) return;
+      const span = deadlineRef.current - startTimeRef.current;
+      const p = span > 0 ? ((performance.now() - startTimeRef.current) / span) * 100 : 100;
+      setProgress((prev) => Math.max(prev, Math.min(99, p)));
     }, 70);
 
-    safetyTimer.current = setTimeout(() => onReady(), SAFETY_MS);
+    safetyTimer.current = setTimeout(reveal, SAFETY_MS);
   }
 
   function onReady() {
     if (!activeRef.current) return;
     readyRef.current = true;
-    if (progressTimer.current) {
-      clearInterval(progressTimer.current);
-      progressTimer.current = null;
-    }
-    setProgress(100);
-    decideReveal();
+    scheduleReveal();
   }
 
+  // Interaction (réaction choisie / commentaire saisi) : on rallonge la fenêtre
+  // pour ne pas couper l'utilisateur en pleine saisie.
   function onActivity() {
-    engagedRef.current = true;
+    deadlineRef.current = Math.max(deadlineRef.current, performance.now() + ACTIVITY_GRACE);
+    scheduleReveal();
   }
 
   function onFeedbackClose() {
-    showFormRef.current = false;
     setShowForm(false);
-    decideReveal();
+    scheduleReveal();
   }
 
   // Feedback envoyé : on réutilise la barre du HAUT comme compte à rebours de
   // fermeture (elle se vide en CLOSE_MS), puis on révèle le nouveau cours.
   function onFeedbackDone() {
+    countingRef.current = true;
     if (progressTimer.current) clearInterval(progressTimer.current);
     if (safetyTimer.current) clearTimeout(safetyTimer.current);
     progressTimer.current = null;
@@ -193,9 +182,12 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     revealTimer.current = setTimeout(reveal, CLOSE_MS);
   }
 
-  // Listeners window liés une fois, mais appellent toujours le handler courant.
+  // Listeners window liés une fois, mais appellent toujours le handler courant
+  // (la ref est rafraîchie après chaque render via un effet, pas pendant).
   const handlers = useRef({ onStart, onReady });
-  handlers.current = { onStart, onReady };
+  useEffect(() => {
+    handlers.current = { onStart, onReady };
+  });
 
   useEffect(() => {
     const onStartEv = (e: Event) =>
@@ -261,6 +253,7 @@ export function LessonTransition({ children }: { children: ReactNode }) {
 
                 {showForm && feedback && (
                   <div
+                    className="nc-lt-scrim"
                     style={{
                       gridArea: "1 / 1",
                       display: "flex",
@@ -279,6 +272,7 @@ export function LessonTransition({ children }: { children: ReactNode }) {
                           onClose={onFeedbackClose}
                           onActivity={onActivity}
                           onDone={onFeedbackDone}
+                          closable={false}
                         />
                       </div>
                     </div>

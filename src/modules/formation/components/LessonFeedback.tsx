@@ -129,6 +129,7 @@ export function FeedbackBody({
   onClose,
   onActivity,
   onDone,
+  closable = true,
 }: {
   courseName: string;
   formationName: string;
@@ -136,6 +137,7 @@ export function FeedbackBody({
   onClose: () => void;
   onActivity?: () => void;
   onDone?: () => void;
+  closable?: boolean;
 }) {
   const [phase, setPhase] = useState<Phase>("form");
   const [avis, setAvis] = useState<string | null>(null);
@@ -191,27 +193,29 @@ export function FeedbackBody({
         >
           Qu&apos;as-tu pensé de cette vidéo ?
         </h3>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Fermer"
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            border: "none",
-            background: "transparent",
-            color: "var(--color-text-muted)",
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-          className="hover:bg-[var(--color-surface-raised)]"
-        >
-          <X size={17} />
-        </button>
+        {closable && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              border: "none",
+              background: "transparent",
+              color: "var(--color-text-muted)",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+            className="hover:bg-[var(--color-surface-raised)]"
+          >
+            <X size={17} />
+          </button>
+        )}
       </header>
 
       {/* Tags réaction */}
