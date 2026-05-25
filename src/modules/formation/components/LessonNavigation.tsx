@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 
 import type { LessonNeighbour } from "../types";
 import { markCourseCompleted } from "../server/actions";
-import { emitLessonFeedback } from "./LessonFeedbackPrompt";
+import { startLessonTransition } from "./LessonTransition";
 
 type Props = {
   programSlug: string;
@@ -35,20 +35,23 @@ export function LessonNavigation({
 
   function navTo(n: LessonNeighbour | null) {
     if (!n) return;
+    // Voile de transition (sans feedback) : masque l'ancien cours pendant le
+    // chargement du suivant, puis révèle.
+    startLessonTransition();
     window.scrollTo({ top: 0, behavior: "instant" });
     router.push(`/formation/${programSlug}/${n.moduleSlug}/${n.courseSlug}`);
   }
 
   function handleMain() {
-    // À la première complétion, on ouvre la pop-up de feedback de coin
-    // immédiatement : elle vit dans le layout et fait le pont pendant le
-    // chargement du cours suivant (transition entre les deux).
-    if (!done) {
-      emitLessonFeedback({ courseName, formationName, moduleName });
+    // Vers une leçon suivante : on arme la transition AVANT le push. Elle
+    // héberge le feedback du cours qu'on quitte (par-dessus le skeleton du
+    // contenu en cours de chargement), puis révèle le nouveau cours.
+    if (next) {
+      startLessonTransition({
+        feedback: { courseName, formationName, moduleName },
+      });
+      window.scrollTo({ top: 0, behavior: "instant" });
     }
-    // Scroll immédiat au clic, avant l'await du serveur, pour que la VT
-    // capture la carte déjà en position haute.
-    if (next) window.scrollTo({ top: 0, behavior: "instant" });
     startTransition(async () => {
       if (!done) {
         await markCourseCompleted(courseId);
