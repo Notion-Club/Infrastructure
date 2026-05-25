@@ -141,6 +141,12 @@ html {
   /* Boutons désactivés */
   --nc-btn-disabled-bg: #e5e7eb;
   --nc-btn-disabled-text: #9ca3af;
+  /* Transitions de page */
+  --nc-duration-page: 240ms;
+  --nc-duration-page-exit: 160ms;
+  --nc-duration-morph: 370ms;
+  --nc-ease-out: cubic-bezier(0.4, 0, 1, 1);
+  --nc-ease-morph: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   /* Tags communauté */
   --nc-tag-general-bg: rgba(0, 0, 0, 0.06);
   --nc-tag-general-text: var(--color-text-secondary);
@@ -574,18 +580,56 @@ html {
    View transitions (Next.js experimental.viewTransition)
    ────────────────────────────────────────────────────────────── */
 
-/* Toutes les morphs card → header durent 350ms avec un léger blur */
+/* Scénario C — morph shared element (cartes ressources/templates).
+   S'applique à tous les éléments nommés via view-transition-name. */
 ::view-transition-group(*) {
-  animation-duration: 350ms;
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  animation-duration: var(--nc-duration-morph);
+  animation-timing-function: var(--nc-ease-morph);
 }
 
 ::view-transition-old(*),
 ::view-transition-new(*) {
-  animation-duration: 350ms;
+  animation-duration: var(--nc-duration-morph);
 }
 
-/* Reduce motion : on désactive l'animation */
+/* Scénario A — cross-fade root (navigation entre sections).
+   Override du * ci-dessus grâce à la source order. */
+::view-transition-group(root) {
+  animation-duration: var(--nc-duration-page);
+  animation-timing-function: var(--nc-ease);
+}
+
+/* Root exit : fade accéléré (la page sortante part vite) */
+::view-transition-old(root) {
+  animation-duration: var(--nc-duration-page-exit);
+  animation-timing-function: var(--nc-ease-out);
+}
+
+/* Root enter : fade + scale léger (la page entrante s'installe) */
+::view-transition-new(root) {
+  animation-name: nc-page-enter;
+  animation-duration: var(--nc-duration-page);
+  animation-timing-function: var(--nc-ease);
+}
+
+@keyframes nc-page-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Skeleton pulse — utilisé dans loading.tsx */
+@keyframes nc-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+/* Reduce motion : transitions instantanées */
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(*),
   ::view-transition-new(*),
