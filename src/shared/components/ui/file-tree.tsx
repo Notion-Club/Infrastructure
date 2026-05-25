@@ -127,7 +127,7 @@ export function Folder({
           </span>
         </AccordionPrimitive.Trigger>
       </AccordionPrimitive.Header>
-      <AccordionPrimitive.Content className="overflow-hidden">
+      <AccordionPrimitive.Content className="nc-accordion-content overflow-hidden">
         <div className="ml-[15px] flex flex-col gap-0.5 border-l border-[var(--color-border-default)] pt-0.5 pl-2">
           {children}
         </div>
