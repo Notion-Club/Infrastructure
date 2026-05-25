@@ -15,11 +15,12 @@ type StartDetail = { feedback?: LessonFeedbackDetail };
 const START = "nc:lesson-transition-start";
 const READY = "nc:lesson-ready";
 
-const MIN_CROSS = 5500; // délai minimal avant que la croix de fermeture apparaisse
-const ANTIFLASH = 500; // durée mini du voile quand il n'y a pas de feedback (nav précédente)
+const AUTO_CLOSE_MS = 12000; // fermeture auto (sécurité : le contenu est toujours chargé d'ici là)
+const MIN_CROSS = 5000; // la croix de skip n'apparaît jamais avant 5 s
+const ANTIFLASH = 500; // durée mini du voile sans feedback (nav précédente)
 const FADE_MS = 280; // doit matcher la sortie .nc-lt-card
-const CLOSE_MS = 2000; // compte à rebours de fermeture après envoi du feedback
-const SAFETY_MS = 20000; // garde-fou : débloque même si "ready" est perdu
+const CLOSE_MS = 2000; // vidage de la barre après envoi du feedback
+const SAFETY_MS = 20000; // garde-fou ultime si "ready" est perdu
 
 // Déclenché par la navigation leçon → leçon, AVANT le router.push : il faut
 // que le slot soit armé avant que React ne garde l'ancien contenu (la nav vit
@@ -75,11 +76,10 @@ export function LessonTransition({ children }: { children: ReactNode }) {
   const [feedback, setFeedback] = useState<LessonFeedbackDetail | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [progress, setProgress] = useState(0);
-  // Mode de la barre du haut : "load" (chargement), "full" (se remplit jusqu'à
-  // l'apparition de la croix), "empty" (se vide = compte à rebours de fermeture).
-  const [barMode, setBarMode] = useState<"load" | "full" | "empty">("load");
-  const [fillMs, setFillMs] = useState(0);
-  const [canClose, setCanClose] = useState(false); // croix de fermeture visible
+  // Barre du haut : "count" (minuteur qui se remplit sur les 12 s, façon pub
+  // YouTube), "empty" (se vide = compte à rebours de fermeture après envoi).
+  const [barMode, setBarMode] = useState<"count" | "empty">("count");
+  const [canClose, setCanClose] = useState(false); // croix de skip visible
   const [seq, setSeq] = useState(0);
 
   // Valeurs lues dans des callbacks asynchrones → refs (anti stale-closure).
@@ -117,7 +117,7 @@ export function LessonTransition({ children }: { children: ReactNode }) {
       setFeedback(null);
       setShowForm(false);
       setProgress(0);
-      setBarMode("load");
+      setBarMode("count");
       setCanClose(false);
     }, FADE_MS);
   }
@@ -141,51 +141,43 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     setFeedback(fb);
     setShowForm(!!fb);
     setProgress(0);
-    setBarMode("load");
+    setBarMode("count");
     setCanClose(false);
     setRevealing(false);
     setSeq((s) => s + 1);
     setActive(true);
 
-    // Phase chargement : la barre progresse vers ~88 % (asymptotique).
+    // Minuteur : la barre se remplit linéairement sur les 12 s (façon pub
+    // YouTube — elle continue même une fois la croix de skip disponible).
     progressTimer.current = setInterval(() => {
       const elapsed = performance.now() - startTimeRef.current;
-      const p = 88 * (1 - Math.exp(-elapsed / 1800));
+      const p = Math.min(100, (elapsed / AUTO_CLOSE_MS) * 100);
       setProgress((prev) => Math.max(prev, p));
-    }, 70);
+    }, 60);
 
-    // Garde-fou si "ready" n'arrive jamais : avec feedback on débloque la croix,
-    // sans feedback (nav précédente) on révèle directement.
-    safetyTimer.current = setTimeout(fb ? enableClose : reveal, SAFETY_MS);
+    // Garde-fou ultime si "ready" n'arrive jamais.
+    safetyTimer.current = setTimeout(reveal, SAFETY_MS);
   }
 
-  // Contenu prêt. Avec feedback : la croix apparaît à max(ready, MIN_CROSS), la
-  // barre se remplit pile à ce moment. Sans feedback (nav précédente) : on révèle
+  // Contenu prêt. Avec feedback : la croix de skip apparaît à max(ready, 5 s) et
+  // la fermeture auto reste à 12 s. Sans feedback (nav précédente) : révélation
   // dès que prêt (mini ANTIFLASH).
   function onReady() {
     if (!activeRef.current || readyRef.current) return;
     readyRef.current = true;
-    if (progressTimer.current) {
-      clearInterval(progressTimer.current);
-      progressTimer.current = null;
-    }
     const elapsed = performance.now() - startTimeRef.current;
     if (hasFormRef.current) {
-      const remaining = Math.max(0, MIN_CROSS - elapsed);
-      setFillMs(remaining);
-      setBarMode("full");
       if (crossTimer.current) clearTimeout(crossTimer.current);
-      crossTimer.current = setTimeout(enableClose, remaining);
-    } else {
-      const remaining = Math.max(0, ANTIFLASH - elapsed);
-      setFillMs(remaining);
-      setBarMode("full");
+      crossTimer.current = setTimeout(enableClose, Math.max(0, MIN_CROSS - elapsed));
       if (revealTimer.current) clearTimeout(revealTimer.current);
-      revealTimer.current = setTimeout(reveal, remaining);
+      revealTimer.current = setTimeout(reveal, Math.max(0, AUTO_CLOSE_MS - elapsed));
+    } else {
+      if (revealTimer.current) clearTimeout(revealTimer.current);
+      revealTimer.current = setTimeout(reveal, Math.max(0, ANTIFLASH - elapsed));
     }
   }
 
-  // Croix cliquée (ou fermeture du form) → on révèle le nouveau cours.
+  // Croix de skip cliquée (ou fermeture du form) → on révèle le nouveau cours.
   function onFeedbackClose() {
     reveal();
   }
@@ -199,7 +191,6 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     progressTimer.current = null;
     crossTimer.current = null;
     safetyTimer.current = null;
-    setFillMs(CLOSE_MS);
     setBarMode("empty");
     if (revealTimer.current) clearTimeout(revealTimer.current);
     revealTimer.current = setTimeout(reveal, CLOSE_MS);
@@ -252,20 +243,16 @@ export function LessonTransition({ children }: { children: ReactNode }) {
                 boxShadow: "var(--nc-shadow-2)",
               }}
             >
-              {/* Barre du haut : "load" (chargement) → "full" (se remplit jusqu'à
-                  l'apparition de la croix) → "empty" (compte à rebours de fermeture). */}
+              {/* Barre du haut : "count" (minuteur 12 s, façon pub YouTube) →
+                  "empty" (se vide = compte à rebours de fermeture après envoi). */}
               <div style={{ height: 4, background: "var(--color-border-default)" }}>
                 <div
                   style={{
                     height: "100%",
-                    width: barMode === "empty" ? "0%" : barMode === "full" ? "100%" : `${progress}%`,
+                    width: barMode === "empty" ? "0%" : `${progress}%`,
                     background: "var(--color-brand)",
                     transition:
-                      barMode === "empty"
-                        ? `width ${CLOSE_MS}ms linear`
-                        : barMode === "full"
-                          ? `width ${fillMs}ms linear`
-                          : "width 200ms linear",
+                      barMode === "empty" ? `width ${CLOSE_MS}ms linear` : "width 120ms linear",
                   }}
                 />
               </div>
