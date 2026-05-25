@@ -857,9 +857,15 @@ html.dark .nc-lt-scrim {
   background: var(--color-surface-card);
 }
 
+/* Apparition douce (croix de fermeture, etc.) */
+.nc-fade-in {
+  animation: nc-pop-overlay-in 260ms var(--nc-ease) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nc-lt-card,
-  .nc-lt-layer[data-revealing="true"] .nc-lt-card {
+  .nc-lt-layer[data-revealing="true"] .nc-lt-card,
+  .nc-fade-in {
     animation-duration: 1ms;
   }
   .nc-lt-form {

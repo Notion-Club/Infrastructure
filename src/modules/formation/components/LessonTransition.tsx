@@ -15,11 +15,11 @@ type StartDetail = { feedback?: LessonFeedbackDetail };
 const START = "nc:lesson-transition-start";
 const READY = "nc:lesson-ready";
 
-const READ_MS = 12000; // fenêtre minimale pour lire / répondre au feedback
-const ACTIVITY_GRACE = 6000; // rallonge la fenêtre après chaque interaction
+const MIN_CROSS = 5500; // délai minimal avant que la croix de fermeture apparaisse
+const ANTIFLASH = 500; // durée mini du voile quand il n'y a pas de feedback (nav précédente)
 const FADE_MS = 280; // doit matcher la sortie .nc-lt-card
 const CLOSE_MS = 2000; // compte à rebours de fermeture après envoi du feedback
-const SAFETY_MS = 22000; // garde-fou ultime (révèle même si "ready" perdu)
+const SAFETY_MS = 20000; // garde-fou : débloque même si "ready" est perdu
 
 // Déclenché par la navigation leçon → leçon, AVANT le router.push : il faut
 // que le slot soit armé avant que React ne garde l'ancien contenu (la nav vit
@@ -75,26 +75,33 @@ export function LessonTransition({ children }: { children: ReactNode }) {
   const [feedback, setFeedback] = useState<LessonFeedbackDetail | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [counting, setCounting] = useState(false); // remerciement → vidage de la barre du haut
+  // Mode de la barre du haut : "load" (chargement), "full" (se remplit jusqu'à
+  // l'apparition de la croix), "empty" (se vide = compte à rebours de fermeture).
+  const [barMode, setBarMode] = useState<"load" | "full" | "empty">("load");
+  const [fillMs, setFillMs] = useState(0);
+  const [canClose, setCanClose] = useState(false); // croix de fermeture visible
   const [seq, setSeq] = useState(0);
 
   // Valeurs lues dans des callbacks asynchrones → refs (anti stale-closure).
   const activeRef = useRef(false);
   const readyRef = useRef(false);
-  const countingRef = useRef(false);
+  const closingRef = useRef(false);
+  const hasFormRef = useRef(false); // un feedback est-il affiché (vs skeleton seul) ?
   const startTimeRef = useRef(0);
-  const deadlineRef = useRef(0); // instant cible de révélation auto
 
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const crossTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safetyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function clearTimers() {
     if (progressTimer.current) clearInterval(progressTimer.current);
     if (revealTimer.current) clearTimeout(revealTimer.current);
+    if (crossTimer.current) clearTimeout(crossTimer.current);
     if (safetyTimer.current) clearTimeout(safetyTimer.current);
     progressTimer.current = null;
     revealTimer.current = null;
+    crossTimer.current = null;
     safetyTimer.current = null;
   }
 
@@ -104,22 +111,22 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     revealTimer.current = setTimeout(() => {
       activeRef.current = false;
       readyRef.current = false;
-      countingRef.current = false;
+      closingRef.current = false;
       setActive(false);
       setRevealing(false);
       setFeedback(null);
       setShowForm(false);
       setProgress(0);
-      setCounting(false);
+      setBarMode("load");
+      setCanClose(false);
     }, FADE_MS);
   }
 
-  // (Re)programme la révélation auto à l'échéance, une fois le contenu prêt.
-  function scheduleReveal() {
-    if (!activeRef.current || !readyRef.current || countingRef.current) return;
-    if (revealTimer.current) clearTimeout(revealTimer.current);
-    const delay = Math.max(120, deadlineRef.current - performance.now());
-    revealTimer.current = setTimeout(reveal, delay);
+  function enableClose() {
+    if (!activeRef.current || closingRef.current) return;
+    if (crossTimer.current) clearTimeout(crossTimer.current);
+    crossTimer.current = null;
+    setCanClose(true);
   }
 
   function onStart(detail: StartDetail) {
@@ -127,57 +134,73 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     const fb = detail.feedback ?? null;
     activeRef.current = true;
     readyRef.current = false;
-    countingRef.current = false;
+    closingRef.current = false;
+    hasFormRef.current = !!fb;
     startTimeRef.current = performance.now();
-    deadlineRef.current = startTimeRef.current + READ_MS;
 
     setFeedback(fb);
     setShowForm(!!fb);
     setProgress(0);
-    setCounting(false);
+    setBarMode("load");
+    setCanClose(false);
     setRevealing(false);
     setSeq((s) => s + 1);
     setActive(true);
 
-    // La barre du haut = minuteur de la fenêtre [start → deadline] (montant,
-    // monotone pour ne jamais reculer si la fenêtre s'étend à l'interaction).
+    // Phase chargement : la barre progresse vers ~88 % (asymptotique).
     progressTimer.current = setInterval(() => {
-      if (countingRef.current) return;
-      const span = deadlineRef.current - startTimeRef.current;
-      const p = span > 0 ? ((performance.now() - startTimeRef.current) / span) * 100 : 100;
-      setProgress((prev) => Math.max(prev, Math.min(99, p)));
+      const elapsed = performance.now() - startTimeRef.current;
+      const p = 88 * (1 - Math.exp(-elapsed / 1800));
+      setProgress((prev) => Math.max(prev, p));
     }, 70);
 
-    safetyTimer.current = setTimeout(reveal, SAFETY_MS);
+    // Garde-fou si "ready" n'arrive jamais : avec feedback on débloque la croix,
+    // sans feedback (nav précédente) on révèle directement.
+    safetyTimer.current = setTimeout(fb ? enableClose : reveal, SAFETY_MS);
   }
 
+  // Contenu prêt. Avec feedback : la croix apparaît à max(ready, MIN_CROSS), la
+  // barre se remplit pile à ce moment. Sans feedback (nav précédente) : on révèle
+  // dès que prêt (mini ANTIFLASH).
   function onReady() {
-    if (!activeRef.current) return;
+    if (!activeRef.current || readyRef.current) return;
     readyRef.current = true;
-    scheduleReveal();
+    if (progressTimer.current) {
+      clearInterval(progressTimer.current);
+      progressTimer.current = null;
+    }
+    const elapsed = performance.now() - startTimeRef.current;
+    if (hasFormRef.current) {
+      const remaining = Math.max(0, MIN_CROSS - elapsed);
+      setFillMs(remaining);
+      setBarMode("full");
+      if (crossTimer.current) clearTimeout(crossTimer.current);
+      crossTimer.current = setTimeout(enableClose, remaining);
+    } else {
+      const remaining = Math.max(0, ANTIFLASH - elapsed);
+      setFillMs(remaining);
+      setBarMode("full");
+      if (revealTimer.current) clearTimeout(revealTimer.current);
+      revealTimer.current = setTimeout(reveal, remaining);
+    }
   }
 
-  // Interaction (réaction choisie / commentaire saisi) : on rallonge la fenêtre
-  // pour ne pas couper l'utilisateur en pleine saisie.
-  function onActivity() {
-    deadlineRef.current = Math.max(deadlineRef.current, performance.now() + ACTIVITY_GRACE);
-    scheduleReveal();
-  }
-
+  // Croix cliquée (ou fermeture du form) → on révèle le nouveau cours.
   function onFeedbackClose() {
-    setShowForm(false);
-    scheduleReveal();
+    reveal();
   }
 
-  // Feedback envoyé : on réutilise la barre du HAUT comme compte à rebours de
-  // fermeture (elle se vide en CLOSE_MS), puis on révèle le nouveau cours.
+  // Feedback envoyé : la barre du HAUT se vide (compte à rebours), puis révélation.
   function onFeedbackDone() {
-    countingRef.current = true;
+    closingRef.current = true;
     if (progressTimer.current) clearInterval(progressTimer.current);
+    if (crossTimer.current) clearTimeout(crossTimer.current);
     if (safetyTimer.current) clearTimeout(safetyTimer.current);
     progressTimer.current = null;
+    crossTimer.current = null;
     safetyTimer.current = null;
-    setCounting(true);
+    setFillMs(CLOSE_MS);
+    setBarMode("empty");
     if (revealTimer.current) clearTimeout(revealTimer.current);
     revealTimer.current = setTimeout(reveal, CLOSE_MS);
   }
@@ -229,17 +252,20 @@ export function LessonTransition({ children }: { children: ReactNode }) {
                 boxShadow: "var(--nc-shadow-2)",
               }}
             >
-              {/* Barre du haut : progression du chargement, puis (après envoi)
-                  compte à rebours de fermeture en se vidant. */}
+              {/* Barre du haut : "load" (chargement) → "full" (se remplit jusqu'à
+                  l'apparition de la croix) → "empty" (compte à rebours de fermeture). */}
               <div style={{ height: 4, background: "var(--color-border-default)" }}>
                 <div
                   style={{
                     height: "100%",
-                    width: counting ? "0%" : `${progress}%`,
+                    width: barMode === "empty" ? "0%" : barMode === "full" ? "100%" : `${progress}%`,
                     background: "var(--color-brand)",
-                    transition: counting
-                      ? `width ${CLOSE_MS}ms linear`
-                      : "width 200ms linear",
+                    transition:
+                      barMode === "empty"
+                        ? `width ${CLOSE_MS}ms linear`
+                        : barMode === "full"
+                          ? `width ${fillMs}ms linear`
+                          : "width 200ms linear",
                   }}
                 />
               </div>
@@ -270,9 +296,8 @@ export function LessonTransition({ children }: { children: ReactNode }) {
                           formationName={feedback.formationName}
                           moduleName={feedback.moduleName}
                           onClose={onFeedbackClose}
-                          onActivity={onActivity}
                           onDone={onFeedbackDone}
-                          closable={false}
+                          closable={canClose}
                         />
                       </div>
                     </div>

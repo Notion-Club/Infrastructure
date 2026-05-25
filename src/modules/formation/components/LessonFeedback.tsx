@@ -127,7 +127,6 @@ export function FeedbackBody({
   formationName,
   moduleName,
   onClose,
-  onActivity,
   onDone,
   closable = true,
 }: {
@@ -135,7 +134,6 @@ export function FeedbackBody({
   formationName: string;
   moduleName: string;
   onClose: () => void;
-  onActivity?: () => void;
   onDone?: () => void;
   closable?: boolean;
 }) {
@@ -211,7 +209,7 @@ export function FeedbackBody({
               justifyContent: "center",
               flexShrink: 0,
             }}
-            className="hover:bg-[var(--color-surface-raised)]"
+            className="nc-fade-in hover:bg-[var(--color-surface-raised)]"
           >
             <X size={17} />
           </button>
@@ -226,10 +224,7 @@ export function FeedbackBody({
             <button
               key={label}
               type="button"
-              onClick={() => {
-                setAvis(label);
-                onActivity?.();
-              }}
+              onClick={() => setAvis(label)}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -280,10 +275,7 @@ export function FeedbackBody({
             </label>
             <textarea
               value={comment}
-              onChange={(e) => {
-                setComment(e.target.value.slice(0, 1900));
-                onActivity?.();
-              }}
+              onChange={(e) => setComment(e.target.value.slice(0, 1900))}
               placeholder="Optionnel — ton retour nous aide à améliorer le Notion Club…"
               rows={3}
               style={{
