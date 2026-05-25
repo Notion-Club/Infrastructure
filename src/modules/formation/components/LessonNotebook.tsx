@@ -30,48 +30,38 @@ type Props = {
 };
 
 // Carnet de la leçon — bloc switcher 3 onglets (Mes notes / À garder en tête /
-// Ressources), désormais détaché du player et placé juste en dessous, à la
-// suite. Carte autonome qui reprend le style de la carte player.
+// Ressources). Rendu à la fin de la carte player (LessonPlayerCard) pour ne
+// former qu'un seul bloc : ce composant n'est plus que le switcher lui-même.
 export function LessonNotebook({ synthese, resources, courseId, initialNote }: Props) {
   const [tab, setTab] = useState<Tab>("notes");
 
   return (
     <div
       style={{
-        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
-        borderRadius: 20,
-        boxShadow: "var(--nc-shadow-2)",
-        padding: 16,
+        borderRadius: 16,
+        overflow: "hidden",
+        background: "var(--color-surface-raised)",
       }}
     >
+      {/* Onglets */}
       <div
         style={{
-          border: "1px solid var(--color-border-default)",
-          borderRadius: 16,
-          overflow: "hidden",
-          background: "var(--color-surface-raised)",
+          display: "flex",
+          gap: 2,
+          padding: 6,
+          borderBottom: "1px solid var(--color-border-default)",
         }}
       >
-        {/* Onglets */}
-        <div
-          style={{
-            display: "flex",
-            gap: 2,
-            padding: 6,
-            borderBottom: "1px solid var(--color-border-default)",
-          }}
-        >
-          <SwitchButton active={tab === "notes"} onClick={() => setTab("notes")} icon={<Pencil size={15} strokeWidth={tab === "notes" ? 2.5 : 2} />} label="Mes notes" />
-          <SwitchButton active={tab === "synthese"} onClick={() => setTab("synthese")} icon={<Lightbulb size={15} strokeWidth={tab === "synthese" ? 2.5 : 2} />} label="À garder en tête" />
-          <SwitchButton active={tab === "resources"} onClick={() => setTab("resources")} icon={<FileText size={15} strokeWidth={tab === "resources" ? 2.5 : 2} />} label="Ressources" badge={resources.length} />
-        </div>
-
-        {/* Panneau attaché — coulé directement sous les onglets */}
-        {tab === "notes" && <RichTextNotes courseId={courseId} initialNote={initialNote} />}
-        {tab === "synthese" && <SynthesePanel synthese={synthese} />}
-        {tab === "resources" && <ResourcesPanel items={resources} />}
+        <SwitchButton active={tab === "notes"} onClick={() => setTab("notes")} icon={<Pencil size={15} strokeWidth={tab === "notes" ? 2.5 : 2} />} label="Mes notes" />
+        <SwitchButton active={tab === "synthese"} onClick={() => setTab("synthese")} icon={<Lightbulb size={15} strokeWidth={tab === "synthese" ? 2.5 : 2} />} label="À garder en tête" />
+        <SwitchButton active={tab === "resources"} onClick={() => setTab("resources")} icon={<FileText size={15} strokeWidth={tab === "resources" ? 2.5 : 2} />} label="Ressources" badge={resources.length} />
       </div>
+
+      {/* Panneau attaché — coulé directement sous les onglets */}
+      {tab === "notes" && <RichTextNotes courseId={courseId} initialNote={initialNote} />}
+      {tab === "synthese" && <SynthesePanel synthese={synthese} />}
+      {tab === "resources" && <ResourcesPanel items={resources} />}
     </div>
   );
 }

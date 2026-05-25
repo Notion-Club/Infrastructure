@@ -13,6 +13,7 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
 
   return (
     <article
+      className="transition-transform duration-200 hover:-translate-y-0.5"
       style={{
         background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
@@ -26,6 +27,13 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
         overflow: "hidden",
       }}
     >
+      {/* Lien « stretched » : toute la carte ouvre le détail de la formation.
+          Le CTA (Reprendre/Commencer) reste cliquable au-dessus (z-index). */}
+      <Link
+        href={`/formation/${program.slug}`}
+        aria-label={`Ouvrir la formation ${program.name}`}
+        style={{ position: "absolute", inset: 0, zIndex: 1 }}
+      />
       {completed && (
         <div
           style={{
@@ -117,7 +125,7 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", position: "relative", zIndex: 2 }}>
         <Link
           href={href}
           style={{
@@ -146,18 +154,6 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
               <Play size={13} fill="currentColor" strokeWidth={0} /> Reprendre où j&apos;en étais
             </>
           )}
-        </Link>
-        <Link
-          href={`/formation/${program.slug}`}
-          style={{
-            color: "var(--color-text-secondary)",
-            fontSize: 13,
-            fontWeight: 500,
-            textDecoration: "none",
-            padding: "10px 4px",
-          }}
-        >
-          Voir le détail
         </Link>
       </div>
     </article>

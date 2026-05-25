@@ -2,8 +2,10 @@
 
 import type { NotionBlock } from "@/shared/lib/notion/blocks";
 import { toEmbedSrc } from "@/shared/lib/notion/video";
+import type { LessonResourceLink } from "../server/notion";
 import { NotionBlocks } from "./notion/NotionBlocks";
 import { LessonFeedback } from "./LessonFeedback";
+import { LessonNotebook } from "./LessonNotebook";
 
 type Props = {
   title: string;
@@ -12,11 +14,15 @@ type Props = {
   blocks: NotionBlock[];
   formationName: string;
   moduleName: string;
+  synthese: string;
+  resources: LessonResourceLink[];
+  courseId: string;
+  noteContent: string;
 };
 
-// Carte « player » : (1) titre + description (+ pill feedback), (2) player
-// vidéo full-bleed + body du cours. Le carnet (notes / synthèse / ressources)
-// vit désormais dans une carte séparée, juste en dessous (LessonNotebook).
+// Carte « player » — un seul bloc : (1) titre + description (+ pill feedback),
+// (2) player vidéo full-bleed + body du cours, (3) carnet (switcher notes /
+// synthèse / ressources) attaché en fin de carte.
 export function LessonPlayerCard({
   title,
   description,
@@ -24,6 +30,10 @@ export function LessonPlayerCard({
   blocks,
   formationName,
   moduleName,
+  synthese,
+  resources,
+  courseId,
+  noteContent,
 }: Props) {
   return (
     <div
@@ -76,10 +86,20 @@ export function LessonPlayerCard({
 
       {/* Body du cours (tout le contenu Notion hors vidéo) */}
       {blocks.length > 0 && (
-        <div style={{ padding: "18px 24px 24px" }}>
+        <div style={{ padding: "18px 24px 0" }}>
           <NotionBlocks blocks={blocks} />
         </div>
       )}
+
+      {/* 3 — Carnet attaché en fin de carte (même bloc) */}
+      <div style={{ padding: "16px 24px 22px" }}>
+        <LessonNotebook
+          synthese={synthese}
+          resources={resources}
+          courseId={courseId}
+          initialNote={noteContent}
+        />
+      </div>
     </div>
   );
 }

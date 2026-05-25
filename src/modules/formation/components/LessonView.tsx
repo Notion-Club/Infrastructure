@@ -4,7 +4,6 @@ import { ChevronRight } from "lucide-react";
 import type { LessonView as LessonViewModel } from "../types";
 import type { LessonContent } from "../server/notion";
 import { LessonPlayerCard } from "./LessonPlayerCard";
-import { LessonNotebook } from "./LessonNotebook";
 import { LessonNavigation } from "./LessonNavigation";
 import { LessonReady } from "./LessonTransition";
 
@@ -60,24 +59,19 @@ export function LessonView({
         <span style={{ color: "var(--color-text-primary)" }}>{course.name}</span>
       </nav>
 
-      {/* Player + carnet : groupés serrés pour qu'ils se suivent (collés). */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <LessonPlayerCard
-          title={course.name}
-          description={course.description}
-          videoUrl={content.videoUrl}
-          blocks={content.blocks}
-          formationName={formation.name}
-          moduleName={mod.name}
-        />
-
-        <LessonNotebook
-          synthese={content.synthese}
-          resources={content.resources}
-          courseId={course.id}
-          initialNote={view.noteContent}
-        />
-      </div>
+      {/* Player + carnet réunis dans un seul bloc (carnet en fin de carte). */}
+      <LessonPlayerCard
+        title={course.name}
+        description={course.description}
+        videoUrl={content.videoUrl}
+        blocks={content.blocks}
+        formationName={formation.name}
+        moduleName={mod.name}
+        synthese={content.synthese}
+        resources={content.resources}
+        courseId={course.id}
+        noteContent={view.noteContent}
+      />
 
       <LessonNavigation
         programSlug={formation.slug}
