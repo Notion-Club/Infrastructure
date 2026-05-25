@@ -4,6 +4,7 @@ import { ArrowLeft, PartyPopper } from "lucide-react";
 import { ProgressBar } from "@/shared/components/dashboard/widgets/ProgressBar";
 import type { ProgramDetail } from "../types";
 import { ModuleAccordion } from "./ModuleAccordion";
+import { LessonReady } from "./LessonTransition";
 
 // Page programme (Server Component). Le module contenant la prochaine leçon
 // à faire est ouvert par défaut. `openModuleSlug` (deep-link depuis le fil
@@ -105,6 +106,7 @@ export function ProgramView({
           />
         ))}
       </section>
+      <LessonReady />
     </div>
   );
 }
