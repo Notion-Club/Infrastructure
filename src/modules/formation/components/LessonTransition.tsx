@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { FeedbackBody } from "./LessonFeedback";
 
@@ -16,12 +15,13 @@ type StartDetail = { feedback?: LessonFeedbackDetail };
 const START = "nc:lesson-transition-start";
 const READY = "nc:lesson-ready";
 
-const MIN_VISIBLE = 650; // anti-flash sur chargement rapide
-const FADE_MS = 320; // doit matcher nc-lt-veil-out
+const MIN_VISIBLE = 600; // anti-flash sur chargement rapide
+const FADE_MS = 280; // doit matcher la sortie .nc-lt-card
+const CLOSE_MS = 2000; // compte à rebours de fermeture après envoi du feedback
 const SAFETY_MS = 12000; // garde-fou si "ready" n'arrive jamais
 
 // Déclenché par la navigation leçon → leçon, AVANT le router.push : il faut
-// que le voile soit armé avant que React ne garde l'ancien contenu (la nav vit
+// que le slot soit armé avant que React ne garde l'ancien contenu (la nav vit
 // dans un startTransition, donc loading.tsx est court-circuité).
 export function startLessonTransition(detail: StartDetail = {}) {
   if (typeof window === "undefined") return;
@@ -48,11 +48,11 @@ const skeleton: React.CSSProperties = {
   animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
 };
 
-function LoadingHint({ progress }: { progress: number }) {
+function LoadingHint() {
   return (
-    <div style={{ padding: "24px 24px 26px" }}>
+    <div style={{ padding: "26px 24px" }}>
       <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)" }}>
-        {progress < 100 ? "Chargement du cours…" : "Cours prêt"}
+        Chargement du cours…
       </p>
       <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ ...skeleton, height: 14, width: "65%" }} />
@@ -63,18 +63,21 @@ function LoadingHint({ progress }: { progress: number }) {
   );
 }
 
-// Voile de transition leçon → leçon : masque l'ancien contenu, héberge la
-// barre de progression + le feedback du cours quitté, puis révèle le nouveau.
-// Monté une seule fois dans le layout /formation → survit au changement de route.
-export function LessonTransition() {
+// Slot de transition leçon → leçon. Enveloppe le contenu de la section
+// formation : pendant le chargement du cours suivant, l'ancien contenu est
+// masqué (mais monté, pour que le nouveau émette `ready`) et une carte type
+// player-card prend sa place — elle héberge la barre de progression + le
+// feedback du cours quitté, puis se dissout pour révéler le nouveau cours.
+export function LessonTransition({ children }: { children: ReactNode }) {
   const [active, setActive] = useState(false);
   const [revealing, setRevealing] = useState(false);
   const [feedback, setFeedback] = useState<LessonFeedbackDetail | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [counting, setCounting] = useState(false); // remerciement → vidage de la barre du haut
   const [seq, setSeq] = useState(0);
 
-  // Valeurs lues dans des callbacks asynchrones → refs pour éviter le stale closure.
+  // Valeurs lues dans des callbacks asynchrones → refs (anti stale-closure).
   const activeRef = useRef(false);
   const feedbackRef = useRef<LessonFeedbackDetail | null>(null);
   const showFormRef = useRef(false);
@@ -96,7 +99,11 @@ export function LessonTransition() {
   }
 
   function reveal() {
-    clearTimers();
+    if (progressTimer.current) clearInterval(progressTimer.current);
+    if (safetyTimer.current) clearTimeout(safetyTimer.current);
+    if (revealTimer.current) clearTimeout(revealTimer.current);
+    progressTimer.current = null;
+    safetyTimer.current = null;
     setRevealing(true);
     revealTimer.current = setTimeout(() => {
       activeRef.current = false;
@@ -109,12 +116,13 @@ export function LessonTransition() {
       setFeedback(null);
       setShowForm(false);
       setProgress(0);
+      setCounting(false);
     }, FADE_MS);
   }
 
   function decideReveal() {
     if (!activeRef.current || !readyRef.current) return;
-    // On garde le voile tant que l'utilisateur donne son feedback : le contenu
+    // On garde le slot tant que l'utilisateur donne son feedback : le contenu
     // est déjà chargé derrière, on ne le coupe pas en plein milieu.
     const stay = !!feedbackRef.current && engagedRef.current && showFormRef.current;
     if (stay) return;
@@ -137,6 +145,7 @@ export function LessonTransition() {
     setFeedback(fb);
     setShowForm(!!fb);
     setProgress(0);
+    setCounting(false);
     setRevealing(false);
     setSeq((s) => s + 1);
     setActive(true);
@@ -172,8 +181,19 @@ export function LessonTransition() {
     decideReveal();
   }
 
-  // Les listeners window sont liés une seule fois mais appellent toujours le
-  // handler courant via une ref (handlers recréés à chaque render).
+  // Feedback envoyé : on réutilise la barre du HAUT comme compte à rebours de
+  // fermeture (elle se vide en CLOSE_MS), puis on révèle le nouveau cours.
+  function onFeedbackDone() {
+    if (progressTimer.current) clearInterval(progressTimer.current);
+    if (safetyTimer.current) clearTimeout(safetyTimer.current);
+    progressTimer.current = null;
+    safetyTimer.current = null;
+    setCounting(true);
+    if (revealTimer.current) clearTimeout(revealTimer.current);
+    revealTimer.current = setTimeout(reveal, CLOSE_MS);
+  }
+
+  // Listeners window liés une fois, mais appellent toujours le handler courant.
   const handlers = useRef({ onStart, onReady });
   handlers.current = { onStart, onReady };
 
@@ -190,62 +210,67 @@ export function LessonTransition() {
     };
   }, []);
 
-  if (!active || typeof document === "undefined") return null;
+  const masked = active && !revealing;
 
-  return createPortal(
-    <div
-      className="nc-lt-veil"
-      data-revealing={revealing}
-      role="status"
-      aria-live="polite"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9990,
-        background: "var(--color-surface-page)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
-      }}
-    >
-      <div
-        className="nc-lt-card"
-        style={{
-          width: "100%",
-          maxWidth: 460,
-          background: "var(--color-surface-card)",
-          border: "1px solid var(--color-border-default)",
-          borderRadius: 20,
-          boxShadow: "var(--nc-shadow-2)",
-          overflow: "hidden",
-        }}
-      >
-        <div style={{ height: 4, background: "var(--color-border-default)" }}>
-          <div
-            style={{
-              height: "100%",
-              width: `${progress}%`,
-              background: "var(--color-brand)",
-              transition: "width 200ms linear",
-            }}
-          />
-        </div>
-
-        {showForm && feedback ? (
-          <FeedbackBody
-            key={seq}
-            courseName={feedback.courseName}
-            formationName={feedback.formationName}
-            moduleName={feedback.moduleName}
-            onClose={onFeedbackClose}
-            onActivity={onActivity}
-          />
-        ) : (
-          <LoadingHint progress={progress} />
-        )}
+  return (
+    <div style={{ position: "relative" }}>
+      <div className="nc-mode-in" style={{ display: masked ? "none" : undefined }}>
+        {children}
       </div>
-    </div>,
-    document.body,
+
+      {active && (
+        <div
+          className="nc-lt-layer"
+          data-revealing={revealing}
+          role="status"
+          aria-live="polite"
+          style={revealing ? { position: "absolute", inset: 0 } : undefined}
+        >
+          <div style={{ maxWidth: 880, margin: "0 auto" }}>
+            <div
+              className="nc-lt-card"
+              style={{
+                background: "var(--color-surface-card)",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: 20,
+                overflow: "hidden",
+                boxShadow: "var(--nc-shadow-2)",
+              }}
+            >
+              {/* Barre du haut : progression du chargement, puis (après envoi)
+                  compte à rebours de fermeture en se vidant. */}
+              <div style={{ height: 4, background: "var(--color-border-default)" }}>
+                <div
+                  style={{
+                    height: "100%",
+                    width: counting ? "0%" : `${progress}%`,
+                    background: "var(--color-brand)",
+                    transition: counting
+                      ? `width ${CLOSE_MS}ms linear`
+                      : "width 200ms linear",
+                  }}
+                />
+              </div>
+
+              {showForm && feedback ? (
+                <div style={{ maxWidth: 460, margin: "0 auto" }}>
+                  <FeedbackBody
+                    key={seq}
+                    courseName={feedback.courseName}
+                    formationName={feedback.formationName}
+                    moduleName={feedback.moduleName}
+                    onClose={onFeedbackClose}
+                    onActivity={onActivity}
+                    onDone={onFeedbackDone}
+                  />
+                </div>
+              ) : (
+                <LoadingHint />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

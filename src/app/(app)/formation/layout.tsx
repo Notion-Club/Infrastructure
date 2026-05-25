@@ -25,7 +25,9 @@ export default function FormationLayout({ children }: { children: ReactNode }) {
             className="px-4 pt-[96px] pb-[120px] md:px-10 md:pt-[148px] md:pb-12"
             style={{ maxWidth: 1100, margin: "0 auto" }}
           >
-            <div className="nc-mode-in">{children}</div>
+            {/* Transition leçon → leçon intégrée dans la colonne de contenu
+                (masque l'ancien cours, héberge le feedback, révèle le nouveau). */}
+            <LessonTransition>{children}</LessonTransition>
           </div>
         </main>
       </div>
@@ -33,9 +35,6 @@ export default function FormationLayout({ children }: { children: ReactNode }) {
       <Suspense fallback={null}>
         <FormationToasts />
       </Suspense>
-
-      {/* Voile de transition leçon → leçon (masque + feedback + révélation) */}
-      <LessonTransition />
     </>
   );
 }

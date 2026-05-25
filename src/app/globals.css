@@ -768,7 +768,7 @@ html.dark {
   to { width: 0%; }
 }
 .nc-feedback-countdown {
-  animation: nc-feedback-countdown 5s linear forwards;
+  animation: nc-feedback-countdown 2s linear forwards;
 }
 
 /* ---------- Formation — popup feedback : ouverture / fermeture premium ---------- */
@@ -807,38 +807,23 @@ html.dark {
   }
 }
 
-/* ---------- Formation — voile de transition leçon → leçon ---------- */
-/* Masque l'ancien cours pendant le chargement du suivant (le voile héberge la
-   barre de progression + le feedback), puis se dissout pour révéler le nouveau. */
-@keyframes nc-lt-veil-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes nc-lt-veil-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
+/* ---------- Formation — transition leçon → leçon (carte intégrée) ---------- */
+/* La carte de transition prend la place du contenu (player-card) dans la
+   colonne, sans fond plein écran. Elle apparaît, héberge progression +
+   feedback, puis se dissout au-dessus du nouveau cours pour le révéler. */
 @keyframes nc-lt-card-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.nc-lt-veil {
-  animation: nc-lt-veil-in 240ms var(--nc-ease) both;
-}
-.nc-lt-veil[data-revealing="true"] {
-  animation: nc-lt-veil-out 320ms var(--nc-ease) both;
-}
 .nc-lt-card {
-  animation: nc-lt-card-in 320ms var(--nc-ease) both;
+  animation: nc-lt-card-in 300ms var(--nc-ease) both;
 }
-.nc-lt-veil[data-revealing="true"] .nc-lt-card {
-  animation: nc-lt-card-in 220ms var(--nc-ease) reverse both;
+.nc-lt-layer[data-revealing="true"] .nc-lt-card {
+  animation: nc-lt-card-in 240ms var(--nc-ease) reverse both;
 }
 @media (prefers-reduced-motion: reduce) {
-  .nc-lt-veil,
-  .nc-lt-veil[data-revealing="true"],
   .nc-lt-card,
-  .nc-lt-veil[data-revealing="true"] .nc-lt-card {
+  .nc-lt-layer[data-revealing="true"] .nc-lt-card {
     animation-duration: 1ms;
   }
 }
