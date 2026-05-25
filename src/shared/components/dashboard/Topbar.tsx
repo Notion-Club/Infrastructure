@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -55,6 +55,33 @@ export function Topbar() {
   const pathname = usePathname();
   const [avatarOpen, setAvatarOpen] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
+
+  // Sliding pill
+  const navRef = useRef<HTMLElement>(null);
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const hasInitialized = useRef(false);
+  const [pill, setPill] = useState({ left: 0, width: 0, height: 0, top: 0, visible: false, animated: false });
+
+  useLayoutEffect(() => {
+    const activeIndex = NAV_ITEMS.findIndex(
+      ({ href }) => pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")),
+    );
+    const navEl = navRef.current;
+    const activeEl = itemRefs.current[activeIndex];
+    if (!navEl || !activeEl) return;
+    const navRect = navEl.getBoundingClientRect();
+    const activeRect = activeEl.getBoundingClientRect();
+    const isFirst = !hasInitialized.current;
+    hasInitialized.current = true;
+    setPill({
+      left: activeRect.left - navRect.left,
+      width: activeRect.width,
+      height: activeRect.height,
+      top: activeRect.top - navRect.top,
+      visible: true,
+      animated: !isFirst,
+    });
+  }, [pathname]);
 
   useEffect(() => {
     if (!avatarOpen) return;
@@ -124,14 +151,35 @@ export function Topbar() {
 
           {SEPARATOR}
 
-          <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
-              const isActive = pathname === href;
+          <nav ref={navRef} style={{ display: "flex", alignItems: "center", gap: 2, position: "relative" }}>
+            {/* Pilule glissante — positionnée absolument sous les items */}
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                left: pill.left,
+                top: pill.top,
+                width: pill.width,
+                height: pill.height,
+                background: "var(--nc-nav-active-bg)",
+                borderRadius: 9999,
+                opacity: pill.visible ? 1 : 0,
+                transition: pill.animated
+                  ? "left var(--nc-duration-normal) var(--nc-ease), width var(--nc-duration-normal) var(--nc-ease)"
+                  : "none",
+                pointerEvents: "none",
+              }}
+            />
+            {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
+              const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
               return (
                 <Link
                   key={href}
                   href={href}
+                  ref={(el) => { itemRefs.current[i] = el; }}
                   style={{
+                    position: "relative",
+                    zIndex: 1,
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 7,
@@ -140,9 +188,8 @@ export function Topbar() {
                     fontSize: 14,
                     fontWeight: isActive ? 600 : 400,
                     color: "var(--color-text-primary)",
-                    background: isActive ? "var(--nc-nav-active-bg)" : "transparent",
+                    background: "transparent",
                     textDecoration: "none",
-                    transition: "background 150ms ease",
                     whiteSpace: "nowrap",
                   }}
                   className={!isActive ? "hover:bg-[var(--nc-nav-hover-bg)]" : ""}
