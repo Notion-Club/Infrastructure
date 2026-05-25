@@ -29,18 +29,16 @@ type Props = {
   initialNote: string;
 };
 
-// Carnet de la leçon — bloc switcher 3 onglets (Mes notes / À garder en tête /
-// Ressources). Rendu à la fin de la carte player (LessonPlayerCard) pour ne
-// former qu'un seul bloc : ce composant n'est plus que le switcher lui-même.
+// Carnet de la leçon — 3e partie de la carte player (LessonPlayerCard) : un
+// bloc switcher 3 onglets (Mes notes / À garder en tête / Ressources) rendu en
+// PLEINE LARGEUR, collé à ras en bas de la carte (séparé du body par un filet).
 export function LessonNotebook({ synthese, resources, courseId, initialNote }: Props) {
   const [tab, setTab] = useState<Tab>("notes");
 
   return (
     <div
       style={{
-        border: "1px solid var(--color-border-default)",
-        borderRadius: 16,
-        overflow: "hidden",
+        borderTop: "1px solid var(--color-border-default)",
         background: "var(--color-surface-raised)",
       }}
     >

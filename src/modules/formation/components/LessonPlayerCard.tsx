@@ -86,20 +86,18 @@ export function LessonPlayerCard({
 
       {/* Body du cours (tout le contenu Notion hors vidéo) */}
       {blocks.length > 0 && (
-        <div style={{ padding: "18px 24px 0" }}>
+        <div style={{ padding: "18px 24px 22px" }}>
           <NotionBlocks blocks={blocks} />
         </div>
       )}
 
-      {/* 3 — Carnet attaché en fin de carte (même bloc) */}
-      <div style={{ padding: "16px 24px 22px" }}>
-        <LessonNotebook
-          synthese={synthese}
-          resources={resources}
-          courseId={courseId}
-          initialNote={noteContent}
-        />
-      </div>
+      {/* 3 — Switcher : pleine largeur, collé à ras en bas (3e partie de la carte) */}
+      <LessonNotebook
+        synthese={synthese}
+        resources={resources}
+        courseId={courseId}
+        initialNote={noteContent}
+      />
     </div>
   );
 }
