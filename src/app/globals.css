@@ -629,6 +629,33 @@ html {
   50%       { opacity: 0.45; }
 }
 
+/* Empilement de cartes — navigation entre leçons (lesson-card).
+   La carte sortante s'enfonce dans le bas du "deck" pendant que la
+   nouvelle glisse par-dessus depuis le haut. */
+::view-transition-old(lesson-card) {
+  animation-name: nc-lesson-stack-exit;
+  animation-duration: 220ms;
+  animation-timing-function: var(--nc-ease-out);
+  transform-origin: center bottom;
+}
+
+::view-transition-new(lesson-card) {
+  animation-name: nc-lesson-stack-enter;
+  animation-duration: 340ms;
+  animation-timing-function: var(--nc-ease);
+  transform-origin: center top;
+}
+
+@keyframes nc-lesson-stack-exit {
+  from { opacity: 1; transform: scale(1)    translateY(0);    }
+  to   { opacity: 0; transform: scale(0.93) translateY(24px); }
+}
+
+@keyframes nc-lesson-stack-enter {
+  from { opacity: 0; transform: scale(0.97) translateY(-40px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);     }
+}
+
 /* Reduce motion : transitions instantanées */
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(*),

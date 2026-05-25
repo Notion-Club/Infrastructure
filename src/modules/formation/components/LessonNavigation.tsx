@@ -35,6 +35,7 @@ export function LessonNavigation({
 
   function navTo(n: LessonNeighbour | null) {
     if (!n) return;
+    window.scrollTo({ top: 0, behavior: "instant" });
     router.push(`/formation/${programSlug}/${n.moduleSlug}/${n.courseSlug}`);
   }
 
@@ -45,13 +46,16 @@ export function LessonNavigation({
     if (!done) {
       emitLessonFeedback({ courseName, formationName, moduleName });
     }
+    // Scroll immédiat au clic, avant l'await du serveur, pour que la VT
+    // capture la carte déjà en position haute.
+    if (next) window.scrollTo({ top: 0, behavior: "instant" });
     startTransition(async () => {
       if (!done) {
         await markCourseCompleted(courseId);
         setDone(true);
       }
       if (next) {
-        navTo(next);
+        router.push(`/formation/${programSlug}/${next.moduleSlug}/${next.courseSlug}`);
       } else {
         router.push(`/formation/${programSlug}`);
       }
