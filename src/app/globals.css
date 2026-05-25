@@ -807,35 +807,38 @@ html.dark {
   }
 }
 
-/* ---------- Formation — pop-up feedback de coin (notification) ---------- */
-@keyframes nc-corner-in {
-  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+/* ---------- Formation — voile de transition leçon → leçon ---------- */
+/* Masque l'ancien cours pendant le chargement du suivant (le voile héberge la
+   barre de progression + le feedback), puis se dissout pour révéler le nouveau. */
+@keyframes nc-lt-veil-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes nc-lt-veil-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes nc-lt-card-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-@keyframes nc-corner-out {
-  from { opacity: 1; transform: translateY(0) scale(1); }
-  to { opacity: 0; transform: translateY(16px) scale(0.97); }
+.nc-lt-veil {
+  animation: nc-lt-veil-in 240ms var(--nc-ease) both;
 }
-.nc-feedback-corner {
-  right: 20px;
-  bottom: 20px;
-  transform-origin: bottom right;
-  animation: nc-corner-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+.nc-lt-veil[data-revealing="true"] {
+  animation: nc-lt-veil-out 320ms var(--nc-ease) both;
 }
-.nc-feedback-corner[data-closing="true"] {
-  animation: nc-corner-out 220ms cubic-bezier(0.4, 0, 1, 1) both;
+.nc-lt-card {
+  animation: nc-lt-card-in 320ms var(--nc-ease) both;
 }
-/* Mobile : remonter au-dessus de la BottomNav (pill ~56px + offset). */
-@media (max-width: 767px) {
-  .nc-feedback-corner {
-    right: 12px;
-    left: 12px;
-    bottom: calc(82px + env(safe-area-inset-bottom));
-    width: auto !important;
-  }
+.nc-lt-veil[data-revealing="true"] .nc-lt-card {
+  animation: nc-lt-card-in 220ms var(--nc-ease) reverse both;
 }
 @media (prefers-reduced-motion: reduce) {
-  .nc-feedback-corner, .nc-feedback-corner[data-closing="true"] {
+  .nc-lt-veil,
+  .nc-lt-veil[data-revealing="true"],
+  .nc-lt-card,
+  .nc-lt-veil[data-revealing="true"] .nc-lt-card {
     animation-duration: 1ms;
   }
 }

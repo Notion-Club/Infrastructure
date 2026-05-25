@@ -127,11 +127,13 @@ export function FeedbackBody({
   formationName,
   moduleName,
   onClose,
+  onActivity,
 }: {
   courseName: string;
   formationName: string;
   moduleName: string;
   onClose: () => void;
+  onActivity?: () => void;
 }) {
   const [phase, setPhase] = useState<Phase>("form");
   const [avis, setAvis] = useState<string | null>(null);
@@ -212,7 +214,10 @@ export function FeedbackBody({
             <button
               key={label}
               type="button"
-              onClick={() => setAvis(label)}
+              onClick={() => {
+                setAvis(label);
+                onActivity?.();
+              }}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -263,7 +268,10 @@ export function FeedbackBody({
             </label>
             <textarea
               value={comment}
-              onChange={(e) => setComment(e.target.value.slice(0, 1900))}
+              onChange={(e) => {
+                setComment(e.target.value.slice(0, 1900));
+                onActivity?.();
+              }}
               placeholder="Optionnel — ton retour nous aide à améliorer le Notion Club…"
               rows={3}
               style={{
