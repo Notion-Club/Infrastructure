@@ -48,17 +48,17 @@ const skeleton: React.CSSProperties = {
   animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
 };
 
-function LoadingHint() {
+// Placeholder du contenu en chargement (titre + description + player + body).
+// Reste TOUJOURS visible derrière le formulaire de feedback en surimpression.
+function ContentSkeleton() {
   return (
-    <div style={{ padding: "26px 24px" }}>
-      <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)" }}>
-        Chargement du cours…
-      </p>
-      <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ ...skeleton, height: 14, width: "65%" }} />
-        <div style={{ ...skeleton, height: 14, width: "88%" }} />
-        <div style={{ ...skeleton, height: 150, borderRadius: 12, marginTop: 6 }} />
-      </div>
+    <div style={{ padding: "24px 24px 26px" }}>
+      <div style={{ ...skeleton, height: 22, width: "55%" }} />
+      <div style={{ ...skeleton, height: 13, width: "38%", marginTop: 12 }} />
+      <div style={{ ...skeleton, height: 230, borderRadius: 14, marginTop: 20 }} />
+      <div style={{ ...skeleton, height: 13, width: "92%", marginTop: 20 }} />
+      <div style={{ ...skeleton, height: 13, width: "84%", marginTop: 10 }} />
+      <div style={{ ...skeleton, height: 13, width: "70%", marginTop: 10 }} />
     </div>
   );
 }
@@ -252,21 +252,39 @@ export function LessonTransition({ children }: { children: ReactNode }) {
                 />
               </div>
 
-              {showForm && feedback ? (
-                <div style={{ maxWidth: 460, margin: "0 auto" }}>
-                  <FeedbackBody
-                    key={seq}
-                    courseName={feedback.courseName}
-                    formationName={feedback.formationName}
-                    moduleName={feedback.moduleName}
-                    onClose={onFeedbackClose}
-                    onActivity={onActivity}
-                    onDone={onFeedbackDone}
-                  />
+              {/* Skeleton du contenu (toujours) + form de feedback par-dessus,
+                  empilés dans la même cellule grid (la carte épouse le plus grand). */}
+              <div style={{ display: "grid" }}>
+                <div style={{ gridArea: "1 / 1" }}>
+                  <ContentSkeleton />
                 </div>
-              ) : (
-                <LoadingHint />
-              )}
+
+                {showForm && feedback && (
+                  <div
+                    style={{
+                      gridArea: "1 / 1",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 16,
+                    }}
+                  >
+                    <div className="nc-lt-form" style={{ width: "100%", maxWidth: 420 }}>
+                      <div className="nc-lt-form__inner">
+                        <FeedbackBody
+                          key={seq}
+                          courseName={feedback.courseName}
+                          formationName={feedback.formationName}
+                          moduleName={feedback.moduleName}
+                          onClose={onFeedbackClose}
+                          onActivity={onActivity}
+                          onDone={onFeedbackDone}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

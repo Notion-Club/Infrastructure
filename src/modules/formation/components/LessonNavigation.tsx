@@ -43,12 +43,12 @@ export function LessonNavigation({
   }
 
   function handleMain() {
-    // Vers une leçon suivante : on arme le voile de transition AVANT le push.
-    // À la première complétion, il héberge le feedback du cours qu'on quitte
-    // (le voile fait le pont pendant le chargement, puis révèle le nouveau cours).
+    // Vers une leçon suivante : on arme la transition AVANT le push. Elle
+    // héberge le feedback du cours qu'on quitte (par-dessus le skeleton du
+    // contenu en cours de chargement), puis révèle le nouveau cours.
     if (next) {
       startLessonTransition({
-        feedback: done ? undefined : { courseName, formationName, moduleName },
+        feedback: { courseName, formationName, moduleName },
       });
       window.scrollTo({ top: 0, behavior: "instant" });
     }

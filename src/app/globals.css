@@ -821,10 +821,40 @@ html.dark {
 .nc-lt-layer[data-revealing="true"] .nc-lt-card {
   animation: nc-lt-card-in 240ms var(--nc-ease) reverse both;
 }
+
+/* Formulaire de feedback en surimpression du skeleton : bordure shimmer
+   (conic-gradient animé, 2 arcs) sur les coins extérieurs pour attirer
+   l'attention. Réutilise @property --nc-shine-angle / nc-shine-rotate. */
+.nc-lt-form {
+  --nc-shine-angle: 0deg;
+  position: relative;
+  border-radius: 20px;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--nc-shine-angle),
+    rgba(224, 98, 90, 0) 0%,
+    rgba(224, 98, 90, 0.9) 13%,
+    rgba(224, 98, 90, 0) 33%,
+    rgba(224, 98, 90, 0) 63%,
+    rgba(224, 98, 90, 0.9) 78%,
+    rgba(224, 98, 90, 0) 100%
+  );
+  animation: nc-shine-rotate 2.6s linear infinite;
+  box-shadow: var(--nc-shadow-3);
+}
+.nc-lt-form__inner {
+  border-radius: 18.5px;
+  overflow: hidden;
+  background: var(--color-surface-card);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nc-lt-card,
   .nc-lt-layer[data-revealing="true"] .nc-lt-card {
     animation-duration: 1ms;
+  }
+  .nc-lt-form {
+    animation: none;
   }
 }
 
