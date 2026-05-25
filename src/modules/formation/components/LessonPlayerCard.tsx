@@ -33,6 +33,7 @@ export function LessonPlayerCard({
         borderRadius: 20,
         overflow: "hidden",
         boxShadow: "var(--nc-shadow-2)",
+        viewTransitionName: "lesson-card",
       }}
     >
       {/* 1 — Titre + description (+ pill feedback) */}

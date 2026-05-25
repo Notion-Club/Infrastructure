@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, BookOpen, Users, Calendar, Library, type LucideIcon } from "lucide-react";
 
@@ -50,7 +51,7 @@ export function BottomNav() {
       {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
         const isActive = pathname === href || pathname.startsWith(href + "/");
         return (
-          <a
+          <Link
             key={href}
             href={href}
             style={{
@@ -85,7 +86,7 @@ export function BottomNav() {
             >
               {label}
             </span>
-          </a>
+          </Link>
         );
       })}
     </nav>
