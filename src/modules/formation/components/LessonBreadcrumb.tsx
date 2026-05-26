@@ -31,11 +31,6 @@ export function LessonBreadcrumb({
 }: Props) {
   const router = useRouter();
 
-  function go(href: string) {
-    startLessonTransition();
-    router.push(href);
-  }
-
   return (
     <nav
       aria-label="Fil d'ariane"
@@ -48,16 +43,31 @@ export function LessonBreadcrumb({
         color: "var(--color-text-muted)",
       }}
     >
-      <button onClick={() => go("/formation")} style={linkStyle}>
+      <button
+        onClick={() => {
+          startLessonTransition({ destination: "program-index" });
+          router.push("/formation");
+        }}
+        style={linkStyle}
+      >
         Formation
       </button>
       <ChevronRight size={11} />
-      <button onClick={() => go(`/formation/${formationSlug}`)} style={linkStyle}>
+      <button
+        onClick={() => {
+          startLessonTransition({ destination: "program" });
+          router.push(`/formation/${formationSlug}`);
+        }}
+        style={linkStyle}
+      >
         {formationName}
       </button>
       <ChevronRight size={11} />
       <button
-        onClick={() => go(`/formation/${formationSlug}?module=${moduleSlug}`)}
+        onClick={() => {
+          startLessonTransition({ destination: "program" });
+          router.push(`/formation/${formationSlug}?module=${moduleSlug}`);
+        }}
         style={linkStyle}
         className="hover:text-[var(--color-text-primary)] transition-colors"
       >

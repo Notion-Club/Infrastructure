@@ -194,7 +194,7 @@ function LessonRow({
       toast("Termine la leçon précédente pour débloquer", { icon: <Lock size={14} /> });
       return;
     }
-    startLessonTransition();
+    startLessonTransition({ destination: "lesson" });
     router.push(`/formation/${programSlug}/${moduleSlug}/${course.slug}`);
   }
 

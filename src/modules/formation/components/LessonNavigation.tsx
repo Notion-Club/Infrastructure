@@ -35,22 +35,21 @@ export function LessonNavigation({
 
   function navTo(n: LessonNeighbour | null) {
     if (!n) return;
-    // Voile de transition (sans feedback) : masque l'ancien cours pendant le
-    // chargement du suivant, puis révèle.
-    startLessonTransition();
+    startLessonTransition({ destination: "lesson" });
     window.scrollTo({ top: 0, behavior: "instant" });
     router.push(`/formation/${programSlug}/${n.moduleSlug}/${n.courseSlug}`);
   }
 
   function handleMain() {
-    // Vers une leçon suivante : on arme la transition AVANT le push. Elle
-    // héberge le feedback du cours qu'on quitte (par-dessus le skeleton du
-    // contenu en cours de chargement), puis révèle le nouveau cours.
     if (next) {
       startLessonTransition({
+        destination: "lesson",
         feedback: { courseName, formationName, moduleName },
       });
       window.scrollTo({ top: 0, behavior: "instant" });
+    } else {
+      // Retour au programme après la dernière leçon.
+      startLessonTransition({ destination: "program" });
     }
     startTransition(async () => {
       if (!done) {
@@ -126,7 +125,7 @@ export function LessonNavigation({
 
       <button
         type="button"
-        onClick={() => { startLessonTransition(); router.push(`/formation/${programSlug}`); }}
+        onClick={() => { startLessonTransition({ destination: "program" }); router.push(`/formation/${programSlug}`); }}
         style={{
           alignSelf: "center",
           background: "transparent",

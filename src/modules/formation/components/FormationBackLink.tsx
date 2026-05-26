@@ -9,7 +9,7 @@ export function FormationBackLink() {
   const router = useRouter();
 
   function go() {
-    startLessonTransition();
+    startLessonTransition({ destination: "program-index" });
     router.push("/formation");
   }
 

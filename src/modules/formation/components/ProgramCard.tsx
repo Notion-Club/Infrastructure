@@ -5,7 +5,7 @@ import { ArrowRight, Play, PartyPopper, Sparkles } from "lucide-react";
 
 import { ProgressBar } from "@/shared/components/dashboard/widgets/ProgressBar";
 import type { ProgramSummary } from "../types";
-import { startLessonTransition } from "./LessonTransition";
+import { startLessonTransition, type Destination } from "./LessonTransition";
 
 export function ProgramCard({ program }: { program: ProgramSummary }) {
   const router = useRouter();
@@ -14,8 +14,14 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
   const resumeHref = program.resumeHref ?? `/formation/${program.slug}`;
   const detailHref = `/formation/${program.slug}`;
 
+  // resumeHref peut pointer vers une leçon directe (4 segments) ou le
+  // programme (2 segments) si aucune leçon n'est en cours.
+  function destinationFor(href: string): Destination {
+    return href.split("/").filter(Boolean).length > 2 ? "lesson" : "program";
+  }
+
   function go(href: string) {
-    startLessonTransition();
+    startLessonTransition({ destination: destinationFor(href) });
     router.push(href);
   }
 

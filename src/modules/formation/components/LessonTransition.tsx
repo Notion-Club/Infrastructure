@@ -10,21 +10,27 @@ export type LessonFeedbackDetail = {
   moduleName: string;
 };
 
-type StartDetail = { feedback?: LessonFeedbackDetail };
+// Destination de la navigation : détermine quel skeleton afficher.
+export type Destination = "lesson" | "program" | "program-index";
+
+type StartDetail = {
+  feedback?: LessonFeedbackDetail;
+  destination?: Destination;
+};
 
 const START = "nc:lesson-transition-start";
 const READY = "nc:lesson-ready";
 
-const AUTO_CLOSE_MS = 12000; // fermeture auto (sécurité : le contenu est toujours chargé d'ici là)
-const MIN_CROSS = 5000; // la croix de skip n'apparaît jamais avant 5 s
-const ANTIFLASH = 500; // durée mini du voile sans feedback (nav précédente)
-const FADE_MS = 280; // doit matcher la sortie .nc-lt-card
-const CLOSE_MS = 2000; // vidage de la barre après envoi du feedback
-const SAFETY_MS = 20000; // garde-fou ultime si "ready" est perdu
+const AUTO_CLOSE_MS = 12000;
+const MIN_CROSS = 5000;
+const ANTIFLASH = 500;
+const FADE_MS = 280;
+const CLOSE_MS = 2000;
+const SAFETY_MS = 20000;
+// Délai max d'attente du chargement des iframes (Tella player) avant de
+// signaler ready de toute façon — évite de bloquer indéfiniment.
+const IFRAME_WAIT_MAX = 6000;
 
-// Déclenché par la navigation leçon → leçon, AVANT le router.push : il faut
-// que le slot soit armé avant que React ne garde l'ancien contenu (la nav vit
-// dans un startTransition, donc loading.tsx est court-circuité).
 export function startLessonTransition(detail: StartDetail = {}) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent<StartDetail>(START, { detail }));
@@ -35,58 +41,137 @@ function signalLessonReady() {
   window.dispatchEvent(new Event(READY));
 }
 
-// Monté à la fin de LessonView : la page leçon étant un Server Component qui
-// `await` le fetch Notion, ce montage signale que le contenu est rendu.
+// Monté à la fin de chaque page formation. Attend que tous les iframes de
+// <main> (vidéos Tella) aient chargé leur player avant de signaler ready,
+// pour éviter que le voile se lève avant que la vidéo ne soit visible.
 export function LessonReady() {
   useEffect(() => {
-    signalLessonReady();
+    const iframes = Array.from(
+      document.querySelectorAll<HTMLIFrameElement>("main iframe[src]"),
+    );
+
+    if (iframes.length === 0) {
+      signalLessonReady();
+      return;
+    }
+
+    let signaled = false;
+    function signal() {
+      if (signaled) return;
+      signaled = true;
+      signalLessonReady();
+    }
+
+    const maxWait = setTimeout(signal, IFRAME_WAIT_MAX);
+    let pending = iframes.length;
+    const cleanups: Array<() => void> = [];
+
+    iframes.forEach((iframe) => {
+      function onLoad() {
+        pending--;
+        if (pending <= 0) {
+          clearTimeout(maxWait);
+          signal();
+        }
+      }
+      iframe.addEventListener("load", onLoad, { once: true });
+      cleanups.push(() => iframe.removeEventListener("load", onLoad));
+    });
+
+    return () => {
+      clearTimeout(maxWait);
+      cleanups.forEach((fn) => fn());
+    };
   }, []);
   return null;
 }
 
-const skeleton: React.CSSProperties = {
+// ─── Skeletons ───────────────────────────────────────────────────────────────
+
+const sk: React.CSSProperties = {
   background: "var(--color-surface-raised)",
   borderRadius: "var(--nc-radius-xs)",
   animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
 };
 
-// Placeholder du contenu en chargement (titre + description + player + body).
-// Reste TOUJOURS visible derrière le formulaire de feedback en surimpression.
-function ContentSkeleton() {
+// Skeleton du player leçon (titre + description + vidéo + lignes de body).
+function LessonContentSkeleton() {
   return (
     <div style={{ padding: "24px 24px 26px" }}>
-      <div style={{ ...skeleton, height: 22, width: "55%" }} />
-      <div style={{ ...skeleton, height: 13, width: "38%", marginTop: 12 }} />
-      <div style={{ ...skeleton, height: 230, borderRadius: 14, marginTop: 20 }} />
-      <div style={{ ...skeleton, height: 13, width: "92%", marginTop: 20 }} />
-      <div style={{ ...skeleton, height: 13, width: "84%", marginTop: 10 }} />
-      <div style={{ ...skeleton, height: 13, width: "70%", marginTop: 10 }} />
+      <div style={{ ...sk, height: 22, width: "55%" }} />
+      <div style={{ ...sk, height: 13, width: "38%", marginTop: 12 }} />
+      <div style={{ ...sk, height: 230, borderRadius: 14, marginTop: 20 }} />
+      <div style={{ ...sk, height: 13, width: "92%", marginTop: 20 }} />
+      <div style={{ ...sk, height: 13, width: "84%", marginTop: 10 }} />
+      <div style={{ ...sk, height: 13, width: "70%", marginTop: 10 }} />
     </div>
   );
 }
 
-// Slot de transition leçon → leçon. Enveloppe le contenu de la section
-// formation : pendant le chargement du cours suivant, l'ancien contenu est
-// masqué (mais monté, pour que le nouveau émette `ready`) et une carte type
-// player-card prend sa place — elle héberge la barre de progression + le
-// feedback du cours quitté, puis se dissout pour révéler le nouveau cours.
+// Skeleton de la page programme (/formation/[slug]).
+function ProgramSkeleton() {
+  return (
+    <div className="nc-lt-page" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+      {/* Lien retour */}
+      <div style={{ ...sk, height: 14, width: 148, borderRadius: 4 }} />
+
+      {/* En-tête */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ ...sk, height: 46, width: "60%", borderRadius: 8 }} />
+        <div style={{ ...sk, height: 15, width: "76%", borderRadius: 4 }} />
+        <div style={{ marginTop: 8, maxWidth: 480, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ ...sk, height: 8, borderRadius: 9999 }} />
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div style={{ ...sk, height: 12, width: "42%", borderRadius: 4 }} />
+            <div style={{ ...sk, height: 12, width: 36, borderRadius: 4 }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Accordéons de modules */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {([1, 0.85, 0.7, 0.55] as const).map((opacity, i) => (
+          <div key={i} style={{ ...sk, height: 64, borderRadius: 16, opacity }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Skeleton de l'index des programmes (/formation).
+function ProgramIndexSkeleton() {
+  return (
+    <div className="nc-lt-page" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* En-tête */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 }}>
+        <div style={{ ...sk, height: 12, width: 72, borderRadius: 4 }} />
+        <div style={{ ...sk, height: 44, width: "52%", borderRadius: 8 }} />
+        <div style={{ ...sk, height: 15, width: "68%", marginTop: 2, borderRadius: 4 }} />
+      </div>
+      {/* Cards de programme */}
+      <div style={{ ...sk, height: 240, borderRadius: 20 }} />
+      <div style={{ ...sk, height: 160, borderRadius: 20, opacity: 0.7 }} />
+    </div>
+  );
+}
+
+// ─── Composant principal ──────────────────────────────────────────────────────
+
 export function LessonTransition({ children }: { children: ReactNode }) {
   const [active, setActive] = useState(false);
   const [revealing, setRevealing] = useState(false);
   const [feedback, setFeedback] = useState<LessonFeedbackDetail | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [progress, setProgress] = useState(0);
-  // Barre du haut : "count" (minuteur qui se remplit sur les 12 s, façon pub
-  // YouTube), "empty" (se vide = compte à rebours de fermeture après envoi).
   const [barMode, setBarMode] = useState<"count" | "empty">("count");
-  const [canClose, setCanClose] = useState(false); // croix de skip visible
+  const [canClose, setCanClose] = useState(false);
   const [seq, setSeq] = useState(0);
+  const [destination, setDestination] = useState<Destination>("lesson");
 
-  // Valeurs lues dans des callbacks asynchrones → refs (anti stale-closure).
   const activeRef = useRef(false);
   const readyRef = useRef(false);
   const closingRef = useRef(false);
-  const hasFormRef = useRef(false); // un feedback est-il affiché (vs skeleton seul) ?
+  const hasFormRef = useRef(false);
   const startTimeRef = useRef(0);
 
   const contentRef = useRef<HTMLDivElement>(null);
@@ -140,6 +225,7 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     hasFormRef.current = !!fb;
     startTimeRef.current = performance.now();
 
+    setDestination(detail.destination ?? "lesson");
     setFeedback(fb);
     setShowForm(!!fb);
     setProgress(0);
@@ -149,21 +235,15 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     setSeq((s) => s + 1);
     setActive(true);
 
-    // Minuteur : la barre se remplit linéairement sur les 12 s (façon pub
-    // YouTube — elle continue même une fois la croix de skip disponible).
     progressTimer.current = setInterval(() => {
       const elapsed = performance.now() - startTimeRef.current;
       const p = Math.min(100, (elapsed / AUTO_CLOSE_MS) * 100);
       setProgress((prev) => Math.max(prev, p));
     }, 60);
 
-    // Garde-fou ultime si "ready" n'arrive jamais.
     safetyTimer.current = setTimeout(reveal, SAFETY_MS);
   }
 
-  // Contenu prêt. Avec feedback : la croix de skip apparaît à max(ready, 5 s) et
-  // la fermeture auto reste à 12 s. Sans feedback (nav précédente) : révélation
-  // dès que prêt (mini ANTIFLASH).
   function onReady() {
     if (!activeRef.current || readyRef.current) return;
     readyRef.current = true;
@@ -179,12 +259,10 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     }
   }
 
-  // Croix de skip cliquée (ou fermeture du form) → on révèle le nouveau cours.
   function onFeedbackClose() {
     reveal();
   }
 
-  // Feedback envoyé : la barre du HAUT se vide (compte à rebours), puis révélation.
   function onFeedbackDone() {
     closingRef.current = true;
     if (progressTimer.current) clearInterval(progressTimer.current);
@@ -198,9 +276,9 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     revealTimer.current = setTimeout(reveal, CLOSE_MS);
   }
 
-  // Quand le voile commence à se dissoudre (revealing=true), le contenu redevient
-  // visible. On force un re-déclenchement de nc-mode-in (double RAF, car le
-  // navigateur ne relance pas une animation sur un élément déjà monté).
+  // Quand revealing passe à true, le contenu redevient visible.
+  // Double RAF pour forcer le navigateur à relancer nc-mode-in sur un élément
+  // déjà monté (sinon l'animation est considérée comme déjà jouée).
   useEffect(() => {
     if (!revealing) return;
     const el = contentRef.current;
@@ -213,8 +291,6 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     });
   }, [revealing]);
 
-  // Listeners window liés une fois, mais appellent toujours le handler courant
-  // (la ref est rafraîchie après chaque render via un effet, pas pendant).
   const handlers = useRef({ onStart, onReady });
   useEffect(() => {
     handlers.current = { onStart, onReady };
@@ -249,67 +325,73 @@ export function LessonTransition({ children }: { children: ReactNode }) {
           aria-live="polite"
           style={revealing ? { position: "absolute", inset: 0 } : undefined}
         >
-          <div style={{ maxWidth: 880, margin: "0 auto" }}>
-            <div
-              className="nc-lt-card"
-              style={{
-                background: "var(--color-surface-card)",
-                border: "1px solid var(--color-border-default)",
-                borderRadius: 20,
-                overflow: "hidden",
-                boxShadow: "var(--nc-shadow-2)",
-              }}
-            >
-              {/* Barre du haut : "count" (minuteur 12 s, façon pub YouTube) →
-                  "empty" (se vide = compte à rebours de fermeture après envoi). */}
-              <div style={{ height: 4, background: "var(--color-border-default)" }}>
-                <div
-                  style={{
-                    height: "100%",
-                    width: barMode === "empty" ? "0%" : `${progress}%`,
-                    background: "var(--color-brand)",
-                    transition:
-                      barMode === "empty" ? `width ${CLOSE_MS}ms linear` : "width 120ms linear",
-                  }}
-                />
-              </div>
-
-              {/* Skeleton du contenu (toujours) + form de feedback par-dessus,
-                  empilés dans la même cellule grid (la carte épouse le plus grand). */}
-              <div style={{ display: "grid" }}>
-                <div style={{ gridArea: "1 / 1" }}>
-                  <ContentSkeleton />
+          {destination === "lesson" ? (
+            // Overlay "cours" : card avec barre de progression + skeleton player
+            // + formulaire de feedback optionnel.
+            <div style={{ maxWidth: 880, margin: "0 auto" }}>
+              <div
+                className="nc-lt-card"
+                style={{
+                  background: "var(--color-surface-card)",
+                  border: "1px solid var(--color-border-default)",
+                  borderRadius: 20,
+                  overflow: "hidden",
+                  boxShadow: "var(--nc-shadow-2)",
+                }}
+              >
+                <div style={{ height: 4, background: "var(--color-border-default)" }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: barMode === "empty" ? "0%" : `${progress}%`,
+                      background: "var(--color-brand)",
+                      transition:
+                        barMode === "empty"
+                          ? `width ${CLOSE_MS}ms linear`
+                          : "width 120ms linear",
+                    }}
+                  />
                 </div>
 
-                {showForm && feedback && (
-                  <div
-                    className="nc-lt-scrim"
-                    style={{
-                      gridArea: "1 / 1",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: 16,
-                    }}
-                  >
-                    <div className="nc-lt-form" style={{ width: "100%", maxWidth: 420 }}>
-                      <div className="nc-lt-form__inner">
-                        <FeedbackBody
-                          key={seq}
-                          courseName={feedback.courseName}
-                          formationName={feedback.formationName}
-                          moduleName={feedback.moduleName}
-                          onClose={onFeedbackClose}
-                          onDone={onFeedbackDone}
-                          closable={canClose}
-                        />
+                <div style={{ display: "grid" }}>
+                  <div style={{ gridArea: "1 / 1" }}>
+                    <LessonContentSkeleton />
+                  </div>
+
+                  {showForm && feedback && (
+                    <div
+                      className="nc-lt-scrim"
+                      style={{
+                        gridArea: "1 / 1",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 16,
+                      }}
+                    >
+                      <div className="nc-lt-form" style={{ width: "100%", maxWidth: 420 }}>
+                        <div className="nc-lt-form__inner">
+                          <FeedbackBody
+                            key={seq}
+                            courseName={feedback.courseName}
+                            formationName={feedback.formationName}
+                            moduleName={feedback.moduleName}
+                            onClose={onFeedbackClose}
+                            onDone={onFeedbackDone}
+                            closable={canClose}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          ) : destination === "program" ? (
+            <ProgramSkeleton />
+          ) : (
+            <ProgramIndexSkeleton />
+          )}
         </div>
       )}
     </div>

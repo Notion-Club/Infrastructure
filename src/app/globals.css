@@ -823,6 +823,15 @@ html.dark {
   animation: nc-lt-card-in 240ms var(--nc-ease) reverse both;
 }
 
+/* Skeleton pleine-page (programme / index) : fade + slide identique à
+   nc-mode-in. La sélecteur [data-revealing] joue l'animation en reverse. */
+.nc-lt-page {
+  animation: nc-mode-in 260ms var(--nc-ease) both;
+}
+.nc-lt-layer[data-revealing="true"] .nc-lt-page {
+  animation: nc-mode-in 240ms var(--nc-ease) reverse both;
+}
+
 /* Scrim de contraste : assombrit + floute légèrement le skeleton derrière le
    form pour le détacher (sinon ton sur ton). */
 .nc-lt-scrim {
