@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, BookOpen, Users, Calendar, Library, type LucideIcon } from "lucide-react";
@@ -21,17 +22,38 @@ const NAV_ITEMS: NavItem[] = [
 export function BottomNav() {
   const pathname = usePathname();
 
+  const navRef = useRef<HTMLElement>(null);
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const hasInitialized = useRef(false);
+  const [pill, setPill] = useState({ left: 0, width: 0, height: 0, top: 0, visible: false, animated: false });
+
+  useLayoutEffect(() => {
+    const activeIndex = NAV_ITEMS.findIndex(
+      ({ href }) => pathname === href || pathname.startsWith(href + "/"),
+    );
+    const navEl = navRef.current;
+    const activeEl = itemRefs.current[activeIndex];
+    if (!navEl || !activeEl) return;
+    const navRect = navEl.getBoundingClientRect();
+    const activeRect = activeEl.getBoundingClientRect();
+    const isFirst = !hasInitialized.current;
+    hasInitialized.current = true;
+    setPill({
+      left: activeRect.left - navRect.left,
+      width: activeRect.width,
+      height: activeRect.height,
+      top: activeRect.top - navRect.top,
+      visible: true,
+      animated: !isFirst,
+    });
+  }, [pathname]);
+
   return (
     <nav
+      ref={navRef}
       aria-label="Navigation principale"
       style={{
         position: "fixed",
-        // En PWA standalone, `env(safe-area-inset-bottom)` vaut ~34px sur
-        // iPhone (home indicator). On le combine au bottom de base pour
-        // remonter la pill au-dessus de la zone système ; appliquer un
-        // padding-bottom dilaterait la pill sans déplacer les icônes (la
-        // height fixe ne contient pas le padding) — visuellement, on
-        // verrait l'encadré décalé sous les boutons.
         bottom: "calc(10px + env(safe-area-inset-bottom))",
         left: 12,
         right: 12,
@@ -48,13 +70,35 @@ export function BottomNav() {
         padding: "0 6px",
       }}
     >
-      {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
+      {/* Pilule glissante */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: pill.left,
+          top: pill.top,
+          width: pill.width,
+          height: pill.height,
+          background: "var(--nc-nav-active-bg)",
+          borderRadius: 9999,
+          opacity: pill.visible ? 1 : 0,
+          transition: pill.animated
+            ? "left var(--nc-duration-normal) var(--nc-ease), width var(--nc-duration-normal) var(--nc-ease)"
+            : "none",
+          pointerEvents: "none",
+        }}
+      />
+
+      {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
         const isActive = pathname === href || pathname.startsWith(href + "/");
         return (
           <Link
             key={href}
             href={href}
+            ref={(el) => { itemRefs.current[i] = el; }}
             style={{
+              position: "relative",
+              zIndex: 1,
               flex: 1,
               minWidth: 0,
               display: "flex",
@@ -65,8 +109,7 @@ export function BottomNav() {
               height: 44,
               margin: "0 1px",
               borderRadius: 9999,
-              background: isActive ? "var(--nc-nav-active-bg)" : "transparent",
-              transition: "background 150ms ease",
+              background: "transparent",
               textDecoration: "none",
             }}
           >

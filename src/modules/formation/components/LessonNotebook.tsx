@@ -83,28 +83,33 @@ function SwitchButton({
       onClick={onClick}
       style={{
         flex: 1,
+        // minWidth:0 → les 3 onglets peuvent rétrécir et se partager la largeur
+        // à égalité ; le label tronque au lieu de déborder (fix mobile Ressources).
+        minWidth: 0,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: 7,
-        padding: "8px 14px",
+        gap: 6,
+        padding: "8px 6px",
         borderRadius: 8,
         border: "none",
         background: active ? "var(--nc-segmented-active-bg)" : "transparent",
         boxShadow: active ? "0 1px 4px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)" : "none",
         color: active ? "var(--nc-segmented-active-text)" : "var(--color-text-muted)",
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: active ? 600 : 400,
         cursor: "pointer",
         transition: "background 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease), color 200ms ease",
-        whiteSpace: "nowrap",
       }}
     >
-      {icon}
-      {label}
+      <span style={{ flexShrink: 0, display: "inline-flex" }}>{icon}</span>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {label}
+      </span>
       {badge !== undefined && badge > 0 && (
         <span
           style={{
+            flexShrink: 0,
             minWidth: 16,
             height: 16,
             background: "var(--color-brand)",

@@ -1,15 +1,23 @@
-import Link from "next/link";
+"use client";
+
+import { useRouter } from "next/navigation";
 import { ArrowRight, Play, PartyPopper, Sparkles } from "lucide-react";
 
 import { ProgressBar } from "@/shared/components/dashboard/widgets/ProgressBar";
 import type { ProgramSummary } from "../types";
+import { startLessonTransition } from "./LessonTransition";
 
-// Card programme (Server Component) — l'interaction se limite à la navigation
-// via <Link>, donc pas de "use client".
 export function ProgramCard({ program }: { program: ProgramSummary }) {
+  const router = useRouter();
   const completed = program.percent === 100;
   const notStarted = program.percent === 0;
-  const href = program.resumeHref ?? `/formation/${program.slug}`;
+  const resumeHref = program.resumeHref ?? `/formation/${program.slug}`;
+  const detailHref = `/formation/${program.slug}`;
+
+  function go(href: string) {
+    startLessonTransition();
+    router.push(href);
+  }
 
   return (
     <article
@@ -27,12 +35,20 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
         overflow: "hidden",
       }}
     >
-      {/* Lien « stretched » : toute la carte ouvre le détail de la formation.
-          Le CTA (Reprendre/Commencer) reste cliquable au-dessus (z-index). */}
-      <Link
-        href={`/formation/${program.slug}`}
+      {/* Zone cliquable « stretched » : toute la carte ouvre le détail (avec la
+          transition). Le CTA (Reprendre/Commencer) reste cliquable au-dessus (z-index). */}
+      <button
+        type="button"
         aria-label={`Ouvrir la formation ${program.name}`}
-        style={{ position: "absolute", inset: 0, zIndex: 1 }}
+        onClick={() => go(detailHref)}
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 1,
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+        }}
       />
       {completed && (
         <div
@@ -126,11 +142,13 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
       )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", position: "relative", zIndex: 2 }}>
-        <Link
-          href={href}
+        <button
+          type="button"
+          onClick={() => go(resumeHref)}
           style={{
             background: "var(--color-brand)",
             color: "white",
+            border: "none",
             borderRadius: 9999,
             padding: "10px 18px",
             fontSize: 13,
@@ -138,7 +156,7 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
             display: "inline-flex",
             alignItems: "center",
             gap: 7,
-            textDecoration: "none",
+            cursor: "pointer",
           }}
         >
           {completed ? (
@@ -154,7 +172,7 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
               <Play size={13} fill="currentColor" strokeWidth={0} /> Reprendre où j&apos;en étais
             </>
           )}
-        </Link>
+        </button>
       </div>
     </article>
   );

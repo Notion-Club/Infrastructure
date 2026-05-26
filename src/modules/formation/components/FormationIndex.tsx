@@ -2,6 +2,7 @@ import { Sparkles } from "lucide-react";
 
 import type { ProgramSummary } from "../types";
 import { ProgramCard } from "./ProgramCard";
+import { LessonReady } from "./LessonTransition";
 
 // Index des programmes (Server Component). La liste est déjà filtrée par la
 // RLS selon les capabilities — pas de gating côté client.
@@ -34,6 +35,7 @@ export function FormationIndex({ programs }: { programs: ProgramSummary[] }) {
       ) : (
         programs.map((p) => <ProgramCard key={p.id} program={p} />)
       )}
+      <LessonReady />
     </div>
   );
 }
