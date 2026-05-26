@@ -8,6 +8,7 @@ import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 import type {
   CourseRow,
   FormationAccessMode,
+  LessonTreeModule,
   LessonView,
   ModuleWithCourses,
   ProgramDetail,
@@ -401,6 +402,35 @@ export async function getLessonView(
     return { moduleSlug: m.slug, courseSlug: c.slug, name: c.name };
   }
 
+  // Verrouillage drip (mode strict) : la leçon précédente doit être complétée.
+  function lockedAt(courseId: string): boolean {
+    if (accessMode !== "strict") return false;
+    const i = ordered.findIndex((c) => c.id === courseId);
+    if (i <= 0) return false;
+    return !completedSet.has(ordered[i - 1].id);
+  }
+
+  // Arbre complet de la formation (modules → cours) pour le file-tree du fil
+  // d'Ariane. Construit à partir des données déjà chargées (aucune requête sup.).
+  const tree: LessonTreeModule[] = modules
+    .slice()
+    .sort((a, b) => a.position - b.position)
+    .map((m) => ({
+      id: m.id,
+      slug: m.slug,
+      name: m.name,
+      courses: courses
+        .filter((c) => c.module_id === m.id)
+        .sort((a, b) => a.position - b.position)
+        .map((c) => ({
+          id: c.id,
+          slug: c.slug,
+          name: c.name,
+          completed: completedSet.has(c.id),
+          locked: lockedAt(c.id),
+        })),
+    }));
+
   const view: LessonView = {
     formation: { slug: formation.slug, name: formation.name },
     module: { slug: mod.slug, name: mod.name },
@@ -416,6 +446,7 @@ export async function getLessonView(
     prev: idx > 0 ? neighbour(idx - 1) : null,
     next: idx >= 0 && idx < ordered.length - 1 ? neighbour(idx + 1) : null,
     accessMode,
+    tree,
   };
 
   return { ok: true, view };

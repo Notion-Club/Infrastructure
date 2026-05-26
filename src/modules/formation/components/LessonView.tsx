@@ -1,7 +1,6 @@
 import type { LessonView as LessonViewModel } from "../types";
 import type { LessonContent } from "../server/notion";
 import { LessonPlayerCard } from "./LessonPlayerCard";
-import { LessonNotebook } from "./LessonNotebook";
 import { LessonNavigation } from "./LessonNavigation";
 import { LessonReady } from "./LessonTransition";
 import { LessonBreadcrumb } from "./LessonBreadcrumb";
@@ -28,32 +27,29 @@ export function LessonView({
         gap: 22,
       }}
     >
-      <LessonBreadcrumb
-        formationSlug={formation.slug}
+      <nav aria-label="Fil d'ariane" style={{ display: "flex" }}>
+        <LessonBreadcrumb
+          formation={formation}
+          currentModuleSlug={mod.slug}
+          currentCourseSlug={course.slug}
+          courseName={course.name}
+          tree={view.tree}
+        />
+      </nav>
+
+      {/* Player + carnet réunis dans un seul bloc (carnet en fin de carte). */}
+      <LessonPlayerCard
+        title={course.name}
+        description={course.description}
+        videoUrl={content.videoUrl}
+        blocks={content.blocks}
         formationName={formation.name}
-        moduleSlug={mod.slug}
         moduleName={mod.name}
-        courseName={course.name}
+        synthese={content.synthese}
+        resources={content.resources}
+        courseId={course.id}
+        noteContent={view.noteContent}
       />
-
-      {/* Player + carnet : groupés serrés pour qu'ils se suivent (collés). */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <LessonPlayerCard
-          title={course.name}
-          description={course.description}
-          videoUrl={content.videoUrl}
-          blocks={content.blocks}
-          formationName={formation.name}
-          moduleName={mod.name}
-        />
-
-        <LessonNotebook
-          synthese={content.synthese}
-          resources={content.resources}
-          courseId={course.id}
-          initialNote={view.noteContent}
-        />
-      </div>
 
       <LessonNavigation
         programSlug={formation.slug}

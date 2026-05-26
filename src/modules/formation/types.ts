@@ -61,6 +61,22 @@ export type LessonNeighbour = {
   name: string;
 };
 
+// Arbre de la formation (file-tree du fil d'Ariane) : modules → cours.
+export type LessonTreeCourse = {
+  id: string;
+  slug: string;
+  name: string;
+  completed: boolean;
+  locked: boolean;
+};
+
+export type LessonTreeModule = {
+  id: string;
+  slug: string;
+  name: string;
+  courses: LessonTreeCourse[];
+};
+
 export type LessonView = {
   formation: { slug: string; name: string };
   module: { slug: string; name: string };
@@ -76,4 +92,5 @@ export type LessonView = {
   prev: LessonNeighbour | null;
   next: LessonNeighbour | null;
   accessMode: FormationAccessMode;
+  tree: LessonTreeModule[];
 };

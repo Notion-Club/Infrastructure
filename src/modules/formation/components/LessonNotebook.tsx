@@ -29,49 +29,37 @@ type Props = {
   initialNote: string;
 };
 
-// Carnet de la leçon — bloc switcher 3 onglets (Mes notes / À garder en tête /
-// Ressources), désormais détaché du player et placé juste en dessous, à la
-// suite. Carte autonome qui reprend le style de la carte player.
+// Carnet de la leçon — 3e partie de la carte player (LessonPlayerCard) : un
+// bloc switcher 3 onglets (Mes notes / À garder en tête / Ressources) rendu en
+// PLEINE LARGEUR, collé à ras en bas de la carte (séparé du body par un filet).
 export function LessonNotebook({ synthese, resources, courseId, initialNote }: Props) {
   const [tab, setTab] = useState<Tab>("notes");
 
   return (
     <div
       style={{
-        background: "var(--color-surface-card)",
-        border: "1px solid var(--color-border-default)",
-        borderRadius: 20,
-        boxShadow: "var(--nc-shadow-2)",
-        padding: 16,
+        borderTop: "1px solid var(--color-border-default)",
+        background: "var(--color-surface-raised)",
       }}
     >
+      {/* Onglets */}
       <div
         style={{
-          border: "1px solid var(--color-border-default)",
-          borderRadius: 16,
-          overflow: "hidden",
-          background: "var(--color-surface-raised)",
+          display: "flex",
+          gap: 2,
+          padding: 6,
+          borderBottom: "1px solid var(--color-border-default)",
         }}
       >
-        {/* Onglets */}
-        <div
-          style={{
-            display: "flex",
-            gap: 2,
-            padding: 6,
-            borderBottom: "1px solid var(--color-border-default)",
-          }}
-        >
-          <SwitchButton active={tab === "notes"} onClick={() => setTab("notes")} icon={<Pencil size={15} strokeWidth={tab === "notes" ? 2.5 : 2} />} label="Mes notes" />
-          <SwitchButton active={tab === "synthese"} onClick={() => setTab("synthese")} icon={<Lightbulb size={15} strokeWidth={tab === "synthese" ? 2.5 : 2} />} label="À garder en tête" />
-          <SwitchButton active={tab === "resources"} onClick={() => setTab("resources")} icon={<FileText size={15} strokeWidth={tab === "resources" ? 2.5 : 2} />} label="Ressources" badge={resources.length} />
-        </div>
-
-        {/* Panneau attaché — coulé directement sous les onglets */}
-        {tab === "notes" && <RichTextNotes courseId={courseId} initialNote={initialNote} />}
-        {tab === "synthese" && <SynthesePanel synthese={synthese} />}
-        {tab === "resources" && <ResourcesPanel items={resources} />}
+        <SwitchButton active={tab === "notes"} onClick={() => setTab("notes")} icon={<Pencil size={15} strokeWidth={tab === "notes" ? 2.5 : 2} />} label="Mes notes" />
+        <SwitchButton active={tab === "synthese"} onClick={() => setTab("synthese")} icon={<Lightbulb size={15} strokeWidth={tab === "synthese" ? 2.5 : 2} />} label="À garder en tête" />
+        <SwitchButton active={tab === "resources"} onClick={() => setTab("resources")} icon={<FileText size={15} strokeWidth={tab === "resources" ? 2.5 : 2} />} label="Ressources" badge={resources.length} />
       </div>
+
+      {/* Panneau attaché — coulé directement sous les onglets */}
+      {tab === "notes" && <RichTextNotes courseId={courseId} initialNote={initialNote} />}
+      {tab === "synthese" && <SynthesePanel synthese={synthese} />}
+      {tab === "resources" && <ResourcesPanel items={resources} />}
     </div>
   );
 }
@@ -95,28 +83,33 @@ function SwitchButton({
       onClick={onClick}
       style={{
         flex: 1,
+        // minWidth:0 → les 3 onglets peuvent rétrécir et se partager la largeur
+        // à égalité ; le label tronque au lieu de déborder (fix mobile Ressources).
+        minWidth: 0,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: 7,
-        padding: "8px 14px",
+        gap: 6,
+        padding: "8px 6px",
         borderRadius: 8,
         border: "none",
         background: active ? "var(--nc-segmented-active-bg)" : "transparent",
         boxShadow: active ? "0 1px 4px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)" : "none",
         color: active ? "var(--nc-segmented-active-text)" : "var(--color-text-muted)",
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: active ? 600 : 400,
         cursor: "pointer",
         transition: "background 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease), color 200ms ease",
-        whiteSpace: "nowrap",
       }}
     >
-      {icon}
-      {label}
+      <span style={{ flexShrink: 0, display: "inline-flex" }}>{icon}</span>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {label}
+      </span>
       {badge !== undefined && badge > 0 && (
         <span
           style={{
+            flexShrink: 0,
             minWidth: 16,
             height: 16,
             background: "var(--color-brand)",

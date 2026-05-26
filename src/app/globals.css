@@ -863,6 +863,49 @@ html.dark .nc-lt-scrim {
   animation: nc-pop-overlay-in 260ms var(--nc-ease) both;
 }
 
+/* ---------- Fil d'Ariane file-tree — accordion (slide) + dropdown (fade) ---------- */
+/* Dépliage/repliage vertical fluide d'un module (Radix Accordion). */
+@keyframes nc-accordion-down {
+  from { height: 0; opacity: 0.4; }
+  to { height: var(--radix-accordion-content-height); opacity: 1; }
+}
+@keyframes nc-accordion-up {
+  from { height: var(--radix-accordion-content-height); opacity: 1; }
+  to { height: 0; opacity: 0.4; }
+}
+.nc-accordion-content[data-state="open"] {
+  animation: nc-accordion-down 240ms var(--nc-ease);
+}
+.nc-accordion-content[data-state="closed"] {
+  animation: nc-accordion-up 200ms var(--nc-ease);
+}
+
+/* Ouverture/fermeture du menu en fondu + léger glissement. */
+@keyframes nc-dropdown-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes nc-dropdown-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-6px) scale(0.98); }
+}
+.nc-dropdown {
+  transform-origin: top left;
+  animation: nc-dropdown-in 180ms var(--nc-ease) both;
+}
+.nc-dropdown[data-closing="true"] {
+  animation: nc-dropdown-out 140ms var(--nc-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nc-accordion-content[data-state="open"],
+  .nc-accordion-content[data-state="closed"],
+  .nc-dropdown,
+  .nc-dropdown[data-closing="true"] {
+    animation-duration: 1ms;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nc-lt-card,
   .nc-lt-layer[data-revealing="true"] .nc-lt-card,
