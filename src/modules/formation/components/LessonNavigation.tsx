@@ -126,7 +126,7 @@ export function LessonNavigation({
 
       <button
         type="button"
-        onClick={() => router.push(`/formation/${programSlug}`)}
+        onClick={() => { startLessonTransition(); router.push(`/formation/${programSlug}`); }}
         style={{
           alignSelf: "center",
           background: "transparent",

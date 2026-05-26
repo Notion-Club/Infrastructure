@@ -1,12 +1,10 @@
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
-
 import type { LessonView as LessonViewModel } from "../types";
 import type { LessonContent } from "../server/notion";
 import { LessonPlayerCard } from "./LessonPlayerCard";
 import { LessonNotebook } from "./LessonNotebook";
 import { LessonNavigation } from "./LessonNavigation";
 import { LessonReady } from "./LessonTransition";
+import { LessonBreadcrumb } from "./LessonBreadcrumb";
 
 // Page leçon — colonne unique centrée (alignée sur la nav). Le player (titre,
 // description, vidéo, body) vit dans une carte ; le carnet (notes, synthèse,
@@ -30,35 +28,13 @@ export function LessonView({
         gap: 22,
       }}
     >
-      <nav
-        aria-label="Fil d'ariane"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          flexWrap: "wrap",
-          fontSize: 12,
-          color: "var(--color-text-muted)",
-        }}
-      >
-        <Link href="/formation" style={{ color: "inherit", textDecoration: "none" }}>
-          Formation
-        </Link>
-        <ChevronRight size={11} />
-        <Link href={`/formation/${formation.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
-          {formation.name}
-        </Link>
-        <ChevronRight size={11} />
-        <Link
-          href={`/formation/${formation.slug}?module=${mod.slug}`}
-          style={{ color: "inherit", textDecoration: "none" }}
-          className="hover:text-[var(--color-text-primary)] transition-colors"
-        >
-          {mod.name}
-        </Link>
-        <ChevronRight size={11} />
-        <span style={{ color: "var(--color-text-primary)" }}>{course.name}</span>
-      </nav>
+      <LessonBreadcrumb
+        formationSlug={formation.slug}
+        formationName={formation.name}
+        moduleSlug={mod.slug}
+        moduleName={mod.name}
+        courseName={course.name}
+      />
 
       {/* Player + carnet : groupés serrés pour qu'ils se suivent (collés). */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

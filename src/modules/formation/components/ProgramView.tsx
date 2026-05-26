@@ -1,9 +1,10 @@
-import Link from "next/link";
-import { ArrowLeft, PartyPopper } from "lucide-react";
+import { PartyPopper } from "lucide-react";
 
 import { ProgressBar } from "@/shared/components/dashboard/widgets/ProgressBar";
 import type { ProgramDetail } from "../types";
 import { ModuleAccordion } from "./ModuleAccordion";
+import { LessonReady } from "./LessonTransition";
+import { FormationBackLink } from "./FormationBackLink";
 
 // Page programme (Server Component). Le module contenant la prochaine leçon
 // à faire est ouvert par défaut. `openModuleSlug` (deep-link depuis le fil
@@ -29,20 +30,7 @@ export function ProgramView({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-      <Link
-        href="/formation"
-        style={{
-          alignSelf: "flex-start",
-          color: "var(--color-text-muted)",
-          fontSize: 13,
-          textDecoration: "none",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 5,
-        }}
-      >
-        <ArrowLeft size={14} /> Tous les programmes
-      </Link>
+      <FormationBackLink />
 
       <header style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <h1
@@ -105,6 +93,7 @@ export function ProgramView({
           />
         ))}
       </section>
+      <LessonReady />
     </div>
   );
 }

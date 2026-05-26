@@ -89,6 +89,8 @@ export function LessonTransition({ children }: { children: ReactNode }) {
   const hasFormRef = useRef(false); // un feedback est-il affiché (vs skeleton seul) ?
   const startTimeRef = useRef(0);
 
+  const contentRef = useRef<HTMLDivElement>(null);
+
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const crossTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -196,6 +198,21 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     revealTimer.current = setTimeout(reveal, CLOSE_MS);
   }
 
+  // Quand le voile commence à se dissoudre (revealing=true), le contenu redevient
+  // visible. On force un re-déclenchement de nc-mode-in (double RAF, car le
+  // navigateur ne relance pas une animation sur un élément déjà monté).
+  useEffect(() => {
+    if (!revealing) return;
+    const el = contentRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.style.animation = "none";
+      requestAnimationFrame(() => {
+        el.style.animation = "";
+      });
+    });
+  }, [revealing]);
+
   // Listeners window liés une fois, mais appellent toujours le handler courant
   // (la ref est rafraîchie après chaque render via un effet, pas pendant).
   const handlers = useRef({ onStart, onReady });
@@ -220,7 +237,7 @@ export function LessonTransition({ children }: { children: ReactNode }) {
 
   return (
     <div style={{ position: "relative" }}>
-      <div className="nc-mode-in" style={{ display: masked ? "none" : undefined }}>
+      <div ref={contentRef} className="nc-mode-in" style={{ display: masked ? "none" : undefined }}>
         {children}
       </div>
 
