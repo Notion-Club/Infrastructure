@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MessageCircle, Users, SquarePen } from "lucide-react";
 import type { PostTag } from "../types/post.types";
 import { useDevRoleToggle } from "../hooks/useDevRoleToggle";
@@ -47,6 +47,33 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
   const [activeTag, setActiveTag] = useState<TagFilter>("all");
   const [showComposer, setShowComposer] = useState(false);
   const [extraPosts, setExtraPosts] = useState<Post[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Desktop only: redirect wheel events fired over the page (rose halo zone,
+  // header, etc.) into the inner scroll container so the feed scrolls even
+  // when the cursor is outside the white card. Modals/dropdowns are portaled
+  // to document.body — outside .nc-page-halo — so their wheel events never
+  // reach this listener and keep native scrolling.
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const pageEl = scroller.closest(".nc-page-halo");
+    if (!pageEl) return;
+
+    function onWheel(e: Event) {
+      const el = scrollRef.current;
+      if (!el) return;
+      const we = e as WheelEvent;
+      if (window.matchMedia("(max-width: 767px)").matches) return;
+      if (we.deltaY === 0) return;
+      if (el.contains(we.target as Node)) return;
+      el.scrollTop += we.deltaY;
+      we.preventDefault();
+    }
+
+    pageEl.addEventListener("wheel", onWheel, { passive: false });
+    return () => pageEl.removeEventListener("wheel", onWheel);
+  }, [activeTab]);
 
   const filteredPosts = usePostsFiltered(currentUser, activeTag);
   const allPosts = [
@@ -85,6 +112,7 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
     <>
       {/* Global container card */}
       <div
+        className="md:flex md:flex-col md:flex-1 md:min-h-0"
         style={{
           background: "var(--color-surface-raised)",
           border: "1px solid var(--color-border-default)",
@@ -93,8 +121,9 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
           overflow: "hidden",
         }}
       >
-        {/* iOS-style pill switcher — full width */}
+        {/* iOS-style pill switcher — full width, sticky header */}
         <div
+          className="md:shrink-0"
           style={{
             padding: "12px 16px",
             borderBottom: "1px solid var(--color-border-default)",
@@ -171,57 +200,47 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
         </div>
 
         {/* Content */}
-        <div style={{ padding: activeTab === "messages" ? 0 : 16 }}>
-          {activeTab === "feed" && (
-            <div
-              style={{
-                position: "relative",
-                maxHeight: "calc(100dvh - 240px)",
-                minHeight: 400,
-                overflowY: "auto",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 16,
-                  /* Réserve la hauteur du voile de flou sticky (120px) pour
-                     que le dernier post reste entièrement lisible au scroll. */
-                  paddingBottom: 120,
-                }}
-              >
-                <FeedTagFilters
-                  active={activeTag}
-                  onChange={setActiveTag}
-                  onNewPost={() => setShowComposer(true)}
-                  isAdmin={currentUser.role === "admin"}
-                />
-                {showSkeleton ? (
-                  <FeedSkeletonState />
-                ) : showError ? (
-                  <FeedErrorState onRetry={() => setFeedState("full")} />
-                ) : (
-                  <FeedPostList
-                    posts={feedState === "empty" ? [] : allPosts}
-                    currentUser={currentUser}
-                    devRole={role}
-                  />
-                )}
-              </div>
-              <GradualBlurOverlay position="sticky" zIndex={1} />
+        {activeTab === "feed" ? (
+          <>
+            {/* Tag filters + new post — sticky header */}
+            <div className="md:shrink-0" style={{ padding: "16px 16px 12px" }}>
+              <FeedTagFilters
+                active={activeTag}
+                onChange={setActiveTag}
+                onNewPost={() => setShowComposer(true)}
+                isAdmin={currentUser.role === "admin"}
+              />
             </div>
-          )}
 
-          {activeTab === "messages" && (
+            {/* Post list — the only vertically scrollable zone */}
+            <div
+              ref={scrollRef}
+              className="md:flex-1 md:min-h-0 md:overflow-y-auto"
+              style={{ padding: "0 16px 16px" }}
+            >
+              {showSkeleton ? (
+                <FeedSkeletonState />
+              ) : showError ? (
+                <FeedErrorState onRetry={() => setFeedState("full")} />
+              ) : (
+                <FeedPostList
+                  posts={feedState === "empty" ? [] : allPosts}
+                  currentUser={currentUser}
+                  devRole={role}
+                />
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="md:flex-1 md:min-h-0 md:overflow-hidden">
             <MessagesLayout
               currentUser={currentUser}
               devRole={role}
               initialConversationId={initialConversationId}
               embedded
             />
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* FAB mobile — accès rapide à l'éditeur de post, sous le pouce,

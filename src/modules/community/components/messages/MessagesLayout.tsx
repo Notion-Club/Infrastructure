@@ -84,7 +84,7 @@ export function MessagesLayout({ currentUser, initialConversationId, embedded }:
         style={{
           ...containerStyle,
           gridTemplateColumns: "280px 1fr",
-          height: "calc(100dvh - 148px)",
+          height: embedded ? "100%" : "calc(100dvh - 148px)",
           background: "var(--color-surface-card)",
         }}
       >

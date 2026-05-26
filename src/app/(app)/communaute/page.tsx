@@ -18,16 +18,14 @@ export default function CommunautePage() {
         <BottomNav />
       </div>
 
-      <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
-        <main style={{ position: "relative", zIndex: 1 }}>
-          <div
-            style={{ maxWidth: 840, margin: "0 auto" }}
-            className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10"
-          >
-            <Suspense fallback={null}>
-              <CommunityPageClient />
-            </Suspense>
-          </div>
+      <div className="nc-page-halo flex flex-col min-h-dvh md:h-dvh md:overflow-hidden">
+        <main
+          className="flex flex-col flex-1 min-h-0 w-full mx-auto px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[88px] md:pb-6"
+          style={{ position: "relative", zIndex: 1, maxWidth: 840 }}
+        >
+          <Suspense fallback={null}>
+            <CommunityPageClient />
+          </Suspense>
         </main>
       </div>
     </>
