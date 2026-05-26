@@ -15,6 +15,7 @@ import { ReactionsBar } from "../components/shared/ReactionsBar";
 import { ReactionPicker } from "../components/shared/ReactionPicker";
 import { PostKebabMenu } from "../components/shared/PostKebabMenu";
 import { CommentList } from "../components/post-detail/CommentList";
+import { DeletePostConfirmDialog } from "../components/shared/DeletePostConfirmDialog";
 
 interface CommunityPostDetailPageProps {
   post: Post;
@@ -25,6 +26,7 @@ export function CommunityPostDetailPage({ post, devRole }: CommunityPostDetailPa
   const router = useRouter();
   const currentUser = useCurrentUser(devRole);
   const [reactions, setReactions] = useState(post.reactions);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const comments = getCommentsByPostId(post.id);
   const isAuthor = post.author.id === currentUser.id;
 
@@ -41,6 +43,13 @@ export function CommunityPostDetailPage({ post, devRole }: CommunityPostDetailPa
   }
 
   return (
+    <>
+    {showDeleteConfirm && (
+      <DeletePostConfirmDialog
+        onConfirm={() => { setShowDeleteConfirm(false); router.back(); }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+    )}
     <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 24 }}>
       {/* Back */}
       <button
@@ -50,18 +59,20 @@ export function CommunityPostDetailPage({ post, devRole }: CommunityPostDetailPa
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
-          fontSize: 14,
-          color: "var(--color-text-muted)",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
+          padding: "6px 14px 6px 10px",
+          background: "var(--color-surface-raised)",
+          border: "1px solid var(--color-border-default)",
+          borderRadius: 9999,
+          fontSize: 13,
           fontWeight: 500,
-          padding: 0,
-          transition: "color 150ms ease",
+          color: "var(--color-text-secondary)",
+          cursor: "pointer",
+          width: "fit-content",
+          transition: "all 150ms ease",
         }}
-        className="hover:text-[var(--color-text-primary)]"
+        className="hover:bg-[#eaeaea] hover:text-[var(--color-text-primary)] dark:hover:bg-[rgba(255,255,255,0.10)]"
       >
-        <ArrowLeft size={16} />
+        <ArrowLeft size={14} strokeWidth={2.25} />
         Retour à la communauté
       </button>
 
@@ -76,6 +87,7 @@ export function CommunityPostDetailPage({ post, devRole }: CommunityPostDetailPa
           display: "flex",
           flexDirection: "column",
           gap: 16,
+          viewTransitionName: `post-card-${post.id}`,
         }}
       >
         {post.pinned && (
@@ -116,7 +128,7 @@ export function CommunityPostDetailPage({ post, devRole }: CommunityPostDetailPa
           {isAuthor && (
             <PostKebabMenu
               onEdit={() => alert("Modifier (mock)")}
-              onDelete={() => router.back()}
+              onDelete={() => setShowDeleteConfirm(true)}
             />
           )}
         </div>
@@ -174,5 +186,6 @@ export function CommunityPostDetailPage({ post, devRole }: CommunityPostDetailPa
         />
       </div>
     </div>
+    </>
   );
 }

@@ -237,7 +237,7 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
               cursor: "pointer",
               padding: compact ? "2px 9px" : "3px 11px",
               borderRadius: 9999,
-              background: userHasReacted ? "rgba(224,98,90,0.08)" : "white",
+              background: userHasReacted ? "rgba(224,98,90,0.08)" : "var(--color-surface-card)",
               border: `1px solid ${userHasReacted ? "rgba(224,98,90,0.25)" : "var(--color-border-default)"}`,
               transition: "border-color 150ms ease, background 150ms ease",
               userSelect: "none",
