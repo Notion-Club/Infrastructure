@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import type { CourseRow, ModuleWithCourses } from "../types";
+import { startLessonTransition } from "./LessonTransition";
 
 type Props = {
   programSlug: string;
@@ -193,6 +194,7 @@ function LessonRow({
       toast("Termine la leçon précédente pour débloquer", { icon: <Lock size={14} /> });
       return;
     }
+    startLessonTransition();
     router.push(`/formation/${programSlug}/${moduleSlug}/${course.slug}`);
   }
 
