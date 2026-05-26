@@ -13,6 +13,7 @@ import { TagPill } from "../shared/TagPill";
 import { ReactionsBar } from "../shared/ReactionsBar";
 import { PostKebabMenu } from "../shared/PostKebabMenu";
 import { PostComposerModal } from "../post-composer/PostComposerModal";
+import { DeletePostConfirmDialog } from "../shared/DeletePostConfirmDialog";
 
 interface PostCardProps {
   post: Post;
@@ -35,6 +36,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
   const [reactions, setReactions] = useState(post.reactions);
   const [postData, setPostData] = useState(post);
   const [showEditComposer, setShowEditComposer] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const isAuthor = post.author.id === currentUser.id;
 
   function handleCardClick() {
@@ -71,6 +73,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
         cursor: "pointer",
         transition: "box-shadow 200ms var(--nc-ease), transform 200ms var(--nc-ease)",
         boxShadow: "var(--nc-shadow-3)",
+        viewTransitionName: `post-card-${post.id}`,
       }}
       className="hover:shadow-[rgba(0,0,0,0.10)_0px_8px_32px_0px,rgba(0,0,0,0.04)_0px_1px_3px_0px]"
     >
@@ -140,7 +143,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
           <div onClick={(e) => e.stopPropagation()}>
             <PostKebabMenu
               onEdit={() => setShowEditComposer(true)}
-              onDelete={() => alert("Supprimer (mock)")}
+              onDelete={() => setShowDeleteConfirm(true)}
             />
           </div>
         )}
@@ -211,6 +214,13 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
         />
       </div>
     </article>
+
+    {showDeleteConfirm && (
+      <DeletePostConfirmDialog
+        onConfirm={() => setShowDeleteConfirm(false)}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+    )}
 
     {showEditComposer && (
       <PostComposerModal

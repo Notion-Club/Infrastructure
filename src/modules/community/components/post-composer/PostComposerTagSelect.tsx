@@ -73,8 +73,6 @@ export function PostComposerTagSelect({
   }
 
   // Repositionne au resize / scroll fenêtre tant que le dropdown est ouvert
-  // (le modal interne scrolle indépendamment ; si le button bouge, la
-  // dropdown doit suivre — sinon elle reste figée à l'ancienne position).
   useEffect(() => {
     if (!open) return;
     const onLayoutChange = () => computePos();
@@ -86,9 +84,7 @@ export function PostComposerTagSelect({
     };
   }, [open, computePos]);
 
-  // Close outside — on capture en `mousedown` (avant le `click`) pour
-  // fermer si l'utilisateur clique ailleurs. Le button et la dropdown
-  // sont exclus de la fermeture.
+  // Close outside
   useEffect(() => {
     if (!open) return;
     function close(e: MouseEvent) {
@@ -101,7 +97,7 @@ export function PostComposerTagSelect({
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
 
-  // Close on Escape — pratique sur clavier.
+  // Close on Escape
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -117,9 +113,6 @@ export function PostComposerTagSelect({
           <div
             ref={dropdownRef}
             role="listbox"
-            // Stop propagation : sans ça, un click sur la dropdown remonte
-            // jusqu'au PostComposerModal overlay qui ferme parfois le modal
-            // si e.target === e.currentTarget mal interprété.
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
             style={{
@@ -166,7 +159,7 @@ export function PostComposerTagSelect({
                   transition: "background 100ms ease",
                 }}
                 className={
-                  t.value !== value ? "hover:bg-[#f5f5f5]" : ""
+                  t.value !== value ? "hover:bg-[var(--nc-nav-hover-bg)]" : ""
                 }
               >
                 {t.label}
@@ -210,6 +203,7 @@ export function PostComposerTagSelect({
           fontWeight: 500,
           transition: "border-color 150ms ease",
         }}
+        className="hover:border-[rgba(0,0,0,0.20)]"
       >
         {selected.label}
         <ChevronDown

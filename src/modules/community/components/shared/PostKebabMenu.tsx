@@ -79,7 +79,7 @@ export function PostKebabMenu({ onEdit, onDelete }: PostKebabMenuProps) {
                 textAlign: "left",
                 transition: "background 150ms ease",
               }}
-              className="hover:bg-[#f5f5f5]"
+              className="hover:bg-[#f5f5f5] dark:hover:bg-[rgba(255,255,255,0.08)]"
             >
               <Pencil size={14} /> Modifier
             </button>
@@ -103,7 +103,7 @@ export function PostKebabMenu({ onEdit, onDelete }: PostKebabMenuProps) {
                 textAlign: "left",
                 transition: "background 150ms ease",
               }}
-              className="hover:bg-[rgba(224,98,90,0.06)]"
+              className="hover:bg-[rgba(224,98,90,0.06)] dark:hover:bg-[rgba(224,98,90,0.14)]"
             >
               <Trash2 size={14} /> Supprimer
             </button>

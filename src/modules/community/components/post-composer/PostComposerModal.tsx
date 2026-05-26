@@ -573,10 +573,10 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
           <button type="button" onClick={onClose}
             style={{
               padding: "9px 20px", border: "1px solid var(--color-border-default)",
-              background: "var(--color-surface-card)", borderRadius: 9999, fontSize: 14, fontWeight: 500,
+              background: "transparent", borderRadius: 9999, fontSize: 14, fontWeight: 500,
               cursor: "pointer", color: "var(--color-text-secondary)", transition: "background 150ms ease",
             }}
-            className="hover:bg-[rgba(0,0,0,0.04)]"
+            className="hover:bg-[var(--nc-nav-hover-bg)]"
           >
             Annuler
           </button>
