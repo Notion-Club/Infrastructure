@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, BookOpen, Users, Calendar, Library, type LucideIcon } from "lucide-react";
+import { motion } from "framer-motion";
 
 type NavItem = {
   label: string;
@@ -24,8 +25,7 @@ export function BottomNav() {
 
   const navRef = useRef<HTMLElement>(null);
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
-  const hasInitialized = useRef(false);
-  const [pill, setPill] = useState({ left: 0, width: 0, height: 0, top: 0, visible: false, animated: false });
+  const [pill, setPill] = useState<{ x: number; width: number; height: number; top: number } | null>(null);
 
   useLayoutEffect(() => {
     const activeIndex = NAV_ITEMS.findIndex(
@@ -36,15 +36,11 @@ export function BottomNav() {
     if (!navEl || !activeEl) return;
     const navRect = navEl.getBoundingClientRect();
     const activeRect = activeEl.getBoundingClientRect();
-    const isFirst = !hasInitialized.current;
-    hasInitialized.current = true;
     setPill({
-      left: activeRect.left - navRect.left,
+      x: activeRect.left - navRect.left,
       width: activeRect.width,
       height: activeRect.height,
       top: activeRect.top - navRect.top,
-      visible: true,
-      animated: !isFirst,
     });
   }, [pathname]);
 
@@ -70,24 +66,23 @@ export function BottomNav() {
         padding: "0 6px",
       }}
     >
-      {/* Pilule glissante */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          left: pill.left,
-          top: pill.top,
-          width: pill.width,
-          height: pill.height,
-          background: "var(--nc-nav-active-bg)",
-          borderRadius: 9999,
-          opacity: pill.visible ? 1 : 0,
-          transition: pill.animated
-            ? "left var(--nc-duration-normal) var(--nc-ease), width var(--nc-duration-normal) var(--nc-ease)"
-            : "none",
-          pointerEvents: "none",
-        }}
-      />
+      {/* Pilule glissante — spring Framer Motion */}
+      {pill && (
+        <motion.div
+          aria-hidden
+          initial={false}
+          animate={{ x: pill.x, width: pill.width, height: pill.height, y: pill.top }}
+          transition={NAV_SPRING}
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            background: "var(--nc-nav-active-bg)",
+            borderRadius: 9999,
+            pointerEvents: "none",
+          }}
+        />
+      )}
 
       {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
         const isActive = pathname === href || pathname.startsWith(href + "/");
@@ -135,3 +130,10 @@ export function BottomNav() {
     </nav>
   );
 }
+
+const NAV_SPRING = {
+  type: "spring" as const,
+  stiffness: 420,
+  damping: 30,
+  mass: 0.85,
+};
