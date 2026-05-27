@@ -5,22 +5,16 @@
  *
  * === Mécanique du glissement fluide ===
  *
- * 1. Mesure dynamique (getBoundingClientRect)
- *    useLayoutEffect recalcule la position absolue du bouton actif à chaque
- *    changement de `value`. On stocke { x, width } relatifs au conteneur.
+ * 1. layoutId
+ *    Le pill est rendu à l'intérieur de chaque bouton ACTIF. Quand l'onglet
+ *    change, Framer Motion détecte le même layoutId qui se déplace d'un
+ *    parent à l'autre et anime la transition via FLIP (First, Last, Invert,
+ *    Play) — sans getBoundingClientRect ni useLayoutEffect.
+ *    C'est plus fiable que l'approche animate={{ x, width }} car
+ *    l'animation part directement de la position DOM réelle, indépendamment
+ *    du cycle de rendu React.
  *
- * 2. Framer Motion spring (motion.div)
- *    Le pill est un <motion.div> positionné en `left: 0`. On anime `x`
- *    (transform: translateX) et `width` avec un ressort.
- *    Pourquoi `x` plutôt que `left` : les transforms sont GPU-accélérés
- *    (pas de reflow), ce qui garantit 60 fps même sur mobile.
- *
- * 3. initial={false}
- *    Empêche Framer Motion d'animer depuis la valeur par défaut (0) vers la
- *    position initiale au montage — le pill apparaît directement à la bonne
- *    position, sans glissement parasite.
- *
- * 4. Spring config
+ * 2. Spring config
  *    stiffness: 420  → réactivité (plus haut = plus rapide)
  *    damping:   30   → amorti (plus bas = plus d'overshoot)
  *    mass:      0.85 → inertie légère (plus bas = ressort vif)
@@ -28,12 +22,11 @@
  *    Pour plus de bounce : baisser damping (ex. 22) ou mass (ex. 0.6).
  *    Pour du smooth sans overshoot : stiffness 300, damping 38.
  *
- * 5. AnimatePresence (contenu)
+ * 3. AnimatePresence (contenu)
  *    mode="wait" attend la sortie avant l'entrée — évite deux contenus
  *    superposés. Le mouvement Y est subtil (±6px) pour ne pas distraire.
  */
 
-import { useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 export type Tab<T extends string = string> = {
@@ -43,8 +36,6 @@ export type Tab<T extends string = string> = {
   icon?: React.ReactNode;
 };
 
-type PillGeom = { x: number; width: number; height: number };
-
 type Props<T extends string> = {
   tabs: Tab<T>[];
   value: T;
@@ -53,6 +44,8 @@ type Props<T extends string> = {
   children?: React.ReactNode;
   /** Padding interne du switcher (défaut : 4px) */
   padding?: number;
+  /** Identifiant unique pour le layoutId — isoler si plusieurs instances */
+  layoutId?: string;
 };
 
 export function SegmentedControl<T extends string>({
@@ -61,36 +54,15 @@ export function SegmentedControl<T extends string>({
   onChange,
   children,
   padding = 4,
+  layoutId = "segmented-pill",
 }: Props<T>) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [pill, setPill] = useState<PillGeom | null>(null);
-
-  // Mesure la position du bouton actif à chaque changement de valeur.
-  useLayoutEffect(() => {
-    const idx = tabs.findIndex((t) => t.value === value);
-    const container = containerRef.current;
-    const btn = btnRefs.current[idx];
-    if (!container || !btn) return;
-
-    const cr = container.getBoundingClientRect();
-    const br = btn.getBoundingClientRect();
-    setPill({
-      x: br.left - cr.left - padding,
-      width: br.width,
-      height: br.height,
-    });
-  }, [value, tabs, padding]);
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* ── Switcher ── */}
       <div
-        ref={containerRef}
         role="tablist"
         aria-label="Onglets"
         style={{
-          position: "relative",
           display: "inline-flex",
           alignItems: "center",
           background: "var(--color-surface-raised)",
@@ -99,42 +71,17 @@ export function SegmentedControl<T extends string>({
           gap: 2,
         }}
       >
-        {/* Indicateur glissant */}
-        {pill && (
-          <motion.div
-            aria-hidden
-            initial={false}
-            animate={{ x: pill.x, width: pill.width, height: pill.height }}
-            transition={SPRING}
-            style={{
-              position: "absolute",
-              left: padding,
-              top: padding,
-              background: "var(--color-surface-card)",
-              borderRadius: 9999,
-              boxShadow:
-                "0 1px 4px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)",
-              pointerEvents: "none",
-              zIndex: 0,
-            }}
-          />
-        )}
-
-        {tabs.map((tab, i) => {
+        {tabs.map((tab) => {
           const isActive = tab.value === value;
           return (
             <button
               key={tab.value}
-              ref={(el) => {
-                btnRefs.current[i] = el;
-              }}
               role="tab"
               aria-selected={isActive}
               type="button"
               onClick={() => onChange(tab.value)}
               style={{
                 position: "relative",
-                zIndex: 1,
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 7,
@@ -144,21 +91,33 @@ export function SegmentedControl<T extends string>({
                 background: "transparent",
                 fontSize: 14,
                 fontWeight: isActive ? 600 : 400,
-                color: isActive
-                  ? "var(--color-text-primary)"
-                  : "var(--color-text-muted)",
+                color: isActive ? "var(--color-text-primary)" : "var(--color-text-muted)",
                 cursor: "pointer",
                 whiteSpace: "nowrap",
                 transition: "color 180ms ease",
                 userSelect: "none",
               }}
             >
+              {isActive && (
+                <motion.div
+                  layoutId={layoutId}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "var(--color-surface-card)",
+                    borderRadius: 9999,
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)",
+                    zIndex: -1,
+                  }}
+                  transition={SPRING}
+                />
+              )}
               {tab.icon && (
-                <span style={{ display: "inline-flex", opacity: isActive ? 1 : 0.55, transition: "opacity 180ms ease" }}>
+                <span style={{ display: "inline-flex", position: "relative", opacity: isActive ? 1 : 0.55, transition: "opacity 180ms ease" }}>
                   {tab.icon}
                 </span>
               )}
-              {tab.label}
+              <span style={{ position: "relative" }}>{tab.label}</span>
             </button>
           );
         })}

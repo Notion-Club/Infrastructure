@@ -1,16 +1,11 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, BookOpen, Users, Calendar, Library, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 
-type NavItem = {
-  label: string;
-  icon: LucideIcon;
-  href: string;
-};
+type NavItem = { label: string; icon: LucideIcon; href: string };
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Accueil", icon: Home, href: "/dashboard" },
@@ -20,33 +15,14 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Ressources", icon: Library, href: "/ressources" },
 ];
 
+// Spring config partagé avec Topbar — garder les deux valeurs synchronisées.
+const SPRING = { type: "spring" as const, stiffness: 420, damping: 30, mass: 0.85 };
+
 export function BottomNav() {
   const pathname = usePathname();
 
-  const navRef = useRef<HTMLElement>(null);
-  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
-  const [pill, setPill] = useState<{ x: number; width: number; height: number; top: number } | null>(null);
-
-  useLayoutEffect(() => {
-    const activeIndex = NAV_ITEMS.findIndex(
-      ({ href }) => pathname === href || pathname.startsWith(href + "/"),
-    );
-    const navEl = navRef.current;
-    const activeEl = itemRefs.current[activeIndex];
-    if (!navEl || !activeEl) return;
-    const navRect = navEl.getBoundingClientRect();
-    const activeRect = activeEl.getBoundingClientRect();
-    setPill({
-      x: activeRect.left - navRect.left,
-      width: activeRect.width,
-      height: activeRect.height,
-      top: activeRect.top - navRect.top,
-    });
-  }, [pathname]);
-
   return (
     <nav
-      ref={navRef}
       aria-label="Navigation principale"
       style={{
         position: "fixed",
@@ -66,34 +42,15 @@ export function BottomNav() {
         padding: "0 6px",
       }}
     >
-      {/* Pilule glissante — spring Framer Motion */}
-      {pill && (
-        <motion.div
-          aria-hidden
-          initial={false}
-          animate={{ x: pill.x, width: pill.width, height: pill.height, y: pill.top }}
-          transition={NAV_SPRING}
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            background: "var(--nc-nav-active-bg)",
-            borderRadius: 9999,
-            pointerEvents: "none",
-          }}
-        />
-      )}
-
-      {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
+      {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
         const isActive = pathname === href || pathname.startsWith(href + "/");
         return (
           <Link
             key={href}
             href={href}
-            ref={(el) => { itemRefs.current[i] = el; }}
             style={{
+              // position: relative crée un contexte d'empilement pour le pill absolu.
               position: "relative",
-              zIndex: 1,
               flex: 1,
               minWidth: 0,
               display: "flex",
@@ -108,6 +65,29 @@ export function BottomNav() {
               textDecoration: "none",
             }}
           >
+            {/*
+             * layoutId="bottom-nav-pill" : Framer Motion traque cet élément
+             * entre les différents items actifs via FLIP. Quand l'item actif
+             * change, le pill "voyage" de sa position précédente à la nouvelle
+             * sans getBoundingClientRect ni useLayoutEffect.
+             * Le spring se déclenche immédiatement, indépendamment du cycle
+             * de rendu React — c'est pourquoi ça fonctionne sur mobile.
+             */}
+            {isActive && (
+              <motion.div
+                layoutId="bottom-nav-pill"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "var(--nc-nav-active-bg)",
+                  borderRadius: 9999,
+                  // z-index négatif : le pill passe DERRIÈRE l'icône et le label
+                  // sans bloquer les clics (pointerEvents hérité du Link).
+                  zIndex: -1,
+                }}
+                transition={SPRING}
+              />
+            )}
             <Icon
               size={19}
               strokeWidth={isActive ? 2.5 : 2}
@@ -130,10 +110,3 @@ export function BottomNav() {
     </nav>
   );
 }
-
-const NAV_SPRING = {
-  type: "spring" as const,
-  stiffness: 420,
-  damping: 30,
-  mass: 0.85,
-};

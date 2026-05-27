@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -56,28 +56,6 @@ export function Topbar() {
   const pathname = usePathname();
   const [avatarOpen, setAvatarOpen] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
-
-  // Sliding pill (Framer Motion spring)
-  const navRef = useRef<HTMLElement>(null);
-  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
-  const [pill, setPill] = useState<{ x: number; width: number; height: number; top: number } | null>(null);
-
-  useLayoutEffect(() => {
-    const activeIndex = NAV_ITEMS.findIndex(
-      ({ href }) => pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")),
-    );
-    const navEl = navRef.current;
-    const activeEl = itemRefs.current[activeIndex];
-    if (!navEl || !activeEl) return;
-    const navRect = navEl.getBoundingClientRect();
-    const activeRect = activeEl.getBoundingClientRect();
-    setPill({
-      x: activeRect.left - navRect.left,
-      width: activeRect.width,
-      height: activeRect.height,
-      top: activeRect.top - navRect.top,
-    });
-  }, [pathname]);
 
   useEffect(() => {
     if (!avatarOpen) return;
@@ -147,34 +125,15 @@ export function Topbar() {
 
           {SEPARATOR}
 
-          <nav ref={navRef} style={{ display: "flex", alignItems: "center", gap: 2, position: "relative" }}>
-            {/* Pilule glissante — spring Framer Motion */}
-            {pill && (
-              <motion.div
-                aria-hidden
-                initial={false}
-                animate={{ x: pill.x, width: pill.width, height: pill.height, y: pill.top }}
-                transition={NAV_SPRING}
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  background: "var(--nc-nav-active-bg)",
-                  borderRadius: 9999,
-                  pointerEvents: "none",
-                }}
-              />
-            )}
-            {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
+          <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
+            {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
               const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
               return (
                 <Link
                   key={href}
                   href={href}
-                  ref={(el) => { itemRefs.current[i] = el; }}
                   style={{
                     position: "relative",
-                    zIndex: 1,
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 7,
@@ -189,8 +148,21 @@ export function Topbar() {
                   }}
                   className={!isActive ? "hover:bg-[var(--nc-nav-hover-bg)]" : ""}
                 >
-                  <Icon size={16} strokeWidth={isActive ? 2.5 : 2} style={{ flexShrink: 0 }} />
-                  {label}
+                  {isActive && (
+                    <motion.div
+                      layoutId="topbar-nav-pill"
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        background: "var(--nc-nav-active-bg)",
+                        borderRadius: 9999,
+                        zIndex: -1,
+                      }}
+                      transition={NAV_SPRING}
+                    />
+                  )}
+                  <Icon size={16} strokeWidth={isActive ? 2.5 : 2} style={{ flexShrink: 0, position: "relative" }} />
+                  <span style={{ position: "relative" }}>{label}</span>
                 </Link>
               );
             })}
