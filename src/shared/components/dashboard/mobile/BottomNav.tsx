@@ -1,9 +1,10 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, BookOpen, Users, Calendar, Library, type LucideIcon } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useSpring } from "framer-motion";
 
 type NavItem = { label: string; icon: LucideIcon; href: string };
 
@@ -15,14 +16,57 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Ressources", icon: Library, href: "/ressources" },
 ];
 
-// Spring config partagé avec Topbar — garder les deux valeurs synchronisées.
-const SPRING = { type: "spring" as const, stiffness: 420, damping: 30, mass: 0.85 };
+// Spring config : léger overshoot organique, ~300 ms de règlement.
+// Pour plus de bounce : damping 22, mass 0.7.
+// Pour ultra-smooth sans rebond : stiffness 300, damping 38.
+const SPRING_CFG = { stiffness: 420, damping: 30, mass: 0.85 };
 
 export function BottomNav() {
   const pathname = usePathname();
 
+  // Refs pour la mesure (position/taille du Link actif).
+  const navRef = useRef<HTMLElement>(null);
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const hasInit = useRef(false);
+
+  // Springs impératifs — indépendants du cycle de rendu React.
+  // .set(v)  → anime en spring vers v.
+  // .jump(v) → positionne instantanément sans animation (premier rendu).
+  const springX = useSpring(0, SPRING_CFG);
+  const springW = useSpring(0, SPRING_CFG);
+
+  // Géométrie non-animée (hauteur, top) — constante entre les items.
+  const [pillGeom, setPillGeom] = useState<{ h: number; top: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const activeIndex = NAV_ITEMS.findIndex(
+      ({ href }) => pathname === href || pathname.startsWith(href + "/"),
+    );
+    const navEl = navRef.current;
+    const el = itemRefs.current[activeIndex];
+    if (!navEl || !el) return;
+
+    const nr = navEl.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    const x = er.left - nr.left;
+    const w = er.width;
+
+    if (!hasInit.current) {
+      // Premier rendu : saut instantané (pas d'animation depuis 0).
+      springX.jump(x);
+      springW.jump(w);
+      hasInit.current = true;
+      setPillGeom({ h: er.height, top: er.top - nr.top });
+    } else {
+      // Navigations suivantes : spring.
+      springX.set(x);
+      springW.set(w);
+    }
+  }, [pathname, springX, springW]);
+
   return (
     <nav
+      ref={navRef}
       aria-label="Navigation principale"
       style={{
         position: "fixed",
@@ -42,15 +86,36 @@ export function BottomNav() {
         padding: "0 6px",
       }}
     >
-      {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
+      {/* Pill glissante — sibling externe, positionnée dans le nav container.
+          Utilise des motion values (spring) plutôt qu'une CSS transition
+          pour un glissement organique avec micro-rebond. */}
+      {pillGeom && (
+        <motion.div
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: 0,
+            top: pillGeom.top,
+            height: pillGeom.h,
+            x: springX,
+            width: springW,
+            background: "var(--nc-nav-active-bg)",
+            borderRadius: 9999,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
         const isActive = pathname === href || pathname.startsWith(href + "/");
         return (
           <Link
             key={href}
             href={href}
+            ref={(el) => { itemRefs.current[i] = el; }}
             style={{
-              // position: relative crée un contexte d'empilement pour le pill absolu.
               position: "relative",
+              zIndex: 1,
               flex: 1,
               minWidth: 0,
               display: "flex",
@@ -65,29 +130,6 @@ export function BottomNav() {
               textDecoration: "none",
             }}
           >
-            {/*
-             * layoutId="bottom-nav-pill" : Framer Motion traque cet élément
-             * entre les différents items actifs via FLIP. Quand l'item actif
-             * change, le pill "voyage" de sa position précédente à la nouvelle
-             * sans getBoundingClientRect ni useLayoutEffect.
-             * Le spring se déclenche immédiatement, indépendamment du cycle
-             * de rendu React — c'est pourquoi ça fonctionne sur mobile.
-             */}
-            {isActive && (
-              <motion.div
-                layoutId="bottom-nav-pill"
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "var(--nc-nav-active-bg)",
-                  borderRadius: 9999,
-                  // z-index négatif : le pill passe DERRIÈRE l'icône et le label
-                  // sans bloquer les clics (pointerEvents hérité du Link).
-                  zIndex: -1,
-                }}
-                transition={SPRING}
-              />
-            )}
             <Icon
               size={19}
               strokeWidth={isActive ? 2.5 : 2}

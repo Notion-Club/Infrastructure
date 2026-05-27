@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,7 +13,7 @@ import {
   Bell,
   type LucideIcon,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useSpring } from "framer-motion";
 
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
 import { useTheme } from "@/shared/lib/hooks/useTheme";
@@ -38,6 +38,8 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const UNREAD_COUNT = 2;
+
+const SPRING_CFG = { stiffness: 420, damping: 30, mass: 0.85 };
 
 const SEPARATOR = (
   <div
@@ -74,6 +76,39 @@ export function Topbar() {
   const avatarUrl = identity?.avatarUrl ?? null;
   const avatarColor = identity?.avatarColor ?? "#e0625a";
 
+  // Refs pour la mesure (position/taille du Link actif).
+  const navRef = useRef<HTMLElement>(null);
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const hasInit = useRef(false);
+
+  const springX = useSpring(0, SPRING_CFG);
+  const springW = useSpring(0, SPRING_CFG);
+  const [pillGeom, setPillGeom] = useState<{ h: number; top: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const activeIndex = NAV_ITEMS.findIndex(
+      ({ href }) => pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")),
+    );
+    const navEl = navRef.current;
+    const el = itemRefs.current[activeIndex];
+    if (!navEl || !el) return;
+
+    const nr = navEl.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    const x = er.left - nr.left;
+    const w = er.width;
+
+    if (!hasInit.current) {
+      springX.jump(x);
+      springW.jump(w);
+      hasInit.current = true;
+      setPillGeom({ h: er.height, top: er.top - nr.top });
+    } else {
+      springX.set(x);
+      springW.set(w);
+    }
+  }, [pathname, springX, springW]);
+
   return (
     <header
       className="hidden md:flex justify-center"
@@ -85,9 +120,6 @@ export function Topbar() {
         zIndex: 50,
         padding: "14px 40px",
         background: "transparent",
-        // Force a GPU layer so position:fixed isn't broken by ancestor
-        // filters/transforms. Avoid `contain: paint` here — it would clip
-        // the dropdown that extends below the header.
         transform: "translateZ(0)",
         willChange: "transform",
       }}
@@ -125,15 +157,39 @@ export function Topbar() {
 
           {SEPARATOR}
 
-          <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
+          <nav
+            ref={navRef}
+            style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}
+          >
+            {/* Pill glissante — sibling externe, positionnée dans le nav container. */}
+            {pillGeom && (
+              <motion.div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: pillGeom.top,
+                  height: pillGeom.h,
+                  x: springX,
+                  width: springW,
+                  background: "var(--nc-nav-active-bg)",
+                  borderRadius: 9999,
+                  pointerEvents: "none",
+                  zIndex: 0,
+                }}
+              />
+            )}
+
+            {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
               const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
               return (
                 <Link
                   key={href}
                   href={href}
+                  ref={(el) => { itemRefs.current[i] = el; }}
                   style={{
                     position: "relative",
+                    zIndex: 1,
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 7,
@@ -148,19 +204,6 @@ export function Topbar() {
                   }}
                   className={!isActive ? "hover:bg-[var(--nc-nav-hover-bg)]" : ""}
                 >
-                  {isActive && (
-                    <motion.div
-                      layoutId="topbar-nav-pill"
-                      style={{
-                        position: "absolute",
-                        inset: 0,
-                        background: "var(--nc-nav-active-bg)",
-                        borderRadius: 9999,
-                        zIndex: -1,
-                      }}
-                      transition={NAV_SPRING}
-                    />
-                  )}
                   <Icon size={16} strokeWidth={isActive ? 2.5 : 2} style={{ flexShrink: 0, position: "relative" }} />
                   <span style={{ position: "relative" }}>{label}</span>
                 </Link>
@@ -321,10 +364,3 @@ export function Topbar() {
     </header>
   );
 }
-
-const NAV_SPRING = {
-  type: "spring" as const,
-  stiffness: 420,
-  damping: 30,
-  mass: 0.85,
-};
