@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useTransition } from "react";
 import { MessageCircle, Users, SquarePen } from "lucide-react";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import type { PostTag } from "../types/post.types";
 import { useDevRoleToggle } from "../hooks/useDevRoleToggle";
 import { useCurrentUser } from "../hooks/useCurrentUser";
-import { usePostsFiltered } from "../hooks/usePostsFiltered";
 import { FeedTagFilters } from "../components/feed/FeedTagFilters";
 import { FeedPostList } from "../components/feed/FeedPostList";
 import { FeedSkeletonState } from "../components/feed/FeedSkeletonState";
@@ -15,22 +16,29 @@ import { MessagesLayout } from "../components/messages/MessagesLayout";
 import { DevRoleToggle } from "../components/dev/DevRoleToggle";
 import { GradualBlurOverlay } from "@/shared/components/GradualBlurOverlay";
 import { CommunityRestrictedPage } from "./community-restricted-page";
+import { createPostAction } from "../server/actions";
 import type { Post } from "../types/post.types";
-import { MOCK_CONVERSATIONS } from "../mocks/conversations.mock";
+import type { Conversation } from "../types/conversation.types";
 
 type Tab = "feed" | "messages";
 type TagFilter = PostTag | "all";
 
-const UNREAD_DM = MOCK_CONVERSATIONS.reduce((s, c) => s + c.unreadCount, 0);
-
 interface CommunityPageProps {
   initialTab?: Tab;
   initialConversationId?: string | null;
+  initialPosts: Post[];
+  initialConversations: Conversation[];
 }
 
-export function CommunityPage({ initialTab = "feed", initialConversationId }: CommunityPageProps) {
+export function CommunityPage({
+  initialTab = "feed",
+  initialConversationId,
+  initialPosts,
+  initialConversations,
+}: CommunityPageProps) {
   const { role, setRole, feedState, setFeedState } = useDevRoleToggle();
   const currentUser = useCurrentUser(role);
+  const router = useRouter();
 
   // Restore scroll position saved before navigating into a post detail
   useEffect(() => {
@@ -46,7 +54,11 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [activeTag, setActiveTag] = useState<TagFilter>("all");
   const [showComposer, setShowComposer] = useState(false);
-  const [extraPosts, setExtraPosts] = useState<Post[]>([]);
+  // Optimistic posts ajoutés côté client juste après publication. À chaque
+  // router.refresh() post-create, le Server Component recharge initialPosts
+  // avec la vraie ligne DB et l'optimistic est dédoublonné par id.
+  const [optimisticPosts, setOptimisticPosts] = useState<Post[]>([]);
+  const [publishing, startPublish] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Desktop only: redirect wheel events fired over the page (rose halo zone,
@@ -75,34 +87,69 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
     return () => pageEl.removeEventListener("wheel", onWheel);
   }, [activeTab]);
 
-  const filteredPosts = usePostsFiltered(currentUser, activeTag);
-  const allPosts = [
-    ...extraPosts.filter((p) => activeTag === "all" || p.tag === activeTag),
-    ...filteredPosts,
-  ].sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1;
-    if (!a.pinned && b.pinned) return 1;
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  // Merge optimistic + initialPosts, dédoublonne par id, filtre par tag,
+  // trie (pinned d'abord puis date desc).
+  const allPosts = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: Post[] = [];
+    for (const p of [...optimisticPosts, ...initialPosts]) {
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      merged.push(p);
+    }
+    const filtered = activeTag === "all"
+      ? merged
+      : merged.filter((p) => p.tag === activeTag);
+    return [...filtered].sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [optimisticPosts, initialPosts, activeTag]);
 
   const canViewCommunity = true;
   if (!canViewCommunity) return <CommunityRestrictedPage />;
 
   function handlePublish(partial: Partial<Post>) {
-    const newPost: Post = {
-      id: `new-${Date.now()}`,
-      author: currentUser,
-      tag: partial.tag ?? "general",
-      audience: partial.audience ?? "all",
-      title: partial.title,
-      body: partial.body ?? "",
-      pinned: partial.pinned ?? false,
-      reactions: [],
-      commentCount: 0,
-      createdAt: new Date().toISOString(),
-    };
-    setExtraPosts((prev) => [newPost, ...prev]);
-    setShowComposer(false);
+    const titleNormalized = (partial.title ?? "").trim();
+    const bodyNormalized = (partial.body ?? "").trim();
+    if (!titleNormalized || !bodyNormalized) return;
+
+    startPublish(async () => {
+      const result = await createPostAction({
+        title: titleNormalized,
+        body: bodyNormalized,
+        tag: partial.tag ?? "general",
+        audience: partial.audience ?? "all",
+        pinned: partial.pinned ?? false,
+        pinned_until: null,
+        image_url: partial.imageUrl ?? null,
+        video_url: null,
+      });
+
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+
+      const optimistic: Post = {
+        id: result.postId,
+        author: currentUser,
+        tag: partial.tag ?? "general",
+        audience: partial.audience ?? "all",
+        title: titleNormalized,
+        body: bodyNormalized,
+        imageUrl: partial.imageUrl,
+        pinned: partial.pinned ?? false,
+        reactions: [],
+        commentCount: 0,
+        createdAt: new Date().toISOString(),
+      };
+      setOptimisticPosts((prev) => [optimistic, ...prev]);
+      setShowComposer(false);
+      toast.success("Post publié");
+      router.refresh();
+    });
   }
 
   const showSkeleton = feedState === "loading";
@@ -142,7 +189,7 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
             {(
               [
                 { value: "feed" as Tab, label: "Feed", icon: Users, badge: 0 },
-                { value: "messages" as Tab, label: "Messages", icon: MessageCircle, badge: UNREAD_DM },
+                { value: "messages" as Tab, label: "Messages", icon: MessageCircle, badge: initialConversations.reduce((s, c) => s + c.unreadCount, 0) },
               ]
             ).map(({ value, label, icon: Icon, badge }) => {
               const isActive = activeTab === value;
@@ -236,6 +283,7 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
             <MessagesLayout
               currentUser={currentUser}
               devRole={role}
+              initialConversations={initialConversations}
               initialConversationId={initialConversationId}
               embedded
             />
@@ -261,6 +309,7 @@ export function CommunityPage({ initialTab = "feed", initialConversationId }: Co
           currentUser={currentUser}
           onClose={() => setShowComposer(false)}
           onPublish={handlePublish}
+          publishing={publishing}
         />
       )}
 

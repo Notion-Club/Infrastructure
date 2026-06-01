@@ -3,8 +3,16 @@
 import { useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CommunityPage } from "@/modules/community/routes/community-page";
+import type { Post } from "@/modules/community/types/post.types";
+import type { Conversation } from "@/modules/community/types/conversation.types";
 
-export function CommunityPageClient() {
+export function CommunityPageClient({
+  initialPosts,
+  initialConversations,
+}: {
+  initialPosts: Post[];
+  initialConversations: Conversation[];
+}) {
   const params = useSearchParams();
   const router = useRouter();
   const tab = params.get("tab") === "messages" ? "messages" : "feed";
@@ -24,7 +32,8 @@ export function CommunityPageClient() {
       key={`${tab}-${conversation ?? ""}`}
       initialTab={tab as "feed" | "messages"}
       initialConversationId={conversation}
+      initialPosts={initialPosts}
+      initialConversations={initialConversations}
     />
   );
 }
-

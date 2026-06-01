@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import type { Post } from "../../types/post.types";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
-import { timeAgo } from "../../utils/date-helpers";
-import { linkify } from "../../utils/linkify";
+import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
+import { renderBodyRich } from "../../utils/render-mentions";
 import { UserAvatar } from "../shared/UserAvatar";
 import { UserHoverCard } from "../shared/UserHoverCard";
 import { TagPill } from "../shared/TagPill";
@@ -14,6 +15,11 @@ import { ReactionsBar } from "../shared/ReactionsBar";
 import { PostKebabMenu } from "../shared/PostKebabMenu";
 import { PostComposerModal } from "../post-composer/PostComposerModal";
 import { DeletePostConfirmDialog } from "../shared/DeletePostConfirmDialog";
+import {
+  deletePostAction,
+  togglePostReactionAction,
+  updatePostAction,
+} from "../../server/actions";
 
 interface PostCardProps {
   post: Post;
@@ -37,25 +43,71 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
   const [postData, setPostData] = useState(post);
   const [showEditComposer, setShowEditComposer] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editing, startEdit] = useTransition();
   const isAuthor = post.author.id === currentUser.id;
+  const isPrivileged = currentUser.role === "admin" || currentUser.role === "mentor";
+  const edited = wasEdited(postData.createdAt, postData.updatedAt);
 
   function handleCardClick() {
     try { sessionStorage.setItem("communaute:scrollY", String(window.scrollY)); } catch {}
     router.push(`/communaute/post/${post.id}`);
   }
 
-  function handleReaction(emoji: string) {
+  async function handleReaction(emoji: string) {
+    // Optimistic update : on toggle local immédiatement pour le feedback,
+    // puis on appelle la Server Action. Si elle échoue, on revert.
+    const previous = reactions;
     setReactions((prev) => {
       const exists = prev.find((r) => r.emoji === emoji);
       if (exists) {
+        const nextCount = exists.userReacted ? exists.count - 1 : exists.count + 1;
+        if (nextCount <= 0 && exists.userReacted) {
+          return prev.filter((r) => r.emoji !== emoji);
+        }
         return prev.map((r) =>
           r.emoji === emoji
-            ? { ...r, count: r.userReacted ? r.count - 1 : r.count + 1, userReacted: !r.userReacted }
-            : r
+            ? { ...r, count: nextCount, userReacted: !r.userReacted }
+            : r,
         );
       }
       return [...prev, { emoji, count: 1, userReacted: true }];
     });
+
+    const result = await togglePostReactionAction({
+      post_id: post.id,
+      emoji,
+    });
+    if (!result.ok) {
+      setReactions(previous);
+      toast.error(result.message);
+    }
+  }
+
+  async function handleDelete() {
+    setShowDeleteConfirm(false);
+    const result = await deletePostAction(post.id);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success("Post supprimé");
+    router.refresh();
+  }
+
+  // Admin/mentor only — la RLS 021 (posts_update_with_guard) bloquera tout
+  // membre standard qui tenterait pinned=true via le client. Optimistic local
+  // pour le feedback, revert sur erreur.
+  async function handleTogglePin() {
+    const nextPinned = !postData.pinned;
+    setPostData((prev) => ({ ...prev, pinned: nextPinned }));
+    const result = await updatePostAction(post.id, { pinned: nextPinned });
+    if (!result.ok) {
+      setPostData((prev) => ({ ...prev, pinned: !nextPinned }));
+      toast.error(result.message);
+      return;
+    }
+    toast.success(nextPinned ? "Post épinglé" : "Post désépinglé");
+    router.refresh();
   }
 
   return (
@@ -133,17 +185,28 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
               </UserHoverCard>
               <TagPill tag={post.tag} size="sm" />
             </div>
-            <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)" }}>
-              {timeAgo(post.createdAt)}
+            <p
+              style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)" }}
+              title={`Publié le ${fullDateTime(postData.createdAt)}${edited ? ` · modifié le ${fullDateTime(postData.updatedAt)}` : ""}`}
+            >
+              {timeAgo(postData.createdAt)}
+              {edited && (
+                <>
+                  {" · "}
+                  <span style={{ fontStyle: "italic" }}>modifié</span>
+                </>
+              )}
             </p>
           </div>
         </div>
 
-        {isAuthor && (
+        {(isAuthor || isPrivileged) && (
           <div onClick={(e) => e.stopPropagation()}>
             <PostKebabMenu
-              onEdit={() => setShowEditComposer(true)}
+              onEdit={isAuthor ? () => setShowEditComposer(true) : undefined}
               onDelete={() => setShowDeleteConfirm(true)}
+              onTogglePin={isPrivileged ? handleTogglePin : undefined}
+              pinned={postData.pinned}
             />
           </div>
         )}
@@ -177,7 +240,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
             whiteSpace: "pre-wrap",
           }}
         >
-          {linkify(postData.body)}
+          {renderBodyRich(postData.body, postData.mentions)}
         </p>
 
         {postData.imageUrl && (
@@ -217,7 +280,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
 
     {showDeleteConfirm && (
       <DeletePostConfirmDialog
-        onConfirm={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
         onCancel={() => setShowDeleteConfirm(false)}
       />
     )}
@@ -226,10 +289,43 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
       <PostComposerModal
         currentUser={currentUser}
         initialPost={postData}
+        publishing={editing}
         onClose={() => setShowEditComposer(false)}
         onPublish={(updated) => {
-          setPostData((prev) => ({ ...prev, ...updated }));
-          setShowEditComposer(false);
+          const titleNormalized = (updated.title ?? "").trim();
+          const bodyNormalized = (updated.body ?? "").trim();
+          if (!titleNormalized || !bodyNormalized) return;
+
+          startEdit(async () => {
+            const result = await updatePostAction(post.id, {
+              title: titleNormalized,
+              body: bodyNormalized,
+              tag: updated.tag,
+              audience: updated.audience,
+              pinned: updated.pinned,
+              image_url: updated.imageUrl ?? null,
+              video_url: updated.videoUrl ?? null,
+            });
+            if (!result.ok) {
+              toast.error(result.message);
+              return;
+            }
+            // Optimistic local update — l'updatedAt sera resynchronisé
+            // proprement au prochain router.refresh() (qui re-fetch listPosts).
+            setPostData((prev) => ({
+              ...prev,
+              title: titleNormalized,
+              body: bodyNormalized,
+              tag: updated.tag ?? prev.tag,
+              audience: updated.audience ?? prev.audience,
+              pinned: updated.pinned ?? prev.pinned,
+              imageUrl: updated.imageUrl ?? prev.imageUrl,
+              updatedAt: new Date().toISOString(),
+            }));
+            setShowEditComposer(false);
+            toast.success("Post modifié");
+            router.refresh();
+          });
         }}
       />
     )}
