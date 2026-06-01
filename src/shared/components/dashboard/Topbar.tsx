@@ -301,7 +301,7 @@ export function Topbar() {
                 position: "absolute",
                 top: "calc(100% + 10px)",
                 right: 0,
-                minWidth: 220,
+                minWidth: 250,
                 borderRadius: 16,
                 overflow: "hidden",
                 zIndex: 60,
@@ -311,16 +311,15 @@ export function Topbar() {
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
+                  flexDirection: "column",
+                  gap: 8,
                   padding: "8px 10px",
                 }}
               >
-                <span style={{ fontSize: 14, color: "var(--color-text-primary)" }}>
-                  Mode sombre
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Apparence
                 </span>
-                <ThemeToggle />
+                <ThemeToggle variant="segmented" />
               </div>
               <div
                 style={{
