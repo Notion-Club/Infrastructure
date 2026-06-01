@@ -35,7 +35,7 @@ export function ConversationItem({ conversation, active, onClick }: Conversation
         textAlign: "left",
         transition: "background 150ms ease",
       }}
-      className={!active ? "hover:bg-[rgba(0,0,0,0.04)]" : ""}
+      className={!active ? "hover:bg-[rgba(0,0,0,0.04)] dark:hover:bg-[rgba(255,255,255,0.07)]" : ""}
     >
       <div style={{ position: "relative", flexShrink: 0 }}>
         <UserAvatar user={conversation.participant} size={44} />
