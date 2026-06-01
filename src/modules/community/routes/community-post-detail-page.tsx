@@ -1,52 +1,113 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import type { Post } from "../types/post.types";
+import type { Comment } from "../types/comment.types";
 import type { DevRole } from "../hooks/useDevRoleToggle";
 import { useCurrentUser } from "../hooks/useCurrentUser";
-import { getCommentsByPostId } from "../mocks/comments.mock";
-import { timeAgo } from "../utils/date-helpers";
+import { fullDateTime, timeAgo, wasEdited } from "../utils/date-helpers";
+import { renderBodyRich } from "../utils/render-mentions";
 import { UserAvatar } from "../components/shared/UserAvatar";
 import { UserHoverCard } from "../components/shared/UserHoverCard";
 import { TagPill } from "../components/shared/TagPill";
 import { ReactionsBar } from "../components/shared/ReactionsBar";
 import { ReactionPicker } from "../components/shared/ReactionPicker";
 import { PostKebabMenu } from "../components/shared/PostKebabMenu";
+import { PostComposerModal } from "../components/post-composer/PostComposerModal";
 import { CommentList } from "../components/post-detail/CommentList";
 import { DeletePostConfirmDialog } from "../components/shared/DeletePostConfirmDialog";
+import {
+  deletePostAction,
+  togglePostReactionAction,
+  updatePostAction,
+} from "../server/actions";
 
 interface CommunityPostDetailPageProps {
   post: Post;
+  initialComments: Comment[];
   devRole: DevRole;
 }
 
-export function CommunityPostDetailPage({ post, devRole }: CommunityPostDetailPageProps) {
+export function CommunityPostDetailPage({
+  post,
+  initialComments,
+  devRole,
+}: CommunityPostDetailPageProps) {
   const router = useRouter();
   const currentUser = useCurrentUser(devRole);
+  const [postData, setPostData] = useState(post);
   const [reactions, setReactions] = useState(post.reactions);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const comments = getCommentsByPostId(post.id);
+  const [showEditComposer, setShowEditComposer] = useState(false);
+  const [editing, startEdit] = useTransition();
+  const comments = initialComments;
   const isAuthor = post.author.id === currentUser.id;
+  const isPrivileged = currentUser.role === "admin" || currentUser.role === "mentor";
+  const edited = wasEdited(postData.createdAt, postData.updatedAt);
 
-  function handleReaction(emoji: string) {
+  async function handleReaction(emoji: string) {
+    const previous = reactions;
     setReactions((prev) => {
       const exists = prev.find((r) => r.emoji === emoji);
       if (exists) {
+        const nextCount = exists.userReacted ? exists.count - 1 : exists.count + 1;
+        if (nextCount <= 0 && exists.userReacted) {
+          return prev.filter((r) => r.emoji !== emoji);
+        }
         return prev.map((r) =>
-          r.emoji === emoji ? { ...r, count: r.userReacted ? r.count - 1 : r.count + 1, userReacted: !r.userReacted } : r
+          r.emoji === emoji
+            ? { ...r, count: nextCount, userReacted: !r.userReacted }
+            : r,
         );
       }
       return [...prev, { emoji, count: 1, userReacted: true }];
     });
+
+    const result = await togglePostReactionAction({
+      post_id: post.id,
+      emoji,
+    });
+    if (!result.ok) {
+      setReactions(previous);
+      toast.error(result.message);
+    }
+  }
+
+  async function handleDelete() {
+    setShowDeleteConfirm(false);
+    const result = await deletePostAction(post.id);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success("Post supprimé");
+    router.push("/communaute");
+    router.refresh();
+  }
+
+  // Admin/mentor uniquement — la RLS 021 bloque tout membre standard. Pattern
+  // optimistic + revert identique à PostCard.
+  async function handleTogglePin() {
+    const nextPinned = !postData.pinned;
+    setPostData((prev) => ({ ...prev, pinned: nextPinned }));
+    const result = await updatePostAction(post.id, { pinned: nextPinned });
+    if (!result.ok) {
+      setPostData((prev) => ({ ...prev, pinned: !nextPinned }));
+      toast.error(result.message);
+      return;
+    }
+    toast.success(nextPinned ? "Post épinglé" : "Post désépinglé");
+    router.refresh();
   }
 
   return (
     <>
     {showDeleteConfirm && (
       <DeletePostConfirmDialog
-        onConfirm={() => { setShowDeleteConfirm(false); router.back(); }}
+        onConfirm={handleDelete}
         onCancel={() => setShowDeleteConfirm(false)}
       />
     )}
@@ -90,7 +151,7 @@ export function CommunityPostDetailPage({ post, devRole }: CommunityPostDetailPa
           viewTransitionName: `post-card-${post.id}`,
         }}
       >
-        {post.pinned && (
+        {postData.pinned && (
           <div>
             <span style={{
               display: "inline-flex", alignItems: "center", gap: 5,
@@ -118,42 +179,67 @@ export function CommunityPostDetailPage({ post, devRole }: CommunityPostDetailPa
                     {post.author.name}
                   </span>
                 </UserHoverCard>
-                <TagPill tag={post.tag} />
+                <TagPill tag={postData.tag} />
               </div>
-              <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)" }}>
-                {timeAgo(post.createdAt)}
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span>{timeAgo(postData.createdAt)}</span>
+                <span style={{ opacity: 0.5 }}>·</span>
+                <span>{fullDateTime(postData.createdAt)}</span>
+                {edited && (
+                  <>
+                    <span style={{ opacity: 0.5 }}>·</span>
+                    <span
+                      style={{ fontStyle: "italic" }}
+                      title={`Modifié le ${fullDateTime(postData.updatedAt)}`}
+                    >
+                      modifié
+                    </span>
+                  </>
+                )}
               </p>
             </div>
           </div>
-          {isAuthor && (
+          {(isAuthor || isPrivileged) && (
             <PostKebabMenu
-              onEdit={() => alert("Modifier (mock)")}
+              onEdit={isAuthor ? () => setShowEditComposer(true) : undefined}
               onDelete={() => setShowDeleteConfirm(true)}
+              onTogglePin={isPrivileged ? handleTogglePin : undefined}
+              pinned={postData.pinned}
             />
           )}
         </div>
 
         {/* Content */}
-        {post.title && (
+        {postData.title && (
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--color-text-primary)", lineHeight: 1.3 }}>
-            {post.title}
+            {postData.title}
           </h1>
         )}
 
         <div style={{ fontSize: 15, color: "var(--color-text-secondary)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
-          {post.body}
+          {renderBodyRich(postData.body, postData.mentions)}
         </div>
 
-        {post.imageUrl && (
+        {postData.imageUrl && (
           <div style={{ borderRadius: 12, overflow: "hidden" }}>
-            <img src={post.imageUrl} alt="" style={{ width: "100%", maxHeight: 400, objectFit: "cover", display: "block" }} />
+            <img src={postData.imageUrl} alt="" style={{ width: "100%", maxHeight: 400, objectFit: "cover", display: "block" }} />
           </div>
         )}
 
-        {post.videoUrl && (
+        {postData.videoUrl && (
           <div style={{ borderRadius: 12, overflow: "hidden", aspectRatio: "16/9" }}>
             <iframe
-              src={`https://www.youtube.com/embed/${post.videoUrl.split("v=")[1]?.split("&")[0] ?? ""}`}
+              src={`https://www.youtube.com/embed/${postData.videoUrl.split("v=")[1]?.split("&")[0] ?? ""}`}
               style={{ width: "100%", height: "100%", border: "none" }}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
@@ -180,12 +266,56 @@ export function CommunityPostDetailPage({ post, devRole }: CommunityPostDetailPa
         }}
       >
         <CommentList
+          postId={post.id}
           comments={comments}
           currentUser={currentUser}
           devRole={devRole}
         />
       </div>
     </div>
+
+    {showEditComposer && (
+      <PostComposerModal
+        currentUser={currentUser}
+        initialPost={postData}
+        publishing={editing}
+        onClose={() => setShowEditComposer(false)}
+        onPublish={(updated) => {
+          const titleNormalized = (updated.title ?? "").trim();
+          const bodyNormalized = (updated.body ?? "").trim();
+          if (!titleNormalized || !bodyNormalized) return;
+
+          startEdit(async () => {
+            const result = await updatePostAction(post.id, {
+              title: titleNormalized,
+              body: bodyNormalized,
+              tag: updated.tag,
+              audience: updated.audience,
+              pinned: updated.pinned,
+              image_url: updated.imageUrl ?? null,
+              video_url: updated.videoUrl ?? null,
+            });
+            if (!result.ok) {
+              toast.error(result.message);
+              return;
+            }
+            setPostData((prev) => ({
+              ...prev,
+              title: titleNormalized,
+              body: bodyNormalized,
+              tag: updated.tag ?? prev.tag,
+              audience: updated.audience ?? prev.audience,
+              pinned: updated.pinned ?? prev.pinned,
+              imageUrl: updated.imageUrl ?? prev.imageUrl,
+              updatedAt: new Date().toISOString(),
+            }));
+            setShowEditComposer(false);
+            toast.success("Post modifié");
+            router.refresh();
+          });
+        }}
+      />
+    )}
     </>
   );
 }

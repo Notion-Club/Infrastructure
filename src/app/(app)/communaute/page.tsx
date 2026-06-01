@@ -3,13 +3,22 @@ import { Suspense } from "react";
 import { Topbar } from "@/shared/components/dashboard/Topbar";
 import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
+import { listConversations, listPosts } from "@/modules/community/server/queries";
 import { CommunityPageClient } from "./CommunityPageClient";
 
 export const metadata: Metadata = {
   title: "Communauté — Notion Club",
 };
 
-export default function CommunautePage() {
+// Async Server Component — pré-fetch des posts pour rendre le feed côté
+// serveur. La RLS posts_select_community filtre déjà selon le viewer
+// (offer free / paid via user_has_capability).
+export default async function CommunautePage() {
+  const [initialPosts, initialConversations] = await Promise.all([
+    listPosts(),
+    listConversations(),
+  ]);
+
   return (
     <>
       <Topbar />
@@ -24,7 +33,10 @@ export default function CommunautePage() {
           style={{ position: "relative", zIndex: 1, maxWidth: 840 }}
         >
           <Suspense fallback={null}>
-            <CommunityPageClient />
+            <CommunityPageClient
+              initialPosts={initialPosts}
+              initialConversations={initialConversations}
+            />
           </Suspense>
         </main>
       </div>

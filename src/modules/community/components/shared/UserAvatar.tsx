@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useState } from "react";
 import type { User } from "../../types/user.types";
 
 const PALETTE = [
@@ -12,6 +15,26 @@ function colorFromId(id: string): string {
   return PALETTE[Math.abs(hash) % PALETTE.length];
 }
 
+// Hôtes autorisés par next.config.ts (remotePatterns). Si l'avatar_url
+// pointe ailleurs (data legacy, profil de test, etc.), next/image refuse
+// de la rendre — on bascule directement sur le placeholder initiales
+// plutôt que de crasher la page entière avec un Runtime Error.
+const ALLOWED_IMAGE_HOSTS = [
+  "res.cloudinary.com",
+  ".supabase.co",
+];
+
+function isAllowedHost(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return ALLOWED_IMAGE_HOSTS.some((h) =>
+      h.startsWith(".") ? hostname.endsWith(h) : hostname === h,
+    );
+  } catch {
+    return false;
+  }
+}
+
 interface UserAvatarProps {
   user: User;
   size?: number;
@@ -19,6 +42,9 @@ interface UserAvatarProps {
 }
 
 export function UserAvatar({ user, size = 40, className }: UserAvatarProps) {
+  // Si l'image échoue à charger en runtime (404, CORS, etc.), on bascule
+  // sur les initiales pour ne pas afficher un placeholder cassé.
+  const [imageFailed, setImageFailed] = useState(false);
   const fs = Math.round(size * 0.36);
 
   if (user.deleted) {
@@ -44,7 +70,7 @@ export function UserAvatar({ user, size = 40, className }: UserAvatarProps) {
     );
   }
 
-  if (user.avatarUrl) {
+  if (user.avatarUrl && !imageFailed && isAllowedHost(user.avatarUrl)) {
     return (
       <div
         className={className}
@@ -56,6 +82,7 @@ export function UserAvatar({ user, size = 40, className }: UserAvatarProps) {
           width={size}
           height={size}
           style={{ objectFit: "cover", width: "100%", height: "100%" }}
+          onError={() => setImageFailed(true)}
         />
       </div>
     );
@@ -68,7 +95,10 @@ export function UserAvatar({ user, size = 40, className }: UserAvatarProps) {
         width: size,
         height: size,
         borderRadius: "50%",
-        background: colorFromId(user.id),
+        // Couleur choisie par l'utilisateur dans /settings (profiles.avatar_color)
+        // si présente, sinon fallback sur un hash déterministe de l'id pour rester
+        // visuellement stable d'un user à l'autre.
+        background: user.avatarColor ?? colorFromId(user.id),
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

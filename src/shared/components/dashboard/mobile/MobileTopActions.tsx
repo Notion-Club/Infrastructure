@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
@@ -9,16 +10,28 @@ import {
   computeIdentityInitials,
   useProfileIdentityContext,
 } from "@/shared/components/identity/ProfileIdentityProvider";
+import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 
 const UNREAD_COUNT = 2;
 
 export function MobileTopActions() {
+  const router = useRouter();
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [signingOut, startSignOut] = useTransition();
   const avatarRef = useRef<HTMLDivElement>(null);
   const { identity } = useProfileIdentityContext();
   const initials = computeIdentityInitials(identity);
   const avatarUrl = identity?.avatarUrl ?? null;
   const avatarColor = identity?.avatarColor ?? "#e0625a";
+
+  function handleSignOut() {
+    startSignOut(async () => {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.auth.signOut();
+      router.push("/login");
+      router.refresh();
+    });
+  }
 
   useEffect(() => {
     if (!avatarOpen) return;
@@ -175,6 +188,30 @@ export function MobileTopActions() {
             >
               Réglages
             </Link>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={handleSignOut}
+              disabled={signingOut}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: "10px 10px",
+                fontSize: 14,
+                fontWeight: 500,
+                color: "var(--color-brand)",
+                background: "transparent",
+                border: "none",
+                cursor: signingOut ? "wait" : "pointer",
+                opacity: signingOut ? 0.6 : 1,
+                borderRadius: 10,
+                transition: "background 150ms ease",
+              }}
+              className="hover:bg-[var(--color-surface-raised)]"
+            >
+              {signingOut ? "Déconnexion…" : "Se déconnecter"}
+            </button>
           </div>
         )}
       </div>

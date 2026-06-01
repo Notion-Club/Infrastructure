@@ -4,9 +4,25 @@ import { useState, useRef, useEffect } from "react";
 import { Bold, Italic, List, Link, Image as ImageIcon, Video as VideoIcon } from "lucide-react";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
-import { MOCK_USERS } from "../../mocks/users.mock";
-import { canMentionUser } from "../../utils/mention-rules";
+import { listMembersAction } from "../../server/actions";
+import type { CommunityMember } from "../../server/queries";
 import { UserAvatar } from "../shared/UserAvatar";
+
+// Type local minimal pour brancher CommunityMember sur UserAvatar (qui attend
+// un User complet). On comble les champs manquants avec des valeurs neutres ;
+// UserAvatar n'utilise concrètement que id / avatarUrl / avatarColor / initials.
+function memberAsUserShape(m: CommunityMember): User {
+  return {
+    id: m.id,
+    name: m.name,
+    avatarUrl: m.avatarUrl,
+    avatarColor: null,
+    initials: m.initials,
+    role: "member",
+    offer: "free",
+    joinedAt: "",
+  };
+}
 
 function detectVideoUrl(text: string): string | null {
   const ytMatch = text.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
@@ -18,14 +34,30 @@ function detectVideoUrl(text: string): string | null {
   return null;
 }
 
+// Mention sélectionnée et toujours présente dans le body final au submit.
+// Permet aux call sites d'alimenter post_mentions / comment_mentions ou
+// comment_replies.mentioned_user_id sans devoir reparser le texte.
+export type ComposerMention = { id: string; name: string };
+
 interface CommentComposerProps {
   currentUser: User;
   devRole: DevRole;
   placeholder?: string;
   replyingTo?: string;
   onCancelReply?: () => void;
-  onSubmit: (body: string) => void;
+  // Le second arg `mentions` ne contient que les @user encore présents dans
+  // le body au moment du submit (l'utilisateur peut effacer une mention après
+  // l'avoir insérée — on ne la persistera pas). Optionnel pour les call sites
+  // qui n'en ont pas besoin.
+  onSubmit: (body: string, mentions: ComposerMention[]) => void;
   compact?: boolean;
+  // Pré-remplit l'éditeur (utilisé pour le mode édition d'un commentaire
+  // existant). Ignoré si replyingTo est aussi fourni.
+  initialValue?: string;
+  // Label du bouton submit ("Publier" par défaut, "Enregistrer" en mode edit).
+  submitLabel?: string;
+  // Désactive le composer pendant un await (loading state).
+  disabled?: boolean;
 }
 
 export function CommentComposer({
@@ -34,6 +66,9 @@ export function CommentComposer({
   replyingTo,
   onCancelReply,
   onSubmit,
+  initialValue,
+  submitLabel,
+  disabled = false,
 }: CommentComposerProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -46,22 +81,46 @@ export function CommentComposer({
   const [urlInput, setUrlInput] = useState("");
   const [urlPos, setUrlPos] = useState({ top: 0, left: 0 });
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  // Liste des membres autorisés à être mentionnés — alimentée par la Server
+  // Action listMembersAction au mount. On filtre l'utilisateur courant (pas
+  // de self-mention) côté UI. La capability check (can_view_community) est
+  // déjà appliquée côté serveur dans listMembersAction.
+  const [mentionables, setMentionables] = useState<CommunityMember[]>([]);
+  // Mentions effectivement insérées dans le body — gardées entre le clic du
+  // picker et le submit. Une fois le submit fait on filtre celles qui sont
+  // toujours visibles dans le texte pour éviter de persister des @name que
+  // l'utilisateur aurait effacés.
+  const insertedMentions = useRef<ComposerMention[]>([]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const mentionables = MOCK_USERS.filter(
-    (u) => !u.deleted && u.id !== currentUser.id && canMentionUser(currentUser, u)
-  );
+  useEffect(() => {
+    let cancelled = false;
+    listMembersAction().then((members) => {
+      if (cancelled) return;
+      setMentionables(members.filter((m) => m.id !== currentUser.id));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser.id]);
 
   const suggestions = mentionSearch !== null
-    ? mentionables.filter((u) => u.name.toLowerCase().includes(mentionSearch.toLowerCase())).slice(0, 5)
+    ? mentionables.filter((m) => m.name.toLowerCase().includes(mentionSearch.toLowerCase())).slice(0, 5)
     : [];
 
   useEffect(() => {
-    if (replyingTo && editorRef.current) {
+    if (!editorRef.current) return;
+    if (replyingTo) {
       editorRef.current.innerHTML = `<span style="color:var(--color-brand);font-weight:500">@${replyingTo}</span>&nbsp;`;
       setEditorEmpty(false);
+      return;
     }
-  }, [replyingTo]);
+    if (initialValue !== undefined) {
+      // textContent évite l'injection HTML — on attend du body plain text.
+      editorRef.current.textContent = initialValue;
+      setEditorEmpty(initialValue.trim().length === 0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replyingTo, initialValue]);
 
   function syncEmpty() {
     const text = editorRef.current?.innerText?.trim() ?? "";
@@ -92,24 +151,58 @@ export function CommentComposer({
     }
   }
 
-  function insertMention(name: string) {
+  function insertMention(member: CommunityMember) {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
     const textNode = range.startContainer;
-    if (textNode.nodeType === Node.TEXT_NODE) {
+    if (textNode.nodeType === Node.TEXT_NODE && textNode instanceof Text) {
       const text = textNode.textContent ?? "";
       const offset = range.startOffset;
       const match = text.slice(0, offset).match(/@(\w*)$/);
       if (match) {
         const start = offset - match[0].length;
-        textNode.textContent = text.slice(0, start) + `@${name} ` + text.slice(offset);
-        const newRange = document.createRange();
-        newRange.setStart(textNode, start + name.length + 2);
-        newRange.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(newRange);
+        // Découpe le textNode : avant @, [@search] retiré, après. On insère
+        // un <span> stylé brand+bold pour la mention, puis un espace texte
+        // pour relancer la saisie en flux normal (et permettre au regex de
+        // détection mention de ne plus se déclencher tant qu'on ne retape
+        // pas @).
+        const before = text.slice(0, start);
+        const after = text.slice(offset);
+        textNode.textContent = before;
+
+        const span = document.createElement("span");
+        span.textContent = `@${member.name}`;
+        // data-mention-id pour qu'on puisse extraire les UUIDs au submit
+        // (future amélioration : aujourd'hui on garde insertedMentions ref).
+        span.setAttribute("data-mention-id", member.id);
+        span.setAttribute("contenteditable", "false");
+        span.style.color = "var(--color-brand)";
+        span.style.fontWeight = "600";
+
+        const spaceNode = document.createTextNode(" ");
+        const afterNode = document.createTextNode(after);
+
+        const parent = textNode.parentNode;
+        if (parent) {
+          parent.insertBefore(span, textNode.nextSibling);
+          parent.insertBefore(spaceNode, span.nextSibling);
+          parent.insertBefore(afterNode, spaceNode.nextSibling);
+
+          // Caret après l'espace insécable.
+          const newRange = document.createRange();
+          newRange.setStart(spaceNode, 1);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+        }
       }
+    }
+    // Mémorise l'association name→id pour qu'on puisse la remonter au submit
+    // même si l'utilisateur retouche le texte autour. On dédoublonne par id
+    // (mention multiple du même user → un seul enregistrement).
+    if (!insertedMentions.current.some((m) => m.id === member.id)) {
+      insertedMentions.current.push({ id: member.id, name: member.name });
     }
     setMentionSearch(null);
     editorRef.current?.focus();
@@ -119,8 +212,17 @@ export function CommentComposer({
   function handleSubmit() {
     const text = editorRef.current?.innerText?.trim() ?? "";
     if (!text) return;
-    onSubmit(text);
+    // Filtre : on ne garde que les mentions dont le @name est toujours
+    // présent dans le body final (l'utilisateur peut avoir effacé une
+    // mention insérée). Comparaison insensible à la casse et délimitée
+    // pour éviter qu'un nom soit substring d'un autre.
+    const stillPresent = insertedMentions.current.filter((m) => {
+      const escaped = m.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`@${escaped}\\b`, "i").test(text);
+    });
+    onSubmit(text, stillPresent);
     if (editorRef.current) editorRef.current.innerHTML = "";
+    insertedMentions.current = [];
     setEditorEmpty(true);
     setMentionSearch(null);
   }
@@ -267,16 +369,16 @@ export function CommentComposer({
         {/* Mention suggestions */}
         {suggestions.length > 0 && mentionPos && (
           <div style={{ position: "fixed", top: mentionPos.top, left: mentionPos.left, background: "var(--color-surface-card)", border: "1px solid var(--color-border-default)", borderRadius: 12, boxShadow: "var(--nc-shadow-3)", overflow: "hidden", zIndex: 500, minWidth: 200 }}>
-            {suggestions.map((u) => (
+            {suggestions.map((m) => (
               <button
-                key={u.id}
+                key={m.id}
                 type="button"
-                onMouseDown={(e) => { e.preventDefault(); insertMention(u.name); }}
+                onMouseDown={(e) => { e.preventDefault(); insertMention(m); }}
                 style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", fontSize: 13, color: "var(--color-text-primary)" }}
                 className="hover:bg-[var(--color-surface-raised)]"
               >
-                <UserAvatar user={u} size={24} />
-                {u.name}
+                <UserAvatar user={memberAsUserShape(m)} size={24} />
+                {m.name}
               </button>
             ))}
           </div>
@@ -314,20 +416,21 @@ export function CommentComposer({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={editorEmpty}
+            disabled={editorEmpty || disabled}
             style={{
               padding: "7px 18px",
-              background: !editorEmpty ? "var(--color-brand)" : "var(--nc-btn-disabled-bg)",
-              color: !editorEmpty ? "#fff" : "var(--nc-btn-disabled-text)",
+              background: !editorEmpty && !disabled ? "var(--color-brand)" : "var(--nc-btn-disabled-bg)",
+              color: !editorEmpty && !disabled ? "#fff" : "var(--nc-btn-disabled-text)",
               border: "none",
               borderRadius: 9999,
               fontSize: 13,
               fontWeight: 600,
-              cursor: !editorEmpty ? "pointer" : "not-allowed",
+              cursor: !editorEmpty && !disabled ? "pointer" : "not-allowed",
               transition: "all 150ms ease",
+              opacity: disabled ? 0.7 : 1,
             }}
           >
-            Commenter
+            {submitLabel ?? "Commenter"}
           </button>
         </div>
       </div>

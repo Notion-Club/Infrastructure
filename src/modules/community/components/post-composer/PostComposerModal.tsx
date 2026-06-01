@@ -2,11 +2,18 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Image as ImageIcon, Video as VideoIcon, Link } from "lucide-react";
+import { X, Image as ImageIcon, Video as VideoIcon, Link, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import type { Post, PostTag, PostAudience } from "../../types/post.types";
 import type { User } from "../../types/user.types";
 import { PostComposerTagSelect } from "./PostComposerTagSelect";
 import { PostComposerAdminFields } from "./PostComposerAdminFields";
+import { uploadPostMediaAction } from "../../server/actions";
+import {
+  POST_MEDIA_ALLOWED_MIME,
+  POST_MEDIA_MAX_BYTES,
+  isAllowedPostMediaMime,
+} from "../../lib/validation";
 
 const DRAFT_KEY = "community:draft";
 
@@ -25,9 +32,12 @@ interface PostComposerModalProps {
   onClose: () => void;
   onPublish: (post: Partial<Post>) => void;
   initialPost?: Partial<Post>;
+  // true pendant que la Server Action createPostAction est en cours —
+  // disable le bouton Publier pour éviter les double-clics.
+  publishing?: boolean;
 }
 
-export function PostComposerModal({ currentUser, onClose, onPublish, initialPost }: PostComposerModalProps) {
+export function PostComposerModal({ currentUser, onClose, onPublish, initialPost, publishing = false }: PostComposerModalProps) {
   const isAdmin = currentUser.role === "admin" || currentUser.role === "mentor";
   const isEditMode = !!initialPost;
 
@@ -55,15 +65,25 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
   const [boldActive, setBoldActive] = useState(false);
   const [italicActive, setItalicActive] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Restore draft (only when not editing)
+  // Restore draft (only when not editing) — dépend de `mounted` car le
+  // portail n'est rendu qu'après le premier setMounted(true), donc
+  // editorRef.current n'existe pas avant.
   useEffect(() => {
+    if (!mounted) return;
     if (isEditMode) {
       if (editorRef.current && initialPost?.body) {
-        editorRef.current.innerHTML = initialPost.body;
-        setEditorEmpty(false);
+        // initialPost.body est du plain text (cf. handlePublish qui stocke
+        // innerText). textContent préserve les retours à la ligne et évite
+        // toute injection HTML accidentelle.
+        editorRef.current.textContent = initialPost.body;
+        setBodyHtml(editorRef.current.innerHTML);
+        setEditorEmpty(initialPost.body.trim().length === 0);
+        const video = detectVideoUrl(initialPost.body);
+        if (video) setVideoPreview(video);
       }
       return;
     }
@@ -82,7 +102,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
         }
       }
     } catch {}
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mounted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Save draft on change (only when not editing)
   useEffect(() => {
@@ -176,12 +196,37 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
     syncBody();
   }
 
-  function handleImageFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImageFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (pendingImageUrl) URL.revokeObjectURL(pendingImageUrl);
-    setPendingImageUrl(URL.createObjectURL(file));
     e.target.value = "";
+    await uploadImage(file);
+  }
+
+  async function uploadImage(file: File) {
+    if (!isAllowedPostMediaMime(file.type)) {
+      toast.error(`Format non supporté. Utilise ${POST_MEDIA_ALLOWED_MIME.join(", ")}.`);
+      return;
+    }
+    if (file.size > POST_MEDIA_MAX_BYTES) {
+      toast.error(`Le fichier dépasse ${Math.round(POST_MEDIA_MAX_BYTES / 1024 / 1024)} MB.`);
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await uploadPostMediaAction(formData);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      // Replace previous image (no revokeObjectURL needed — the URL est
+      // désormais une URL publique Supabase, pas un blob local).
+      setPendingImageUrl(result.publicUrl);
+    } finally {
+      setUploading(false);
+    }
   }
 
   const modal = (
@@ -465,17 +510,20 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
               />
               <button
                 type="button"
-                title="Image"
+                title={uploading ? "Upload en cours…" : "Image"}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => imageInputRef.current?.click()}
+                onClick={() => !uploading && imageInputRef.current?.click()}
+                disabled={uploading}
                 style={{
                   width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
-                  cursor: "pointer", color: "var(--color-text-secondary)",
+                  cursor: uploading ? "not-allowed" : "pointer",
+                  color: uploading ? "var(--color-text-muted)" : "var(--color-text-secondary)",
+                  opacity: uploading ? 0.5 : 1,
                   transition: "background 100ms ease", display: "flex", alignItems: "center", justifyContent: "center",
                 }}
-                className="hover:bg-[rgba(0,0,0,0.06)]"
+                className={uploading ? "" : "hover:bg-[rgba(0,0,0,0.06)]"}
               >
-                <ImageIcon size={14} />
+                {uploading ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
               </button>
               <button
                 type="button"
@@ -583,17 +631,21 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
           <button
             type="button"
             onClick={handlePublish}
-            disabled={!canPublish}
+            disabled={!canPublish || publishing}
             style={{
               padding: "9px 24px",
-              background: canPublish ? "var(--color-brand)" : "var(--color-border-default)",
-              color: canPublish ? "#fff" : "var(--color-text-muted)",
+              background: canPublish && !publishing ? "var(--color-brand)" : "var(--color-border-default)",
+              color: canPublish && !publishing ? "#fff" : "var(--color-text-muted)",
               border: "none", borderRadius: 9999, fontSize: 14, fontWeight: 600,
-              cursor: canPublish ? "pointer" : "not-allowed",
+              cursor: canPublish && !publishing ? "pointer" : "not-allowed",
               transition: "all 150ms ease",
+              display: "inline-flex", alignItems: "center", gap: 6,
             }}
           >
-            {isEditMode ? "Sauvegarder" : "Publier"}
+            {publishing && <Loader2 size={14} className="animate-spin" />}
+            {publishing
+              ? (isEditMode ? "Sauvegarde…" : "Publication…")
+              : (isEditMode ? "Sauvegarder" : "Publier")}
           </button>
         </div>
       </div>
