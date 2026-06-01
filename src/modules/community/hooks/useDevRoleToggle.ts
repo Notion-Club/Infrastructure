@@ -19,12 +19,21 @@ function readStorage<T extends string>(key: string, fallback: T): T {
 }
 
 export function useDevRoleToggle() {
-  const [role, setRoleState] = useState<DevRole>(() =>
-    readStorage<DevRole>(ROLE_KEY, "paid")
-  );
-  const [feedState, setFeedStateState] = useState<DevFeedState>(() =>
-    readStorage<DevFeedState>(STATE_KEY, "full")
-  );
+  // ⚠️ Hydration : on initialise toujours avec la valeur par défaut côté SSR
+  // ET côté client (1er render). La valeur réelle (localStorage) est lue dans
+  // un useEffect APRÈS l'hydratation, pour éviter le mismatch
+  // "tree hydrated but some attributes... didn't match" qui se déclenche dès
+  // qu'un utilisateur a cliqué une fois sur un autre onglet du DevRoleToggle.
+  const [role, setRoleState] = useState<DevRole>("paid");
+  const [feedState, setFeedStateState] = useState<DevFeedState>("full");
+
+  // Sync localStorage → state au mount (post-hydration).
+  useEffect(() => {
+    const storedRole = readStorage<DevRole>(ROLE_KEY, "paid");
+    if (storedRole !== "paid") setRoleState(storedRole);
+    const storedState = readStorage<DevFeedState>(STATE_KEY, "full");
+    if (storedState !== "full") setFeedStateState(storedState);
+  }, []);
 
   useEffect(() => {
     try { localStorage.setItem(ROLE_KEY, role); } catch {}

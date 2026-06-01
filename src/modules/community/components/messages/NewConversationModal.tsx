@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Search } from "lucide-react";
 import type { User } from "../../types/user.types";
-import { MOCK_USERS } from "../../mocks/users.mock";
-import { canDMUser } from "../../utils/dm-rules";
+import { listMembersAction } from "../../server/actions";
+import type { CommunityMember } from "../../server/queries";
 import { UserAvatar } from "../shared/UserAvatar";
-import { RestrictedTooltip } from "../shared/RestrictedTooltip";
 
 interface NewConversationModalProps {
   currentUser: User;
@@ -14,16 +13,44 @@ interface NewConversationModalProps {
   onSelect: (userId: string) => void;
 }
 
+// Shim local CommunityMember → User pour UserAvatar (qui attend un User
+// complet). avatarColor / role / offer ne sont pas utilisés par les vignettes
+// 40px du picker (juste le hash de couleur de fallback).
+function memberAsUserShape(m: CommunityMember): User {
+  return {
+    id: m.id,
+    name: m.name,
+    avatarUrl: m.avatarUrl,
+    avatarColor: null,
+    initials: m.initials,
+    role: "member",
+    offer: "free",
+    joinedAt: "",
+  };
+}
+
 export function NewConversationModal({ currentUser, onClose, onSelect }: NewConversationModalProps) {
   const [query, setQuery] = useState("");
+  // Liste réelle des membres tirée via Server Action. La RLS two-silo
+  // (mig. 024) tranchera côté serveur si l'utilisateur clique sur un
+  // member d'un autre tier. UX simple : on n'expose pas la règle ici, on
+  // affiche un toast d'erreur si la création échoue.
+  const [members, setMembers] = useState<CommunityMember[]>([]);
 
-  const candidates = MOCK_USERS.filter(
-    (u) => !u.deleted && u.id !== currentUser.id && !u.id.startsWith("self-")
-  );
+  useEffect(() => {
+    let cancelled = false;
+    listMembersAction().then((list) => {
+      if (cancelled) return;
+      setMembers(list.filter((m) => m.id !== currentUser.id));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser.id]);
 
   const filtered = query
-    ? candidates.filter((u) => u.name.toLowerCase().includes(query.toLowerCase()))
-    : candidates;
+    ? members.filter((m) => m.name.toLowerCase().includes(query.toLowerCase()))
+    : members;
 
   return (
     <div
@@ -80,50 +107,48 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
 
         {/* List */}
         <div style={{ maxHeight: 320, overflowY: "auto" }}>
-          {filtered.map((user) => {
-            const allowed = canDMUser(currentUser, user);
-            const row = (
-              <button
-                key={user.id}
-                type="button"
-                onClick={() => { if (allowed) { onSelect(user.id); onClose(); } }}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "10px 16px",
-                  border: "none",
-                  background: "transparent",
-                  cursor: allowed ? "pointer" : "not-allowed",
-                  opacity: allowed ? 1 : 0.45,
-                  textAlign: "left",
-                  transition: "background 150ms ease",
-                }}
-                className={allowed ? "hover:bg-[rgba(0,0,0,0.04)]" : ""}
-              >
-                <UserAvatar user={user} size={40} />
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>
-                    {user.name}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
-                    {user.role === "admin" ? "Admin" : user.role === "mentor" ? "Mentor" : user.offer === "paid" ? "Accompagnement" : "Challenge gratuit"}
-                  </div>
+          {filtered.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => { onSelect(m.id); onClose(); }}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "10px 16px",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "background 150ms ease",
+              }}
+              className="hover:bg-[rgba(0,0,0,0.04)]"
+            >
+              <UserAvatar user={memberAsUserShape(m)} size={40} />
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>
+                  {m.name}
                 </div>
-              </button>
-            );
-
-            if (!allowed) {
-              const offer = user.offer === "paid" ? "Accompagnement" : "Challenge gratuit";
-              return (
-                <RestrictedTooltip key={user.id} message={`Réservé aux membres ${offer}`}>
-                  {row}
-                </RestrictedTooltip>
-              );
-            }
-            return row;
-          })}
+                {/* Sous-titre : on privilégie role > username pour rester
+                    cohérent avec le style picker Théo (PR #87) qui affichait
+                    "Admin / Mentor / Membre". offer (Accompagnement / Challenge
+                    gratuit) n'est pas exposé via CommunityMember en V1 — pour
+                    le restituer pleinement il faudra dériver les memberships
+                    et enrichir le type côté serveur. */}
+                <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                  {m.role === "admin"
+                    ? "Admin"
+                    : m.role === "mentor"
+                      ? "Mentor"
+                      : m.username
+                        ? `@${m.username}`
+                        : "Membre"}
+                </div>
+              </div>
+            </button>
+          ))}
           {filtered.length === 0 && (
             <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 13, color: "var(--color-text-muted)" }}>
               Aucun membre trouvé

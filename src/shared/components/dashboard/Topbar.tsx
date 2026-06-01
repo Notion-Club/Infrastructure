@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   BookOpen,
@@ -20,6 +20,7 @@ import {
   computeIdentityInitials,
   useProfileIdentityContext,
 } from "@/shared/components/identity/ProfileIdentityProvider";
+import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 
 type NavItem = { label: string; icon: LucideIcon; href: string };
 
@@ -53,8 +54,22 @@ const SEPARATOR = (
 
 export function Topbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [signingOut, startSignOut] = useTransition();
   const avatarRef = useRef<HTMLDivElement>(null);
+
+  // Logout via browser client : signOut() côté client invalide la session
+  // et purge les cookies, puis on redirige hard pour que le layout (app)/
+  // re-évalue auth.getUser() côté serveur et nous renvoie sur /login.
+  function handleSignOut() {
+    startSignOut(async () => {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.auth.signOut();
+      router.push("/login");
+      router.refresh();
+    });
+  }
 
   // Sliding pill
   const navRef = useRef<HTMLElement>(null);
@@ -346,6 +361,30 @@ export function Topbar() {
               >
                 Réglages
               </Link>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleSignOut}
+                disabled={signingOut}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "10px 10px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: "var(--color-brand)",
+                  background: "transparent",
+                  border: "none",
+                  cursor: signingOut ? "wait" : "pointer",
+                  opacity: signingOut ? 0.6 : 1,
+                  borderRadius: 10,
+                  transition: "background 150ms ease",
+                }}
+                className="hover:bg-[var(--color-surface-raised)]"
+              >
+                {signingOut ? "Déconnexion…" : "Se déconnecter"}
+              </button>
             </div>
           )}
         </div>{/* fin avatarRef */}

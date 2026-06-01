@@ -12,16 +12,23 @@ import { UserAvatar } from "../shared/UserAvatar";
 interface ConversationThreadProps {
   conversation: Conversation;
   currentUser: User;
+  onSendMessage: (body: string) => void;
   onBack?: () => void;
 }
 
-export function ConversationThread({ conversation, currentUser, onBack }: ConversationThreadProps) {
-  const [messages, setMessages] = useState(conversation.messages);
+export function ConversationThread({ conversation, currentUser, onSendMessage, onBack }: ConversationThreadProps) {
+  // Optimistic local : ajoute le message immédiatement, le parent fera un
+  // router.refresh() qui le remplacera par la vraie ligne DB.
+  const [optimisticMessages, setOptimisticMessages] = useState<typeof conversation.messages>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Reset des messages optimistic quand on change de conv ou que les
+  // messages DB sont rechargés via router.refresh().
   useEffect(() => {
-    setMessages(conversation.messages);
+    setOptimisticMessages([]);
   }, [conversation.id, conversation.messages]);
+
+  const messages = [...conversation.messages, ...optimisticMessages];
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -33,16 +40,20 @@ export function ConversationThread({ conversation, currentUser, onBack }: Conver
     : undefined;
 
   function handleSend(body: string, type: "text" | "pdf" | "image" = "text", fileName?: string) {
-    const newMsg = {
-      id: `msg-${Date.now()}`,
-      senderId: currentUser.id,
-      type,
-      body,
-      fileName,
-      reactions: [],
-      createdAt: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, newMsg]);
+    // Optimistic — sera remplacé au router.refresh() côté parent.
+    setOptimisticMessages((prev) => [
+      ...prev,
+      {
+        id: `pending-${Date.now()}`,
+        senderId: currentUser.id,
+        type,
+        body,
+        fileName,
+        reactions: [],
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    onSendMessage(body);
   }
 
   return (
