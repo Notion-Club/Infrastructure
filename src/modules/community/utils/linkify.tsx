@@ -4,18 +4,47 @@ import type { ReactNode } from "react";
 // Ordre des alternatives important : le pattern http://... est essayé en
 // premier pour ne pas être avalé par le pattern bare-domain.
 //
-// Pattern bare-domain : (subdomain.)+tld où tld est 2-24 chars de lettres
-// pures (couvre .com / .fr / .museum / .academy sans matcher des points
-// dans des phrases type "Bonjour. Comment ça va.").
+// Pattern bare-domain : la partie après le dernier point doit être 2-24
+// chars de lettres pures. Pour distinguer un vrai TLD d'une extension de
+// fichier (ex: "Attestation.pdf"), on filtre PASSE-2 contre une whitelist
+// de TLDs courants (cf. KNOWN_TLDS / FILE_EXT_BLACKLIST). Le regex matche
+// large, le filtre code-level rejette les noms de fichiers.
 const URL_RE =
   /(https?:\/\/[^\s<>"]+)|(\b(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,24}(?:\/[^\s<>"]*)?)/gi;
 
-// Extensions d'image détectables dans une URL. Sert au rendu Slack-like
-// (image inline au lieu d'un lien cliquable).
+// Extensions d'image détectables dans une URL HTTP(S). Sert au rendu
+// Slack-like (image inline au lieu d'un lien cliquable). Pour les URLs
+// bare-domain, on NE rend PAS d'image inline (sinon "logo.png" tout seul
+// déclencherait un fetch vers https://logo.png/).
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|avif)(\?|#|$)/i;
+
+// Extensions de fichiers connues — quand le "TLD" d'un bare-domain matche
+// l'une d'elles, on rejette le match (ce n'est pas une URL, c'est un nom
+// de fichier dans le texte). Évite que "Rapport.pdf" devienne un lien
+// cassé vers https://rapport.pdf/.
+const FILE_EXT_BLACKLIST = new Set([
+  "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "rtf",
+  "zip", "rar", "tar", "gz", "7z",
+  "mp3", "mp4", "mov", "avi", "mkv", "wav", "ogg", "webm", "flac",
+  "png", "jpg", "jpeg", "gif", "webp", "svg", "avif", "bmp", "tiff", "ico",
+  "exe", "dmg", "pkg", "deb", "apk",
+  "json", "xml", "yaml", "yml", "log", "md", "html", "css", "js", "ts", "tsx",
+]);
 
 function isImageUrl(url: string): boolean {
   return IMAGE_EXT_RE.test(url);
+}
+
+// Le TLD d'un bare-domain est la partie après le dernier point, sans
+// query ni path. Si c'est une extension de fichier connue, on rejette.
+function looksLikeBareDomain(match: string): boolean {
+  // Match http(s):// → toujours OK, on respecte le schéma explicite.
+  if (/^https?:\/\//i.test(match)) return true;
+  // Extrait le TLD : on coupe au premier /, ? ou #, puis on prend après
+  // le dernier point.
+  const cleanHost = match.split(/[/?#]/)[0]!;
+  const tld = cleanHost.split(".").pop()?.toLowerCase() ?? "";
+  return !FILE_EXT_BLACKLIST.has(tld);
 }
 
 // Convertit un match bare-domain ("example.com") en URL absolue ouvrable.
@@ -32,13 +61,24 @@ export function linkify(text: string): ReactNode[] {
 
   URL_RE.lastIndex = 0;
   while ((match = URL_RE.exec(text)) !== null) {
+    const url = match[0];
+    // Filtre extension-de-fichier : "Rapport.pdf" matche le regex mais
+    // n'est PAS une URL. On ne pousse rien et on continue — le segment
+    // sera ramassé par le slice de fin du while ou la prochaine itération.
+    if (!looksLikeBareDomain(url)) {
+      continue;
+    }
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
     }
-    const url = match[0];
     const href = toHref(url);
 
-    if (isImageUrl(url)) {
+    // Rendu image inline UNIQUEMENT pour les URLs http(s) explicites —
+    // un bare-domain qui se termine par .png/.jpg est filtré par
+    // looksLikeBareDomain ci-dessus, donc on n'arrive jamais ici avec
+    // "logo.png" tout seul. Mais une URL http://exemple.fr/logo.png
+    // déclenche bien le rendu image.
+    if (isImageUrl(url) && /^https?:\/\//i.test(url)) {
       // Rendu inline image style Slack — max 320px de large/haut. Le click
       // émet un événement custom 'nc-image-open' capté par un listener
       // global (cf. ImageLightboxRoot) qui ouvre une lightbox plein écran.

@@ -370,21 +370,64 @@ export function MessageBubble({ message, isSelf, currentUser, onReply }: Message
                 </div>
               )}
               {message.type === "pdf" && message.fileUrl && (
+                /* Rendu Slack-like pour les fichiers non-image. type "pdf"
+                   est notre bucket DB générique pour tout fichier (PDF,
+                   docx, zip, etc.) — on identifie le vrai format via
+                   l'extension de fileName. */
                 <a
                   href={message.fileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  download={message.fileName ?? undefined}
                   onClick={(e) => e.stopPropagation()}
                   style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    color: "inherit", textDecoration: "underline",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    background: isSelf ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.04)",
+                    border: isSelf
+                      ? "1px solid rgba(255,255,255,0.25)"
+                      : "1px solid var(--color-border-default)",
+                    color: "inherit",
+                    textDecoration: "none",
+                    maxWidth: 320,
+                    transition: "background 150ms ease",
                   }}
                 >
-                  <FileText size={20} />
-                  <span style={{ fontSize: 13, fontWeight: 500 }}>
-                    {message.fileName ?? "Fichier"}
-                  </span>
+                  <FileText size={28} style={{ flexShrink: 0, opacity: 0.85 }} />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {message.fileName ?? "Fichier"}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        opacity: 0.7,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.4,
+                      }}
+                    >
+                      {(message.fileName?.split(".").pop() ?? "Fichier").slice(0, 6)}
+                      {" "}· Télécharger
+                    </div>
+                  </div>
                 </a>
+              )}
+              {/* Body texte optionnel accompagnant le fichier non-image */}
+              {message.type === "pdf" && message.body && (
+                <span style={{ whiteSpace: "pre-wrap", marginTop: 6, display: "block" }}>
+                  {linkify(message.body)}
+                </span>
               )}
             </>
           )}

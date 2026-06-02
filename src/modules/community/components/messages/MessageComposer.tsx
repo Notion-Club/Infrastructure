@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip, Send, X, FileText, Loader2, Reply as ReplyIcon } from "lucide-react";
 import { toast } from "sonner";
-import { uploadPostMediaAction } from "../../server/actions";
+import { uploadDmFileAction } from "../../server/actions";
 
 interface PendingFile {
   name: string;
@@ -133,10 +133,18 @@ export function MessageComposer({
 
   async function attachFile(file: File) {
     const isImage = file.type.startsWith("image/");
+    // On utilise le type DB existant : "image" pour les vraies images
+    // (rendu inline), "pdf" comme bucket générique pour TOUS les autres
+    // types de fichier (rendu icône + nom + lien download). On ne crée
+    // pas un type DB "file" dédié pour éviter la migration et garder
+    // le rendu déjà en place.
     const type: "image" | "pdf" = isImage ? "image" : "pdf";
+
     // Blob URL local pour la preview/lightbox AVANT l'upload — le user voit
-    // déjà sa miniature pendant qu'on push vers Supabase.
-    const previewUrl = URL.createObjectURL(file);
+    // déjà sa miniature pendant qu'on push vers Supabase. Pas de preview
+    // visuelle pour les non-images (PDF, docx, etc.), on affiche juste le
+    // nom + icône.
+    const previewUrl = isImage ? URL.createObjectURL(file) : null;
     setPendingFile({
       name: file.name,
       previewUrl,
@@ -145,22 +153,20 @@ export function MessageComposer({
       uploading: true,
     });
 
-    // Upload réel vers Supabase Storage via la même action que les posts
-    // (uploadPostMediaAction). RLS community_insert_own (mig. 018) garantit
-    // que seul l'uploader peut écrire dans uploads/<auth.uid>/.
+    // uploadDmFileAction = whitelist large (PDF, Office, archives, audio,
+    // vidéo, etc.) + 25 MB max. Distinct d'uploadPostMediaAction qui reste
+    // strictement images-seulement pour les posts. RLS community_insert_own
+    // identique (mig. 018, scope uploads/<auth.uid>/).
     //
-    // Note : on réutilise le bucket "community" pour les médias de DM. Les
-    // URLs sont publiques, donc les images partagées en DM sont
-    // techniquement accessibles via l'URL si on la copie. C'est cohérent
-    // avec ce qu'on fait pour les posts. À durcir plus tard avec un bucket
-    // privé "community-dm" + signed URLs si besoin (cf. note migration 018).
+    // Bucket public — voir mig. 018 pour la note sécu (les fichiers DM
+    // partagés sont techniquement accessibles via l'URL si copiée).
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const result = await uploadPostMediaAction(formData);
+      const result = await uploadDmFileAction(formData);
       if (!result.ok) {
         toast.error(result.message);
-        URL.revokeObjectURL(previewUrl);
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
         setPendingFile(null);
         return;
       }
@@ -172,7 +178,7 @@ export function MessageComposer({
     } catch (err) {
       console.error("[MessageComposer.attachFile] upload failed:", err);
       toast.error("Échec de l'upload, réessaie.");
-      URL.revokeObjectURL(previewUrl);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPendingFile(null);
     }
   }
@@ -347,18 +353,24 @@ export function MessageComposer({
                 via stopPropagation pour ne pas déclencher l'ouverture. */}
             <button
               type="button"
-              onClick={() => setViewing(pendingFile)}
+              // Lightbox UNIQUEMENT pour les images (la previewUrl est null
+              // pour les non-images, on n'a rien à agrandir avant l'envoi).
+              onClick={() => {
+                if (pendingFile.type === "image" && pendingFile.previewUrl) {
+                  setViewing(pendingFile);
+                }
+              }}
               aria-label={
                 pendingFile.type === "image"
                   ? "Agrandir l'image"
-                  : "Ouvrir le PDF en grand"
+                  : `Fichier ${pendingFile.name}`
               }
               style={{
                 padding: 0,
                 margin: 0,
                 background: "transparent",
                 border: "none",
-                cursor: "zoom-in",
+                cursor: pendingFile.type === "image" ? "zoom-in" : "default",
                 display: "block",
               }}
             >
@@ -423,7 +435,10 @@ export function MessageComposer({
         <input
           ref={fileRef}
           type="file"
-          accept="image/*,.pdf"
+          // Whitelist large : images + PDF + Office + texte + archives +
+          // audio + vidéo. Synchro avec DM_FILE_ALLOWED_MIME côté server.
+          // Le server retourne une erreur claire si le MIME n'est pas autorisé.
+          accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.zip,.rar,.7z,.tar,.gz,audio/*,video/*"
           style={{ display: "none" }}
           onChange={handleFileChange}
         />
