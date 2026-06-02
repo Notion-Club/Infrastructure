@@ -199,21 +199,52 @@ function deletedUserShape(authorId: string): User {
   };
 }
 
+// Convertit un profil DB en shape Reactor pour l'affichage du hover popover.
+// Le nom + initiales + avatar suivent les helpers déjà utilisés pour User
+// (computeDisplayName / computeInitials).
+function mapProfileToReactor(p: ProfileRow): {
+  id: string;
+  name: string;
+  initials: string;
+  avatarUrl: string | null;
+  avatarColor: string | null;
+} {
+  return {
+    id: p.id,
+    name: computeDisplayName(p),
+    initials: computeInitials(p),
+    avatarUrl: p.avatar_url,
+    avatarColor: p.avatar_color,
+  };
+}
+
 function mapReactions(
   reactions: Array<{ user_id: string; emoji: string }>,
   viewerId: string | null,
+  profilesById?: Map<string, ProfileRow>,
 ): Post["reactions"] {
-  const grouped = new Map<string, { count: number; userReacted: boolean }>();
+  const grouped = new Map<
+    string,
+    {
+      count: number;
+      userReacted: boolean;
+      reactors: ReturnType<typeof mapProfileToReactor>[];
+    }
+  >();
   for (const r of reactions) {
-    const current = grouped.get(r.emoji) ?? { count: 0, userReacted: false };
+    const current =
+      grouped.get(r.emoji) ?? { count: 0, userReacted: false, reactors: [] };
     current.count += 1;
     if (viewerId && r.user_id === viewerId) current.userReacted = true;
+    const profile = profilesById?.get(r.user_id);
+    if (profile) current.reactors.push(mapProfileToReactor(profile));
     grouped.set(r.emoji, current);
   }
   return Array.from(grouped.entries()).map(([emoji, data]) => ({
     emoji,
     count: data.count,
     userReacted: data.userReacted,
+    reactors: data.reactors,
   }));
 }
 
@@ -223,6 +254,7 @@ function mapPostRow(
   commentCount: number,
   viewerId: string | null,
   mentions: PostMentionRow[] = [],
+  reactorProfilesById: Map<string, ProfileRow> = new Map(),
 ): Post {
   return {
     id: row.id,
@@ -239,7 +271,11 @@ function mapPostRow(
     videoUrl: row.video_url ?? undefined,
     pinned: row.pinned,
     pinnedUntil: row.pinned_until ?? undefined,
-    reactions: mapReactions(reactions.filter((r) => r.post_id === row.id), viewerId),
+    reactions: mapReactions(
+      reactions.filter((r) => r.post_id === row.id),
+      viewerId,
+      reactorProfilesById,
+    ),
     commentCount,
     mentions: mentions
       .filter((m) => m.post_id === row.id && m.mentioned)
@@ -363,6 +399,15 @@ export async function listPosts(): Promise<Post[]> {
     commentCountByPost.set(c.post_id, (commentCountByPost.get(c.post_id) ?? 0) + 1);
   }
 
+  // Charge en une seule requête les profils de tous les users qui ont
+  // réagi à au moins un post — alimente Reaction.reactors pour le hover
+  // popover (cf. ReactionsBar). On ne tire que les champs nécessaires à
+  // l'affichage du popover (id, name parts, avatar).
+  const reactorIds = Array.from(
+    new Set((reactionsRes.data ?? []).map((r) => r.user_id)),
+  );
+  const reactorProfilesById = await fetchReactorProfiles(supabase, reactorIds);
+
   return posts.map((row) =>
     mapPostRow(
       row,
@@ -370,8 +415,31 @@ export async function listPosts(): Promise<Post[]> {
       commentCountByPost.get(row.id) ?? 0,
       viewerId,
       mentionsRes.data ?? [],
+      reactorProfilesById,
     ),
   );
+}
+
+// Helper partagé : récupère les profils des reactors par id. RLS
+// profiles_select_same_org (mig. 025) garantit que le caller voit les
+// profils des membres de sa propre org. Si une réaction pointe sur un
+// profil hors-org (cas marginal cross-org plus tard), elle apparaîtra
+// sans reactor associé — l'UI doit le tolérer.
+async function fetchReactorProfiles(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  userIds: string[],
+): Promise<Map<string, ProfileRow>> {
+  if (userIds.length === 0) return new Map();
+  const { data } = await supabase
+    .from("profiles")
+    .select(
+      "id, first_name, last_name, display_name, username, avatar_url, avatar_color, role, created_at",
+    )
+    .in("id", userIds)
+    .returns<ProfileRow[]>();
+  const map = new Map<string, ProfileRow>();
+  for (const p of data ?? []) map.set(p.id, p);
+  return map;
 }
 
 // ============================================================================
@@ -426,12 +494,18 @@ export async function getPostById(id: string): Promise<Post | null> {
       .returns<PostMentionRow[]>(),
   ]);
 
+  const reactorIds = Array.from(
+    new Set((reactionsRes.data ?? []).map((r) => r.user_id)),
+  );
+  const reactorProfilesById = await fetchReactorProfiles(supabase, reactorIds);
+
   return mapPostRow(
     row,
     reactionsRes.data ?? [],
     commentsForCountRes.count ?? 0,
     viewerId,
     mentionsRes.data ?? [],
+    reactorProfilesById,
   );
 }
 
@@ -538,6 +612,16 @@ export async function listCommentsForPost(postId: string): Promise<Comment[]> {
   const replyReactions = replyReactionsRes.data ?? [];
   const replyMentions = replyMentionsRes.data ?? [];
 
+  // Charge en une seule requête les profils des reactors (comments + replies)
+  // pour alimenter Reaction.reactors lors du hover popover.
+  const reactorIds = Array.from(
+    new Set([
+      ...(reactionsRes.data ?? []).map((r) => r.user_id),
+      ...replyReactions.map((r) => r.user_id),
+    ]),
+  );
+  const reactorProfilesById = await fetchReactorProfiles(supabase, reactorIds);
+
   const repliesByComment = new Map<string, CommentReply[]>();
   for (const r of replies) {
     const replyUi: CommentReply = {
@@ -554,6 +638,7 @@ export async function listCommentsForPost(postId: string): Promise<Comment[]> {
       reactions: mapReactions(
         replyReactions.filter((rr) => rr.comment_reply_id === r.id),
         viewerId,
+        reactorProfilesById,
       ),
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -571,6 +656,7 @@ export async function listCommentsForPost(postId: string): Promise<Comment[]> {
     reactions: mapReactions(
       (reactionsRes.data ?? []).filter((r) => r.comment_id === c.id),
       viewerId,
+      reactorProfilesById,
     ),
     replies: repliesByComment.get(c.id) ?? [],
     mentions: commentMentions

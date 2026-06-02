@@ -1,33 +1,65 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import Image from "next/image";
 import { createPortal } from "react-dom";
-import type { Reaction } from "../../types/post.types";
-import { MOCK_USERS } from "../../mocks/users.mock";
+import type { Reaction, Reactor } from "../../types/post.types";
 
-function getMockReactors(emoji: string, count: number): Array<{ name: string; initials: string }> {
-  const seed = emoji.codePointAt(0) ?? 0;
-  const users = MOCK_USERS.filter((u) => !u.deleted && !u.id.startsWith("self-"));
-  return Array.from({ length: count }, (_, i) => {
-    const u = users[(seed + i) % users.length];
-    return { name: u.name, initials: u.initials ?? u.name.slice(0, 2).toUpperCase() };
-  });
+// Récupère les reactors réels d'une réaction. Si la source DB ne les a pas
+// fournis (legacy / mock), on retourne une liste de placeholders neutres
+// ("Membre 1", "Membre 2"...) plutôt que d'inventer des noms.
+function getReactors(reaction: Reaction): Reactor[] {
+  if (reaction.reactors && reaction.reactors.length > 0) return reaction.reactors;
+  // Fallback : on génère N reactors anonymes pour matcher le count, sans
+  // mentir sur l'identité. Quand on est sur de la vraie DB, ce chemin n'est
+  // jamais emprunté (les reactors sont toujours hydratés).
+  return Array.from({ length: reaction.count }, (_, i) => ({
+    id: `anon-${i}`,
+    name: `Membre ${i + 1}`,
+    initials: "?",
+    avatarUrl: null,
+    avatarColor: null,
+  }));
 }
 
-function getAllReactors(reactions: Reaction[]): Array<{ name: string; initials: string; emoji: string }> {
+function getAllReactors(reactions: Reaction[]): Array<Reactor & { emoji: string }> {
   return reactions.flatMap((r) =>
-    getMockReactors(r.emoji, r.count).map((u) => ({ ...u, emoji: r.emoji }))
+    getReactors(r).map((u) => ({ ...u, emoji: r.emoji })),
   );
 }
 
-function AvatarDot({ initials }: { initials: string }) {
+// Hash déterministe id → couleur pour le fallback avatar (memberCard sans
+// avatar_url ni avatar_color). Aligné sur le pattern UserAvatar.
+function hashColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  const palette = ["#e0625a", "#7a8fff", "#5fa57a", "#d4a55f", "#9b6bd4", "#5fa3d4"];
+  return palette[hash % palette.length]!;
+}
+
+function AvatarDot({ reactor }: { reactor: Reactor }) {
+  const bg = reactor.avatarColor ?? hashColor(reactor.id);
+  if (reactor.avatarUrl) {
+    return (
+      <Image
+        src={reactor.avatarUrl}
+        alt={reactor.name}
+        width={22}
+        height={22}
+        style={{ borderRadius: "50%", flexShrink: 0, objectFit: "cover" }}
+        unoptimized
+      />
+    );
+  }
   return (
-    <div style={{
-      width: 22, height: 22, borderRadius: "50%", background: "#e0625a",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: 9, fontWeight: 700, color: "#fff", flexShrink: 0,
-    }}>
-      {initials}
+    <div
+      style={{
+        width: 22, height: 22, borderRadius: "50%", background: bg,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 9, fontWeight: 700, color: "#fff", flexShrink: 0,
+      }}
+    >
+      {reactor.initials}
     </div>
   );
 }
@@ -61,9 +93,9 @@ function BottomSheet({ reactions, onClose }: { reactions: Reaction[]; onClose: (
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {all.map((r, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div key={`${r.id}-${i}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <AvatarDot initials={r.initials} />
+                <AvatarDot reactor={r} />
                 <span style={{ fontSize: 13, color: "var(--color-text-primary)", fontWeight: 500 }}>{r.name}</span>
               </div>
               <span style={{ fontSize: 18 }}>{r.emoji}</span>
@@ -77,22 +109,23 @@ function BottomSheet({ reactions, onClose }: { reactions: Reaction[]; onClose: (
 }
 
 interface ReactionPillProps {
-  emoji: string;
-  count: number;
-  userReacted: boolean;
+  reaction: Reaction;
   compact: boolean;
   onReact?: () => void;
   allReactions: Reaction[];
 }
 
-function ReactionPill({ emoji, count, userReacted, compact, onReact, allReactions }: ReactionPillProps) {
+function ReactionPill({ reaction, compact, onReact, allReactions }: ReactionPillProps) {
+  const { emoji, count, userReacted } = reaction;
   const [hovered, setHovered] = useState(false);
   const [showSheet, setShowSheet] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const reactors = getMockReactors(emoji, count);
+  // Reactors réels venus de la DB (Reaction.reactors). Fallback anonyme si
+  // la source ne les a pas hydratés (cas mocks legacy / fallback dev).
+  const reactors = getReactors(reaction);
 
   const onEnter = useCallback(() => {
     if (hideTimer.current) clearTimeout(hideTimer.current);
@@ -167,8 +200,8 @@ function ReactionPill({ emoji, count, userReacted, compact, onReact, allReaction
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 200, overflowY: "auto" }}>
               {reactors.map((r, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                  <AvatarDot initials={r.initials} />
+                <div key={`${r.id}-${i}`} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <AvatarDot reactor={r} />
                   <span style={{ fontSize: 12, color: "var(--color-text-primary)", fontWeight: 500 }}>{r.name}</span>
                 </div>
               ))}
@@ -213,9 +246,7 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
           nonEmpty.map((r) => (
             <ReactionPill
               key={r.emoji}
-              emoji={r.emoji}
-              count={r.count}
-              userReacted={r.userReacted}
+              reaction={r}
               compact={compact}
               onReact={onReact ? () => onReact(r.emoji) : undefined}
               allReactions={reactions}
