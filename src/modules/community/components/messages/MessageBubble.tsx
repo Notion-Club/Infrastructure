@@ -24,9 +24,12 @@ interface MessageBubbleProps {
   // Le parent gère le composer en mode quote-reply : clic sur Répondre →
   // setReplyContext({...}) côté ConversationThread, qui le passe au composer.
   onReply: (message: Message) => void;
+  // true quand un résultat de recherche pointe vers ce message — affiche un
+  // halo brand quelques secondes pour aider l'utilisateur à le repérer.
+  highlighted?: boolean;
 }
 
-export function MessageBubble({ message, isSelf, currentUser, onReply }: MessageBubbleProps) {
+export function MessageBubble({ message, isSelf, currentUser, onReply, highlighted }: MessageBubbleProps) {
   const [showToolbar, setShowToolbar] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(message.body);
@@ -153,12 +156,18 @@ export function MessageBubble({ message, isSelf, currentUser, onReply }: Message
 
   return (
     <div
+      id={`nc-msg-${message.id}`}
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: isSelf ? "flex-end" : "flex-start",
         margin: "2px 0",
         position: "relative",
+        // Highlight déclenché par un clic sur un résultat de recherche.
+        // Halo brand-tinted qui s'estompe en 1.8s via transition.
+        boxShadow: highlighted ? "0 0 0 3px rgba(224,98,90,0.35)" : "none",
+        borderRadius: highlighted ? 16 : undefined,
+        transition: "box-shadow 600ms ease",
       }}
       onMouseEnter={() => setShowToolbar(true)}
       onMouseLeave={() => setShowToolbar(false)}
