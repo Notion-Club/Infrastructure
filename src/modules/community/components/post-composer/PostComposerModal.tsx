@@ -125,7 +125,9 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") { onClose(); return; }
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-        if (canPublish) handlePublish();
+        // handlePublish gère lui-même la validation : il déclenchera
+        // setSubmitAttempted si invalide, sinon publiera.
+        handlePublish();
       }
     }
     document.addEventListener("keydown", onKey);
@@ -153,16 +155,38 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
   }
 
   const editorHasContent = !editorEmpty;
-  const canPublish = editorHasContent && (isAdmin ? audience !== null : true);
+  const titleHasContent = title.trim().length > 0;
+  // Titre + body sont désormais obligatoires (décision produit 2026-06-02).
+  // L'audience reste obligatoire pour les admins (silo paid/free).
+  const canPublish =
+    titleHasContent && editorHasContent && (isAdmin ? audience !== null : true);
+
+  // Passe à true au premier clic Publier avec un formulaire invalide. Sert à
+  // afficher les messages d'erreur en rouge sous chaque champ manquant.
+  // Reset implicite quand un champ devient valide (style live).
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  const titleError = submitAttempted && !titleHasContent;
+  const bodyError = submitAttempted && !editorHasContent;
 
   function handlePublish() {
-    if (!canPublish) return;
+    if (!canPublish) {
+      setSubmitAttempted(true);
+      // Focus le premier champ en erreur pour aider la saisie.
+      if (!titleHasContent) {
+        const el = document.querySelector<HTMLInputElement>('input[data-nc-field="post-title"]');
+        el?.focus();
+      } else if (!editorHasContent) {
+        editorRef.current?.focus();
+      }
+      return;
+    }
     if (!isEditMode) {
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
     }
     onPublish({
       ...initialPost,
-      title: title.trim() || undefined,
+      title: title.trim(),
       body: editorRef.current?.innerText?.trim() ?? "",
       tag,
       audience: audience ?? "all",
@@ -363,70 +387,36 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
         {/* Body */}
         <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
           {/* Title */}
-          <input
-            type="text"
-            placeholder="Titre (optionnel)"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            style={{
-              width: "100%", padding: "10px 14px",
-              border: "1px solid var(--color-border-default)",
-              borderRadius: 12, fontSize: 15, fontWeight: 600,
-              outline: "none", background: "var(--color-surface-raised)",
-              color: "var(--color-text-primary)", fontFamily: "inherit",
-              boxSizing: "border-box",
-            }}
-            onFocus={(e) => (e.target.style.borderColor = "var(--color-brand)")}
-            onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
-          />
-
-          {/* Pending image preview — style Slack : taille modérée sous le
-              textarea, click pour agrandir (lightbox), croix pour retirer
-              (delete cloud + reset state). */}
-          {pendingImageUrl && (
-            <div style={{ position: "relative", display: "inline-block" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={pendingImageUrl}
-                alt="preview"
-                onClick={() => setPreviewLightbox(true)}
-                style={{
-                  maxWidth: 320,
-                  maxHeight: 240,
-                  borderRadius: 10,
-                  border: "1px solid var(--color-border-default)",
-                  objectFit: "cover",
-                  display: "block",
-                  cursor: "zoom-in",
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  // Cleanup orphelin côté Supabase si on a tracké le path
-                  // (uniquement pour les images uploadées dans cette session,
-                  // pas pour les images legacy d'un post en édition).
-                  if (pendingImagePath) {
-                    deletePostMediaAction(pendingImagePath).catch(() => {
-                      /* best-effort */
-                    });
-                  }
-                  setPendingImageUrl(null);
-                  setPendingImagePath(null);
-                }}
-                aria-label="Retirer l'image"
-                style={{
-                  position: "absolute", top: 6, right: 6,
-                  width: 24, height: 24, borderRadius: "50%",
-                  background: "rgba(0,0,0,0.65)", border: "none", cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "#fff", fontSize: 12,
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <input
+              type="text"
+              data-nc-field="post-title"
+              placeholder="Titre"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              aria-invalid={titleError}
+              style={{
+                width: "100%", padding: "10px 14px",
+                border: `1px solid ${titleError ? "var(--color-brand)" : "var(--color-border-default)"}`,
+                borderRadius: 12, fontSize: 15, fontWeight: 600,
+                outline: "none", background: "var(--color-surface-raised)",
+                color: "var(--color-text-primary)", fontFamily: "inherit",
+                boxSizing: "border-box",
+                transition: "border-color 150ms ease",
+              }}
+              onFocus={(e) => {
+                if (!titleError) e.target.style.borderColor = "var(--color-brand)";
+              }}
+              onBlur={(e) => {
+                if (!titleError) e.target.style.borderColor = "var(--color-border-default)";
+              }}
+            />
+            {titleError && (
+              <p style={{ margin: 0, fontSize: 12, color: "var(--color-brand)", paddingLeft: 4 }}>
+                Le titre est obligatoire
+              </p>
+            )}
+          </div>
 
           {/* Video preview */}
           {videoPreview && (
@@ -441,11 +431,13 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
           )}
 
           {/* Editor */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <div
             style={{
-              border: "1px solid var(--color-border-default)",
+              border: `1px solid ${bodyError ? "var(--color-brand)" : "var(--color-border-default)"}`,
               borderRadius: 12,
               overflow: "hidden",
+              transition: "border-color 150ms ease",
             }}
           >
             {/* Toolbar */}
@@ -491,9 +483,25 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
               <span style={{ width: 1, height: 16, background: "var(--color-border-default)" }} />
               <button
                 type="button"
-                title="Liste"
+                title="Liste à puces"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => { document.execCommand("insertUnorderedList", false); editorRef.current?.focus(); syncBody(); }}
+                onClick={() => {
+                  // execCommand("insertUnorderedList") est buggé sur le
+                  // contentEditable qui utilise <div> comme block (le cas par
+                  // défaut Chromium). Fallback : on insère manuellement un
+                  // <ul><li>…</li></ul> au caret, ou on enveloppe la sélection.
+                  editorRef.current?.focus();
+                  const ok = document.execCommand("insertUnorderedList", false);
+                  if (!ok) {
+                    // Insertion manuelle au caret.
+                    const sel = window.getSelection();
+                    if (sel && editorRef.current) {
+                      const html = "<ul><li>&#8203;</li></ul>";
+                      document.execCommand("insertHTML", false, html);
+                    }
+                  }
+                  syncBody();
+                }}
                 style={{
                   width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
                   cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)",
@@ -604,6 +612,57 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
               />
             </div>
           </div>
+          {bodyError && (
+            <p style={{ margin: 0, fontSize: 12, color: "var(--color-brand)", paddingLeft: 4 }}>
+              Le contenu du post est obligatoire
+            </p>
+          )}
+          </div>
+
+          {/* Pending image preview — style Slack : sous le textarea pour
+              que l'attention reste sur la rédaction. Click pour agrandir
+              via la lightbox, croix pour retirer (delete cloud + reset). */}
+          {pendingImageUrl && (
+            <div style={{ position: "relative", display: "inline-block" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={pendingImageUrl}
+                alt="preview"
+                onClick={() => setPreviewLightbox(true)}
+                style={{
+                  maxWidth: 320,
+                  maxHeight: 240,
+                  borderRadius: 10,
+                  border: "1px solid var(--color-border-default)",
+                  objectFit: "cover",
+                  display: "block",
+                  cursor: "zoom-in",
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (pendingImagePath) {
+                    deletePostMediaAction(pendingImagePath).catch(() => {
+                      /* best-effort */
+                    });
+                  }
+                  setPendingImageUrl(null);
+                  setPendingImagePath(null);
+                }}
+                aria-label="Retirer l'image"
+                style={{
+                  position: "absolute", top: 6, right: 6,
+                  width: 24, height: 24, borderRadius: "50%",
+                  background: "rgba(0,0,0,0.65)", border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#fff", fontSize: 12,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           {/* Tag */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -653,13 +712,16 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
           <button
             type="button"
             onClick={handlePublish}
-            disabled={!canPublish || publishing}
+            disabled={publishing}
             style={{
               padding: "9px 24px",
-              background: canPublish && !publishing ? "var(--color-brand)" : "var(--color-border-default)",
-              color: canPublish && !publishing ? "#fff" : "var(--color-text-muted)",
+              // Toujours brand pour permettre le clic-pour-valider. Le clic
+              // sur un formulaire invalide déclenche l'affichage des erreurs
+              // au lieu de publier (cf. handlePublish + setSubmitAttempted).
+              background: !publishing ? "var(--color-brand)" : "var(--color-border-default)",
+              color: !publishing ? "#fff" : "var(--color-text-muted)",
               border: "none", borderRadius: 9999, fontSize: 14, fontWeight: 600,
-              cursor: canPublish && !publishing ? "pointer" : "not-allowed",
+              cursor: !publishing ? "pointer" : "not-allowed",
               transition: "all 150ms ease",
               display: "inline-flex", alignItems: "center", gap: 6,
             }}
