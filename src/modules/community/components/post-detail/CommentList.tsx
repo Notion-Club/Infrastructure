@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Comment } from "../../types/comment.types";
@@ -21,6 +21,12 @@ export function CommentList({ postId, comments: initialComments, currentUser, de
   const [comments, setComments] = useState(initialComments);
   const [, startSubmit] = useTransition();
   const router = useRouter();
+
+  // Resync l'état local quand router.refresh() ramène de nouveaux comments
+  // (les optimistic "pending-…" sont remplacés par les vraies lignes DB).
+  useEffect(() => {
+    setComments(initialComments);
+  }, [initialComments]);
 
   function handleNewComment(body: string, mentions: { id: string; name: string }[]) {
     const trimmed = body.trim();
