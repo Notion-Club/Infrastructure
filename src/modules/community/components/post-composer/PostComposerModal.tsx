@@ -8,7 +8,8 @@ import type { Post, PostTag, PostAudience } from "../../types/post.types";
 import type { User } from "../../types/user.types";
 import { PostComposerTagSelect } from "./PostComposerTagSelect";
 import { PostComposerAdminFields } from "./PostComposerAdminFields";
-import { uploadPostMediaAction } from "../../server/actions";
+import { ImageLightbox } from "../shared/ImageLightbox";
+import { uploadPostMediaAction, deletePostMediaAction } from "../../server/actions";
 import {
   POST_MEDIA_ALLOWED_MIME,
   POST_MEDIA_MAX_BYTES,
@@ -60,6 +61,13 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
   const [urlNoSelection, setUrlNoSelection] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(initialPost?.imageUrl ?? null);
+  // Storage path Supabase de l'image non-encore-publiée — sert à appeler
+  // deletePostMediaAction si l'user retire la preview (cleanup orphelin).
+  // Null en mode édition d'un post existant (l'image est déjà publiée).
+  const [pendingImagePath, setPendingImagePath] = useState<string | null>(null);
+  // Lightbox locale sur la preview elle-même (l'auteur peut vouloir agrandir
+  // avant publication pour vérifier que c'est la bonne photo).
+  const [previewLightbox, setPreviewLightbox] = useState(false);
   const [editorEmpty, setEditorEmpty] = useState(!initialPost?.body);
   const [videoPreview, setVideoPreview] = useState<{ type: string; src: string } | null>(null);
   const [boldActive, setBoldActive] = useState(false);
@@ -221,9 +229,15 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
         toast.error(result.message);
         return;
       }
-      // Replace previous image (no revokeObjectURL needed — the URL est
-      // désormais une URL publique Supabase, pas un blob local).
+      // Replace previous image. Si une image était déjà uploadée (path
+      // tracké), on la supprime du bucket pour éviter les orphelins.
+      if (pendingImagePath) {
+        deletePostMediaAction(pendingImagePath).catch(() => {
+          /* best-effort, on n'interrompt pas le flux */
+        });
+      }
       setPendingImageUrl(result.publicUrl);
+      setPendingImagePath(result.storagePath);
     } finally {
       setUploading(false);
     }
@@ -366,23 +380,47 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
             onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
           />
 
-          {/* Pending image preview */}
+          {/* Pending image preview — style Slack : taille modérée sous le
+              textarea, click pour agrandir (lightbox), croix pour retirer
+              (delete cloud + reset state). */}
           {pendingImageUrl && (
-            <div style={{ position: "relative", borderRadius: 12, overflow: "hidden" }}>
+            <div style={{ position: "relative", display: "inline-block" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={pendingImageUrl}
                 alt="preview"
-                style={{ width: "100%", maxHeight: 200, objectFit: "cover", display: "block" }}
+                onClick={() => setPreviewLightbox(true)}
+                style={{
+                  maxWidth: 320,
+                  maxHeight: 240,
+                  borderRadius: 10,
+                  border: "1px solid var(--color-border-default)",
+                  objectFit: "cover",
+                  display: "block",
+                  cursor: "zoom-in",
+                }}
               />
               <button
                 type="button"
-                onClick={() => { URL.revokeObjectURL(pendingImageUrl); setPendingImageUrl(null); }}
+                onClick={() => {
+                  // Cleanup orphelin côté Supabase si on a tracké le path
+                  // (uniquement pour les images uploadées dans cette session,
+                  // pas pour les images legacy d'un post en édition).
+                  if (pendingImagePath) {
+                    deletePostMediaAction(pendingImagePath).catch(() => {
+                      /* best-effort */
+                    });
+                  }
+                  setPendingImageUrl(null);
+                  setPendingImagePath(null);
+                }}
+                aria-label="Retirer l'image"
                 style={{
-                  position: "absolute", top: 8, right: 8,
-                  width: 28, height: 28, borderRadius: "50%",
-                  background: "rgba(0,0,0,0.6)", border: "none", cursor: "pointer",
+                  position: "absolute", top: 6, right: 6,
+                  width: 24, height: 24, borderRadius: "50%",
+                  background: "rgba(0,0,0,0.65)", border: "none", cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "#fff", fontSize: 14,
+                  color: "#fff", fontSize: 12,
                 }}
               >
                 ✕
@@ -637,5 +675,17 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
   );
 
   if (!mounted) return null;
-  return createPortal(modal, document.body);
+  return createPortal(
+    <>
+      {modal}
+      {previewLightbox && pendingImageUrl && (
+        <ImageLightbox
+          url={pendingImageUrl}
+          alt="Aperçu de l'image en cours de publication"
+          onClose={() => setPreviewLightbox(false)}
+        />
+      )}
+    </>,
+    document.body,
+  );
 }

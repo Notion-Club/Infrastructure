@@ -5,7 +5,12 @@ import { Bold, Italic, List, Link, Image as ImageIcon, Loader2 } from "lucide-re
 import { toast } from "sonner";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
-import { listMembersAction, uploadPostMediaAction } from "../../server/actions";
+import {
+  deletePostMediaAction,
+  listMembersAction,
+  uploadPostMediaAction,
+} from "../../server/actions";
+import { ImageLightbox } from "../shared/ImageLightbox";
 import type { CommunityMember } from "../../server/queries";
 import { UserAvatar } from "../shared/UserAvatar";
 
@@ -92,6 +97,14 @@ export function CommentComposer({
   // distinct dans l'UI courante — on désactive juste le bouton et on toggle
   // une icône Loader2 en place de ImageIcon.
   const [uploadingImage, setUploadingImage] = useState(false);
+  // Image en attente de publication — pattern Slack : on upload immédiatement
+  // vers Supabase Storage, on affiche une preview sous le textarea, et au
+  // submit on append l'URL en fin de body (linkify la rendra en <img> inline).
+  // pendingImagePath sert au cleanup orphelin si l'user retire la preview.
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+  const [pendingImagePath, setPendingImagePath] = useState<string | null>(null);
+  // Lightbox sur la preview pour vérifier avant publication.
+  const [previewLightbox, setPreviewLightbox] = useState(false);
   // Liste des membres autorisés à être mentionnés — alimentée par la Server
   // Action listMembersAction au mount. On filtre l'utilisateur courant (pas
   // de self-mention) côté UI. La capability check (can_view_community) est
@@ -232,7 +245,9 @@ export function CommentComposer({
 
   function handleSubmit() {
     const text = editorRef.current?.innerText?.trim() ?? "";
-    if (!text) return;
+    // On accepte un commentaire vide en texte SI une image pending est attachée
+    // (cas "j'envoie juste une image"). Sinon refus comme avant.
+    if (!text && !pendingImageUrl) return;
     // Filtre : on ne garde que les mentions dont le @name est toujours
     // présent dans le body final (l'utilisateur peut avoir effacé une
     // mention insérée). Comparaison insensible à la casse et délimitée
@@ -241,11 +256,24 @@ export function CommentComposer({
       const escaped = m.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       return new RegExp(`@${escaped}\\b`, "i").test(text);
     });
-    onSubmit(text, stillPresent);
+
+    // Append l'URL de l'image en attente en fin de body. Le rendu côté
+    // CommentItem détecte les URLs d'image (extension) via linkify et les
+    // affiche en <img> inline. Séparation par double newline pour aérer
+    // visuellement le texte de l'image.
+    const finalBody = pendingImageUrl
+      ? (text ? `${text}\n\n${pendingImageUrl}` : pendingImageUrl)
+      : text;
+
+    onSubmit(finalBody, stillPresent);
     if (editorRef.current) editorRef.current.innerHTML = "";
     insertedMentions.current = [];
     setEditorEmpty(true);
     setMentionSearch(null);
+    // Une fois publié, le pending est "consommé" — pas de cleanup orphelin
+    // car le path pointe sur une image désormais référencée dans un comment.
+    setPendingImageUrl(null);
+    setPendingImagePath(null);
   }
 
   function handleLinkClick() {
@@ -269,6 +297,7 @@ export function CommentComposer({
   }
 
   return (
+    <>
     <div style={{ display: "flex", gap: 10, position: "relative" }}>
       <UserAvatar user={currentUser} size={36} />
       <div style={{ flex: 1 }}>
@@ -346,14 +375,16 @@ export function CommentComposer({
                   toast.error(result.message);
                   return;
                 }
-                // Insère l'URL publique Supabase dans le body. Le rendu côté
-                // CommentItem détecte les URLs d'image (extension + host
-                // Supabase) et les affiche en tant que <img> via linkify.
-                // Voilà pourquoi on n'utilise pas insertImage qui injectait
-                // un <img src="blob:..."> non persistable.
-                editorRef.current?.focus();
-                document.execCommand("insertText", false, result.publicUrl + " ");
-                syncEmpty();
+                // Pattern Slack : on stocke en state pour afficher une preview
+                // sous le textarea. L'URL ne sera append au body qu'au submit.
+                // Si une image était déjà en attente, on nettoie l'orphelin.
+                if (pendingImagePath) {
+                  deletePostMediaAction(pendingImagePath).catch(() => {
+                    /* best-effort */
+                  });
+                }
+                setPendingImageUrl(result.publicUrl);
+                setPendingImagePath(result.storagePath);
               }}
             />
             <button
@@ -395,6 +426,53 @@ export function CommentComposer({
               onKeyDown={handleKeyDown}
               style={{ minHeight: 60, padding: "10px 14px", fontSize: 14, outline: "none", fontFamily: "inherit", lineHeight: 1.55, color: "var(--color-text-primary)", wordBreak: "break-word" }}
             />
+
+            {/* Preview image en attente — sous le textarea, taille modérée
+                Slack-like, click pour agrandir, croix pour retirer + delete
+                de l'orphelin côté Supabase. */}
+            {pendingImageUrl && (
+              <div style={{ padding: "0 14px 10px", position: "relative", display: "inline-block" }}>
+                <div style={{ position: "relative", display: "inline-block" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={pendingImageUrl}
+                    alt="Aperçu"
+                    onClick={() => setPreviewLightbox(true)}
+                    style={{
+                      maxWidth: 240,
+                      maxHeight: 200,
+                      borderRadius: 10,
+                      border: "1px solid var(--color-border-default)",
+                      objectFit: "cover",
+                      display: "block",
+                      cursor: "zoom-in",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (pendingImagePath) {
+                        deletePostMediaAction(pendingImagePath).catch(() => {
+                          /* best-effort */
+                        });
+                      }
+                      setPendingImageUrl(null);
+                      setPendingImagePath(null);
+                    }}
+                    aria-label="Retirer l'image"
+                    style={{
+                      position: "absolute", top: 6, right: 6,
+                      width: 22, height: 22, borderRadius: "50%",
+                      background: "rgba(0,0,0,0.65)", border: "none", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "#fff", fontSize: 11,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -448,16 +526,16 @@ export function CommentComposer({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={editorEmpty || disabled}
+            disabled={(editorEmpty && !pendingImageUrl) || disabled}
             style={{
               padding: "7px 18px",
-              background: !editorEmpty && !disabled ? "var(--color-brand)" : "var(--nc-btn-disabled-bg)",
-              color: !editorEmpty && !disabled ? "#fff" : "var(--nc-btn-disabled-text)",
+              background: (!editorEmpty || pendingImageUrl) && !disabled ? "var(--color-brand)" : "var(--nc-btn-disabled-bg)",
+              color: (!editorEmpty || pendingImageUrl) && !disabled ? "#fff" : "var(--nc-btn-disabled-text)",
               border: "none",
               borderRadius: 9999,
               fontSize: 13,
               fontWeight: 600,
-              cursor: !editorEmpty && !disabled ? "pointer" : "not-allowed",
+              cursor: (!editorEmpty || pendingImageUrl) && !disabled ? "pointer" : "not-allowed",
               transition: "all 150ms ease",
               opacity: disabled ? 0.7 : 1,
             }}
@@ -467,5 +545,14 @@ export function CommentComposer({
         </div>
       </div>
     </div>
+
+    {previewLightbox && pendingImageUrl && (
+      <ImageLightbox
+        url={pendingImageUrl}
+        alt="Aperçu de l'image en cours de publication"
+        onClose={() => setPreviewLightbox(false)}
+      />
+    )}
+    </>
   );
 }
