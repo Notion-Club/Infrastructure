@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Image as ImageIcon, Video as VideoIcon, Link, Loader2 } from "lucide-react";
+import { X, Image as ImageIcon, Link, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Post, PostTag, PostAudience } from "../../types/post.types";
 import type { User } from "../../types/user.types";
@@ -525,27 +525,11 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
               >
                 {uploading ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
               </button>
-              <button
-                type="button"
-                title="Vidéo (YouTube, Tella, Loom)"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  const url = window.prompt("URL de la vidéo (YouTube, Tella, Loom)");
-                  if (url) {
-                    editorRef.current?.focus();
-                    document.execCommand("insertText", false, url);
-                    syncBody();
-                  }
-                }}
-                style={{
-                  width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
-                  cursor: "pointer", color: "var(--color-text-secondary)",
-                  transition: "background 100ms ease", display: "flex", alignItems: "center", justifyContent: "center",
-                }}
-                className="hover:bg-[rgba(0,0,0,0.06)]"
-              >
-                <VideoIcon size={14} />
-              </button>
+              {/* Bouton "Ajouter une vidéo" retiré (décision produit du
+                  2026-06-02). Théo veut que les membres collent directement
+                  un lien Tella / YouTube / Loom dans le body — le preview
+                  vidéo est toujours auto-détecté par detectVideoUrl()
+                  ci-dessus, donc l'affichage continue de marcher. */}
             </div>
 
             {/* contentEditable editor */}
