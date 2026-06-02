@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, BookOpen, Users, Calendar, Library, type LucideIcon } from "lucide-react";
@@ -23,35 +23,49 @@ export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const navRef = useRef<HTMLElement>(null);
-  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
-  const hasInitialized = useRef(false);
-  const [pill, setPill] = useState({ left: 0, width: 0, height: 0, top: 0, visible: false, animated: false });
+  const itemRefs       = useRef<(HTMLAnchorElement | null)[]>([]);
+  const pillRef        = useRef<HTMLDivElement>(null);
+  const lastClickedRef = useRef<number>(-1);
 
+  // Pattern du snippet Transitions.dev — animate=false : snap (reflow trick),
+  // animate=true : glissement via la CSS transition de .nc-nav-pill.
+  const moveTo = useCallback((idx: number, animate: boolean) => {
+    const el   = itemRefs.current[idx];
+    const pill = pillRef.current;
+    if (!el || !pill) return;
+
+    if (!animate) {
+      const prev = pill.style.transition;
+      pill.style.transition = "none";
+      pill.style.top    = `${el.offsetTop}px`;
+      pill.style.height = `${el.offsetHeight}px`;
+      pill.style.transform = `translateX(${el.offsetLeft}px)`;
+      pill.style.width     = `${el.offsetWidth}px`;
+      void pill.offsetWidth; // force reflow — commit sans animation
+      pill.style.transition = prev;
+    } else {
+      pill.style.transform = `translateX(${el.offsetLeft}px)`;
+      pill.style.width     = `${el.offsetWidth}px`;
+    }
+  }, []);
+
+  // Snap sans animation : premier rendu + retour/avance navigateur.
+  // Si l'utilisateur vient de cliquer sur cet item, l'animation CSS est déjà
+  // en cours — on ne snappe pas pour ne pas l'interrompre.
   useLayoutEffect(() => {
-    const activeIndex = NAV_ITEMS.findIndex(
+    const idx = NAV_ITEMS.findIndex(
       ({ href }) => pathname === href || pathname.startsWith(href + "/"),
     );
-    const navEl = navRef.current;
-    const activeEl = itemRefs.current[activeIndex];
-    if (!navEl || !activeEl) return;
-    const navRect = navEl.getBoundingClientRect();
-    const activeRect = activeEl.getBoundingClientRect();
-    const isFirst = !hasInitialized.current;
-    hasInitialized.current = true;
-    setPill({
-      left: activeRect.left - navRect.left,
-      width: activeRect.width,
-      height: activeRect.height,
-      top: activeRect.top - navRect.top,
-      visible: true,
-      animated: !isFirst,
-    });
-  }, [pathname]);
+    if (lastClickedRef.current === idx) {
+      lastClickedRef.current = -1;
+      return;
+    }
+    lastClickedRef.current = -1;
+    moveTo(idx, false);
+  }, [pathname, moveTo]);
 
   return (
     <nav
-      ref={navRef}
       aria-label="Navigation principale"
       style={{
         position: "fixed",
@@ -71,27 +85,24 @@ export function BottomNav() {
         padding: "0 6px",
       }}
     >
-      {/* Pilule glissante */}
+      {/* Pill glissante — class nc-nav-pill porte la CSS transition.
+          top/height/transform/width écrits via moveTo(), jamais via React state. */}
       <div
+        ref={pillRef}
         aria-hidden
+        className="nc-nav-pill"
         style={{
           position: "absolute",
-          left: pill.left,
-          top: pill.top,
-          width: pill.width,
-          height: pill.height,
+          left: 0,
           background: "var(--nc-nav-active-bg)",
           borderRadius: 9999,
-          opacity: pill.visible ? 1 : 0,
-          transition: pill.animated
-            ? "left var(--nc-duration-normal) var(--nc-ease), width var(--nc-duration-normal) var(--nc-ease)"
-            : "none",
           pointerEvents: "none",
+          willChange: "transform, width",
         }}
       />
 
       {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
-        const isActive = pathname === href || pathname.startsWith(href + "/");
+        const isActive     = pathname === href || pathname.startsWith(href + "/");
         const isCommunaute = href === "/communaute";
         return (
           <Link
@@ -99,6 +110,10 @@ export function BottomNav() {
             href={href}
             ref={(el) => { itemRefs.current[i] = el; }}
             onClick={(e) => {
+              // Animation immédiate au clic — avant que Next.js charge la page.
+              lastClickedRef.current = i;
+              moveTo(i, true);
+              // Comportement Communauté : scroll vers le haut si déjà sur la page.
               if (isCommunaute && pathname.startsWith("/communaute")) {
                 e.preventDefault();
                 window.scrollTo({ top: 0, behavior: "smooth" });
