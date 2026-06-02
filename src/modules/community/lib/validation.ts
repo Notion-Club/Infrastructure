@@ -180,6 +180,11 @@ export const createConversationSchema = z.object({
 });
 export type CreateConversationInput = z.infer<typeof createConversationSchema>;
 
+// Snippet figé du message cité dans un quote-reply (mig. 027). 280 chars
+// matche l'expérience tweet — assez pour donner le contexte sans surcharger
+// la bulle. Le composer tronque côté client puis le serveur retrim.
+export const REPLY_SNIPPET_MAX = 280;
+
 // Envoi d'un message : conv + body (+ type/fichier si non-text).
 export const sendMessageSchema = z
   .object({
@@ -191,6 +196,11 @@ export const sendMessageSchema = z
       .max(MESSAGE_BODY_MAX, `${MESSAGE_BODY_MAX} caractères maximum`),
     file_url: z.string().url().nullable().optional(),
     file_name: z.string().max(256).nullable().optional(),
+    // Quote-reply (mig. 027). Les 3 colonnes vont par paire — la contrainte
+    // DB messages_quote_reply_consistency rejette les états partiels.
+    reply_to_message_id: z.string().uuid().nullable().optional(),
+    reply_snippet: z.string().trim().max(REPLY_SNIPPET_MAX).nullable().optional(),
+    reply_author_name: z.string().trim().max(120).nullable().optional(),
   })
   .refine(
     (d) => d.type !== "text" || d.body.length >= MESSAGE_BODY_MIN,
@@ -199,8 +209,56 @@ export const sendMessageSchema = z
   .refine(
     (d) => d.type === "text" || !!d.file_url,
     { message: "Fichier requis pour ce type de message", path: ["file_url"] },
+  )
+  .refine(
+    // Si reply_to_message_id est fourni, snippet + author_name doivent l'être.
+    // Symétrique de la contrainte DB messages_quote_reply_consistency.
+    (d) =>
+      !d.reply_to_message_id ||
+      (!!d.reply_snippet && !!d.reply_author_name),
+    { message: "Quote-reply incomplet", path: ["reply_to_message_id"] },
   );
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
+
+// Édition d'un message texte. RLS messages_update_self (mig. 014) limite
+// aux messages de l'auteur. Trigger DB messages_set_edited_at bump edited_at.
+export const editMessageSchema = z.object({
+  message_id: z.string().uuid(),
+  body: z
+    .string()
+    .trim()
+    .min(MESSAGE_BODY_MIN, "Le message ne peut pas être vide")
+    .max(MESSAGE_BODY_MAX, `${MESSAGE_BODY_MAX} caractères maximum`),
+});
+export type EditMessageInput = z.infer<typeof editMessageSchema>;
+
+// Suppression soft d'un message (deleted=true). RLS messages_update_self
+// gère l'autorisation.
+export const deleteMessageSchema = z.object({
+  message_id: z.string().uuid(),
+});
+export type DeleteMessageInput = z.infer<typeof deleteMessageSchema>;
+
+// Toggle réaction sur message (mig. 014, table message_reactions).
+export const toggleMessageReactionSchema = z.object({
+  message_id: z.string().uuid(),
+  emoji: z.string().trim().min(1).max(16),
+});
+export type ToggleMessageReactionInput = z.infer<typeof toggleMessageReactionSchema>;
+
+// Transfert d'un message à 1-5 destinataires. Le serveur crée/réutilise une
+// conversation par target via createConversationAction puis envoie une copie.
+// La copie porte forwarded_from_message_id + forwarded_from_author_name
+// (mig. 028) pour afficher "Transféré de [Nom]".
+export const FORWARD_MAX_TARGETS = 5;
+export const forwardMessageSchema = z.object({
+  message_id: z.string().uuid(),
+  target_user_ids: z
+    .array(z.string().uuid())
+    .min(1, "Choisis au moins un destinataire")
+    .max(FORWARD_MAX_TARGETS, `Maximum ${FORWARD_MAX_TARGETS} destinataires`),
+});
+export type ForwardMessageInput = z.infer<typeof forwardMessageSchema>;
 
 // Marquer une conversation comme lue : juste l'id de la conv. Le serveur
 // résout quel last_read_X_at bump selon l'identité du caller.

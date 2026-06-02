@@ -13,6 +13,10 @@ interface ConversationListProps {
   activeId: string | null;
   currentUser: User;
   onSelect: (id: string) => void;
+  // Préchauffage : appelé au mouseEnter d'un item pour lancer le fetch
+  // des messages en background. Optionnel — l'item reste fonctionnel
+  // sans (perte de réactivité au clic mais pas de bug).
+  onPrefetch?: (id: string) => void;
   onNewConversation: (userId: string) => void;
 }
 
@@ -21,6 +25,7 @@ export function ConversationList({
   activeId,
   currentUser,
   onSelect,
+  onPrefetch,
   onNewConversation,
 }: ConversationListProps) {
   const [query, setQuery] = useState("");
@@ -100,6 +105,7 @@ export function ConversationList({
               conversation={conv}
               active={conv.id === activeId}
               onClick={() => onSelect(conv.id)}
+              onPrefetch={onPrefetch ? () => onPrefetch(conv.id) : undefined}
             />
           ))
         )}

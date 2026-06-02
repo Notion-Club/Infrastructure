@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Image as ImageIcon, Video as VideoIcon, Link, Loader2 } from "lucide-react";
+import { X, Image as ImageIcon, Link, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Post, PostTag, PostAudience } from "../../types/post.types";
 import type { User } from "../../types/user.types";
 import { PostComposerTagSelect } from "./PostComposerTagSelect";
 import { PostComposerAdminFields } from "./PostComposerAdminFields";
-import { uploadPostMediaAction } from "../../server/actions";
+import { ImageLightbox } from "../shared/ImageLightbox";
+import { uploadPostMediaAction, deletePostMediaAction } from "../../server/actions";
 import {
   POST_MEDIA_ALLOWED_MIME,
   POST_MEDIA_MAX_BYTES,
@@ -16,6 +17,62 @@ import {
 } from "../../lib/validation";
 
 const DRAFT_KEY = "community:draft";
+
+// Insertion DOM déterministe d'un <ul><li> au caret du contentEditable.
+// On abandonne document.execCommand("insertUnorderedList") qui ne marche
+// pas systématiquement sur Chromium / Next 16 avec contentEditable utilisant
+// <div> comme block element. Approche manuelle :
+//   - Si la sélection est dans l'éditeur : on remplace par <ul><li>contenu</li></ul>.
+//   - Sinon : on append un <ul><li></li></ul> en fin d'éditeur et caret dedans.
+function insertBulletAtCaret(
+  editorRef: React.RefObject<HTMLDivElement | null>,
+  syncBody: () => void,
+): void {
+  const editor = editorRef.current;
+  if (!editor) return;
+
+  // Si on n'a pas le focus dans l'éditeur, on le donne d'abord. Sans focus,
+  // window.getSelection() retourne null ou pointe sur une autre zone.
+  if (!editor.contains(document.activeElement)) {
+    editor.focus();
+  }
+
+  const sel = window.getSelection();
+  const ul = document.createElement("ul");
+  ul.style.margin = "8px 0";
+  ul.style.paddingLeft = "24px";
+  const li = document.createElement("li");
+  ul.appendChild(li);
+
+  if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+    const range = sel.getRangeAt(0);
+    // Si du texte est sélectionné, on l'enveloppe dans le <li>.
+    if (!range.collapsed) {
+      const selectedText = range.toString();
+      li.textContent = selectedText;
+      range.deleteContents();
+      range.insertNode(ul);
+    } else {
+      // Caret simple — on insère au point d'insertion. Placeholder ZWS pour
+      // que la balise garde une hauteur visible (sinon <li></li> s'écroule).
+      li.innerHTML = "​";
+      range.insertNode(ul);
+    }
+  } else {
+    // Pas de sélection dans l'éditeur : append en fin.
+    li.innerHTML = "​";
+    editor.appendChild(ul);
+  }
+
+  // Place le caret à la fin du <li> pour que l'user puisse taper directement.
+  const newRange = document.createRange();
+  newRange.selectNodeContents(li);
+  newRange.collapse(false);
+  sel?.removeAllRanges();
+  sel?.addRange(newRange);
+
+  syncBody();
+}
 
 function detectVideoUrl(text: string): { type: "youtube" | "loom" | "tella"; src: string } | null {
   const ytMatch = text.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
@@ -60,6 +117,13 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
   const [urlNoSelection, setUrlNoSelection] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(initialPost?.imageUrl ?? null);
+  // Storage path Supabase de l'image non-encore-publiée — sert à appeler
+  // deletePostMediaAction si l'user retire la preview (cleanup orphelin).
+  // Null en mode édition d'un post existant (l'image est déjà publiée).
+  const [pendingImagePath, setPendingImagePath] = useState<string | null>(null);
+  // Lightbox locale sur la preview elle-même (l'auteur peut vouloir agrandir
+  // avant publication pour vérifier que c'est la bonne photo).
+  const [previewLightbox, setPreviewLightbox] = useState(false);
   const [editorEmpty, setEditorEmpty] = useState(!initialPost?.body);
   const [videoPreview, setVideoPreview] = useState<{ type: string; src: string } | null>(null);
   const [boldActive, setBoldActive] = useState(false);
@@ -117,7 +181,9 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") { onClose(); return; }
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-        if (canPublish) handlePublish();
+        // handlePublish gère lui-même la validation : il déclenchera
+        // setSubmitAttempted si invalide, sinon publiera.
+        handlePublish();
       }
     }
     document.addEventListener("keydown", onKey);
@@ -145,16 +211,38 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
   }
 
   const editorHasContent = !editorEmpty;
-  const canPublish = editorHasContent && (isAdmin ? audience !== null : true);
+  const titleHasContent = title.trim().length > 0;
+  // Titre + body sont désormais obligatoires (décision produit 2026-06-02).
+  // L'audience reste obligatoire pour les admins (silo paid/free).
+  const canPublish =
+    titleHasContent && editorHasContent && (isAdmin ? audience !== null : true);
+
+  // Passe à true au premier clic Publier avec un formulaire invalide. Sert à
+  // afficher les messages d'erreur en rouge sous chaque champ manquant.
+  // Reset implicite quand un champ devient valide (style live).
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  const titleError = submitAttempted && !titleHasContent;
+  const bodyError = submitAttempted && !editorHasContent;
 
   function handlePublish() {
-    if (!canPublish) return;
+    if (!canPublish) {
+      setSubmitAttempted(true);
+      // Focus le premier champ en erreur pour aider la saisie.
+      if (!titleHasContent) {
+        const el = document.querySelector<HTMLInputElement>('input[data-nc-field="post-title"]');
+        el?.focus();
+      } else if (!editorHasContent) {
+        editorRef.current?.focus();
+      }
+      return;
+    }
     if (!isEditMode) {
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
     }
     onPublish({
       ...initialPost,
-      title: title.trim() || undefined,
+      title: title.trim(),
       body: editorRef.current?.innerText?.trim() ?? "",
       tag,
       audience: audience ?? "all",
@@ -221,9 +309,15 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
         toast.error(result.message);
         return;
       }
-      // Replace previous image (no revokeObjectURL needed — the URL est
-      // désormais une URL publique Supabase, pas un blob local).
+      // Replace previous image. Si une image était déjà uploadée (path
+      // tracké), on la supprime du bucket pour éviter les orphelins.
+      if (pendingImagePath) {
+        deletePostMediaAction(pendingImagePath).catch(() => {
+          /* best-effort, on n'interrompt pas le flux */
+        });
+      }
       setPendingImageUrl(result.publicUrl);
+      setPendingImagePath(result.storagePath);
     } finally {
       setUploading(false);
     }
@@ -349,46 +443,36 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
         {/* Body */}
         <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
           {/* Title */}
-          <input
-            type="text"
-            placeholder="Titre (optionnel)"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            style={{
-              width: "100%", padding: "10px 14px",
-              border: "1px solid var(--color-border-default)",
-              borderRadius: 12, fontSize: 15, fontWeight: 600,
-              outline: "none", background: "var(--color-surface-raised)",
-              color: "var(--color-text-primary)", fontFamily: "inherit",
-              boxSizing: "border-box",
-            }}
-            onFocus={(e) => (e.target.style.borderColor = "var(--color-brand)")}
-            onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
-          />
-
-          {/* Pending image preview */}
-          {pendingImageUrl && (
-            <div style={{ position: "relative", borderRadius: 12, overflow: "hidden" }}>
-              <img
-                src={pendingImageUrl}
-                alt="preview"
-                style={{ width: "100%", maxHeight: 200, objectFit: "cover", display: "block" }}
-              />
-              <button
-                type="button"
-                onClick={() => { URL.revokeObjectURL(pendingImageUrl); setPendingImageUrl(null); }}
-                style={{
-                  position: "absolute", top: 8, right: 8,
-                  width: 28, height: 28, borderRadius: "50%",
-                  background: "rgba(0,0,0,0.6)", border: "none", cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "#fff", fontSize: 14,
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <input
+              type="text"
+              data-nc-field="post-title"
+              placeholder="Titre"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              aria-invalid={titleError}
+              style={{
+                width: "100%", padding: "10px 14px",
+                border: `1px solid ${titleError ? "var(--color-brand)" : "var(--color-border-default)"}`,
+                borderRadius: 12, fontSize: 15, fontWeight: 600,
+                outline: "none", background: "var(--color-surface-raised)",
+                color: "var(--color-text-primary)", fontFamily: "inherit",
+                boxSizing: "border-box",
+                transition: "border-color 150ms ease",
+              }}
+              onFocus={(e) => {
+                if (!titleError) e.target.style.borderColor = "var(--color-brand)";
+              }}
+              onBlur={(e) => {
+                if (!titleError) e.target.style.borderColor = "var(--color-border-default)";
+              }}
+            />
+            {titleError && (
+              <p style={{ margin: 0, fontSize: 12, color: "var(--color-brand)", paddingLeft: 4 }}>
+                Le titre est obligatoire
+              </p>
+            )}
+          </div>
 
           {/* Video preview */}
           {videoPreview && (
@@ -403,11 +487,13 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
           )}
 
           {/* Editor */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <div
             style={{
-              border: "1px solid var(--color-border-default)",
+              border: `1px solid ${bodyError ? "var(--color-brand)" : "var(--color-border-default)"}`,
               borderRadius: 12,
               overflow: "hidden",
+              transition: "border-color 150ms ease",
             }}
           >
             {/* Toolbar */}
@@ -453,9 +539,9 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
               <span style={{ width: 1, height: 16, background: "var(--color-border-default)" }} />
               <button
                 type="button"
-                title="Liste"
+                title="Liste à puces"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => { document.execCommand("insertUnorderedList", false); editorRef.current?.focus(); syncBody(); }}
+                onClick={() => insertBulletAtCaret(editorRef, syncBody)}
                 style={{
                   width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
                   cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)",
@@ -525,27 +611,11 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
               >
                 {uploading ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
               </button>
-              <button
-                type="button"
-                title="Vidéo (YouTube, Tella, Loom)"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  const url = window.prompt("URL de la vidéo (YouTube, Tella, Loom)");
-                  if (url) {
-                    editorRef.current?.focus();
-                    document.execCommand("insertText", false, url);
-                    syncBody();
-                  }
-                }}
-                style={{
-                  width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
-                  cursor: "pointer", color: "var(--color-text-secondary)",
-                  transition: "background 100ms ease", display: "flex", alignItems: "center", justifyContent: "center",
-                }}
-                className="hover:bg-[rgba(0,0,0,0.06)]"
-              >
-                <VideoIcon size={14} />
-              </button>
+              {/* Bouton "Ajouter une vidéo" retiré (décision produit du
+                  2026-06-02). Théo veut que les membres collent directement
+                  un lien Tella / YouTube / Loom dans le body — le preview
+                  vidéo est toujours auto-détecté par detectVideoUrl()
+                  ci-dessus, donc l'affichage continue de marcher. */}
             </div>
 
             {/* contentEditable editor */}
@@ -582,6 +652,57 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
               />
             </div>
           </div>
+          {bodyError && (
+            <p style={{ margin: 0, fontSize: 12, color: "var(--color-brand)", paddingLeft: 4 }}>
+              Le contenu du post est obligatoire
+            </p>
+          )}
+          </div>
+
+          {/* Pending image preview — style Slack : sous le textarea pour
+              que l'attention reste sur la rédaction. Click pour agrandir
+              via la lightbox, croix pour retirer (delete cloud + reset). */}
+          {pendingImageUrl && (
+            <div style={{ position: "relative", display: "inline-block" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={pendingImageUrl}
+                alt="preview"
+                onClick={() => setPreviewLightbox(true)}
+                style={{
+                  maxWidth: 320,
+                  maxHeight: 240,
+                  borderRadius: 10,
+                  border: "1px solid var(--color-border-default)",
+                  objectFit: "cover",
+                  display: "block",
+                  cursor: "zoom-in",
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (pendingImagePath) {
+                    deletePostMediaAction(pendingImagePath).catch(() => {
+                      /* best-effort */
+                    });
+                  }
+                  setPendingImageUrl(null);
+                  setPendingImagePath(null);
+                }}
+                aria-label="Retirer l'image"
+                style={{
+                  position: "absolute", top: 6, right: 6,
+                  width: 24, height: 24, borderRadius: "50%",
+                  background: "rgba(0,0,0,0.65)", border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#fff", fontSize: 12,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           {/* Tag */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -631,13 +752,16 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
           <button
             type="button"
             onClick={handlePublish}
-            disabled={!canPublish || publishing}
+            disabled={publishing}
             style={{
               padding: "9px 24px",
-              background: canPublish && !publishing ? "var(--color-brand)" : "var(--color-border-default)",
-              color: canPublish && !publishing ? "#fff" : "var(--color-text-muted)",
+              // Toujours brand pour permettre le clic-pour-valider. Le clic
+              // sur un formulaire invalide déclenche l'affichage des erreurs
+              // au lieu de publier (cf. handlePublish + setSubmitAttempted).
+              background: !publishing ? "var(--color-brand)" : "var(--color-border-default)",
+              color: !publishing ? "#fff" : "var(--color-text-muted)",
               border: "none", borderRadius: 9999, fontSize: 14, fontWeight: 600,
-              cursor: canPublish && !publishing ? "pointer" : "not-allowed",
+              cursor: !publishing ? "pointer" : "not-allowed",
               transition: "all 150ms ease",
               display: "inline-flex", alignItems: "center", gap: 6,
             }}
@@ -653,5 +777,17 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
   );
 
   if (!mounted) return null;
-  return createPortal(modal, document.body);
+  return createPortal(
+    <>
+      {modal}
+      {previewLightbox && pendingImageUrl && (
+        <ImageLightbox
+          url={pendingImageUrl}
+          alt="Aperçu de l'image en cours de publication"
+          onClose={() => setPreviewLightbox(false)}
+        />
+      )}
+    </>,
+    document.body,
+  );
 }

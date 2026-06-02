@@ -6,22 +6,40 @@ interface ConversationItemProps {
   conversation: Conversation;
   active: boolean;
   onClick: () => void;
+  // Préchauffage : appelé au mouseEnter (desktop) ou touchStart (mobile)
+  // pour lancer le fetch des messages avant que l'user ne clique. Évite
+  // le délai d'attente sur l'ouverture de la conv.
+  onPrefetch?: () => void;
 }
 
-export function ConversationItem({ conversation, active, onClick }: ConversationItemProps) {
-  const lastMsg = conversation.messages[conversation.messages.length - 1];
-  const preview = lastMsg
-    ? lastMsg.type === "pdf"
-      ? "📎 Fichier PDF"
-      : lastMsg.type === "image"
-      ? "🖼 Image"
-      : lastMsg.body.slice(0, 50) + (lastMsg.body.length > 50 ? "…" : "")
+export function ConversationItem({ conversation, active, onClick, onPrefetch }: ConversationItemProps) {
+  // Source primaire : lastMessagePreview hydraté par listConversations
+  // (mig. queries — preview tronqué côté serveur, libellé symbolique pour
+  // image/pdf). Fallback : on regarde conversation.messages au cas où on a
+  // déjà chargé le détail via getConversation (cache local).
+  const rawPreview = conversation.lastMessagePreview
+    ?? (() => {
+      const lastMsg = conversation.messages[conversation.messages.length - 1];
+      if (!lastMsg) return undefined;
+      if (lastMsg.type === "pdf") return "📎 Fichier";
+      if (lastMsg.type === "image") return "📷 Image";
+      return lastMsg.body;
+    })();
+
+  // Préfixe "Vous : …" pour les messages envoyés par le viewer — convention
+  // WhatsApp/Slack qui aide à scanner la liste.
+  const previewText = rawPreview ? rawPreview.slice(0, 50) : "Aucun message";
+  const truncated = rawPreview && rawPreview.length > 50 ? "…" : "";
+  const preview = rawPreview
+    ? `${conversation.lastMessageFromMe ? "Vous : " : ""}${previewText}${truncated}`
     : "Aucun message";
 
   return (
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={onPrefetch}
+      onFocus={onPrefetch}
       style={{
         width: "100%",
         display: "flex",

@@ -107,6 +107,12 @@ type MessageRow = {
   deleted: boolean;
   created_at: string;
   edited_at: string | null;
+  // Quote-reply (mig. 027) + Forward (mig. 028) — colonnes dénormalisées.
+  reply_to_message_id: string | null;
+  reply_snippet: string | null;
+  reply_author_name: string | null;
+  forwarded_from_message_id: string | null;
+  forwarded_from_author_name: string | null;
 };
 
 type MessageReactionRow = {
@@ -193,21 +199,52 @@ function deletedUserShape(authorId: string): User {
   };
 }
 
+// Convertit un profil DB en shape Reactor pour l'affichage du hover popover.
+// Le nom + initiales + avatar suivent les helpers déjà utilisés pour User
+// (computeDisplayName / computeInitials).
+function mapProfileToReactor(p: ProfileRow): {
+  id: string;
+  name: string;
+  initials: string;
+  avatarUrl: string | null;
+  avatarColor: string | null;
+} {
+  return {
+    id: p.id,
+    name: computeDisplayName(p),
+    initials: computeInitials(p),
+    avatarUrl: p.avatar_url,
+    avatarColor: p.avatar_color,
+  };
+}
+
 function mapReactions(
   reactions: Array<{ user_id: string; emoji: string }>,
   viewerId: string | null,
+  profilesById?: Map<string, ProfileRow>,
 ): Post["reactions"] {
-  const grouped = new Map<string, { count: number; userReacted: boolean }>();
+  const grouped = new Map<
+    string,
+    {
+      count: number;
+      userReacted: boolean;
+      reactors: ReturnType<typeof mapProfileToReactor>[];
+    }
+  >();
   for (const r of reactions) {
-    const current = grouped.get(r.emoji) ?? { count: 0, userReacted: false };
+    const current =
+      grouped.get(r.emoji) ?? { count: 0, userReacted: false, reactors: [] };
     current.count += 1;
     if (viewerId && r.user_id === viewerId) current.userReacted = true;
+    const profile = profilesById?.get(r.user_id);
+    if (profile) current.reactors.push(mapProfileToReactor(profile));
     grouped.set(r.emoji, current);
   }
   return Array.from(grouped.entries()).map(([emoji, data]) => ({
     emoji,
     count: data.count,
     userReacted: data.userReacted,
+    reactors: data.reactors,
   }));
 }
 
@@ -217,6 +254,7 @@ function mapPostRow(
   commentCount: number,
   viewerId: string | null,
   mentions: PostMentionRow[] = [],
+  reactorProfilesById: Map<string, ProfileRow> = new Map(),
 ): Post {
   return {
     id: row.id,
@@ -233,7 +271,11 @@ function mapPostRow(
     videoUrl: row.video_url ?? undefined,
     pinned: row.pinned,
     pinnedUntil: row.pinned_until ?? undefined,
-    reactions: mapReactions(reactions.filter((r) => r.post_id === row.id), viewerId),
+    reactions: mapReactions(
+      reactions.filter((r) => r.post_id === row.id),
+      viewerId,
+      reactorProfilesById,
+    ),
     commentCount,
     mentions: mentions
       .filter((m) => m.post_id === row.id && m.mentioned)
@@ -357,6 +399,15 @@ export async function listPosts(): Promise<Post[]> {
     commentCountByPost.set(c.post_id, (commentCountByPost.get(c.post_id) ?? 0) + 1);
   }
 
+  // Charge en une seule requête les profils de tous les users qui ont
+  // réagi à au moins un post — alimente Reaction.reactors pour le hover
+  // popover (cf. ReactionsBar). On ne tire que les champs nécessaires à
+  // l'affichage du popover (id, name parts, avatar).
+  const reactorIds = Array.from(
+    new Set((reactionsRes.data ?? []).map((r) => r.user_id)),
+  );
+  const reactorProfilesById = await fetchReactorProfiles(supabase, reactorIds);
+
   return posts.map((row) =>
     mapPostRow(
       row,
@@ -364,8 +415,31 @@ export async function listPosts(): Promise<Post[]> {
       commentCountByPost.get(row.id) ?? 0,
       viewerId,
       mentionsRes.data ?? [],
+      reactorProfilesById,
     ),
   );
+}
+
+// Helper partagé : récupère les profils des reactors par id. RLS
+// profiles_select_same_org (mig. 025) garantit que le caller voit les
+// profils des membres de sa propre org. Si une réaction pointe sur un
+// profil hors-org (cas marginal cross-org plus tard), elle apparaîtra
+// sans reactor associé — l'UI doit le tolérer.
+async function fetchReactorProfiles(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  userIds: string[],
+): Promise<Map<string, ProfileRow>> {
+  if (userIds.length === 0) return new Map();
+  const { data } = await supabase
+    .from("profiles")
+    .select(
+      "id, first_name, last_name, display_name, username, avatar_url, avatar_color, role, created_at",
+    )
+    .in("id", userIds)
+    .returns<ProfileRow[]>();
+  const map = new Map<string, ProfileRow>();
+  for (const p of data ?? []) map.set(p.id, p);
+  return map;
 }
 
 // ============================================================================
@@ -420,12 +494,18 @@ export async function getPostById(id: string): Promise<Post | null> {
       .returns<PostMentionRow[]>(),
   ]);
 
+  const reactorIds = Array.from(
+    new Set((reactionsRes.data ?? []).map((r) => r.user_id)),
+  );
+  const reactorProfilesById = await fetchReactorProfiles(supabase, reactorIds);
+
   return mapPostRow(
     row,
     reactionsRes.data ?? [],
     commentsForCountRes.count ?? 0,
     viewerId,
     mentionsRes.data ?? [],
+    reactorProfilesById,
   );
 }
 
@@ -532,6 +612,16 @@ export async function listCommentsForPost(postId: string): Promise<Comment[]> {
   const replyReactions = replyReactionsRes.data ?? [];
   const replyMentions = replyMentionsRes.data ?? [];
 
+  // Charge en une seule requête les profils des reactors (comments + replies)
+  // pour alimenter Reaction.reactors lors du hover popover.
+  const reactorIds = Array.from(
+    new Set([
+      ...(reactionsRes.data ?? []).map((r) => r.user_id),
+      ...replyReactions.map((r) => r.user_id),
+    ]),
+  );
+  const reactorProfilesById = await fetchReactorProfiles(supabase, reactorIds);
+
   const repliesByComment = new Map<string, CommentReply[]>();
   for (const r of replies) {
     const replyUi: CommentReply = {
@@ -548,6 +638,7 @@ export async function listCommentsForPost(postId: string): Promise<Comment[]> {
       reactions: mapReactions(
         replyReactions.filter((rr) => rr.comment_reply_id === r.id),
         viewerId,
+        reactorProfilesById,
       ),
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -565,6 +656,7 @@ export async function listCommentsForPost(postId: string): Promise<Comment[]> {
     reactions: mapReactions(
       (reactionsRes.data ?? []).filter((r) => r.comment_id === c.id),
       viewerId,
+      reactorProfilesById,
     ),
     replies: repliesByComment.get(c.id) ?? [],
     mentions: commentMentions
@@ -600,6 +692,11 @@ function mapMessageRow(row: MessageRow, reactions: MessageReactionRow[]): Messag
     createdAt: row.created_at,
     editedAt: row.edited_at ?? undefined,
     deleted: row.deleted,
+    replyToMessageId: row.reply_to_message_id,
+    replySnippet: row.reply_snippet,
+    replyAuthorName: row.reply_author_name,
+    forwardedFromMessageId: row.forwarded_from_message_id,
+    forwardedFromAuthorName: row.forwarded_from_author_name,
   };
 }
 
@@ -662,22 +759,51 @@ export async function listConversations(): Promise<Conversation[]> {
   const convIds = rows.map((r) => r.id);
   const { data: lightMessages } = await supabase
     .from("messages")
-    .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at")
+    .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name")
     .in("conversation_id", convIds)
     .returns<MessageRow[]>();
 
   const messages = lightMessages ?? [];
 
+  // Index du dernier message par conversation (le plus récent non-supprimé).
+  // O(N) sur tous les messages des 100 dernières convs — acceptable pour
+  // la liste latérale, qu'on garde rapide à charger.
+  const lastByConv = new Map<string, MessageRow>();
+  for (const m of messages) {
+    if (m.deleted) continue;
+    const current = lastByConv.get(m.conversation_id);
+    if (!current || m.created_at > current.created_at) {
+      lastByConv.set(m.conversation_id, m);
+    }
+  }
+
   return rows.map((row) => {
     const isA = row.participant_a_id === viewerId;
     const other = isA ? row.participant_b : row.participant_a;
     const otherId = isA ? row.participant_b_id : row.participant_a_id;
+    const last = lastByConv.get(row.id);
+    // Preview troncage côté serveur à 140 chars (l'UI affichera ~50 via
+    // CSS text-overflow). Pour les attachments (image/pdf), on fournit
+    // un libellé symbolique pour que l'UI affiche "📷 Image" / "📎 Fichier".
+    let preview: string | undefined;
+    if (last) {
+      if (last.type === "text") {
+        preview = last.body.slice(0, 140);
+      } else if (last.type === "image") {
+        preview = "📷 Image";
+      } else {
+        preview = `📎 ${last.file_name ?? "Fichier"}`;
+      }
+    }
     return {
       id: row.id,
       participant: other ? mapProfileToUser(other) : deletedUserShape(otherId),
       messages: [],
       unreadCount: computeUnreadCount(row, viewerId, messages),
       lastMessageAt: row.last_message_at,
+      lastMessagePreview: preview,
+      lastMessageFromMe: last ? last.sender_id === viewerId : undefined,
+      lastMessageType: last ? (last.type as MessageType) : undefined,
     };
   });
 }
@@ -705,7 +831,7 @@ export async function getConversation(id: string): Promise<Conversation | null> 
   const [messagesRes, reactionsRes] = await Promise.all([
     supabase
       .from("messages")
-      .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at")
+      .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name")
       .eq("conversation_id", id)
       .order("created_at", { ascending: true })
       .returns<MessageRow[]>(),

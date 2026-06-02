@@ -7,7 +7,7 @@ import type { Comment } from "../../types/comment.types";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
-import { renderBodyWithMentions } from "../../utils/render-mentions";
+import { renderBodyRich } from "../../utils/render-mentions";
 import { UserAvatar } from "../shared/UserAvatar";
 import { UserHoverCard } from "../shared/UserHoverCard";
 import { ReactionsBar } from "../shared/ReactionsBar";
@@ -184,9 +184,9 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
               disabled={updating}
             />
           ) : (
-            <p style={{ margin: 0, fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>
-              {renderBodyWithMentions(commentData.body, commentData.mentions)}
-            </p>
+            <div style={{ fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>
+              {renderBodyRich(commentData.body, commentData.mentions)}
+            </div>
           )}
         </div>
 

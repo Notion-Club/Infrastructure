@@ -36,6 +36,43 @@ export function MessagesLayout({
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
   const [, startTransition] = useTransition();
   const didInit = useRef(false);
+  // IDs de conversations dont les messages sont en cours de chargement
+  // (getConversationAction en vol). Sert à afficher le skeleton dans le
+  // thread sans casser le state Conversation (messages: []).
+  const [loadingConvIds, setLoadingConvIds] = useState<Set<string>>(new Set());
+  // Cache local : IDs de conversations dont les messages ont déjà été
+  // chargés au moins une fois. Évite de re-fetcher quand l'utilisateur
+  // revient sur une conv déjà vue dans la même session.
+  const loadedConvIds = useRef<Set<string>>(new Set());
+
+  // Préchauffage : déclenché au mouseEnter d'un item de la liste. On lance
+  // getConversationAction en background si la conv n'est pas déjà chargée,
+  // pour que le clic ouvre instantanément (cache hit dans handleSelect).
+  // Best-effort — pas de skeleton, pas de toast d'erreur.
+  function handlePrefetch(id: string) {
+    if (loadedConvIds.current.has(id) || loadingConvIds.has(id)) return;
+    setLoadingConvIds((prev) => new Set(prev).add(id));
+    getConversationAction(id)
+      .then((conv) => {
+        setLoadingConvIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        if (!conv) return;
+        loadedConvIds.current.add(id);
+        setConversations((prev) =>
+          prev.map((c) => (c.id === id ? conv : c)),
+        );
+      })
+      .catch(() => {
+        setLoadingConvIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      });
+  }
 
   // Marquer la conv comme lue côté DB + fetch les messages détaillés.
   // listConversations() ne charge pas messages[] (par perf), on les tire
@@ -46,12 +83,27 @@ export function MessagesLayout({
       prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)),
     );
     setMobileView("thread");
+
+    // Skip si déjà chargé dans cette session — render instantané.
+    if (loadedConvIds.current.has(id)) {
+      // markRead idempotent en background, sans loading state.
+      markConversationReadAction({ conversation_id: id }).catch(() => {});
+      return;
+    }
+
+    setLoadingConvIds((prev) => new Set(prev).add(id));
     startTransition(async () => {
       const [conv] = await Promise.all([
         getConversationAction(id),
         markConversationReadAction({ conversation_id: id }),
       ]);
+      setLoadingConvIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       if (!conv) return;
+      loadedConvIds.current.add(id);
       setConversations((prev) =>
         prev.map((c) => (c.id === id ? conv : c)),
       );
@@ -96,7 +148,13 @@ export function MessagesLayout({
   }
 
   // Envoi d'un message — appelée par MessageComposer via ConversationThread.
-  function handleSendMessage(conversationId: string, body: string) {
+  // reply optionnel : si fourni, alimente reply_to_message_id + snippet +
+  // author_name dénormalisés (mig. 027).
+  function handleSendMessage(
+    conversationId: string,
+    body: string,
+    reply?: { messageId: string; authorName: string; snippet: string } | null,
+  ) {
     const trimmed = body.trim();
     if (!trimmed) return;
     startTransition(async () => {
@@ -104,6 +162,9 @@ export function MessagesLayout({
         conversation_id: conversationId,
         type: "text",
         body: trimmed,
+        reply_to_message_id: reply?.messageId ?? null,
+        reply_snippet: reply?.snippet ?? null,
+        reply_author_name: reply?.authorName ?? null,
       });
       if (!result.ok) {
         toast.error(result.message);
@@ -167,6 +228,7 @@ export function MessagesLayout({
           activeId={activeId}
           currentUser={currentUser}
           onSelect={handleSelect}
+          onPrefetch={handlePrefetch}
           onNewConversation={handleNewConversation}
         />
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -174,7 +236,8 @@ export function MessagesLayout({
             <ConversationThread
               conversation={activeConv}
               currentUser={currentUser}
-              onSendMessage={(body) => handleSendMessage(activeConv.id, body)}
+              loading={loadingConvIds.has(activeConv.id)}
+              onSendMessage={(body, reply) => handleSendMessage(activeConv.id, body, reply)}
             />
           ) : (
             <MessagesEmptyState />
@@ -203,7 +266,8 @@ export function MessagesLayout({
           <ConversationThread
             conversation={activeConv}
             currentUser={currentUser}
-            onSendMessage={(body) => handleSendMessage(activeConv.id, body)}
+            loading={loadingConvIds.has(activeConv.id)}
+            onSendMessage={(body, reply) => handleSendMessage(activeConv.id, body, reply)}
             onBack={() => setMobileView("list")}
           />
         ) : (

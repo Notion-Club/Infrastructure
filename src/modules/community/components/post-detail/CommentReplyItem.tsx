@@ -7,7 +7,7 @@ import type { CommentReply } from "../../types/comment.types";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
-import { renderBodyWithMentions } from "../../utils/render-mentions";
+import { renderBodyRich } from "../../utils/render-mentions";
 import { UserAvatar } from "../shared/UserAvatar";
 import { UserHoverCard } from "../shared/UserHoverCard";
 import { ReactionsBar } from "../shared/ReactionsBar";
@@ -162,8 +162,8 @@ export function CommentReplyItem({ reply, devRole, currentUser }: CommentReplyIt
               disabled={updating}
             />
           ) : (
-            <p style={{ margin: "4px 0", fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
-              {renderBodyWithMentions(
+            <div style={{ margin: "4px 0", fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+              {renderBodyRich(
                 replyData.body,
                 // Source primaire : comment_reply_mentions (mig. 022) qui
                 // supporte N mentions. Fallback : le singleton legacy
@@ -174,7 +174,7 @@ export function CommentReplyItem({ reply, devRole, currentUser }: CommentReplyIt
                     ? [{ id: replyData.mentionedUser.id, name: replyData.mentionedUser.name }]
                     : [],
               )}
-            </p>
+            </div>
           )}
 
           {!editOpen && (

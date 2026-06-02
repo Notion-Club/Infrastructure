@@ -1,6 +1,29 @@
 import type { ReactNode } from "react";
 
-const URL_RE = /https?:\/\/[^\s<>"]+/g;
+// Matche les URLs http(s) ET les bare-domains (ex: "example.com" sans http).
+// Ordre des alternatives important : le pattern http://... est essayé en
+// premier pour ne pas être avalé par le pattern bare-domain.
+//
+// Pattern bare-domain : (subdomain.)+tld où tld est 2-24 chars de lettres
+// pures (couvre .com / .fr / .museum / .academy sans matcher des points
+// dans des phrases type "Bonjour. Comment ça va.").
+const URL_RE =
+  /(https?:\/\/[^\s<>"]+)|(\b(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,24}(?:\/[^\s<>"]*)?)/gi;
+
+// Extensions d'image détectables dans une URL. Sert au rendu Slack-like
+// (image inline au lieu d'un lien cliquable).
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|avif)(\?|#|$)/i;
+
+function isImageUrl(url: string): boolean {
+  return IMAGE_EXT_RE.test(url);
+}
+
+// Convertit un match bare-domain ("example.com") en URL absolue ouvrable.
+// Pour les http(s) explicites on ne touche à rien.
+function toHref(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
+  return `https://${url}`;
+}
 
 export function linkify(text: string): ReactNode[] {
   const parts: ReactNode[] = [];
@@ -13,18 +36,73 @@ export function linkify(text: string): ReactNode[] {
       parts.push(text.slice(lastIndex, match.index));
     }
     const url = match[0];
-    parts.push(
-      <a
-        key={match.index}
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{ color: "inherit", textDecoration: "underline", opacity: 0.85 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {url}
-      </a>
-    );
+    const href = toHref(url);
+
+    if (isImageUrl(url)) {
+      // Rendu inline image style Slack — max 320px de large/haut. Le click
+      // émet un événement custom 'nc-image-open' capté par un listener
+      // global (cf. ImageLightboxRoot) qui ouvre une lightbox plein écran.
+      // Évite de devoir propager un onImageClick à travers tous les call
+      // sites de renderBodyRich.
+      const finalHref = href;
+      parts.push(
+        <button
+          key={match.index}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            window.dispatchEvent(
+              new CustomEvent("nc-image-open", { detail: { url: finalHref } }),
+            );
+          }}
+          style={{
+            padding: 0,
+            border: "none",
+            background: "transparent",
+            cursor: "zoom-in",
+            display: "inline-block",
+            marginTop: 6,
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={finalHref}
+            alt=""
+            style={{
+              maxWidth: 320,
+              maxHeight: 320,
+              borderRadius: 10,
+              border: "1px solid var(--color-border-default)",
+              display: "block",
+              objectFit: "cover",
+            }}
+            loading="lazy"
+          />
+        </button>,
+      );
+    } else {
+      parts.push(
+        <a
+          key={match.index}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="nc-inline-link"
+          style={{
+            color: "#e0625a",
+            textDecoration: "underline",
+            textDecorationColor: "#e0625a",
+            textUnderlineOffset: 2,
+            fontWeight: 500,
+            wordBreak: "break-word",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {url}
+        </a>,
+      );
+    }
     lastIndex = match.index + url.length;
   }
 

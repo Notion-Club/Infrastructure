@@ -3,10 +3,24 @@ import type { User } from "./user.types";
 export type PostTag = "general" | "question" | "presentation" | "annonce";
 export type PostAudience = "all" | "free_only" | "paid_only";
 
+// Reactor inclus dans une réaction pour permettre l'affichage des vrais
+// noms / avatars dans le hover popover et la bottom sheet (avant : tirage
+// fictif depuis MOCK_USERS qui mentait sur l'auteur réel). Optionnel pour
+// tolérer les sources legacy (mocks de dev) — quand absent, l'UI tombe
+// sur un affichage neutre "1 personne / 2 personnes…".
+export type Reactor = {
+  id: string;
+  name: string;
+  initials: string;
+  avatarUrl: string | null;
+  avatarColor: string | null;
+};
+
 export interface Reaction {
   emoji: string;
   count: number;
   userReacted: boolean;
+  reactors?: Reactor[];
 }
 
 export interface Post {

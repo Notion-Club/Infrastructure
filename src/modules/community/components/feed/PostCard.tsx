@@ -15,6 +15,7 @@ import { ReactionsBar } from "../shared/ReactionsBar";
 import { PostKebabMenu } from "../shared/PostKebabMenu";
 import { PostComposerModal } from "../post-composer/PostComposerModal";
 import { DeletePostConfirmDialog } from "../shared/DeletePostConfirmDialog";
+import { ImageLightbox } from "../shared/ImageLightbox";
 import {
   deletePostAction,
   togglePostReactionAction,
@@ -43,6 +44,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
   const [postData, setPostData] = useState(post);
   const [showEditComposer, setShowEditComposer] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [imageLightbox, setImageLightbox] = useState(false);
   const [editing, startEdit] = useTransition();
   const isAuthor = post.author.id === currentUser.id;
   const isPrivileged = currentUser.role === "admin" || currentUser.role === "mentor";
@@ -227,9 +229,8 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
             {postData.title}
           </h2>
         )}
-        <p
+        <div
           style={{
-            margin: 0,
             fontSize: 14,
             color: "var(--color-text-secondary)",
             lineHeight: 1.55,
@@ -241,16 +242,41 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
           }}
         >
           {renderBodyRich(postData.body, postData.mentions)}
-        </p>
+        </div>
 
         {postData.imageUrl && (
-          <div style={{ borderRadius: 12, overflow: "hidden", marginTop: 4 }}>
+          /* Slack-like : preview modérée + click ouvre lightbox plein écran.
+             stopPropagation évite la navigation vers la page détail. */
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setImageLightbox(true);
+            }}
+            style={{
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              cursor: "zoom-in",
+              marginTop: 4,
+              display: "inline-block",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={postData.imageUrl}
               alt=""
-              style={{ width: "100%", maxHeight: 260, objectFit: "cover", display: "block" }}
+              style={{
+                maxWidth: 380,
+                maxHeight: 320,
+                borderRadius: 10,
+                border: "1px solid var(--color-border-default)",
+                objectFit: "cover",
+                display: "block",
+              }}
+              loading="lazy"
             />
-          </div>
+          </button>
         )}
 
         {postData.videoUrl && isYouTube(postData.videoUrl) && (
@@ -282,6 +308,14 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
       <DeletePostConfirmDialog
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteConfirm(false)}
+      />
+    )}
+
+    {imageLightbox && postData.imageUrl && (
+      <ImageLightbox
+        url={postData.imageUrl}
+        alt={postData.title ?? ""}
+        onClose={() => setImageLightbox(false)}
       />
     )}
 
