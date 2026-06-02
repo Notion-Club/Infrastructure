@@ -448,9 +448,21 @@ export function MessageBubble({ message, isSelf, currentUser, onReply }: Message
             </div>
           )}
         </div>
+      </div>
 
-        {/* Toolbar flottante au hover — masquée pendant l'édition */}
-        {showToolbar && !editing && !isPending && (
+      {/* Toolbar hover — positionnée SOUS la bulle plutôt qu'à côté. Avant :
+          la toolbar était dans le flex row à droite de la bulle (gauche
+          pour les msgs reçus), ce qui masquait les bulles voisines au
+          hover. Maintenant : alignée comme les pastilles réactions, juste
+          sous la bulle, alignée à droite (mes msgs) ou à gauche (reçus). */}
+      {showToolbar && !editing && !isPending && (
+        <div
+          style={{
+            marginTop: 6,
+            display: "flex",
+            justifyContent: isSelf ? "flex-end" : "flex-start",
+          }}
+        >
           <MessageToolbar
             align={isSelf ? "right" : "left"}
             topEmojis={topEmojis}
@@ -461,8 +473,8 @@ export function MessageBubble({ message, isSelf, currentUser, onReply }: Message
             onDelete={canDelete ? () => setShowDeleteConfirm(true) : undefined}
             onForward={canForward ? () => setShowForwardModal(true) : undefined}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Pastilles réactions sous la bulle */}
       {Object.keys(grouped).length > 0 && (
