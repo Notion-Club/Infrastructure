@@ -765,16 +765,45 @@ export async function listConversations(): Promise<Conversation[]> {
 
   const messages = lightMessages ?? [];
 
+  // Index du dernier message par conversation (le plus récent non-supprimé).
+  // O(N) sur tous les messages des 100 dernières convs — acceptable pour
+  // la liste latérale, qu'on garde rapide à charger.
+  const lastByConv = new Map<string, MessageRow>();
+  for (const m of messages) {
+    if (m.deleted) continue;
+    const current = lastByConv.get(m.conversation_id);
+    if (!current || m.created_at > current.created_at) {
+      lastByConv.set(m.conversation_id, m);
+    }
+  }
+
   return rows.map((row) => {
     const isA = row.participant_a_id === viewerId;
     const other = isA ? row.participant_b : row.participant_a;
     const otherId = isA ? row.participant_b_id : row.participant_a_id;
+    const last = lastByConv.get(row.id);
+    // Preview troncage côté serveur à 140 chars (l'UI affichera ~50 via
+    // CSS text-overflow). Pour les attachments (image/pdf), on fournit
+    // un libellé symbolique pour que l'UI affiche "📷 Image" / "📎 Fichier".
+    let preview: string | undefined;
+    if (last) {
+      if (last.type === "text") {
+        preview = last.body.slice(0, 140);
+      } else if (last.type === "image") {
+        preview = "📷 Image";
+      } else {
+        preview = `📎 ${last.file_name ?? "Fichier"}`;
+      }
+    }
     return {
       id: row.id,
       participant: other ? mapProfileToUser(other) : deletedUserShape(otherId),
       messages: [],
       unreadCount: computeUnreadCount(row, viewerId, messages),
       lastMessageAt: row.last_message_at,
+      lastMessagePreview: preview,
+      lastMessageFromMe: last ? last.sender_id === viewerId : undefined,
+      lastMessageType: last ? (last.type as MessageType) : undefined,
     };
   });
 }

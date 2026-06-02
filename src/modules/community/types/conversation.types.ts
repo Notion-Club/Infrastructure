@@ -30,4 +30,10 @@ export interface Conversation {
   messages: Message[];
   unreadCount: number;
   lastMessageAt: string;
+  // Aperçu du dernier message (tronqué côté serveur à ~140 chars) + flag
+  // "envoyé par moi" pour préfixer "Vous : …" dans la liste. Calculé dans
+  // listConversations à partir de lightMessages — évite un fetch supplémentaire.
+  lastMessagePreview?: string;
+  lastMessageFromMe?: boolean;
+  lastMessageType?: MessageType;
 }
