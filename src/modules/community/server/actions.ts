@@ -42,8 +42,8 @@ import {
   type UpdateCommentReplyInput,
   type UpdatePostInput,
 } from "../lib/validation";
-import { getConversation, mapProfileMember, type CommunityMember } from "./queries";
-import type { Conversation } from "../types/conversation.types";
+import { getConversation, loadOlderMessages, mapProfileMember, type CommunityMember } from "./queries";
+import type { Conversation, Message } from "../types/conversation.types";
 
 const COMMUNITY_BUCKET = "community";
 
@@ -1401,6 +1401,32 @@ export async function getConversationAction(
   conversationId: string,
 ): Promise<Conversation | null> {
   return getConversation(conversationId);
+}
+
+// ============================================================================
+// loadOlderMessagesAction — pagination cursor-based, batch précédent
+// ============================================================================
+// Appelé quand le client clique "Charger les messages précédents". Le
+// cursor = ID du plus ancien message déjà chargé côté client. Renvoie le
+// batch précédent + flag hasMore. RLS gère l'autorisation (null si non
+// participant ou cursor invalide).
+export type LoadOlderMessagesResult =
+  | { ok: true; messages: Message[]; hasMore: boolean }
+  | { ok: false; code: "unauthorized" | "invalid_cursor"; message: string };
+
+export async function loadOlderMessagesAction(
+  conversationId: string,
+  cursorMessageId: string,
+): Promise<LoadOlderMessagesResult> {
+  const result = await loadOlderMessages(conversationId, cursorMessageId);
+  if (!result) {
+    return {
+      ok: false,
+      code: "invalid_cursor",
+      message: "Impossible de charger les messages précédents.",
+    };
+  }
+  return { ok: true, messages: result.messages, hasMore: result.hasMore };
 }
 
 // ============================================================================

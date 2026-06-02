@@ -808,6 +808,13 @@ export async function listConversations(): Promise<Conversation[]> {
   });
 }
 
+// Pagination cursor-based. On charge par défaut les MESSAGES_PAGE_SIZE
+// messages les plus récents (tri DESC en DB pour limiter, puis on inverse
+// côté serveur pour rendre dans l'ordre chronologique au client).
+// hasMore = true s'il existe des messages plus anciens — on le détecte en
+// demandant size+1 puis en vérifiant si la query a renvoyé size+1 lignes.
+export const MESSAGES_PAGE_SIZE = 50;
+
 export async function getConversation(id: string): Promise<Conversation | null> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -828,21 +835,20 @@ export async function getConversation(id: string): Promise<Conversation | null> 
   }
   if (!row) return null;
 
-  const [messagesRes, reactionsRes] = await Promise.all([
-    supabase
-      .from("messages")
-      .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name")
-      .eq("conversation_id", id)
-      .order("created_at", { ascending: true })
-      .returns<MessageRow[]>(),
-    // message_reactions joint via les message_ids — on fetch en parallèle
-    // pour limiter la latence ; on filtre par conversation_id côté DB via
-    // une sous-requête INNER JOIN implicite que PostgREST ne supporte pas
-    // sur des chemins indirects. À défaut on fetche par message_id.
-    Promise.resolve({ data: [] as MessageReactionRow[] }),
-  ]);
+  // Charge les N derniers + 1 (sentinel pour détecter hasMore). Tri DESC
+  // côté DB → on inverse en local pour ordre chronologique ascendant.
+  const { data: rawMessages } = await supabase
+    .from("messages")
+    .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name")
+    .eq("conversation_id", id)
+    .order("created_at", { ascending: false })
+    .limit(MESSAGES_PAGE_SIZE + 1)
+    .returns<MessageRow[]>();
 
-  const messages = messagesRes.data ?? [];
+  const rows = rawMessages ?? [];
+  const hasMore = rows.length > MESSAGES_PAGE_SIZE;
+  const messages = (hasMore ? rows.slice(0, MESSAGES_PAGE_SIZE) : rows).reverse();
+
   let reactions: MessageReactionRow[] = [];
   if (messages.length > 0) {
     const ids = messages.map((m) => m.id);
@@ -864,5 +870,58 @@ export async function getConversation(id: string): Promise<Conversation | null> 
     messages: messages.map((m) => mapMessageRow(m, reactions)),
     unreadCount: computeUnreadCount(row, viewerId, messages),
     lastMessageAt: row.last_message_at,
+    hasMore,
+  };
+}
+
+// Charge le batch de messages PRÉCÉDENT le cursor (le 1er message visible
+// côté client). Renvoie messages en ordre chronologique ascendant + hasMore.
+// RLS messages_select_participant (mig. 014) couvre l'autorisation.
+export async function loadOlderMessages(
+  conversationId: string,
+  cursorMessageId: string,
+): Promise<{ messages: Message[]; hasMore: boolean } | null> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  // Récupère le created_at du cursor — la RLS coupe si non-participant.
+  const { data: cursorRow } = await supabase
+    .from("messages")
+    .select("id, created_at, conversation_id")
+    .eq("id", cursorMessageId)
+    .eq("conversation_id", conversationId)
+    .maybeSingle<{ id: string; created_at: string; conversation_id: string }>();
+  if (!cursorRow) return null;
+
+  const { data: rawMessages } = await supabase
+    .from("messages")
+    .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name")
+    .eq("conversation_id", conversationId)
+    .lt("created_at", cursorRow.created_at)
+    .order("created_at", { ascending: false })
+    .limit(MESSAGES_PAGE_SIZE + 1)
+    .returns<MessageRow[]>();
+
+  const rows = rawMessages ?? [];
+  const hasMore = rows.length > MESSAGES_PAGE_SIZE;
+  const messages = (hasMore ? rows.slice(0, MESSAGES_PAGE_SIZE) : rows).reverse();
+
+  let reactions: MessageReactionRow[] = [];
+  if (messages.length > 0) {
+    const ids = messages.map((m) => m.id);
+    const { data: rxs } = await supabase
+      .from("message_reactions")
+      .select("message_id, user_id, emoji")
+      .in("message_id", ids)
+      .returns<MessageReactionRow[]>();
+    reactions = rxs ?? [];
+  }
+
+  return {
+    messages: messages.map((m) => mapMessageRow(m, reactions)),
+    hasMore,
   };
 }
