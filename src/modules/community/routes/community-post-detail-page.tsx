@@ -19,6 +19,8 @@ import { PostKebabMenu } from "../components/shared/PostKebabMenu";
 import { PostComposerModal } from "../components/post-composer/PostComposerModal";
 import { CommentList } from "../components/post-detail/CommentList";
 import { DeletePostConfirmDialog } from "../components/shared/DeletePostConfirmDialog";
+import { ImageLightbox } from "../components/shared/ImageLightbox";
+import { ImageLightboxRoot } from "../components/shared/ImageLightboxRoot";
 import {
   deletePostAction,
   togglePostReactionAction,
@@ -42,6 +44,7 @@ export function CommunityPostDetailPage({
   const [reactions, setReactions] = useState(post.reactions);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEditComposer, setShowEditComposer] = useState(false);
+  const [imageLightbox, setImageLightbox] = useState(false);
   const [editing, startEdit] = useTransition();
   const comments = initialComments;
   const isAuthor = post.author.id === currentUser.id;
@@ -105,6 +108,7 @@ export function CommunityPostDetailPage({
 
   return (
     <>
+    <ImageLightboxRoot />
     {showDeleteConfirm && (
       <DeletePostConfirmDialog
         onConfirm={handleDelete}
@@ -231,12 +235,17 @@ export function CommunityPostDetailPage({
         </div>
 
         {postData.imageUrl && (
-          /* Slack-like : preview modérée + click pour agrandir dans onglet */
-          <a
-            href={postData.imageUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: "inline-block" }}
+          /* Slack-like : preview modérée, click ouvre lightbox plein écran. */
+          <button
+            type="button"
+            onClick={() => setImageLightbox(true)}
+            style={{
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              cursor: "zoom-in",
+              display: "inline-block",
+            }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -252,7 +261,7 @@ export function CommunityPostDetailPage({
               }}
               loading="lazy"
             />
-          </a>
+          </button>
         )}
 
         {postData.videoUrl && (
@@ -292,6 +301,14 @@ export function CommunityPostDetailPage({
         />
       </div>
     </div>
+
+    {imageLightbox && postData.imageUrl && (
+      <ImageLightbox
+        url={postData.imageUrl}
+        alt={postData.title ?? ""}
+        onClose={() => setImageLightbox(false)}
+      />
+    )}
 
     {showEditComposer && (
       <PostComposerModal

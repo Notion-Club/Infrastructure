@@ -39,20 +39,35 @@ export function linkify(text: string): ReactNode[] {
     const href = toHref(url);
 
     if (isImageUrl(url)) {
-      // Rendu inline image style Slack — max 320px de large, max 320px de
-      // haut, ratio préservé, click pour ouvrir l'original dans un onglet.
+      // Rendu inline image style Slack — max 320px de large/haut. Le click
+      // émet un événement custom 'nc-image-open' capté par un listener
+      // global (cf. ImageLightboxRoot) qui ouvre une lightbox plein écran.
+      // Évite de devoir propager un onImageClick à travers tous les call
+      // sites de renderBodyRich.
+      const finalHref = href;
       parts.push(
-        <a
+        <button
           key={match.index}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          style={{ display: "inline-block", marginTop: 6 }}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            window.dispatchEvent(
+              new CustomEvent("nc-image-open", { detail: { url: finalHref } }),
+            );
+          }}
+          style={{
+            padding: 0,
+            border: "none",
+            background: "transparent",
+            cursor: "zoom-in",
+            display: "inline-block",
+            marginTop: 6,
+          }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={href}
+            src={finalHref}
             alt=""
             style={{
               maxWidth: 320,
@@ -64,7 +79,7 @@ export function linkify(text: string): ReactNode[] {
             }}
             loading="lazy"
           />
-        </a>,
+        </button>,
       );
     } else {
       parts.push(

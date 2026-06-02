@@ -15,6 +15,7 @@ import { PostComposerModal } from "../components/post-composer/PostComposerModal
 import { MessagesLayout } from "../components/messages/MessagesLayout";
 import { DevRoleToggle } from "../components/dev/DevRoleToggle";
 import { GradualBlurOverlay } from "@/shared/components/GradualBlurOverlay";
+import { ImageLightboxRoot } from "../components/shared/ImageLightboxRoot";
 import { CommunityRestrictedPage } from "./community-restricted-page";
 import { createPostAction } from "../server/actions";
 import type { Post } from "../types/post.types";
@@ -157,6 +158,11 @@ export function CommunityPage({
 
   return (
     <>
+      {/* Lightbox globale : capte les CustomEvent 'nc-image-open' émis
+          par linkify.tsx quand l'utilisateur clique sur une image inline
+          dans un body de post / commentaire. */}
+      <ImageLightboxRoot />
+
       {/* Global container card */}
       <div
         className="md:flex md:flex-col md:flex-1 md:min-h-0"
