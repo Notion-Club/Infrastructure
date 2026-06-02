@@ -29,6 +29,11 @@ interface MessageToolbarProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onForward?: () => void;
+  // Notifie le parent (MessageBubble) quand le picker OU le menu est ouvert,
+  // pour qu'il maintienne la toolbar visible même quand le curseur sort de
+  // la bulle (sinon le hover-leave fait disparaître le menu avant qu'on ait
+  // pu cliquer une option).
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function MessageToolbar({
@@ -40,6 +45,7 @@ export function MessageToolbar({
   onEdit,
   onDelete,
   onForward,
+  onOpenChange,
 }: MessageToolbarProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -62,6 +68,12 @@ export function MessageToolbar({
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [pickerOpen, menuOpen]);
+
+  // Remonte au parent dès qu'un des deux popovers s'ouvre/ferme, pour qu'il
+  // verrouille la toolbar visible et désactive les hovers des autres bulles.
+  useEffect(() => {
+    onOpenChange?.(pickerOpen || menuOpen);
+  }, [pickerOpen, menuOpen, onOpenChange]);
 
   const hasKebab = !!onEdit || !!onDelete || !!onForward;
 

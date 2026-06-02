@@ -27,9 +27,24 @@ interface MessageBubbleProps {
   // true quand un résultat de recherche pointe vers ce message — affiche un
   // halo brand quelques secondes pour aider l'utilisateur à le repérer.
   highlighted?: boolean;
+  // ID du message dont la toolbar est verrouillée ouverte (picker ou kebab
+  // menu déployé). Quand non-null et différent de ce message : on n'affiche
+  // PAS la toolbar même au hover, pour éviter qu'elle vienne masquer celle
+  // qui est en cours d'utilisation. État remonté au parent ConversationThread
+  // pour être partagé entre toutes les bulles.
+  lockedMessageId: string | null;
+  onLockChange: (messageId: string | null) => void;
 }
 
-export function MessageBubble({ message, isSelf, currentUser, onReply, highlighted }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  isSelf,
+  currentUser,
+  onReply,
+  highlighted,
+  lockedMessageId,
+  onLockChange,
+}: MessageBubbleProps) {
   const [showToolbar, setShowToolbar] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(message.body);
@@ -39,6 +54,13 @@ export function MessageBubble({ message, isSelf, currentUser, onReply, highlight
   const [, startTransition] = useTransition();
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const topEmojis = useUserTopEmojis();
+
+  // États dérivés pour le verrouillage. Quand un AUTRE message est locked,
+  // ce message-ci masque sa toolbar même au hover (évite les chevauchements).
+  // Quand CE message est locked, la toolbar reste visible même si on sort
+  // de la bulle (sinon impossible d'aller cliquer dans le menu déroulant).
+  const isThisLocked = lockedMessageId === message.id;
+  const isAnotherLocked = lockedMessageId !== null && lockedMessageId !== message.id;
 
   // Resync l'état local quand le parent re-render avec un message mis à
   // jour (router.refresh après edit / reaction toggle).
@@ -169,8 +191,18 @@ export function MessageBubble({ message, isSelf, currentUser, onReply, highlight
         borderRadius: highlighted ? 16 : undefined,
         transition: "box-shadow 600ms ease",
       }}
-      onMouseEnter={() => setShowToolbar(true)}
-      onMouseLeave={() => setShowToolbar(false)}
+      onMouseEnter={() => {
+        // Si un autre message est locked (menu déroulant ouvert ailleurs),
+        // on n'affiche PAS la toolbar de celui-ci pour éviter le chevauchement.
+        if (isAnotherLocked) return;
+        setShowToolbar(true);
+      }}
+      onMouseLeave={() => {
+        // Si CE message est locked (picker/menu ouvert), on garde la toolbar
+        // visible — c'est le clic outside global qui la fermera.
+        if (isThisLocked) return;
+        setShowToolbar(false);
+      }}
     >
       <div
         style={{
@@ -464,7 +496,7 @@ export function MessageBubble({ message, isSelf, currentUser, onReply, highlight
           pour les msgs reçus), ce qui masquait les bulles voisines au
           hover. Maintenant : alignée comme les pastilles réactions, juste
           sous la bulle, alignée à droite (mes msgs) ou à gauche (reçus). */}
-      {showToolbar && !editing && !isPending && (
+      {(showToolbar || isThisLocked) && !editing && !isPending && (
         <div
           style={{
             marginTop: 6,
@@ -481,6 +513,7 @@ export function MessageBubble({ message, isSelf, currentUser, onReply, highlight
             onEdit={canEdit ? () => setEditing(true) : undefined}
             onDelete={canDelete ? () => setShowDeleteConfirm(true) : undefined}
             onForward={canForward ? () => setShowForwardModal(true) : undefined}
+            onOpenChange={(open) => onLockChange(open ? message.id : null)}
           />
         </div>
       )}

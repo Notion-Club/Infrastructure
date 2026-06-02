@@ -58,6 +58,11 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
   const HIGHLIGHT_MS = 1800;
   const [searchOpen, setSearchOpen] = useState(false);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  // ID du message dont la toolbar est verrouillée (kebab menu ou picker emoji
+  // déployé). Partagé entre TOUTES les bulles pour qu'une seule toolbar à la
+  // fois soit interactive — sinon les hovers se chevauchent et l'user clique
+  // dans le vide. cf. fix/dm-toolbar-lock-on-open.
+  const [lockedMessageId, setLockedMessageId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   // Container du thread — utilisé pour préserver la position de scroll lors
   // du chargement des messages précédents (sinon le scroll saute en haut).
@@ -78,6 +83,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
     setHasMore(conversation.hasMore ?? false);
     setSearchOpen(false);
     setHighlightedId(null);
+    setLockedMessageId(null);
   }, [conversation.id, conversation.messages, conversation.hasMore]);
 
   const messages = [...olderMessages, ...conversation.messages, ...optimisticMessages];
@@ -322,6 +328,8 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
               currentUser={currentUser}
               onReply={handleReply}
               highlighted={highlightedId === msg.id}
+              lockedMessageId={lockedMessageId}
+              onLockChange={setLockedMessageId}
             />
           ))
         )}
