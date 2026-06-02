@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useLayoutEffect, useTransition } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -71,33 +71,6 @@ export function Topbar() {
     });
   }
 
-  // Sliding pill
-  const navRef = useRef<HTMLElement>(null);
-  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
-  const hasInitialized = useRef(false);
-  const [pill, setPill] = useState({ left: 0, width: 0, height: 0, top: 0, visible: false, animated: false });
-
-  useLayoutEffect(() => {
-    const activeIndex = NAV_ITEMS.findIndex(
-      ({ href }) => pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")),
-    );
-    const navEl = navRef.current;
-    const activeEl = itemRefs.current[activeIndex];
-    if (!navEl || !activeEl) return;
-    const navRect = navEl.getBoundingClientRect();
-    const activeRect = activeEl.getBoundingClientRect();
-    const isFirst = !hasInitialized.current;
-    hasInitialized.current = true;
-    setPill({
-      left: activeRect.left - navRect.left,
-      width: activeRect.width,
-      height: activeRect.height,
-      top: activeRect.top - navRect.top,
-      visible: true,
-      animated: !isFirst,
-    });
-  }, [pathname]);
-
   useEffect(() => {
     if (!avatarOpen) return;
     function onClickOutside(e: MouseEvent) {
@@ -115,6 +88,43 @@ export function Topbar() {
   const avatarUrl = identity?.avatarUrl ?? null;
   const avatarColor = identity?.avatarColor ?? "#e0625a";
 
+  // Pill glissante — pattern Transitions.dev.
+  const itemRefs       = useRef<(HTMLAnchorElement | null)[]>([]);
+  const pillRef        = useRef<HTMLDivElement>(null);
+  const lastClickedRef = useRef<number>(-1);
+
+  const moveTo = useCallback((idx: number, animate: boolean) => {
+    const el   = itemRefs.current[idx];
+    const pill = pillRef.current;
+    if (!el || !pill) return;
+
+    if (!animate) {
+      const prev = pill.style.transition;
+      pill.style.transition = "none";
+      pill.style.top    = `${el.offsetTop}px`;
+      pill.style.height = `${el.offsetHeight}px`;
+      pill.style.transform = `translateX(${el.offsetLeft}px)`;
+      pill.style.width     = `${el.offsetWidth}px`;
+      void pill.offsetWidth;
+      pill.style.transition = prev;
+    } else {
+      pill.style.transform = `translateX(${el.offsetLeft}px)`;
+      pill.style.width     = `${el.offsetWidth}px`;
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    const idx = NAV_ITEMS.findIndex(
+      ({ href }) => pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")),
+    );
+    if (lastClickedRef.current === idx) {
+      lastClickedRef.current = -1;
+      return;
+    }
+    lastClickedRef.current = -1;
+    moveTo(idx, false);
+  }, [pathname, moveTo]);
+
   return (
     <header
       className="hidden md:flex justify-center"
@@ -126,14 +136,10 @@ export function Topbar() {
         zIndex: 50,
         padding: "14px 40px",
         background: "transparent",
-        // Force a GPU layer so position:fixed isn't broken by ancestor
-        // filters/transforms. Avoid `contain: paint` here — it would clip
-        // the dropdown that extends below the header.
         transform: "translateZ(0)",
         willChange: "transform",
       }}
     >
-      {/* Pill — élargie pour respirer avec 5 items de nav + groupe droit */}
       <div
         className="nc-topbar-pill"
         style={{
@@ -166,25 +172,23 @@ export function Topbar() {
 
           {SEPARATOR}
 
-          <nav ref={navRef} style={{ display: "flex", alignItems: "center", gap: 2, position: "relative" }}>
-            {/* Pilule glissante — positionnée absolument sous les items */}
+          <nav style={{ display: "flex", alignItems: "center", gap: 2, position: "relative" }}>
+            {/* Pill glissante — class nc-nav-pill porte la CSS transition. */}
             <div
+              ref={pillRef}
               aria-hidden
+              className="nc-nav-pill"
               style={{
                 position: "absolute",
-                left: pill.left,
-                top: pill.top,
-                width: pill.width,
-                height: pill.height,
+                left: 0,
                 background: "var(--nc-nav-active-bg)",
                 borderRadius: 9999,
-                opacity: pill.visible ? 1 : 0,
-                transition: pill.animated
-                  ? "left var(--nc-duration-normal) var(--nc-ease), width var(--nc-duration-normal) var(--nc-ease)"
-                  : "none",
                 pointerEvents: "none",
+                willChange: "transform, width",
+                zIndex: 0,
               }}
             />
+
             {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
               const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
               return (
@@ -192,6 +196,7 @@ export function Topbar() {
                   key={href}
                   href={href}
                   ref={(el) => { itemRefs.current[i] = el; }}
+                  onClick={() => { lastClickedRef.current = i; moveTo(i, true); }}
                   style={{
                     position: "relative",
                     zIndex: 1,
@@ -297,11 +302,7 @@ export function Topbar() {
               <img
                 src={avatarUrl}
                 alt=""
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                }}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             ) : (
               initials
@@ -337,13 +338,7 @@ export function Topbar() {
                 </span>
                 <ThemeToggle />
               </div>
-              <div
-                style={{
-                  height: 1,
-                  background: "var(--color-border-default)",
-                  margin: "4px 0",
-                }}
-              />
+              <div style={{ height: 1, background: "var(--color-border-default)", margin: "4px 0" }} />
               <Link
                 href="/settings"
                 role="menuitem"
