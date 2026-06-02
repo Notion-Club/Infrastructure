@@ -73,7 +73,7 @@ export type DeletePostResult =
     };
 
 export type UploadPostMediaResult =
-  | { ok: true; publicUrl: string }
+  | { ok: true; publicUrl: string; storagePath: string }
   | {
       ok: false;
       code:
@@ -83,6 +83,14 @@ export type UploadPostMediaResult =
         | "not_authenticated"
         | "upload_failed"
         | "unknown";
+      message: string;
+    };
+
+export type DeletePostMediaResult =
+  | { ok: true }
+  | {
+      ok: false;
+      code: "not_authenticated" | "forbidden" | "unknown";
       message: string;
     };
 
@@ -468,7 +476,56 @@ export async function uploadPostMediaAction(
     .from(COMMUNITY_BUCKET)
     .getPublicUrl(path);
 
-  return { ok: true, publicUrl: urlData.publicUrl };
+  return { ok: true, publicUrl: urlData.publicUrl, storagePath: path };
+}
+
+// ============================================================================
+// deletePostMediaAction — supprime un fichier upload orphelin
+// ============================================================================
+// Appelé par les composers quand l'utilisateur clique sur la croix d'une
+// preview pas encore publiée. La RLS community_delete_own (mig. 018)
+// garantit que seul l'uploader peut supprimer (path commence par uploads/uid).
+// On ne se base pas sur l'URL publique pour identifier le fichier — le
+// caller doit nous passer le storagePath retourné par upload (plus stable
+// et plus précis qu'un re-parse d'URL).
+export async function deletePostMediaAction(
+  storagePath: string,
+): Promise<DeletePostMediaResult> {
+  if (!storagePath || typeof storagePath !== "string") {
+    return { ok: false, code: "unknown", message: "Chemin invalide." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      message: "Tu dois être connecté.",
+    };
+  }
+
+  // Sanity check : on n'autorise que la suppression dans uploads/<auth.uid>.
+  // La RLS le bloquerait aussi mais on évite un round-trip inutile.
+  const expectedPrefix = `uploads/${user.id}/`;
+  if (!storagePath.startsWith(expectedPrefix)) {
+    return {
+      ok: false,
+      code: "forbidden",
+      message: "Tu ne peux supprimer que tes propres fichiers.",
+    };
+  }
+
+  const { error } = await supabase.storage
+    .from(COMMUNITY_BUCKET)
+    .remove([storagePath]);
+  if (error) {
+    console.error("[deletePostMedia] storage remove failed:", error.message);
+    return { ok: false, code: "unknown", message: error.message };
+  }
+  return { ok: true };
 }
 
 // ============================================================================
