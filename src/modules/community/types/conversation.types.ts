@@ -13,6 +13,15 @@ export interface Message {
   createdAt: string;
   editedAt?: string;
   deleted?: boolean;
+  // Quote-reply (mig. 027). Trois colonnes dénormalisées qui survivent à
+  // la suppression du message original.
+  replyToMessageId?: string | null;
+  replySnippet?: string | null;
+  replyAuthorName?: string | null;
+  // Forward (mig. 028). Snapshot du nom de l'auteur original pour le
+  // badge "Transféré de [Nom]" — survit à la suppression du profil source.
+  forwardedFromMessageId?: string | null;
+  forwardedFromAuthorName?: string | null;
 }
 
 export interface Conversation {

@@ -7,6 +7,9 @@ import {
   createCommentSchema,
   createConversationSchema,
   createPostSchema,
+  deleteMessageSchema,
+  editMessageSchema,
+  forwardMessageSchema,
   isAllowedPostMediaMime,
   markConversationReadSchema,
   POST_MEDIA_ALLOWED_MIME,
@@ -14,6 +17,7 @@ import {
   sendMessageSchema,
   toggleCommentReactionSchema,
   toggleCommentReplyReactionSchema,
+  toggleMessageReactionSchema,
   togglePostReactionSchema,
   updateCommentReplySchema,
   updateCommentSchema,
@@ -22,10 +26,14 @@ import {
   type CreateCommentReplyInput,
   type CreateConversationInput,
   type CreatePostInput,
+  type DeleteMessageInput,
+  type EditMessageInput,
+  type ForwardMessageInput,
   type MarkConversationReadInput,
   type SendMessageInput,
   type ToggleCommentReactionInput,
   type ToggleCommentReplyReactionInput,
+  type ToggleMessageReactionInput,
   type TogglePostReactionInput,
   type UpdateCommentInput,
   type UpdateCommentReplyInput,
@@ -159,6 +167,42 @@ export type MarkConversationReadResult =
       code: "validation" | "not_authenticated" | "forbidden" | "unknown";
       message: string;
     };
+
+export type EditMessageResult =
+  | { ok: true }
+  | {
+      ok: false;
+      code: "validation" | "not_authenticated" | "forbidden" | "not_found" | "unknown";
+      message: string;
+    };
+
+export type DeleteMessageResult =
+  | { ok: true }
+  | {
+      ok: false;
+      code: "validation" | "not_authenticated" | "forbidden" | "not_found" | "unknown";
+      message: string;
+    };
+
+export type ToggleMessageReactionResult =
+  | { ok: true; reacted: boolean }
+  | {
+      ok: false;
+      code: "validation" | "not_authenticated" | "forbidden" | "unknown";
+      message: string;
+    };
+
+export type ForwardMessageResult =
+  | { ok: true; deliveredCount: number }
+  | {
+      ok: false;
+      code: "validation" | "not_authenticated" | "forbidden" | "not_found" | "unknown";
+      message: string;
+    };
+
+export type GetUserTopEmojisResult = {
+  emojis: string[];
+};
 
 // ============================================================================
 // Helpers
@@ -1102,6 +1146,12 @@ export async function sendMessageAction(
       body: parsed.data.body,
       file_url: parsed.data.file_url ?? null,
       file_name: parsed.data.file_name ?? null,
+      // Quote-reply (mig. 027). Les 3 colonnes vont par paire — la
+      // contrainte DB messages_quote_reply_consistency rejette les états
+      // partiels. Schema Zod a déjà vérifié.
+      reply_to_message_id: parsed.data.reply_to_message_id ?? null,
+      reply_snippet: parsed.data.reply_snippet ?? null,
+      reply_author_name: parsed.data.reply_author_name ?? null,
     })
     .select("id")
     .single<{ id: string }>();
@@ -1206,4 +1256,364 @@ export async function getConversationAction(
   conversationId: string,
 ): Promise<Conversation | null> {
   return getConversation(conversationId);
+}
+
+// ============================================================================
+// editMessageAction — édite le body d'un message DM (texte uniquement)
+// ============================================================================
+// RLS messages_update_self (mig. 014) limite à sender = caller. Trigger DB
+// messages_set_edited_at bump edited_at automatiquement. On ne touche pas
+// aux fichiers / images — l'édition est purement textuelle (conforme au
+// scope d'une fonctionnalité chat WhatsApp-like).
+export async function editMessageAction(
+  input: EditMessageInput,
+): Promise<EditMessageResult> {
+  const parsed = editMessageSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "validation",
+      message: parsed.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+
+  const caller = await getCallerRole();
+  if (!caller) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      message: "Connecte-toi pour modifier ce message.",
+    };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("messages")
+    .update({ body: parsed.data.body, edited_at: new Date().toISOString() })
+    .eq("id", parsed.data.message_id);
+
+  if (error) {
+    console.error("[editMessage] failed:", error.message);
+    return { ok: false, code: "unknown", message: error.message };
+  }
+
+  revalidatePath("/communaute");
+  return { ok: true };
+}
+
+// ============================================================================
+// deleteMessageAction — soft-delete (deleted=true), body conservé en DB
+// ============================================================================
+// Soft pour préserver les références FK (quote-replies ailleurs qui pointent
+// dessus). Le body reste en DB mais le composant MessageBubble affiche
+// "Message supprimé" si deleted=true.
+export async function deleteMessageAction(
+  input: DeleteMessageInput,
+): Promise<DeleteMessageResult> {
+  const parsed = deleteMessageSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "validation",
+      message: parsed.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+
+  const caller = await getCallerRole();
+  if (!caller) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      message: "Connecte-toi pour supprimer ce message.",
+    };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("messages")
+    .update({ deleted: true })
+    .eq("id", parsed.data.message_id);
+
+  if (error) {
+    console.error("[deleteMessage] failed:", error.message);
+    return { ok: false, code: "unknown", message: error.message };
+  }
+
+  revalidatePath("/communaute");
+  return { ok: true };
+}
+
+// ============================================================================
+// toggleMessageReactionAction — toggle une réaction emoji sur un message
+// ============================================================================
+// Pattern identique aux toggle de posts/comments : on cherche d'abord une
+// ligne (message_id, user_id, emoji), DELETE si existe sinon INSERT. Le
+// trigger bump_user_emoji_stats (mig. 029) maintient le top emojis du user.
+export async function toggleMessageReactionAction(
+  input: ToggleMessageReactionInput,
+): Promise<ToggleMessageReactionResult> {
+  const parsed = toggleMessageReactionSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "validation",
+      message: parsed.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+
+  const caller = await getCallerRole();
+  if (!caller) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      message: "Connecte-toi pour réagir.",
+    };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  const { data: existing } = await supabase
+    .from("message_reactions")
+    .select("emoji")
+    .eq("message_id", parsed.data.message_id)
+    .eq("user_id", caller.userId)
+    .eq("emoji", parsed.data.emoji)
+    .maybeSingle<{ emoji: string }>();
+
+  if (existing) {
+    const { error } = await supabase
+      .from("message_reactions")
+      .delete()
+      .eq("message_id", parsed.data.message_id)
+      .eq("user_id", caller.userId)
+      .eq("emoji", parsed.data.emoji);
+    if (error) {
+      console.error("[toggleMessageReaction] delete failed:", error.message);
+      return { ok: false, code: "unknown", message: error.message };
+    }
+    revalidatePath("/communaute");
+    return { ok: true, reacted: false };
+  }
+
+  const { error } = await supabase
+    .from("message_reactions")
+    .insert({
+      message_id: parsed.data.message_id,
+      user_id: caller.userId,
+      emoji: parsed.data.emoji,
+    });
+  if (error) {
+    console.error("[toggleMessageReaction] insert failed:", error.message);
+    return { ok: false, code: "unknown", message: error.message };
+  }
+  revalidatePath("/communaute");
+  return { ok: true, reacted: true };
+}
+
+// ============================================================================
+// forwardMessageAction — transfère un message à 1-5 destinataires
+// ============================================================================
+// Le serveur :
+//   1. Charge le message source (body, type, fichier, auteur original) via
+//      RLS (caller doit pouvoir le voir).
+//   2. Pour chaque target_user_id, résout/crée la conversation DM avec
+//      l'helper createConversationAction (qui applique RLS two-silo mig. 024).
+//   3. Insère une copie du message dans chaque conv cible avec
+//      forwarded_from_message_id + forwarded_from_author_name renseignés.
+//
+// Le quote-reply de la source N'EST PAS propagé — un message transféré
+// repart "à plat" (sémantique WhatsApp). Une éventuelle V2 pourrait stocker
+// le sub-tree complet mais on n'a pas le besoin produit aujourd'hui.
+export async function forwardMessageAction(
+  input: ForwardMessageInput,
+): Promise<ForwardMessageResult> {
+  const parsed = forwardMessageSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "validation",
+      message: parsed.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+
+  const caller = await getCallerRole();
+  if (!caller) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      message: "Connecte-toi pour transférer ce message.",
+    };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  // 1. Source — la RLS messages_select_participant filtre déjà à "le caller
+  //    voit cette conv". On joint sender pour figer le nom d'auteur dans
+  //    le snapshot forwarded_from_author_name.
+  const { data: sourceMsg, error: srcError } = await supabase
+    .from("messages")
+    .select(
+      `id, body, type, file_url, file_name, deleted,
+       sender:profiles!messages_sender_id_fkey ( id, first_name, last_name, display_name, username )`,
+    )
+    .eq("id", parsed.data.message_id)
+    .maybeSingle<{
+      id: string;
+      body: string;
+      type: string;
+      file_url: string | null;
+      file_name: string | null;
+      deleted: boolean;
+      sender: {
+        id: string;
+        first_name: string | null;
+        last_name: string | null;
+        display_name: string | null;
+        username: string | null;
+      } | null;
+    }>();
+
+  if (srcError) {
+    console.error("[forwardMessage] source lookup failed:", srcError.message);
+    return { ok: false, code: "unknown", message: srcError.message };
+  }
+  if (!sourceMsg) {
+    return {
+      ok: false,
+      code: "not_found",
+      message: "Message introuvable ou inaccessible.",
+    };
+  }
+  if (sourceMsg.deleted) {
+    return {
+      ok: false,
+      code: "forbidden",
+      message: "Impossible de transférer un message supprimé.",
+    };
+  }
+
+  // Figure le nom de l'auteur d'origine pour le snapshot.
+  const senderName = sourceMsg.sender
+    ? (() => {
+        const fn = sourceMsg.sender.first_name?.trim();
+        const ln = sourceMsg.sender.last_name?.trim();
+        if (fn && ln) return `${fn} ${ln}`;
+        if (fn) return fn;
+        if (ln) return ln;
+        return sourceMsg.sender.display_name?.trim() || sourceMsg.sender.username || "Utilisateur";
+      })()
+    : "Utilisateur supprimé";
+
+  // 2. Pour chaque target, résoudre / créer la conversation. On factorise
+  //    la logique de createConversationAction en in-line ici pour ne pas
+  //    multiplier les await chain (et bénéficier d'une seule transaction
+  //    logique côté action). NB : la RLS conversations_insert_with_two_silo
+  //    (mig. 024) bloque déjà les couples cross-silo non-admin/mentor.
+  let delivered = 0;
+  for (const targetId of parsed.data.target_user_ids) {
+    if (targetId === caller.userId) continue; // self-forward = no-op silent
+
+    const [a, b] =
+      caller.userId < targetId ? [caller.userId, targetId] : [targetId, caller.userId];
+
+    // Cherche conv existante (UNIQUE (a,b) garantit l'unicité).
+    const { data: existingConv } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("participant_a_id", a)
+      .eq("participant_b_id", b)
+      .maybeSingle<{ id: string }>();
+
+    let conversationId = existingConv?.id;
+    if (!conversationId) {
+      const { data: newConv, error: convErr } = await supabase
+        .from("conversations")
+        .insert({ participant_a_id: a, participant_b_id: b })
+        .select("id")
+        .single<{ id: string }>();
+      if (convErr || !newConv) {
+        console.error(
+          `[forwardMessage] conv create failed (target=${targetId}):`,
+          convErr?.message,
+        );
+        continue; // On skippe ce target — le reste continue.
+      }
+      conversationId = newConv.id;
+    }
+
+    // 3. INSERT du message copié — forwarded_from_* dénormalisés.
+    const { error: msgErr } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: caller.userId,
+      type: sourceMsg.type,
+      body: sourceMsg.body,
+      file_url: sourceMsg.file_url,
+      file_name: sourceMsg.file_name,
+      forwarded_from_message_id: sourceMsg.id,
+      forwarded_from_author_name: senderName,
+    });
+    if (msgErr) {
+      console.error(
+        `[forwardMessage] insert failed (target=${targetId}):`,
+        msgErr.message,
+      );
+      continue;
+    }
+
+    // Bump last_message_at de la conv cible.
+    await supabase
+      .from("conversations")
+      .update({ last_message_at: new Date().toISOString() })
+      .eq("id", conversationId);
+
+    delivered += 1;
+  }
+
+  revalidatePath("/communaute");
+
+  if (delivered === 0) {
+    return {
+      ok: false,
+      code: "unknown",
+      message: "Aucun transfert n'a abouti — vérifie les destinataires.",
+    };
+  }
+
+  return { ok: true, deliveredCount: delivered };
+}
+
+// ============================================================================
+// getUserTopEmojisAction — top 3 emojis du caller (cf. mig. 029)
+// ============================================================================
+// Utilisée par le hook useUserTopEmojis pour alimenter la toolbar quick-
+// reaction. Renvoie toujours exactement 3 emojis : si l'user n'a pas encore
+// d'historique, on complète avec les defaults figés (👍 😂 🙌).
+const DEFAULT_TOP_EMOJIS = ["👍", "😂", "🙌"];
+export async function getUserTopEmojisAction(): Promise<GetUserTopEmojisResult> {
+  const caller = await getCallerRole();
+  if (!caller) return { emojis: DEFAULT_TOP_EMOJIS };
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("get_user_top_emojis", {
+    p_user_id: caller.userId,
+    p_limit: 3,
+  });
+
+  if (error) {
+    console.error("[getUserTopEmojis] failed:", error.message);
+    return { emojis: DEFAULT_TOP_EMOJIS };
+  }
+
+  const rows = (data ?? []) as Array<{ emoji: string; count: number }>;
+  const userEmojis = rows.map((r) => r.emoji);
+  // Complète avec les defaults pour toujours retourner 3 emojis, en évitant
+  // les doublons (si l'user a déjà utilisé 👍 il ne se duplique pas).
+  const merged: string[] = [...userEmojis];
+  for (const e of DEFAULT_TOP_EMOJIS) {
+    if (merged.length >= 3) break;
+    if (!merged.includes(e)) merged.push(e);
+  }
+  return { emojis: merged.slice(0, 3) };
 }

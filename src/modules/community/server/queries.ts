@@ -107,6 +107,12 @@ type MessageRow = {
   deleted: boolean;
   created_at: string;
   edited_at: string | null;
+  // Quote-reply (mig. 027) + Forward (mig. 028) — colonnes dénormalisées.
+  reply_to_message_id: string | null;
+  reply_snippet: string | null;
+  reply_author_name: string | null;
+  forwarded_from_message_id: string | null;
+  forwarded_from_author_name: string | null;
 };
 
 type MessageReactionRow = {
@@ -600,6 +606,11 @@ function mapMessageRow(row: MessageRow, reactions: MessageReactionRow[]): Messag
     createdAt: row.created_at,
     editedAt: row.edited_at ?? undefined,
     deleted: row.deleted,
+    replyToMessageId: row.reply_to_message_id,
+    replySnippet: row.reply_snippet,
+    replyAuthorName: row.reply_author_name,
+    forwardedFromMessageId: row.forwarded_from_message_id,
+    forwardedFromAuthorName: row.forwarded_from_author_name,
   };
 }
 
@@ -662,7 +673,7 @@ export async function listConversations(): Promise<Conversation[]> {
   const convIds = rows.map((r) => r.id);
   const { data: lightMessages } = await supabase
     .from("messages")
-    .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at")
+    .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name")
     .in("conversation_id", convIds)
     .returns<MessageRow[]>();
 
@@ -705,7 +716,7 @@ export async function getConversation(id: string): Promise<Conversation | null> 
   const [messagesRes, reactionsRes] = await Promise.all([
     supabase
       .from("messages")
-      .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at")
+      .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name")
       .eq("conversation_id", id)
       .order("created_at", { ascending: true })
       .returns<MessageRow[]>(),
