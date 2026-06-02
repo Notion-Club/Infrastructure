@@ -925,3 +925,57 @@ export async function loadOlderMessages(
     hasMore,
   };
 }
+
+// ============================================================================
+// Recherche full-text dans une conversation unique
+// ============================================================================
+// Implémentation simple via ilike (case-insensitive). On évite l'injection
+// de wildcards LIKE en escapant `%` et `_`. Tri ASC pour faciliter le scroll
+// vers le résultat dans le thread. Limite à 50 résultats — au-delà l'UX
+// devient peu lisible.
+export const SEARCH_MAX_RESULTS = 50;
+export const SEARCH_QUERY_MIN = 2;
+
+export interface SearchMessageHit {
+  id: string;
+  body: string;
+  senderId: string;
+  createdAt: string;
+  type: MessageType;
+}
+
+function escapeLikeWildcards(input: string): string {
+  return input.replace(/[\\%_]/g, (m) => `\\${m}`);
+}
+
+export async function searchMessagesInConversation(
+  conversationId: string,
+  query: string,
+): Promise<SearchMessageHit[]> {
+  const supabase = await createSupabaseServerClient();
+  const trimmed = query.trim();
+  if (trimmed.length < SEARCH_QUERY_MIN) return [];
+
+  const pattern = `%${escapeLikeWildcards(trimmed)}%`;
+  const { data, error } = await supabase
+    .from("messages")
+    .select("id, body, sender_id, created_at, type")
+    .eq("conversation_id", conversationId)
+    .eq("deleted", false)
+    .ilike("body", pattern)
+    .order("created_at", { ascending: true })
+    .limit(SEARCH_MAX_RESULTS)
+    .returns<Array<{ id: string; body: string; sender_id: string; created_at: string; type: string }>>();
+
+  if (error) {
+    console.error("[searchMessagesInConversation] failed:", error.message);
+    return [];
+  }
+  return (data ?? []).map((m) => ({
+    id: m.id,
+    body: m.body,
+    senderId: m.sender_id,
+    createdAt: m.created_at,
+    type: m.type as MessageType,
+  }));
+}

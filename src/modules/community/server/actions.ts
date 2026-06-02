@@ -42,7 +42,14 @@ import {
   type UpdateCommentReplyInput,
   type UpdatePostInput,
 } from "../lib/validation";
-import { getConversation, loadOlderMessages, mapProfileMember, type CommunityMember } from "./queries";
+import {
+  getConversation,
+  loadOlderMessages,
+  mapProfileMember,
+  searchMessagesInConversation,
+  type CommunityMember,
+  type SearchMessageHit,
+} from "./queries";
 import type { Conversation, Message } from "../types/conversation.types";
 
 const COMMUNITY_BUCKET = "community";
@@ -1427,6 +1434,24 @@ export async function loadOlderMessagesAction(
     };
   }
   return { ok: true, messages: result.messages, hasMore: result.hasMore };
+}
+
+// ============================================================================
+// searchMessagesAction — recherche dans une conv unique
+// ============================================================================
+// Caller doit être participant de la conv (couvert par RLS). Renvoie au max
+// SEARCH_MAX_RESULTS hits, ordre chronologique ASC. Retourne tableau vide si
+// query < SEARCH_QUERY_MIN ou erreur SQL.
+export type SearchMessagesResult = {
+  hits: SearchMessageHit[];
+};
+
+export async function searchMessagesAction(
+  conversationId: string,
+  query: string,
+): Promise<SearchMessagesResult> {
+  const hits = await searchMessagesInConversation(conversationId, query);
+  return { hits };
 }
 
 // ============================================================================

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useTransition } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Search } from "lucide-react";
 import type { Conversation, Message } from "../../types/conversation.types";
 import type { User } from "../../types/user.types";
 import { REPLY_SNIPPET_MAX } from "../../lib/validation";
@@ -9,6 +9,7 @@ import { loadOlderMessagesAction } from "../../server/actions";
 import { MessageBubble } from "./MessageBubble";
 import { MessageBubbleSkeleton } from "./MessageBubbleSkeleton";
 import { MessageComposer, type ReplyContext } from "./MessageComposer";
+import { MessageSearchBar } from "./MessageSearchBar";
 import { ConversationEmptyState } from "./MessagesEmptyState";
 import { UserAvatar } from "../shared/UserAvatar";
 
@@ -49,6 +50,12 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
   const [olderMessages, setOlderMessages] = useState<Message[]>([]);
   const [hasMore, setHasMore] = useState<boolean>(conversation.hasMore ?? false);
   const [isLoadingOlder, startLoadOlder] = useTransition();
+  // Recherche dans la conv — ouverte/fermée via le bouton loupe du header.
+  // Quand un résultat est cliqué, on highlight le message ciblé pendant
+  // HIGHLIGHT_MS pour aider l'utilisateur à le repérer après le scroll.
+  const HIGHLIGHT_MS = 1800;
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   // Container du thread — utilisé pour préserver la position de scroll lors
   // du chargement des messages précédents (sinon le scroll saute en haut).
@@ -61,6 +68,8 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
     setReplyContext(null);
     setOlderMessages([]);
     setHasMore(conversation.hasMore ?? false);
+    setSearchOpen(false);
+    setHighlightedId(null);
   }, [conversation.id, conversation.messages, conversation.hasMore]);
 
   const messages = [...olderMessages, ...conversation.messages, ...optimisticMessages];
@@ -97,6 +106,16 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
         c.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
       });
     });
+  }
+
+  function handleJumpToMessage(messageId: string) {
+    const el = document.getElementById(`nc-msg-${messageId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedId(messageId);
+    window.setTimeout(() => {
+      setHighlightedId((current) => (current === messageId ? null : current));
+    }, HIGHLIGHT_MS);
   }
 
   const isDeleted = conversation.participant.deleted;
@@ -187,7 +206,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
           </button>
         )}
         <UserAvatar user={conversation.participant} size={36} />
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: isDeleted ? "var(--color-text-muted)" : "var(--color-text-primary)" }}>
             {conversation.participant.name}
           </div>
@@ -198,7 +217,36 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
             : null
           }
         </div>
+        <button
+          type="button"
+          onClick={() => setSearchOpen((v) => !v)}
+          aria-label={searchOpen ? "Fermer la recherche" : "Rechercher dans la conversation"}
+          aria-pressed={searchOpen}
+          style={{
+            width: 36, height: 36, borderRadius: "50%",
+            border: "none",
+            background: searchOpen ? "rgba(224,98,90,0.08)" : "transparent",
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            color: searchOpen ? "var(--color-brand)" : "var(--color-text-secondary)",
+            flexShrink: 0,
+            transition: "background 120ms ease",
+          }}
+          className="hover:bg-[rgba(0,0,0,0.06)]"
+        >
+          <Search size={16} />
+        </button>
       </div>
+
+      {/* Barre de recherche (optionnelle) — au-dessus du flux de messages */}
+      {searchOpen && (
+        <MessageSearchBar
+          conversationId={conversation.id}
+          currentUser={currentUser}
+          participant={conversation.participant}
+          onJumpToMessage={handleJumpToMessage}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
 
       {/* Messages */}
       <div
@@ -264,6 +312,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
               isSelf={msg.senderId === currentUser.id}
               currentUser={currentUser}
               onReply={handleReply}
+              highlighted={highlightedId === msg.id}
             />
           ))
         )}
