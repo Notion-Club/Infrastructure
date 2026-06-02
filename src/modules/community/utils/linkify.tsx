@@ -73,7 +73,15 @@ export function linkify(text: string): ReactNode[] {
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: "var(--color-brand)", textDecoration: "underline" }}
+          className="nc-inline-link"
+          style={{
+            color: "#e0625a",
+            textDecoration: "underline",
+            textDecorationColor: "#e0625a",
+            textUnderlineOffset: 2,
+            fontWeight: 500,
+            wordBreak: "break-word",
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           {url}

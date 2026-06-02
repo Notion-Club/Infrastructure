@@ -189,7 +189,7 @@ function ReactionPill({ reaction, compact, onReact, allReactions }: ReactionPill
               borderRadius: 12,
               boxShadow: "var(--nc-shadow-2)",
               padding: "8px 10px",
-              minWidth: 160,
+              minWidth: 180,
               zIndex: 200,
               animation: "nc-mode-in 150ms var(--nc-ease) both",
               pointerEvents: "auto",
@@ -198,13 +198,39 @@ function ReactionPill({ reaction, compact, onReact, allReactions }: ReactionPill
             <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               {emoji} {count} réaction{count !== 1 ? "s" : ""}
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 200, overflowY: "auto" }}>
-              {reactors.map((r, i) => (
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              {/* Preview limité aux 5 premiers reactors. Au-delà, on affiche
+                  un lien "voir N de plus" qui ouvre la BottomSheet plein-écran
+                  avec la liste complète scrollable. */}
+              {reactors.slice(0, 5).map((r, i) => (
                 <div key={`${r.id}-${i}`} style={{ display: "flex", alignItems: "center", gap: 7 }}>
                   <AvatarDot reactor={r} />
                   <span style={{ fontSize: 12, color: "var(--color-text-primary)", fontWeight: 500 }}>{r.name}</span>
                 </div>
               ))}
+              {reactors.length > 5 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setHovered(false);
+                    setShowSheet(true);
+                  }}
+                  style={{
+                    marginTop: 2,
+                    padding: "4px 0",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--color-brand)",
+                    textAlign: "left",
+                  }}
+                >
+                  Voir {reactors.length - 5} de plus
+                </button>
+              )}
             </div>
           </div>
         )}
