@@ -1,7 +1,4 @@
 import { notFound } from 'next/navigation';
-import { Topbar } from '@/shared/components/dashboard/Topbar';
-import { MobileTopActions } from '@/shared/components/dashboard/mobile/MobileTopActions';
-import { BottomNav } from '@/shared/components/dashboard/mobile/BottomNav';
 import { GradualBlurOverlay } from '@/shared/components/GradualBlurOverlay';
 import { getResourceBySlug, getRelatedResources } from '@/modules/ressources/lib/fetch';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
@@ -143,11 +140,6 @@ export default async function ResourceDetailPage({ params }: PageProps) {
 
   return (
     <>
-      <Topbar />
-      <div className="md:hidden">
-        <MobileTopActions />
-        <BottomNav />
-      </div>
       <GradualBlurOverlay />
       <div className="nc-page-halo" style={{ minHeight: '100dvh' }}>
         <main style={{ position: 'relative', zIndex: 1 }}>

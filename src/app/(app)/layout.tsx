@@ -7,6 +7,9 @@ import {
   type ProfileIdentity,
 } from "@/shared/components/identity/ProfileIdentityProvider";
 import FeedbackWidgetLoader from "@/shared/components/feedback-widget/FeedbackWidgetLoader";
+import { Topbar } from "@/shared/components/dashboard/Topbar";
+import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
+import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 
 // Layout commun à toutes les pages connectées (dashboard, settings, communaute,
 // coaching, ressources). Server Component : on pré-fetch l'identity de l'user
@@ -71,6 +74,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <ProfileIdentityProvider initialIdentity={identity}>
+      <Topbar />
+      <div className="md:hidden">
+        <MobileTopActions />
+        <BottomNav />
+      </div>
       {children}
       <FeedbackWidgetLoader />
     </ProfileIdentityProvider>

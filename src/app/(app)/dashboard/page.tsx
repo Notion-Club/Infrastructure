@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Search } from "lucide-react";
-import { Topbar } from "@/shared/components/dashboard/Topbar";
-import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
-import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { FormationWidget } from "@/shared/components/dashboard/widgets/FormationWidget";
 import { ProfilWidget } from "@/shared/components/dashboard/widgets/ProfilWidget";
 import { EmailVerifiedToast, LogoutButton } from "@/modules/auth";
@@ -43,14 +40,6 @@ export default async function DashboardPage() {
   const firstName = await getGreetingFirstName();
   return (
     <>
-      {/* Éléments fixed hors de nc-page-halo pour éviter que isolation:isolate
-          casse position:fixed dans certains navigateurs */}
-      <Topbar />
-      <div className="md:hidden">
-        <MobileTopActions />
-        <BottomNav />
-      </div>
-
       <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
       <main style={{ position: "relative", zIndex: 1 }}>
         <div

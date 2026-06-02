@@ -1,7 +1,4 @@
 import { Suspense } from 'react';
-import { Topbar } from '@/shared/components/dashboard/Topbar';
-import { MobileTopActions } from '@/shared/components/dashboard/mobile/MobileTopActions';
-import { BottomNav } from '@/shared/components/dashboard/mobile/BottomNav';
 import { ResourcesGrid } from '@/modules/ressources/components/ResourcesGrid';
 import { getAllResourceItems } from '@/modules/ressources/lib/fetch';
 import { GradualBlurOverlay } from '@/shared/components/GradualBlurOverlay';
@@ -11,11 +8,6 @@ export default async function RessourcesPage() {
 
   return (
     <>
-      <Topbar />
-      <div className="md:hidden">
-        <MobileTopActions />
-        <BottomNav />
-      </div>
       <GradualBlurOverlay />
       <div className="nc-page-halo" style={{ minHeight: '100dvh' }}>
         <main style={{ position: 'relative', zIndex: 1 }}>
