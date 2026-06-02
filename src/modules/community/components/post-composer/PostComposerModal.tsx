@@ -18,6 +18,62 @@ import {
 
 const DRAFT_KEY = "community:draft";
 
+// Insertion DOM déterministe d'un <ul><li> au caret du contentEditable.
+// On abandonne document.execCommand("insertUnorderedList") qui ne marche
+// pas systématiquement sur Chromium / Next 16 avec contentEditable utilisant
+// <div> comme block element. Approche manuelle :
+//   - Si la sélection est dans l'éditeur : on remplace par <ul><li>contenu</li></ul>.
+//   - Sinon : on append un <ul><li></li></ul> en fin d'éditeur et caret dedans.
+function insertBulletAtCaret(
+  editorRef: React.RefObject<HTMLDivElement | null>,
+  syncBody: () => void,
+): void {
+  const editor = editorRef.current;
+  if (!editor) return;
+
+  // Si on n'a pas le focus dans l'éditeur, on le donne d'abord. Sans focus,
+  // window.getSelection() retourne null ou pointe sur une autre zone.
+  if (!editor.contains(document.activeElement)) {
+    editor.focus();
+  }
+
+  const sel = window.getSelection();
+  const ul = document.createElement("ul");
+  ul.style.margin = "8px 0";
+  ul.style.paddingLeft = "24px";
+  const li = document.createElement("li");
+  ul.appendChild(li);
+
+  if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+    const range = sel.getRangeAt(0);
+    // Si du texte est sélectionné, on l'enveloppe dans le <li>.
+    if (!range.collapsed) {
+      const selectedText = range.toString();
+      li.textContent = selectedText;
+      range.deleteContents();
+      range.insertNode(ul);
+    } else {
+      // Caret simple — on insère au point d'insertion. Placeholder ZWS pour
+      // que la balise garde une hauteur visible (sinon <li></li> s'écroule).
+      li.innerHTML = "​";
+      range.insertNode(ul);
+    }
+  } else {
+    // Pas de sélection dans l'éditeur : append en fin.
+    li.innerHTML = "​";
+    editor.appendChild(ul);
+  }
+
+  // Place le caret à la fin du <li> pour que l'user puisse taper directement.
+  const newRange = document.createRange();
+  newRange.selectNodeContents(li);
+  newRange.collapse(false);
+  sel?.removeAllRanges();
+  sel?.addRange(newRange);
+
+  syncBody();
+}
+
 function detectVideoUrl(text: string): { type: "youtube" | "loom" | "tella"; src: string } | null {
   const ytMatch = text.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
   if (ytMatch) return { type: "youtube", src: `https://www.youtube.com/embed/${ytMatch[1]}` };
@@ -485,23 +541,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
                 type="button"
                 title="Liste à puces"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  // execCommand("insertUnorderedList") est buggé sur le
-                  // contentEditable qui utilise <div> comme block (le cas par
-                  // défaut Chromium). Fallback : on insère manuellement un
-                  // <ul><li>…</li></ul> au caret, ou on enveloppe la sélection.
-                  editorRef.current?.focus();
-                  const ok = document.execCommand("insertUnorderedList", false);
-                  if (!ok) {
-                    // Insertion manuelle au caret.
-                    const sel = window.getSelection();
-                    if (sel && editorRef.current) {
-                      const html = "<ul><li>&#8203;</li></ul>";
-                      document.execCommand("insertHTML", false, html);
-                    }
-                  }
-                  syncBody();
-                }}
+                onClick={() => insertBulletAtCaret(editorRef, syncBody)}
                 style={{
                   width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
                   cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)",
