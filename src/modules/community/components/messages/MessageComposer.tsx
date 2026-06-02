@@ -2,12 +2,20 @@
 
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Paperclip, Send, X, FileText, Reply as ReplyIcon } from "lucide-react";
+import { Paperclip, Send, X, FileText, Loader2, Reply as ReplyIcon } from "lucide-react";
+import { toast } from "sonner";
+import { uploadPostMediaAction } from "../../server/actions";
 
 interface PendingFile {
   name: string;
+  // Blob URL local pour la preview avant envoi (lightbox + thumbnail).
+  // Distinct de fileUrl qui est l'URL publique Supabase persistée.
   previewUrl: string | null;
+  // URL publique Supabase, retournée par uploadPostMediaAction. null tant
+  // que l'upload n'est pas terminé.
+  fileUrl: string | null;
   type: "image" | "pdf";
+  uploading: boolean;
 }
 
 // Quote-reply : info minimale nécessaire pour afficher la preview au-dessus
@@ -20,7 +28,15 @@ export interface ReplyContext {
 }
 
 interface MessageComposerProps {
-  onSend: (body: string, type?: "text" | "pdf" | "image", fileName?: string) => void;
+  // Signature étendue : on remonte aussi fileUrl pour que la chaîne
+  // d'envoi puisse persister l'URL publique Supabase dans messages.file_url
+  // (avant : on n'envoyait que fileName, l'URL réelle était perdue).
+  onSend: (
+    body: string,
+    type?: "text" | "pdf" | "image",
+    fileUrl?: string,
+    fileName?: string,
+  ) => void;
   disabled?: boolean;
   disabledMessage?: string;
   // Si fourni, affiche un quote-block au-dessus du textarea avec l'auteur +
@@ -69,10 +85,29 @@ export function MessageComposer({
   function handleSend() {
     if (disabled) return;
     if (pendingFile) {
-      onSend(pendingFile.name, pendingFile.type, pendingFile.name);
+      // Blocage si l'upload Supabase n'est pas encore terminé — sinon on
+      // enverrait un message avec fileUrl null, donc rien à afficher chez
+      // le destinataire.
+      if (pendingFile.uploading || !pendingFile.fileUrl) {
+        toast.info("Attends la fin de l'upload…");
+        return;
+      }
+      // Body = texte tapé (optionnel) + on passe fileUrl/fileName à part.
+      // Avant : body = pendingFile.name (le nom du fichier comme texte).
+      const trimmedText = value.trim();
+      onSend(
+        trimmedText, // body texte facultatif accompagnant le fichier
+        pendingFile.type,
+        pendingFile.fileUrl,
+        pendingFile.name,
+      );
       if (pendingFile.previewUrl) URL.revokeObjectURL(pendingFile.previewUrl);
       setPendingFile(null);
       setViewing(null);
+      setValue("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
       return;
     }
     if (!value.trim()) return;
@@ -96,14 +131,50 @@ export function MessageComposer({
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }
 
-  function attachFile(file: File) {
+  async function attachFile(file: File) {
     const isImage = file.type.startsWith("image/");
     const type: "image" | "pdf" = isImage ? "image" : "pdf";
-    // OPS-44 — on génère désormais un blob URL pour les images ET les PDF
-    // (avant, PDF était previewUrl=null). Nécessaire pour que la lightbox
-    // puisse afficher le PDF via <iframe src={url}>.
+    // Blob URL local pour la preview/lightbox AVANT l'upload — le user voit
+    // déjà sa miniature pendant qu'on push vers Supabase.
     const previewUrl = URL.createObjectURL(file);
-    setPendingFile({ name: file.name, previewUrl, type });
+    setPendingFile({
+      name: file.name,
+      previewUrl,
+      fileUrl: null,
+      type,
+      uploading: true,
+    });
+
+    // Upload réel vers Supabase Storage via la même action que les posts
+    // (uploadPostMediaAction). RLS community_insert_own (mig. 018) garantit
+    // que seul l'uploader peut écrire dans uploads/<auth.uid>/.
+    //
+    // Note : on réutilise le bucket "community" pour les médias de DM. Les
+    // URLs sont publiques, donc les images partagées en DM sont
+    // techniquement accessibles via l'URL si on la copie. C'est cohérent
+    // avec ce qu'on fait pour les posts. À durcir plus tard avec un bucket
+    // privé "community-dm" + signed URLs si besoin (cf. note migration 018).
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await uploadPostMediaAction(formData);
+      if (!result.ok) {
+        toast.error(result.message);
+        URL.revokeObjectURL(previewUrl);
+        setPendingFile(null);
+        return;
+      }
+      setPendingFile((prev) =>
+        prev
+          ? { ...prev, fileUrl: result.publicUrl, uploading: false }
+          : null,
+      );
+    } catch (err) {
+      console.error("[MessageComposer.attachFile] upload failed:", err);
+      toast.error("Échec de l'upload, réessaie.");
+      URL.revokeObjectURL(previewUrl);
+      setPendingFile(null);
+    }
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -143,7 +214,10 @@ export function MessageComposer({
     );
   }
 
-  const canSend = !!pendingFile || value.trim().length > 0;
+  // Désactivé tant que l'upload est en cours — évite l'envoi avant que
+  // fileUrl soit disponible. Le bouton bascule en spinner discret.
+  const fileReady = pendingFile ? !pendingFile.uploading && !!pendingFile.fileUrl : true;
+  const canSend = (!!pendingFile || value.trim().length > 0) && fileReady;
 
   return (
     <div
@@ -305,6 +379,23 @@ export function MessageComposer({
                 >
                   <FileText size={24} style={{ color: "var(--color-text-secondary)" }} />
                   <span style={{ wordBreak: "break-all", lineHeight: 1.2 }}>{pendingFile.name}</span>
+                </div>
+              )}
+              {/* Overlay loader pendant l'upload Supabase — l'user voit
+                  que le fichier n'est pas encore prêt à être envoyé. */}
+              {pendingFile.uploading && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "rgba(0,0,0,0.45)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    pointerEvents: "none",
+                  }}
+                >
+                  <Loader2 size={20} color="#fff" className="animate-spin" />
                 </div>
               )}
             </button>

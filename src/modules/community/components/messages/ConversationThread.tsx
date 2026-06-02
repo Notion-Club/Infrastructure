@@ -20,8 +20,18 @@ interface ConversationThreadProps {
   loading?: boolean;
   // Le parent peut désormais recevoir un payload riche (body + quote-reply)
   // pour que sendMessageAction puisse écrire reply_to_message_id et al.
-  // L'ancien onSendMessage(body: string) reste compatible si reply est null.
-  onSendMessage: (body: string, reply?: ReplyContext | null) => void;
+  // Signature : (body, reply, attachment?). Le 3e arg est optionnel — il
+  // décrit un fichier déjà uploadé sur Supabase Storage par le composer.
+  // Quand fourni, sendMessageAction écrira type/file_url/file_name côté DB.
+  onSendMessage: (
+    body: string,
+    reply?: ReplyContext | null,
+    attachment?: {
+      type: "text" | "image" | "pdf";
+      fileUrl?: string;
+      fileName?: string;
+    },
+  ) => void;
   onBack?: () => void;
 }
 
@@ -72,14 +82,20 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
     });
   }
 
-  function handleSend(body: string, type: "text" | "pdf" | "image" = "text", fileName?: string) {
+  function handleSend(
+    body: string,
+    type: "text" | "pdf" | "image" = "text",
+    fileUrl?: string,
+    fileName?: string,
+  ) {
     // Capture le replyContext avant reset, pour le passer au parent ET dans
     // le state optimistic (les nouveaux messages doivent afficher la quote
     // immédiatement, sans attendre router.refresh).
     const reply = replyContext;
     setReplyContext(null);
 
-    // Optimistic — sera remplacé au router.refresh() côté parent.
+    // Optimistic — sera remplacé au router.refresh() côté parent. On stocke
+    // fileUrl en fileUrl ET fileName en fileName pour matcher le shape DB.
     setOptimisticMessages((prev) => [
       ...prev,
       {
@@ -87,6 +103,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
         senderId: currentUser.id,
         type,
         body,
+        fileUrl,
         fileName,
         reactions: [],
         createdAt: new Date().toISOString(),
@@ -95,7 +112,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
         replyAuthorName: reply?.authorName ?? null,
       },
     ]);
-    onSendMessage(body, reply);
+    onSendMessage(body, reply, type !== "text" ? { type, fileUrl, fileName } : undefined);
   }
 
   return (
