@@ -114,12 +114,13 @@ export function ThemeToggle({
                 fontSize: 13,
                 fontWeight: active ? 600 : 500,
                 color: active ? "var(--nc-segmented-active-text)" : "var(--color-text-muted)",
-                background: "transparent",
+                background: active ? "var(--nc-segmented-active-bg)" : "transparent",
                 border: "none",
                 cursor: "pointer",
+                boxShadow: active ? "var(--nc-shadow-3)" : "none",
                 position: "relative",
                 zIndex: 1,
-                transition: "color 150ms ease",
+                transition: "background 150ms ease, box-shadow 150ms ease, color 150ms ease",
               }}
             >
               <Icon size={14} strokeWidth={active ? 2.5 : 2} />

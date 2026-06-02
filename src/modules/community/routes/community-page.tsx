@@ -271,14 +271,17 @@ export function CommunityPage({
                     padding: "8px 16px",
                     borderRadius: 8,
                     border: "none",
-                    background: "transparent",
+                    background: isActive ? "var(--nc-segmented-active-bg)" : "transparent",
+                    boxShadow: isActive
+                      ? "0 1px 4px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)"
+                      : "none",
                     color: isActive ? "var(--nc-segmented-active-text)" : "var(--color-text-muted)",
                     fontSize: 14,
                     fontWeight: isActive ? 600 : 400,
                     cursor: "pointer",
                     position: "relative",
                     zIndex: 1,
-                    transition: "color 200ms ease",
+                    transition: "background 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease), color 200ms ease",
                     whiteSpace: "nowrap",
                   }}
                 >

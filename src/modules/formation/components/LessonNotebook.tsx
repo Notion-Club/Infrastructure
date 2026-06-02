@@ -167,14 +167,15 @@ function SwitchButton({
         padding: "8px 6px",
         borderRadius: 8,
         border: "none",
-        background: "transparent",
+        background: active ? "var(--nc-segmented-active-bg)" : "transparent",
+        boxShadow: active ? "0 1px 4px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)" : "none",
         color: active ? "var(--nc-segmented-active-text)" : "var(--color-text-muted)",
         fontSize: 13,
         fontWeight: active ? 600 : 400,
         cursor: "pointer",
         position: "relative",
         zIndex: 1,
-        transition: "color 200ms var(--nc-ease)",
+        transition: "background 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease), color 200ms ease",
       }}
     >
       <span style={{ flexShrink: 0, display: "inline-flex" }}>{icon}</span>
