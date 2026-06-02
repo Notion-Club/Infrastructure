@@ -148,20 +148,27 @@ export function MessagesLayout({
   }
 
   // Envoi d'un message — appelée par MessageComposer via ConversationThread.
-  // reply optionnel : si fourni, alimente reply_to_message_id + snippet +
-  // author_name dénormalisés (mig. 027).
+  // reply optionnel : alimente reply_to_message_id + snippet + author_name
+  // (mig. 027). attachment optionnel : alimente type/file_url/file_name pour
+  // les messages avec image/pdf attaché.
   function handleSendMessage(
     conversationId: string,
     body: string,
     reply?: { messageId: string; authorName: string; snippet: string } | null,
+    attachment?: { type: "text" | "image" | "pdf"; fileUrl?: string; fileName?: string },
   ) {
     const trimmed = body.trim();
-    if (!trimmed) return;
+    const isAttachment = attachment && attachment.type !== "text" && attachment.fileUrl;
+    // Avant : on bloquait si body vide. Maintenant un message image-only
+    // (body trimmed === "") est valide à condition que fileUrl soit fourni.
+    if (!trimmed && !isAttachment) return;
     startTransition(async () => {
       const result = await sendMessageAction({
         conversation_id: conversationId,
-        type: "text",
+        type: isAttachment ? attachment.type : "text",
         body: trimmed,
+        file_url: attachment?.fileUrl ?? null,
+        file_name: attachment?.fileName ?? null,
         reply_to_message_id: reply?.messageId ?? null,
         reply_snippet: reply?.snippet ?? null,
         reply_author_name: reply?.authorName ?? null,
@@ -237,7 +244,7 @@ export function MessagesLayout({
               conversation={activeConv}
               currentUser={currentUser}
               loading={loadingConvIds.has(activeConv.id)}
-              onSendMessage={(body, reply) => handleSendMessage(activeConv.id, body, reply)}
+              onSendMessage={(body, reply, attachment) => handleSendMessage(activeConv.id, body, reply, attachment)}
             />
           ) : (
             <MessagesEmptyState />
@@ -267,7 +274,7 @@ export function MessagesLayout({
             conversation={activeConv}
             currentUser={currentUser}
             loading={loadingConvIds.has(activeConv.id)}
-            onSendMessage={(body, reply) => handleSendMessage(activeConv.id, body, reply)}
+            onSendMessage={(body, reply, attachment) => handleSendMessage(activeConv.id, body, reply, attachment)}
             onBack={() => setMobileView("list")}
           />
         ) : (

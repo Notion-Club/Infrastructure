@@ -327,23 +327,64 @@ export function MessageBubble({ message, isSelf, currentUser, onReply }: Message
               {message.type === "text" && (
                 <span style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
               )}
-              {message.type === "image" && (
-                <div>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={message.fileUrl}
-                    alt="image"
-                    style={{ maxWidth: "100%", borderRadius: 8, display: "block" }}
-                  />
+              {message.type === "image" && message.fileUrl && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {/* Slack-like : image taille modérée, click ouvre lightbox
+                      globale (cf. ImageLightboxRoot via 'nc-image-open'). */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.dispatchEvent(
+                        new CustomEvent("nc-image-open", {
+                          detail: { url: message.fileUrl },
+                        }),
+                      );
+                    }}
+                    style={{
+                      padding: 0,
+                      border: "none",
+                      background: "transparent",
+                      cursor: "zoom-in",
+                      display: "inline-block",
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={message.fileUrl}
+                      alt={message.fileName ?? ""}
+                      style={{
+                        maxWidth: 320,
+                        maxHeight: 320,
+                        borderRadius: 8,
+                        display: "block",
+                        objectFit: "cover",
+                      }}
+                      loading="lazy"
+                    />
+                  </button>
+                  {/* Body texte optionnel accompagnant l'image */}
+                  {message.body && (
+                    <span style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
+                  )}
                 </div>
               )}
-              {message.type === "pdf" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {message.type === "pdf" && message.fileUrl && (
+                <a
+                  href={message.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    color: "inherit", textDecoration: "underline",
+                  }}
+                >
                   <FileText size={20} />
                   <span style={{ fontSize: 13, fontWeight: 500 }}>
-                    {message.fileName ?? message.body}
+                    {message.fileName ?? "Fichier"}
                   </span>
-                </div>
+                </a>
               )}
             </>
           )}
