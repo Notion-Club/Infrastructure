@@ -6,6 +6,7 @@ import type { Conversation, Message } from "../../types/conversation.types";
 import type { User } from "../../types/user.types";
 import { REPLY_SNIPPET_MAX } from "../../lib/validation";
 import { MessageBubble } from "./MessageBubble";
+import { MessageBubbleSkeleton } from "./MessageBubbleSkeleton";
 import { MessageComposer, type ReplyContext } from "./MessageComposer";
 import { ConversationEmptyState } from "./MessagesEmptyState";
 import { UserAvatar } from "../shared/UserAvatar";
@@ -13,6 +14,10 @@ import { UserAvatar } from "../shared/UserAvatar";
 interface ConversationThreadProps {
   conversation: Conversation;
   currentUser: User;
+  // true pendant que MessagesLayout fetch les messages via
+  // getConversationAction. Le thread affiche alors un skeleton (bulles
+  // grises animées) au lieu de l'écran vide ConversationEmptyState.
+  loading?: boolean;
   // Le parent peut désormais recevoir un payload riche (body + quote-reply)
   // pour que sendMessageAction puisse écrire reply_to_message_id et al.
   // L'ancien onSendMessage(body: string) reste compatible si reply est null.
@@ -20,7 +25,7 @@ interface ConversationThreadProps {
   onBack?: () => void;
 }
 
-export function ConversationThread({ conversation, currentUser, onSendMessage, onBack }: ConversationThreadProps) {
+export function ConversationThread({ conversation, currentUser, loading, onSendMessage, onBack }: ConversationThreadProps) {
   // Optimistic local : ajoute le message immédiatement, le parent fera un
   // router.refresh() qui le remplacera par la vraie ligne DB.
   const [optimisticMessages, setOptimisticMessages] = useState<typeof conversation.messages>([]);
@@ -147,7 +152,13 @@ export function ConversationThread({ conversation, currentUser, onSendMessage, o
           gap: 4,
         }}
       >
-        {messages.length === 0 ? (
+        {/* Trois états en escalier :
+            1. loading ET aucun message en local → skeleton (premier chargement).
+            2. messages.length === 0 ET pas loading → vrai état vide (conv neuve).
+            3. sinon → on rend les bulles. */}
+        {loading && messages.length === 0 ? (
+          <MessageBubbleSkeleton />
+        ) : messages.length === 0 ? (
           <ConversationEmptyState />
         ) : (
           messages.map((msg) => (
