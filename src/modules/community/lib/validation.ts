@@ -268,8 +268,11 @@ export const markConversationReadSchema = z.object({
 export type MarkConversationReadInput = z.infer<typeof markConversationReadSchema>;
 
 // ============================================================================
-// Upload média (image) — utilisé par le composer
+// Upload média (image) — utilisé par le PostComposer (feed posts)
 // ============================================================================
+// Le feed posts garde un scope strict images uniquement — le body d'un
+// post est riche en formattage, il n'est pas pensé comme un partage de
+// fichier. Les fichiers se partagent en DM.
 export const POST_MEDIA_MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 export const POST_MEDIA_ALLOWED_MIME = [
   "image/png",
@@ -281,4 +284,50 @@ export type PostMediaMimeType = (typeof POST_MEDIA_ALLOWED_MIME)[number];
 
 export function isAllowedPostMediaMime(mime: string): mime is PostMediaMimeType {
   return (POST_MEDIA_ALLOWED_MIME as readonly string[]).includes(mime);
+}
+
+// ============================================================================
+// Upload fichier DM — large, accepte tous les formats classiques
+// ============================================================================
+// Le composer DM autorise plus de types : PDF, Office, archives, etc.
+// La limite est portée à 25 MB pour permettre des PDFs riches. On valide
+// le MIME côté server pour bloquer les exécutables.
+export const DM_FILE_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
+export const DM_FILE_ALLOWED_MIME = [
+  // Images (cf. POST_MEDIA — duplique pour autonomie)
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  // Documents PDF / Office / texte
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+  "text/csv",
+  "application/rtf",
+  // Archives
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/x-rar-compressed",
+  "application/x-7z-compressed",
+  "application/x-tar",
+  "application/gzip",
+  // Média
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/wav",
+  "audio/ogg",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+] as const;
+export type DmFileMimeType = (typeof DM_FILE_ALLOWED_MIME)[number];
+
+export function isAllowedDmFileMime(mime: string): mime is DmFileMimeType {
+  return (DM_FILE_ALLOWED_MIME as readonly string[]).includes(mime);
 }

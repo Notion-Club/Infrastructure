@@ -10,7 +10,10 @@ import {
   deleteMessageSchema,
   editMessageSchema,
   forwardMessageSchema,
+  isAllowedDmFileMime,
   isAllowedPostMediaMime,
+  DM_FILE_ALLOWED_MIME,
+  DM_FILE_MAX_BYTES,
   markConversationReadSchema,
   POST_MEDIA_ALLOWED_MIME,
   POST_MEDIA_MAX_BYTES,
@@ -85,6 +88,10 @@ export type UploadPostMediaResult =
         | "unknown";
       message: string;
     };
+
+// Mêmes erreurs que UploadPostMediaResult mais sémantiquement distinct
+// (whitelist plus large, taille plus généreuse).
+export type UploadDmFileResult = UploadPostMediaResult;
 
 export type DeletePostMediaResult =
   | { ok: true }
@@ -478,6 +485,87 @@ export async function uploadPostMediaAction(
 
   return { ok: true, publicUrl: urlData.publicUrl, storagePath: path };
 }
+
+// ============================================================================
+// uploadDmFileAction — fichier DM, whitelist large + 25 MB
+// ============================================================================
+// Sibling de uploadPostMediaAction mais avec un scope MIME plus large
+// (PDF, Office, archives, audio, vidéo, etc.). Limite à 25 MB pour les
+// PDFs riches. RLS storage identique (community/uploads/<auth.uid>/).
+//
+// On préserve le NOM ORIGINAL du fichier dans le storagePath pour que
+// l'URL publique se termine par "Rapport.pdf" plutôt qu'un UUID anonyme —
+// améliore l'expérience de download (le navigateur garde le bon nom).
+// On préfixe quand même par un timestamp pour éviter les collisions.
+export async function uploadDmFileAction(
+  formData: FormData,
+): Promise<UploadDmFileResult> {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, code: "no_file", message: "Aucun fichier reçu." };
+  }
+
+  if (!isAllowedDmFileMime(file.type)) {
+    return {
+      ok: false,
+      code: "invalid_mime",
+      message: `Format non supporté (reçu: ${file.type || "inconnu"}). Voir la liste des formats autorisés.`,
+    };
+  }
+
+  if (file.size > DM_FILE_MAX_BYTES) {
+    return {
+      ok: false,
+      code: "file_too_large",
+      message: `Le fichier dépasse ${Math.round(DM_FILE_MAX_BYTES / 1024 / 1024)} MB.`,
+    };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      message: "Tu dois être connecté pour envoyer un fichier.",
+    };
+  }
+
+  // Sanitize le nom : on garde les chars ASCII safe + préfixe timestamp.
+  // Évite que "../" ou des espaces cassent l'URL publique.
+  const safeName = file.name
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .slice(0, 120);
+  const path = `uploads/${user.id}/${Date.now()}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(COMMUNITY_BUCKET)
+    .upload(path, file, {
+      contentType: file.type,
+      cacheControl: "3600",
+      upsert: false,
+    });
+  if (uploadError) {
+    console.error("[uploadDmFile] storage upload failed:", uploadError.message);
+    return {
+      ok: false,
+      code: "upload_failed",
+      message: "Impossible d'envoyer le fichier. Réessaie.",
+    };
+  }
+
+  const { data: urlData } = supabase.storage
+    .from(COMMUNITY_BUCKET)
+    .getPublicUrl(path);
+
+  return { ok: true, publicUrl: urlData.publicUrl, storagePath: path };
+}
+
+// Référence utilisée pour silencer les warnings d'imports non utilisés
+// quand DM_FILE_ALLOWED_MIME n'est pas re-référencé localement.
+void DM_FILE_ALLOWED_MIME;
 
 // ============================================================================
 // deletePostMediaAction — supprime un fichier upload orphelin
