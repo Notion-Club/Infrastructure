@@ -11,9 +11,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { Topbar } from "@/shared/components/dashboard/Topbar";
-import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
-import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { DevStateSwitcher } from "@/shared/components/coaching/DevStateSwitcher";
 import { CoachingHeader } from "@/shared/components/coaching/CoachingHeader";
 import { CoachingCTACard } from "@/shared/components/coaching/CoachingCTACard";
@@ -232,13 +229,6 @@ export default function CoachingPage() {
 
   return (
     <>
-      {/* Fixed nav elements — hors nc-page-halo pour éviter isolation:isolate */}
-      <Topbar />
-      <div className="md:hidden">
-        <MobileTopActions />
-        <BottomNav />
-      </div>
-
       <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
         <main style={{ position: "relative", zIndex: 1 }}>
           {/* DEV ONLY — à retirer au branchement backend */}

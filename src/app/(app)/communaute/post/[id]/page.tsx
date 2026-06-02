@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Topbar } from "@/shared/components/dashboard/Topbar";
-import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
-import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { getPostById, listCommentsForPost } from "@/modules/community/server/queries";
 import { PostDetailClient } from "./PostDetailClient";
 
@@ -26,14 +23,7 @@ export default async function PostDetailPage({ params }: Props) {
   const comments = await listCommentsForPost(id);
 
   return (
-    <>
-      <Topbar />
-      <div className="md:hidden">
-        <MobileTopActions />
-        <BottomNav />
-      </div>
-
-      <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+    <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
         <main style={{ position: "relative", zIndex: 1 }}>
           <div
             style={{ maxWidth: 840, margin: "0 auto" }}
@@ -42,7 +32,6 @@ export default async function PostDetailPage({ params }: Props) {
             <PostDetailClient post={post} initialComments={comments} />
           </div>
         </main>
-      </div>
-    </>
+    </div>
   );
 }

@@ -1,7 +1,3 @@
-import { Topbar } from "@/shared/components/dashboard/Topbar";
-import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
-import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
-
 const pulse: React.CSSProperties = {
   animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
   background: "var(--color-surface-raised)",
@@ -12,14 +8,7 @@ const pulse: React.CSSProperties = {
 // or for routes that don't have a dedicated loading.tsx.
 export default function AppLoading() {
   return (
-    <>
-      <Topbar />
-      <div className="md:hidden">
-        <MobileTopActions />
-        <BottomNav />
-      </div>
-
-      <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+    <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
         <main style={{ position: "relative", zIndex: 1 }}>
           <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -29,7 +18,6 @@ export default function AppLoading() {
             </div>
           </div>
         </main>
-      </div>
-    </>
+    </div>
   );
 }

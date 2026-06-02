@@ -1,9 +1,6 @@
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 
-import { Topbar } from "@/shared/components/dashboard/Topbar";
-import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
-import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { FormationToasts, LessonTransition } from "@/modules/formation";
 
 // Layout de la section /formation/* — chrome standard de l'app.
@@ -12,13 +9,6 @@ import { FormationToasts, LessonTransition } from "@/modules/formation";
 export default function FormationLayout({ children }: { children: ReactNode }) {
   return (
     <>
-      {/* Fixed nav hors de nc-page-halo (isolation:isolate casse fixed) */}
-      <Topbar />
-      <div className="md:hidden">
-        <MobileTopActions />
-        <BottomNav />
-      </div>
-
       <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
         <main style={{ position: "relative", zIndex: 1 }}>
           <div

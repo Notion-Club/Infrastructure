@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef, useTransition } from "react";
+import { useMemo, useState, useEffect, useRef, useTransition, useCallback, useLayoutEffect } from "react";
 import { MessageCircle, Users, SquarePen } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -23,6 +23,8 @@ import type { Conversation } from "../types/conversation.types";
 
 type Tab = "feed" | "messages";
 type TagFilter = PostTag | "all";
+
+const COMMUNITY_TABS: Tab[] = ["feed", "messages"];
 
 interface CommunityPageProps {
   initialTab?: Tab;
@@ -54,6 +56,39 @@ export function CommunityPage({
   }, []);
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [activeTag, setActiveTag] = useState<TagFilter>("all");
+
+  const tabItemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const tabPillRef  = useRef<HTMLDivElement>(null);
+  const tabLastClickedRef = useRef<number>(-1);
+
+  const moveTabTo = useCallback((idx: number, animate: boolean) => {
+    const el   = tabItemRefs.current[idx];
+    const pill = tabPillRef.current;
+    if (!el || !pill) return;
+    if (!animate) {
+      const prev = pill.style.transition;
+      pill.style.transition = "none";
+      pill.style.top    = `${el.offsetTop}px`;
+      pill.style.height = `${el.offsetHeight}px`;
+      pill.style.transform = `translateX(${el.offsetLeft}px)`;
+      pill.style.width     = `${el.offsetWidth}px`;
+      void pill.offsetWidth;
+      pill.style.transition = prev;
+    } else {
+      pill.style.transform = `translateX(${el.offsetLeft}px)`;
+      pill.style.width     = `${el.offsetWidth}px`;
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    const idx = COMMUNITY_TABS.indexOf(activeTab);
+    if (tabLastClickedRef.current === idx) {
+      tabLastClickedRef.current = -1;
+      return;
+    }
+    tabLastClickedRef.current = -1;
+    moveTabTo(idx, false);
+  }, [activeTab, moveTabTo]);
   const [showComposer, setShowComposer] = useState(false);
   // Optimistic posts ajoutés côté client juste après publication. À chaque
   // router.refresh() post-create, le Server Component recharge initialPosts
@@ -190,20 +225,43 @@ export function CommunityPage({
               borderRadius: 10,
               padding: 3,
               gap: 2,
+              position: "relative",
             }}
           >
+            {/* Pill glissante */}
+            <div
+              ref={tabPillRef}
+              aria-hidden
+              className="nc-nav-pill"
+              style={{
+                position: "absolute",
+                left: 0,
+                background: "var(--nc-segmented-active-bg)",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)",
+                borderRadius: 8,
+                pointerEvents: "none",
+                willChange: "transform, width",
+                zIndex: 0,
+              }}
+            />
+
             {(
               [
                 { value: "feed" as Tab, label: "Feed", icon: Users, badge: 0 },
                 { value: "messages" as Tab, label: "Messages", icon: MessageCircle, badge: initialConversations.reduce((s, c) => s + c.unreadCount, 0) },
               ]
-            ).map(({ value, label, icon: Icon, badge }) => {
+            ).map(({ value, label, icon: Icon, badge }, i) => {
               const isActive = activeTab === value;
               return (
                 <button
                   key={value}
+                  ref={(el) => { tabItemRefs.current[i] = el; }}
                   type="button"
-                  onClick={() => setActiveTab(value)}
+                  onClick={() => {
+                    tabLastClickedRef.current = i;
+                    moveTabTo(i, true);
+                    setActiveTab(value);
+                  }}
                   style={{
                     flex: 1,
                     display: "flex",
@@ -221,6 +279,8 @@ export function CommunityPage({
                     fontSize: 14,
                     fontWeight: isActive ? 600 : 400,
                     cursor: "pointer",
+                    position: "relative",
+                    zIndex: 1,
                     transition: "background 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease), color 200ms ease",
                     whiteSpace: "nowrap",
                   }}

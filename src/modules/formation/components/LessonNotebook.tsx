@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   Bold,
@@ -22,6 +22,8 @@ import { saveCourseNote } from "../server/actions";
 
 type Tab = "notes" | "synthese" | "resources";
 
+const NOTEBOOK_TABS: Tab[] = ["notes", "synthese", "resources"];
+
 type Props = {
   synthese: string;
   resources: LessonResourceLink[];
@@ -34,6 +36,39 @@ type Props = {
 // PLEINE LARGEUR, collé à ras en bas de la carte (séparé du body par un filet).
 export function LessonNotebook({ synthese, resources, courseId, initialNote }: Props) {
   const [tab, setTab] = useState<Tab>("notes");
+
+  const itemRefs       = useRef<(HTMLButtonElement | null)[]>([]);
+  const pillRef        = useRef<HTMLDivElement>(null);
+  const lastClickedRef = useRef<number>(-1);
+
+  const moveTo = useCallback((idx: number, animate: boolean) => {
+    const el   = itemRefs.current[idx];
+    const pill = pillRef.current;
+    if (!el || !pill) return;
+    if (!animate) {
+      const prev = pill.style.transition;
+      pill.style.transition = "none";
+      pill.style.top    = `${el.offsetTop}px`;
+      pill.style.height = `${el.offsetHeight}px`;
+      pill.style.transform = `translateX(${el.offsetLeft}px)`;
+      pill.style.width     = `${el.offsetWidth}px`;
+      void pill.offsetWidth;
+      pill.style.transition = prev;
+    } else {
+      pill.style.transform = `translateX(${el.offsetLeft}px)`;
+      pill.style.width     = `${el.offsetWidth}px`;
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    const idx = NOTEBOOK_TABS.indexOf(tab);
+    if (lastClickedRef.current === idx) {
+      lastClickedRef.current = -1;
+      return;
+    }
+    lastClickedRef.current = -1;
+    moveTo(idx, false);
+  }, [tab, moveTo]);
 
   return (
     <div
@@ -49,11 +84,47 @@ export function LessonNotebook({ synthese, resources, courseId, initialNote }: P
           gap: 2,
           padding: 6,
           borderBottom: "1px solid var(--color-border-default)",
+          position: "relative",
         }}
       >
-        <SwitchButton active={tab === "notes"} onClick={() => setTab("notes")} icon={<Pencil size={15} strokeWidth={tab === "notes" ? 2.5 : 2} />} label="Mes notes" />
-        <SwitchButton active={tab === "synthese"} onClick={() => setTab("synthese")} icon={<Lightbulb size={15} strokeWidth={tab === "synthese" ? 2.5 : 2} />} label="À garder en tête" />
-        <SwitchButton active={tab === "resources"} onClick={() => setTab("resources")} icon={<FileText size={15} strokeWidth={tab === "resources" ? 2.5 : 2} />} label="Ressources" badge={resources.length} />
+        {/* Pill glissante */}
+        <div
+          ref={pillRef}
+          aria-hidden
+          className="nc-nav-pill"
+          style={{
+            position: "absolute",
+            left: 0,
+            background: "var(--nc-segmented-active-bg)",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)",
+            borderRadius: 8,
+            pointerEvents: "none",
+            willChange: "transform, width",
+            zIndex: 0,
+          }}
+        />
+        <SwitchButton
+          buttonRef={(el) => { itemRefs.current[0] = el; }}
+          active={tab === "notes"}
+          onClick={() => { lastClickedRef.current = 0; moveTo(0, true); setTab("notes"); }}
+          icon={<Pencil size={15} strokeWidth={tab === "notes" ? 2.5 : 2} />}
+          label="Mes notes"
+        />
+        <SwitchButton
+          buttonRef={(el) => { itemRefs.current[1] = el; }}
+          active={tab === "synthese"}
+          onClick={() => { lastClickedRef.current = 1; moveTo(1, true); setTab("synthese"); }}
+          icon={<Lightbulb size={15} strokeWidth={tab === "synthese" ? 2.5 : 2} />}
+          label="À garder en tête"
+        />
+        <SwitchButton
+          buttonRef={(el) => { itemRefs.current[2] = el; }}
+          active={tab === "resources"}
+          onClick={() => { lastClickedRef.current = 2; moveTo(2, true); setTab("resources"); }}
+          icon={<FileText size={15} strokeWidth={tab === "resources" ? 2.5 : 2} />}
+          label="Ressources"
+          badge={resources.length}
+        />
       </div>
 
       {/* Panneau attaché — coulé directement sous les onglets */}
@@ -70,15 +141,18 @@ function SwitchButton({
   icon,
   label,
   badge,
+  buttonRef,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
   badge?: number;
+  buttonRef?: React.Ref<HTMLButtonElement>;
 }) {
   return (
     <button
+      ref={buttonRef}
       type="button"
       onClick={onClick}
       style={{
@@ -99,6 +173,8 @@ function SwitchButton({
         fontSize: 13,
         fontWeight: active ? 600 : 400,
         cursor: "pointer",
+        position: "relative",
+        zIndex: 1,
         transition: "background 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease), color 200ms ease",
       }}
     >
