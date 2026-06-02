@@ -37,6 +37,9 @@ interface MessageComposerProps {
     fileUrl?: string,
     fileName?: string,
   ) => void;
+  // Appelé à chaque frappe (throttle géré par le hook caller). Sert à
+  // broadcast un ping "je suis en train d'écrire" sur le channel Realtime.
+  onTyping?: () => void;
   disabled?: boolean;
   disabledMessage?: string;
   // Si fourni, affiche un quote-block au-dessus du textarea avec l'auteur +
@@ -59,6 +62,7 @@ function detectMac(): boolean {
 
 export function MessageComposer({
   onSend,
+  onTyping,
   disabled,
   disabledMessage,
   replyContext,
@@ -463,7 +467,13 @@ export function MessageComposer({
         <textarea
           ref={textareaRef}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            // Ping typing channel — le hook gère le throttle (1 ping / 2s).
+            // On émet seulement quand il y a vraiment du texte ajouté pour
+            // éviter de signaler "écrit…" sur un backspace en boucle.
+            if (e.target.value.length > 0) onTyping?.();
+          }}
           onInput={handleTextareaInput}
           onKeyDown={handleKeyDown}
           placeholder={`Tapez un message… (${isMac ? "⌘" : "Entrée"} pour envoyer)`}

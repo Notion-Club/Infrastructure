@@ -6,10 +6,12 @@ import type { Conversation, Message } from "../../types/conversation.types";
 import type { User } from "../../types/user.types";
 import { REPLY_SNIPPET_MAX } from "../../lib/validation";
 import { loadOlderMessagesAction } from "../../server/actions";
+import { useTypingPresence } from "../../hooks/useTypingPresence";
 import { MessageBubble } from "./MessageBubble";
 import { MessageBubbleSkeleton } from "./MessageBubbleSkeleton";
 import { MessageComposer, type ReplyContext } from "./MessageComposer";
 import { MessageSearchBar } from "./MessageSearchBar";
+import { TypingIndicator } from "./TypingIndicator";
 import { ConversationEmptyState } from "./MessagesEmptyState";
 import { UserAvatar } from "../shared/UserAvatar";
 
@@ -60,6 +62,12 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
   // Container du thread — utilisé pour préserver la position de scroll lors
   // du chargement des messages précédents (sinon le scroll saute en haut).
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Typing presence — channel Realtime broadcast par conv. emitTyping est
+  // appelé par le composer à chaque frappe (throttled à 2s en interne).
+  const { otherIsTyping, emitTyping } = useTypingPresence(
+    conversation.id,
+    currentUser.id,
+  );
 
   // Reset complet quand on change de conv ou que les messages DB sont
   // rechargés via router.refresh().
@@ -74,13 +82,14 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
 
   const messages = [...olderMessages, ...conversation.messages, ...optimisticMessages];
 
-  // Auto-scroll bottom UNIQUEMENT pour les nouveaux messages (en bas), pas
-  // pour les messages chargés par pagination (en haut). On garde un compteur
-  // dédié pour distinguer les deux cas.
+  // Auto-scroll bottom UNIQUEMENT pour les nouveaux messages (en bas) ou
+  // quand le typing indicator apparaît, pas pour les messages chargés par
+  // pagination (en haut). On garde un compteur dédié `newestCount` pour
+  // distinguer les deux cas.
   const newestCount = conversation.messages.length + optimisticMessages.length;
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [newestCount]);
+  }, [newestCount, otherIsTyping]);
 
   async function handleLoadOlder() {
     if (!messages.length || isLoadingOlder || !hasMore) return;
@@ -316,12 +325,19 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
             />
           ))
         )}
+        {/* Indicateur "X écrit…" — affiché en bas, dans le flux des messages
+            mais hors du tableau lui-même, pour qu'il n'ait pas besoin d'un
+            faux ID stable. */}
+        {otherIsTyping && !isDeleted && (
+          <TypingIndicator authorName={conversation.participant.name} />
+        )}
         <div ref={bottomRef} />
       </div>
 
       {/* Composer */}
       <MessageComposer
         onSend={handleSend}
+        onTyping={emitTyping}
         disabled={isDeleted}
         disabledMessage={disabledMsg}
         replyContext={replyContext ?? undefined}
