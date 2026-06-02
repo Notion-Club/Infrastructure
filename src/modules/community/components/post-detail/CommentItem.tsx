@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Comment } from "../../types/comment.types";
@@ -35,6 +35,14 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
   const [commentData, setCommentData] = useState(comment);
   const [reactions, setReactions] = useState(comment.reactions);
   const [replyOpen, setReplyOpen] = useState(false);
+
+  // Resync quand le parent re-render avec un comment mis à jour (router.refresh,
+  // nouvelle reply persistée côté DB, etc.) — sans ça, `replies` reste figé
+  // sur le snapshot initial et les replies fraîchement créées sont invisibles.
+  useEffect(() => {
+    setCommentData(comment);
+    setReactions(comment.reactions);
+  }, [comment]);
   const [editOpen, setEditOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAllReplies, setShowAllReplies] = useState(false);
@@ -219,10 +227,31 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
               devRole={devRole}
               placeholder={`Répondre à ${comment.author.name}…`}
               replyingTo={comment.author.name}
+              replyingToUser={{ id: comment.author.id, name: comment.author.name }}
               onCancelReply={() => setReplyOpen(false)}
               onSubmit={(body: string, mentions: { id: string; name: string }[]) => {
                 const trimmed = body.trim();
                 if (!trimmed) return;
+
+                // Optimistic : on injecte la reply dans la liste tout de suite
+                // pour qu'elle apparaisse sans attendre router.refresh(). Id
+                // "pending-…" évite les actions destructives tant que la vraie
+                // ligne n'est pas remontée par la query (cf. useEffect resync).
+                const tempId = `pending-${Date.now()}`;
+                const optimisticReply = {
+                  id: tempId,
+                  author: currentUser,
+                  body: trimmed,
+                  mentions,
+                  reactions: [],
+                  createdAt: new Date().toISOString(),
+                };
+                setCommentData((prev) => ({
+                  ...prev,
+                  replies: [...prev.replies, optimisticReply],
+                }));
+                setReplyOpen(false);
+
                 startUpdate(async () => {
                   // mention_ids alimente comment_reply_mentions (mig. 022,
                   // N mentions). mentioned_user_id garde la 1re mention
@@ -234,10 +263,14 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
                     mention_ids: mentions.map((m) => m.id),
                   });
                   if (!result.ok) {
+                    // Revert optimistic — la reply n'a pas été créée.
+                    setCommentData((prev) => ({
+                      ...prev,
+                      replies: prev.replies.filter((r) => r.id !== tempId),
+                    }));
                     toast.error(result.message);
                     return;
                   }
-                  setReplyOpen(false);
                   toast.success("Réponse envoyée");
                   router.refresh();
                 });

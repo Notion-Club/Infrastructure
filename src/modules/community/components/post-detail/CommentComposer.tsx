@@ -44,6 +44,11 @@ interface CommentComposerProps {
   devRole: DevRole;
   placeholder?: string;
   replyingTo?: string;
+  // Si fourni avec un id valide (≠ string vide), on l'enregistre comme mention
+  // dans insertedMentions au mount → persistée côté DB (comment_mentions /
+  // comment_reply_mentions). Sans ça, l'@name pré-rempli reste un simple
+  // texte coloré sans lien vers la table de mentions structurée.
+  replyingToUser?: { id: string; name: string };
   onCancelReply?: () => void;
   // Le second arg `mentions` ne contient que les @user encore présents dans
   // le body au moment du submit (l'utilisateur peut effacer une mention après
@@ -64,6 +69,7 @@ export function CommentComposer({
   currentUser,
   placeholder = "Ajouter un commentaire…",
   replyingTo,
+  replyingToUser,
   onCancelReply,
   onSubmit,
   initialValue,
@@ -110,8 +116,18 @@ export function CommentComposer({
   useEffect(() => {
     if (!editorRef.current) return;
     if (replyingTo) {
-      editorRef.current.innerHTML = `<span style="color:var(--color-brand);font-weight:500">@${replyingTo}</span>&nbsp;`;
+      // contenteditable="false" + data-mention-id : on aligne le markup sur
+      // celui produit par le mention picker (cf. selectMember plus bas) pour
+      // que l'effacement caractère-par-caractère retire la mention en bloc.
+      const userId = replyingToUser?.id ?? "";
+      editorRef.current.innerHTML = `<span data-mention-id="${userId}" contenteditable="false" style="color:var(--color-brand);font-weight:600">@${replyingTo}</span>&nbsp;`;
       setEditorEmpty(false);
+      // Enregistre la mention comme insérée pour qu'elle soit persistée côté
+      // serveur dans comment_reply_mentions au submit. Sans ça, l'@name
+      // pré-rempli ne génère AUCUNE ligne en DB → 0 branding au re-render.
+      if (replyingToUser && !insertedMentions.current.some((m) => m.id === replyingToUser.id)) {
+        insertedMentions.current.push({ id: replyingToUser.id, name: replyingToUser.name });
+      }
       return;
     }
     if (initialValue !== undefined) {
@@ -120,7 +136,7 @@ export function CommentComposer({
       setEditorEmpty(initialValue.trim().length === 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [replyingTo, initialValue]);
+  }, [replyingTo, replyingToUser, initialValue]);
 
   function syncEmpty() {
     const text = editorRef.current?.innerText?.trim() ?? "";
