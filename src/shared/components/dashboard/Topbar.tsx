@@ -13,7 +13,6 @@ import {
   Bell,
   type LucideIcon,
 } from "lucide-react";
-import { motion, useSpring } from "framer-motion";
 
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
 import { useTheme } from "@/shared/lib/hooks/useTheme";
@@ -39,7 +38,10 @@ const NAV_ITEMS: NavItem[] = [
 
 const UNREAD_COUNT = 2;
 
-const SPRING_CFG = { stiffness: 420, damping: 30, mass: 0.85 };
+// Même courbe que le snippet Transitions.dev.
+const PILL_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+const PILL_DUR  = "220ms";
+const PILL_TRANSITION = `transform ${PILL_DUR} ${PILL_EASE}, width ${PILL_DUR} ${PILL_EASE}`;
 
 const SEPARATOR = (
   <div
@@ -76,38 +78,35 @@ export function Topbar() {
   const avatarUrl = identity?.avatarUrl ?? null;
   const avatarColor = identity?.avatarColor ?? "#e0625a";
 
-  // Refs pour la mesure (position/taille du Link actif).
-  const navRef = useRef<HTMLElement>(null);
+  // Pill nav — même pattern que BottomNav / le snippet Transitions.dev.
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
-  const hasInit = useRef(false);
-
-  const springX = useSpring(0, SPRING_CFG);
-  const springW = useSpring(0, SPRING_CFG);
-  const [pillGeom, setPillGeom] = useState<{ h: number; top: number } | null>(null);
+  const pillRef  = useRef<HTMLDivElement>(null);
+  const hasInit  = useRef(false);
 
   useLayoutEffect(() => {
     const activeIndex = NAV_ITEMS.findIndex(
       ({ href }) => pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")),
     );
-    const navEl = navRef.current;
-    const el = itemRefs.current[activeIndex];
-    if (!navEl || !el) return;
+    const el   = itemRefs.current[activeIndex];
+    const pill = pillRef.current;
+    if (!el || !pill) return;
 
-    const nr = navEl.getBoundingClientRect();
-    const er = el.getBoundingClientRect();
-    const x = er.left - nr.left;
-    const w = er.width;
+    const x = el.offsetLeft;
+    const w = el.offsetWidth;
 
     if (!hasInit.current) {
-      springX.jump(x);
-      springW.jump(w);
+      pill.style.top    = `${el.offsetTop}px`;
+      pill.style.height = `${el.offsetHeight}px`;
+      pill.style.transform = `translateX(${x}px)`;
+      pill.style.width     = `${w}px`;
+      void pill.offsetWidth;
+      pill.style.transition = PILL_TRANSITION;
       hasInit.current = true;
-      setPillGeom({ h: er.height, top: er.top - nr.top });
     } else {
-      springX.set(x);
-      springW.set(w);
+      pill.style.transform = `translateX(${x}px)`;
+      pill.style.width     = `${w}px`;
     }
-  }, [pathname, springX, springW]);
+  }, [pathname]);
 
   return (
     <header
@@ -124,7 +123,6 @@ export function Topbar() {
         willChange: "transform",
       }}
     >
-      {/* Pill — élargie pour respirer avec 5 items de nav + groupe droit */}
       <div
         className="nc-topbar-pill"
         style={{
@@ -157,28 +155,24 @@ export function Topbar() {
 
           {SEPARATOR}
 
-          <nav
-            ref={navRef}
-            style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}
-          >
-            {/* Pill glissante — sibling externe, positionnée dans le nav container. */}
-            {pillGeom && (
-              <motion.div
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: pillGeom.top,
-                  height: pillGeom.h,
-                  x: springX,
-                  width: springW,
-                  background: "var(--nc-nav-active-bg)",
-                  borderRadius: 9999,
-                  pointerEvents: "none",
-                  zIndex: 0,
-                }}
-              />
-            )}
+          <nav style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}>
+            {/* Pill glissante — div abs, positionnée par offsetLeft/offsetWidth. */}
+            <div
+              ref={pillRef}
+              aria-hidden
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                height: 0,
+                width: 0,
+                background: "var(--nc-nav-active-bg)",
+                borderRadius: 9999,
+                pointerEvents: "none",
+                willChange: "transform, width",
+                zIndex: 0,
+              }}
+            />
 
             {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
               const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));

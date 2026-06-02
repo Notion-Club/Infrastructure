@@ -1,10 +1,9 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, BookOpen, Users, Calendar, Library, type LucideIcon } from "lucide-react";
-import { motion, useSpring } from "framer-motion";
 
 type NavItem = { label: string; icon: LucideIcon; href: string };
 
@@ -16,57 +15,48 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Ressources", icon: Library, href: "/ressources" },
 ];
 
-// Spring config : léger overshoot organique, ~300 ms de règlement.
-// Pour plus de bounce : damping 22, mass 0.7.
-// Pour ultra-smooth sans rebond : stiffness 300, damping 38.
-const SPRING_CFG = { stiffness: 420, damping: 30, mass: 0.85 };
+// Même courbe que le snippet Transitions.dev — décélération naturelle sans rebond.
+const PILL_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+const PILL_DUR  = "220ms";
+const PILL_TRANSITION = `transform ${PILL_DUR} ${PILL_EASE}, width ${PILL_DUR} ${PILL_EASE}`;
 
 export function BottomNav() {
   const pathname = usePathname();
 
-  // Refs pour la mesure (position/taille du Link actif).
-  const navRef = useRef<HTMLElement>(null);
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
-  const hasInit = useRef(false);
-
-  // Springs impératifs — indépendants du cycle de rendu React.
-  // .set(v)  → anime en spring vers v.
-  // .jump(v) → positionne instantanément sans animation (premier rendu).
-  const springX = useSpring(0, SPRING_CFG);
-  const springW = useSpring(0, SPRING_CFG);
-
-  // Géométrie non-animée (hauteur, top) — constante entre les items.
-  const [pillGeom, setPillGeom] = useState<{ h: number; top: number } | null>(null);
+  const pillRef  = useRef<HTMLDivElement>(null);
+  const hasInit  = useRef(false);
 
   useLayoutEffect(() => {
     const activeIndex = NAV_ITEMS.findIndex(
       ({ href }) => pathname === href || pathname.startsWith(href + "/"),
     );
-    const navEl = navRef.current;
-    const el = itemRefs.current[activeIndex];
-    if (!navEl || !el) return;
+    const el   = itemRefs.current[activeIndex];
+    const pill = pillRef.current;
+    if (!el || !pill) return;
 
-    const nr = navEl.getBoundingClientRect();
-    const er = el.getBoundingClientRect();
-    const x = er.left - nr.left;
-    const w = er.width;
+    const x = el.offsetLeft;
+    const w = el.offsetWidth;
 
     if (!hasInit.current) {
-      // Premier rendu : saut instantané (pas d'animation depuis 0).
-      springX.jump(x);
-      springW.jump(w);
+      // Premier rendu : snap instantané avant toute paint.
+      // On pose top/height une seule fois (identiques pour tous les items).
+      pill.style.top    = `${el.offsetTop}px`;
+      pill.style.height = `${el.offsetHeight}px`;
+      pill.style.transform = `translateX(${x}px)`;
+      pill.style.width     = `${w}px`;
+      void pill.offsetWidth; // force reflow — évite que le navigateur batchise
+      pill.style.transition = PILL_TRANSITION;
       hasInit.current = true;
-      setPillGeom({ h: er.height, top: er.top - nr.top });
     } else {
-      // Navigations suivantes : spring.
-      springX.set(x);
-      springW.set(w);
+      // Navigations suivantes : le CSS transition prend le relais.
+      pill.style.transform = `translateX(${x}px)`;
+      pill.style.width     = `${w}px`;
     }
-  }, [pathname, springX, springW]);
+  }, [pathname]);
 
   return (
     <nav
-      ref={navRef}
       aria-label="Navigation principale"
       style={{
         position: "fixed",
@@ -86,25 +76,24 @@ export function BottomNav() {
         padding: "0 6px",
       }}
     >
-      {/* Pill glissante — sibling externe, positionnée dans le nav container.
-          Utilise des motion values (spring) plutôt qu'une CSS transition
-          pour un glissement organique avec micro-rebond. */}
-      {pillGeom && (
-        <motion.div
-          aria-hidden
-          style={{
-            position: "absolute",
-            left: 0,
-            top: pillGeom.top,
-            height: pillGeom.h,
-            x: springX,
-            width: springW,
-            background: "var(--nc-nav-active-bg)",
-            borderRadius: 9999,
-            pointerEvents: "none",
-          }}
-        />
-      )}
+      {/* Pill glissante — div abs positionnée par offsetLeft/offsetWidth via JS.
+          Commence à width:0 invisible, positionnée sur le premier rendu sans transition,
+          puis glisse via CSS transition sur les changements de page suivants. */}
+      <div
+        ref={pillRef}
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          height: 0,
+          width: 0,
+          background: "var(--nc-nav-active-bg)",
+          borderRadius: 9999,
+          pointerEvents: "none",
+          willChange: "transform, width",
+        }}
+      />
 
       {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
         const isActive = pathname === href || pathname.startsWith(href + "/");
