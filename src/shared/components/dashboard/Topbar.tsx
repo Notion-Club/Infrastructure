@@ -108,6 +108,8 @@ export function Topbar() {
       void pill.offsetWidth;
       pill.style.transition = prev;
     } else {
+      pill.style.top    = `${el.offsetTop}px`;
+      pill.style.height = `${el.offsetHeight}px`;
       pill.style.transform = `translateX(${el.offsetLeft}px)`;
       pill.style.width     = `${el.offsetWidth}px`;
     }
