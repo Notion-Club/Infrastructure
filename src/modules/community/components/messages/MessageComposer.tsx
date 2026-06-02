@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Paperclip, Send, X, FileText } from "lucide-react";
+import { Paperclip, Send, X, FileText, Reply as ReplyIcon } from "lucide-react";
 
 interface PendingFile {
   name: string;
@@ -10,10 +10,25 @@ interface PendingFile {
   type: "image" | "pdf";
 }
 
+// Quote-reply : info minimale nécessaire pour afficher la preview au-dessus
+// du textarea ET la propager dans sendMessageAction (reply_to_message_id +
+// snippet + author_name dénormalisés, cf. mig. 027).
+export interface ReplyContext {
+  messageId: string;
+  authorName: string;
+  snippet: string;
+}
+
 interface MessageComposerProps {
   onSend: (body: string, type?: "text" | "pdf" | "image", fileName?: string) => void;
   disabled?: boolean;
   disabledMessage?: string;
+  // Si fourni, affiche un quote-block au-dessus du textarea avec l'auteur +
+  // le snippet du message cité, et une croix pour annuler. Le parent
+  // (ConversationThread) résout cet état et l'utilise pour enrichir la
+  // payload sendMessageAction.
+  replyContext?: ReplyContext;
+  onCancelReply?: () => void;
 }
 
 // Détection navigateur Mac — sur Mac on remplace le mot "Entrée" par
@@ -26,7 +41,13 @@ function detectMac(): boolean {
   return /Mac|iPhone|iPod|iPad/i.test(platform) || /Macintosh/i.test(ua);
 }
 
-export function MessageComposer({ onSend, disabled, disabledMessage }: MessageComposerProps) {
+export function MessageComposer({
+  onSend,
+  disabled,
+  disabledMessage,
+  replyContext,
+  onCancelReply,
+}: MessageComposerProps) {
   const [value, setValue] = useState("");
   const [dragging, setDragging] = useState(false);
   const [pendingFile, setPendingFile] = useState<PendingFile | null>(null);
@@ -151,6 +172,80 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
           }}
         >
           Déposez votre fichier ici
+        </div>
+      )}
+
+      {/* Quote-reply preview — la prop replyContext pilote l'affichage. La
+          payload reply_to_message_id sera passée côté parent dans onSend(). */}
+      {replyContext && (
+        <div
+          style={{
+            padding: "10px 16px 0",
+            display: "flex",
+            alignItems: "stretch",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 3,
+              borderRadius: 9999,
+              background: "var(--color-brand)",
+              flexShrink: 0,
+            }}
+          />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12,
+                color: "var(--color-brand)",
+                fontWeight: 600,
+                marginBottom: 2,
+              }}
+            >
+              <ReplyIcon size={12} />
+              Réponse à {replyContext.authorName}
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: "var(--color-text-secondary)",
+                lineHeight: 1.4,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {replyContext.snippet}
+            </div>
+          </div>
+          {onCancelReply && (
+            <button
+              type="button"
+              onClick={onCancelReply}
+              aria-label="Annuler la réponse"
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--color-text-muted)",
+                flexShrink: 0,
+                alignSelf: "flex-start",
+              }}
+              className="hover:bg-[rgba(0,0,0,0.06)]"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
       )}
 

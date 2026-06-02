@@ -2,17 +2,21 @@
 
 import { useState, useEffect, useRef } from "react";
 import { ArrowLeft } from "lucide-react";
-import type { Conversation } from "../../types/conversation.types";
+import type { Conversation, Message } from "../../types/conversation.types";
 import type { User } from "../../types/user.types";
+import { REPLY_SNIPPET_MAX } from "../../lib/validation";
 import { MessageBubble } from "./MessageBubble";
-import { MessageComposer } from "./MessageComposer";
+import { MessageComposer, type ReplyContext } from "./MessageComposer";
 import { ConversationEmptyState } from "./MessagesEmptyState";
 import { UserAvatar } from "../shared/UserAvatar";
 
 interface ConversationThreadProps {
   conversation: Conversation;
   currentUser: User;
-  onSendMessage: (body: string) => void;
+  // Le parent peut désormais recevoir un payload riche (body + quote-reply)
+  // pour que sendMessageAction puisse écrire reply_to_message_id et al.
+  // L'ancien onSendMessage(body: string) reste compatible si reply est null.
+  onSendMessage: (body: string, reply?: ReplyContext | null) => void;
   onBack?: () => void;
 }
 
@@ -20,12 +24,16 @@ export function ConversationThread({ conversation, currentUser, onSendMessage, o
   // Optimistic local : ajoute le message immédiatement, le parent fera un
   // router.refresh() qui le remplacera par la vraie ligne DB.
   const [optimisticMessages, setOptimisticMessages] = useState<typeof conversation.messages>([]);
+  // Quote-reply en cours — alimente le MessageComposer avec le snippet du
+  // message cité. Reset à chaque envoi ou changement de conv.
+  const [replyContext, setReplyContext] = useState<ReplyContext | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Reset des messages optimistic quand on change de conv ou que les
-  // messages DB sont rechargés via router.refresh().
+  // Reset des messages optimistic + replyContext quand on change de conv ou
+  // que les messages DB sont rechargés via router.refresh().
   useEffect(() => {
     setOptimisticMessages([]);
+    setReplyContext(null);
   }, [conversation.id, conversation.messages]);
 
   const messages = [...conversation.messages, ...optimisticMessages];
@@ -39,7 +47,33 @@ export function ConversationThread({ conversation, currentUser, onSendMessage, o
     ? "Cet utilisateur n'est plus membre du Notion Club"
     : undefined;
 
+  function handleReply(target: Message) {
+    // Snippet : tronqué côté front à REPLY_SNIPPET_MAX, le serveur retrim.
+    // Pour un message non-texte (image/pdf), on affiche le nom de fichier
+    // ou un libellé générique pour donner du contexte dans la quote.
+    const rawSnippet =
+      target.type === "text"
+        ? target.body
+        : target.fileName ?? (target.type === "image" ? "[Image]" : "[Fichier]");
+    const snippet = rawSnippet.slice(0, REPLY_SNIPPET_MAX);
+    const authorName =
+      target.senderId === currentUser.id
+        ? currentUser.name
+        : conversation.participant.name;
+    setReplyContext({
+      messageId: target.id,
+      authorName,
+      snippet,
+    });
+  }
+
   function handleSend(body: string, type: "text" | "pdf" | "image" = "text", fileName?: string) {
+    // Capture le replyContext avant reset, pour le passer au parent ET dans
+    // le state optimistic (les nouveaux messages doivent afficher la quote
+    // immédiatement, sans attendre router.refresh).
+    const reply = replyContext;
+    setReplyContext(null);
+
     // Optimistic — sera remplacé au router.refresh() côté parent.
     setOptimisticMessages((prev) => [
       ...prev,
@@ -51,9 +85,12 @@ export function ConversationThread({ conversation, currentUser, onSendMessage, o
         fileName,
         reactions: [],
         createdAt: new Date().toISOString(),
+        replyToMessageId: reply?.messageId ?? null,
+        replySnippet: reply?.snippet ?? null,
+        replyAuthorName: reply?.authorName ?? null,
       },
     ]);
-    onSendMessage(body);
+    onSendMessage(body, reply);
   }
 
   return (
@@ -118,8 +155,8 @@ export function ConversationThread({ conversation, currentUser, onSendMessage, o
               key={msg.id}
               message={msg}
               isSelf={msg.senderId === currentUser.id}
-              onEdit={() => alert("Modifier (mock)")}
-              onDelete={() => alert("Supprimer (mock)")}
+              currentUser={currentUser}
+              onReply={handleReply}
             />
           ))
         )}
@@ -131,6 +168,8 @@ export function ConversationThread({ conversation, currentUser, onSendMessage, o
         onSend={handleSend}
         disabled={isDeleted}
         disabledMessage={disabledMsg}
+        replyContext={replyContext ?? undefined}
+        onCancelReply={() => setReplyContext(null)}
       />
     </div>
   );

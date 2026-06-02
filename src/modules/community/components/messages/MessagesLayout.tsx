@@ -96,7 +96,13 @@ export function MessagesLayout({
   }
 
   // Envoi d'un message — appelée par MessageComposer via ConversationThread.
-  function handleSendMessage(conversationId: string, body: string) {
+  // reply optionnel : si fourni, alimente reply_to_message_id + snippet +
+  // author_name dénormalisés (mig. 027).
+  function handleSendMessage(
+    conversationId: string,
+    body: string,
+    reply?: { messageId: string; authorName: string; snippet: string } | null,
+  ) {
     const trimmed = body.trim();
     if (!trimmed) return;
     startTransition(async () => {
@@ -104,6 +110,9 @@ export function MessagesLayout({
         conversation_id: conversationId,
         type: "text",
         body: trimmed,
+        reply_to_message_id: reply?.messageId ?? null,
+        reply_snippet: reply?.snippet ?? null,
+        reply_author_name: reply?.authorName ?? null,
       });
       if (!result.ok) {
         toast.error(result.message);
@@ -174,7 +183,7 @@ export function MessagesLayout({
             <ConversationThread
               conversation={activeConv}
               currentUser={currentUser}
-              onSendMessage={(body) => handleSendMessage(activeConv.id, body)}
+              onSendMessage={(body, reply) => handleSendMessage(activeConv.id, body, reply)}
             />
           ) : (
             <MessagesEmptyState />
@@ -203,7 +212,7 @@ export function MessagesLayout({
           <ConversationThread
             conversation={activeConv}
             currentUser={currentUser}
-            onSendMessage={(body) => handleSendMessage(activeConv.id, body)}
+            onSendMessage={(body, reply) => handleSendMessage(activeConv.id, body, reply)}
             onBack={() => setMobileView("list")}
           />
         ) : (
