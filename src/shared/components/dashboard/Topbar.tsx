@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -38,11 +38,6 @@ const NAV_ITEMS: NavItem[] = [
 
 const UNREAD_COUNT = 2;
 
-// Même courbe que le snippet Transitions.dev.
-const PILL_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
-const PILL_DUR  = "220ms";
-const PILL_TRANSITION = `transform ${PILL_DUR} ${PILL_EASE}, width ${PILL_DUR} ${PILL_EASE}`;
-
 const SEPARATOR = (
   <div
     aria-hidden
@@ -78,35 +73,39 @@ export function Topbar() {
   const avatarUrl = identity?.avatarUrl ?? null;
   const avatarColor = identity?.avatarColor ?? "#e0625a";
 
-  // Pill nav — même pattern que BottomNav / le snippet Transitions.dev.
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const pillRef  = useRef<HTMLDivElement>(null);
-  const hasInit  = useRef(false);
 
-  useLayoutEffect(() => {
-    const activeIndex = NAV_ITEMS.findIndex(
-      ({ href }) => pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")),
-    );
-    const el   = itemRefs.current[activeIndex];
+  // Pattern identique au moveTo() du snippet Transitions.dev.
+  // animate=false → snap (reflow trick, transition suspendue).
+  // animate=true  → glissement (la class nc-nav-pill porte la transition).
+  const moveTo = useCallback((idx: number, animate: boolean) => {
+    const el   = itemRefs.current[idx];
     const pill = pillRef.current;
     if (!el || !pill) return;
 
-    const x = el.offsetLeft;
-    const w = el.offsetWidth;
-
-    if (!hasInit.current) {
+    if (!animate) {
+      const prev = pill.style.transition;
+      pill.style.transition = "none";
       pill.style.top    = `${el.offsetTop}px`;
       pill.style.height = `${el.offsetHeight}px`;
-      pill.style.transform = `translateX(${x}px)`;
-      pill.style.width     = `${w}px`;
+      pill.style.transform = `translateX(${el.offsetLeft}px)`;
+      pill.style.width     = `${el.offsetWidth}px`;
       void pill.offsetWidth;
-      pill.style.transition = PILL_TRANSITION;
-      hasInit.current = true;
+      pill.style.transition = prev;
     } else {
-      pill.style.transform = `translateX(${x}px)`;
-      pill.style.width     = `${w}px`;
+      pill.style.transform = `translateX(${el.offsetLeft}px)`;
+      pill.style.width     = `${el.offsetWidth}px`;
     }
-  }, [pathname]);
+  }, []);
+
+  // Snap sans animation : premier rendu + navigation retour/avance.
+  useLayoutEffect(() => {
+    const idx = NAV_ITEMS.findIndex(
+      ({ href }) => pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")),
+    );
+    moveTo(idx, false);
+  }, [pathname, moveTo]);
 
   return (
     <header
@@ -156,10 +155,11 @@ export function Topbar() {
           {SEPARATOR}
 
           <nav style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}>
-            {/* Pill glissante — div abs, positionnée par offsetLeft/offsetWidth. */}
+            {/* Pill glissante — class nc-nav-pill porte la CSS transition. */}
             <div
               ref={pillRef}
               aria-hidden
+              className="nc-nav-pill"
               style={{
                 position: "absolute",
                 left: 0,
@@ -178,6 +178,7 @@ export function Topbar() {
                   key={href}
                   href={href}
                   ref={(el) => { itemRefs.current[i] = el; }}
+                  onClick={() => moveTo(i, true)}
                   style={{
                     position: "relative",
                     zIndex: 1,
@@ -283,11 +284,7 @@ export function Topbar() {
               <img
                 src={avatarUrl}
                 alt=""
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                }}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             ) : (
               initials
@@ -323,13 +320,7 @@ export function Topbar() {
                 </span>
                 <ThemeToggle />
               </div>
-              <div
-                style={{
-                  height: 1,
-                  background: "var(--color-border-default)",
-                  margin: "4px 0",
-                }}
-              />
+              <div style={{ height: 1, background: "var(--color-border-default)", margin: "4px 0" }} />
               <Link
                 href="/settings"
                 role="menuitem"
@@ -349,9 +340,9 @@ export function Topbar() {
               </Link>
             </div>
           )}
-        </div>{/* fin avatarRef */}
-        </div>{/* fin groupe droite */}
-      </div>{/* fin pill */}
+        </div>
+        </div>
+      </div>
     </header>
   );
 }

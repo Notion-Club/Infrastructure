@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, BookOpen, Users, Calendar, Library, type LucideIcon } from "lucide-react";
@@ -15,45 +15,45 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Ressources", icon: Library, href: "/ressources" },
 ];
 
-// Même courbe que le snippet Transitions.dev — décélération naturelle sans rebond.
-const PILL_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
-const PILL_DUR  = "220ms";
-const PILL_TRANSITION = `transform ${PILL_DUR} ${PILL_EASE}, width ${PILL_DUR} ${PILL_EASE}`;
-
 export function BottomNav() {
   const pathname = usePathname();
 
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const pillRef  = useRef<HTMLDivElement>(null);
-  const hasInit  = useRef(false);
 
-  useLayoutEffect(() => {
-    const activeIndex = NAV_ITEMS.findIndex(
-      ({ href }) => pathname === href || pathname.startsWith(href + "/"),
-    );
-    const el   = itemRefs.current[activeIndex];
+  // Identique au moveTo() du snippet Transitions.dev.
+  // animate=false → snap sans transition (premier rendu, resize, retour nav).
+  // animate=true  → glissement CSS (déclenché directement au clic).
+  const moveTo = useCallback((idx: number, animate: boolean) => {
+    const el   = itemRefs.current[idx];
     const pill = pillRef.current;
     if (!el || !pill) return;
 
-    const x = el.offsetLeft;
-    const w = el.offsetWidth;
-
-    if (!hasInit.current) {
-      // Premier rendu : snap instantané avant toute paint.
-      // On pose top/height une seule fois (identiques pour tous les items).
+    if (!animate) {
+      // Sauvegarde la transition CSS courante (vide = class CSS actif),
+      // suspend, snap, force reflow, puis restaure → la class reprend.
+      const prev = pill.style.transition;
+      pill.style.transition = "none";
       pill.style.top    = `${el.offsetTop}px`;
       pill.style.height = `${el.offsetHeight}px`;
-      pill.style.transform = `translateX(${x}px)`;
-      pill.style.width     = `${w}px`;
-      void pill.offsetWidth; // force reflow — évite que le navigateur batchise
-      pill.style.transition = PILL_TRANSITION;
-      hasInit.current = true;
+      pill.style.transform = `translateX(${el.offsetLeft}px)`;
+      pill.style.width     = `${el.offsetWidth}px`;
+      void pill.offsetWidth; // force reflow
+      pill.style.transition = prev;
     } else {
-      // Navigations suivantes : le CSS transition prend le relais.
-      pill.style.transform = `translateX(${x}px)`;
-      pill.style.width     = `${w}px`;
+      // La transition est portée par la class CSS nc-nav-pill.
+      pill.style.transform = `translateX(${el.offsetLeft}px)`;
+      pill.style.width     = `${el.offsetWidth}px`;
     }
-  }, [pathname]);
+  }, []);
+
+  // Snap au bon item sans animation : premier rendu + retour/avance navigateur.
+  useLayoutEffect(() => {
+    const idx = NAV_ITEMS.findIndex(
+      ({ href }) => pathname === href || pathname.startsWith(href + "/"),
+    );
+    moveTo(idx, false);
+  }, [pathname, moveTo]);
 
   return (
     <nav
@@ -76,12 +76,12 @@ export function BottomNav() {
         padding: "0 6px",
       }}
     >
-      {/* Pill glissante — div abs positionnée par offsetLeft/offsetWidth via JS.
-          Commence à width:0 invisible, positionnée sur le premier rendu sans transition,
-          puis glisse via CSS transition sur les changements de page suivants. */}
+      {/* Pill glissante — class nc-nav-pill porte la CSS transition.
+          JS gère uniquement transform, width, top, height via moveTo(). */}
       <div
         ref={pillRef}
         aria-hidden
+        className="nc-nav-pill"
         style={{
           position: "absolute",
           left: 0,
@@ -99,6 +99,7 @@ export function BottomNav() {
             key={href}
             href={href}
             ref={(el) => { itemRefs.current[i] = el; }}
+            onClick={() => moveTo(i, true)}
             style={{
               position: "relative",
               zIndex: 1,
