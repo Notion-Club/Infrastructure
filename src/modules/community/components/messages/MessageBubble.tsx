@@ -1,37 +1,61 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { FileText, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { FileText, Forward, Pencil, Check, X } from "lucide-react";
+import { toast } from "sonner";
 import type { Message } from "../../types/conversation.types";
-import { timeAgo } from "../../utils/date-helpers";
+import { timeAgo, fullDateTime } from "../../utils/date-helpers";
 import { linkify } from "../../utils/linkify";
-
-const EMOJIS = ["❤️", "🔥", "🎉", "🙌", "💡", "😍", "👏", "🤯"];
+import { useUserTopEmojis } from "../../hooks/useUserTopEmojis";
+import {
+  deleteMessageAction,
+  editMessageAction,
+  toggleMessageReactionAction,
+} from "../../server/actions";
+import { MessageToolbar } from "./MessageToolbar";
+import { ForwardMessageModal } from "./ForwardMessageModal";
+import { DeletePostConfirmDialog } from "../shared/DeletePostConfirmDialog";
+import type { User } from "../../types/user.types";
 
 interface MessageBubbleProps {
   message: Message;
   isSelf: boolean;
-  onEdit?: () => void;
-  onDelete?: () => void;
+  currentUser: User;
+  // Le parent gère le composer en mode quote-reply : clic sur Répondre →
+  // setReplyContext({...}) côté ConversationThread, qui le passe au composer.
+  onReply: (message: Message) => void;
 }
 
-export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubbleProps) {
-  const [showActions, setShowActions] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const [reactions, setReactions] = useState(message.reactions);
-  const menuRef = useRef<HTMLDivElement>(null);
+export function MessageBubble({ message, isSelf, currentUser, onReply }: MessageBubbleProps) {
+  const [showToolbar, setShowToolbar] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editBody, setEditBody] = useState(message.body);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [localReactions, setLocalReactions] = useState(message.reactions);
+  const [, startTransition] = useTransition();
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const topEmojis = useUserTopEmojis();
 
+  // Resync l'état local quand le parent re-render avec un message mis à
+  // jour (router.refresh après edit / reaction toggle).
   useEffect(() => {
-    if (!showMenu) return;
-    function close(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowMenu(false);
-      }
+    setLocalReactions(message.reactions);
+    if (!editing) setEditBody(message.body);
+  }, [message.body, message.reactions, editing]);
+
+  // Le mode édition focus auto le textarea.
+  useEffect(() => {
+    if (editing) {
+      editTextareaRef.current?.focus();
+      editTextareaRef.current?.setSelectionRange(editBody.length, editBody.length);
     }
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [showMenu]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing]);
+
+  // Un message en cours de persistance porte un id "pending-…". Pas d'actions
+  // destructives ni de réaction tant qu'on n'a pas le vrai UUID DB.
+  const isPending = message.id.startsWith("pending-");
 
   if (message.deleted) {
     return (
@@ -49,21 +73,83 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
     );
   }
 
-  function handleReaction(emoji: string) {
-    setReactions((prev) => {
-      const userId = "viewer";
-      const has = prev.find((r) => r.userId === userId);
-      if (has?.emoji === emoji) return prev.filter((r) => r.userId !== userId);
-      if (has) return prev.map((r) => r.userId === userId ? { emoji, userId } : r);
-      return [...prev, { emoji, userId }];
+  // Set des emojis sur lesquels j'ai déjà réagi — pour highlight la toolbar.
+  const myReactions = new Set(
+    localReactions.filter((r) => r.userId === currentUser.id).map((r) => r.emoji),
+  );
+
+  // Groupement des réactions par emoji + flag "j'ai réagi à celui-ci".
+  const grouped = localReactions.reduce<Record<string, { count: number; mine: boolean }>>(
+    (acc, r) => {
+      const entry = acc[r.emoji] ?? { count: 0, mine: false };
+      entry.count += 1;
+      if (r.userId === currentUser.id) entry.mine = true;
+      acc[r.emoji] = entry;
+      return acc;
+    },
+    {},
+  );
+
+  async function handleReact(emoji: string) {
+    if (isPending) {
+      toast.info("Attends la fin de l'envoi…");
+      return;
+    }
+    // Optimistic toggle : on update localReactions, on revert si erreur.
+    const previous = localReactions;
+    setLocalReactions((prev) => {
+      const idx = prev.findIndex(
+        (r) => r.emoji === emoji && r.userId === currentUser.id,
+      );
+      if (idx >= 0) return prev.filter((_, i) => i !== idx);
+      return [...prev, { emoji, userId: currentUser.id }];
     });
-    setShowEmojiPicker(false);
+    const result = await toggleMessageReactionAction({
+      message_id: message.id,
+      emoji,
+    });
+    if (!result.ok) {
+      setLocalReactions(previous);
+      toast.error(result.message);
+    }
   }
 
-  const grouped = reactions.reduce<Record<string, number>>((acc, r) => {
-    acc[r.emoji] = (acc[r.emoji] ?? 0) + 1;
-    return acc;
-  }, {});
+  async function handleDelete() {
+    setShowDeleteConfirm(false);
+    const result = await deleteMessageAction({ message_id: message.id });
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success("Message supprimé");
+  }
+
+  function handleEditSubmit() {
+    const trimmed = editBody.trim();
+    if (!trimmed || trimmed === message.body) {
+      setEditing(false);
+      setEditBody(message.body);
+      return;
+    }
+    startTransition(async () => {
+      const result = await editMessageAction({
+        message_id: message.id,
+        body: trimmed,
+      });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      setEditing(false);
+      toast.success("Message modifié");
+    });
+  }
+
+  // Affordances kebab : mes msgs → Modifier/Supprimer/Transférer ;
+  // msgs reçus → Transférer seul. isPending masque tout (id non-UUID).
+  const canEdit = isSelf && !isPending && message.type === "text";
+  const canDelete = isSelf && !isPending;
+  const canForward = !isPending;
 
   return (
     <div
@@ -74,14 +160,22 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
         margin: "2px 0",
         position: "relative",
       }}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => { setShowActions(false); setShowEmojiPicker(false); }}
+      onMouseEnter={() => setShowToolbar(true)}
+      onMouseLeave={() => setShowToolbar(false)}
     >
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 6, flexDirection: isSelf ? "row-reverse" : "row" }}>
-        {/* Bubble */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          gap: 6,
+          flexDirection: isSelf ? "row-reverse" : "row",
+          maxWidth: "100%",
+        }}
+      >
+        {/* Bulle */}
         <div
           style={{
-            maxWidth: 320,
+            maxWidth: 360,
             padding: "10px 14px",
             borderRadius: isSelf ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
             background: isSelf ? "var(--color-brand)" : "var(--color-surface-raised)",
@@ -90,135 +184,237 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
             fontSize: 14,
             lineHeight: 1.5,
             wordBreak: "break-word",
+            position: "relative",
           }}
         >
-          {message.type === "text" && (
-            <span style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
-          )}
-          {message.type === "image" && (
-            <div>
-              <img src={message.fileUrl} alt="image" style={{ maxWidth: "100%", borderRadius: 8, display: "block" }} />
+          {/* Badge Forwarded (mig. 028) */}
+          {message.forwardedFromAuthorName && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                fontStyle: "italic",
+                opacity: 0.8,
+                marginBottom: 6,
+                color: isSelf ? "rgba(255,255,255,0.85)" : "var(--color-text-muted)",
+              }}
+            >
+              <Forward size={11} />
+              Transféré de {message.forwardedFromAuthorName}
             </div>
           )}
-          {message.type === "pdf" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <FileText size={20} />
-              <span style={{ fontSize: 13, fontWeight: 500 }}>{message.fileName ?? message.body}</span>
+
+          {/* Quote block (mig. 027) — message cité au-dessus du body */}
+          {message.replySnippet && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "stretch",
+                gap: 8,
+                marginBottom: 6,
+                padding: "6px 10px",
+                background: isSelf ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.04)",
+                borderRadius: 8,
+                borderLeft: `3px solid ${isSelf ? "rgba(255,255,255,0.6)" : "var(--color-brand)"}`,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: isSelf ? "rgba(255,255,255,0.9)" : "var(--color-brand)",
+                    marginBottom: 2,
+                  }}
+                >
+                  {message.replyAuthorName ?? "Auteur inconnu"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: isSelf ? "rgba(255,255,255,0.8)" : "var(--color-text-secondary)",
+                    lineHeight: 1.4,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {message.replySnippet}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Body : édition inline ou rendu normal */}
+          {editing ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <textarea
+                ref={editTextareaRef}
+                value={editBody}
+                onChange={(e) => setEditBody(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleEditSubmit();
+                  } else if (e.key === "Escape") {
+                    setEditing(false);
+                    setEditBody(message.body);
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  minWidth: 180,
+                  padding: "6px 8px",
+                  border: "1px solid",
+                  borderColor: isSelf ? "rgba(255,255,255,0.4)" : "var(--color-border-default)",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontFamily: "inherit",
+                  background: isSelf ? "rgba(255,255,255,0.15)" : "var(--color-surface-card)",
+                  color: isSelf ? "#fff" : "var(--color-text-primary)",
+                  outline: "none",
+                  resize: "vertical",
+                }}
+                rows={Math.min(Math.max(editBody.split("\n").length, 2), 6)}
+              />
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(false);
+                    setEditBody(message.body);
+                  }}
+                  style={{
+                    padding: "4px 8px",
+                    border: "none",
+                    background: "transparent",
+                    color: isSelf ? "rgba(255,255,255,0.9)" : "var(--color-text-muted)",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    borderRadius: 6,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <X size={12} /> Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEditSubmit}
+                  style={{
+                    padding: "4px 10px",
+                    border: "none",
+                    background: isSelf ? "rgba(255,255,255,0.2)" : "var(--color-brand)",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    borderRadius: 6,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <Check size={12} /> Enregistrer
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {message.type === "text" && (
+                <span style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
+              )}
+              {message.type === "image" && (
+                <div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={message.fileUrl}
+                    alt="image"
+                    style={{ maxWidth: "100%", borderRadius: 8, display: "block" }}
+                  />
+                </div>
+              )}
+              {message.type === "pdf" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <FileText size={20} />
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>
+                    {message.fileName ?? message.body}
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Indicateur "modifié" — discret */}
+          {message.editedAt && !editing && (
+            <div
+              style={{
+                fontSize: 10,
+                fontStyle: "italic",
+                opacity: 0.7,
+                marginTop: 2,
+                color: isSelf ? "rgba(255,255,255,0.8)" : "var(--color-text-muted)",
+              }}
+              title={`Modifié le ${fullDateTime(message.editedAt)}`}
+            >
+              modifié
             </div>
           )}
         </div>
 
-        {/* Hover actions */}
-        {showActions && (
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <div style={{ position: "relative" }}>
-              <button
-                type="button"
-                onClick={() => setShowEmojiPicker((o) => !o)}
-                style={{
-                  width: 28, height: 28, borderRadius: "50%", border: "1px solid var(--color-border-default)",
-                  background: "var(--color-surface-card)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center",
-                }}
-              >
-                😊
-              </button>
-              {showEmojiPicker && (
-                <div style={{
-                  position: "absolute", [isSelf ? "right" : "left"]: 0, bottom: "calc(100% + 4px)",
-                  background: "var(--color-surface-card)", border: "1px solid var(--color-border-default)", borderRadius: 12,
-                  boxShadow: "var(--nc-shadow-3)", padding: 8, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 2, zIndex: 100,
-                }}>
-                  {EMOJIS.map((e) => (
-                    <button key={e} type="button" onClick={() => handleReaction(e)}
-                      style={{ width: 32, height: 32, fontSize: 18, border: "none", background: "transparent", borderRadius: 6, cursor: "pointer" }}
-                      className="hover:bg-[rgba(0,0,0,0.06)]"
-                    >{e}</button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {isSelf && (
-              <div ref={menuRef} style={{ position: "relative" }}>
-                <button
-                  type="button"
-                  onClick={() => setShowMenu((o) => !o)}
-                  style={{
-                    width: 28, height: 28, borderRadius: "50%", border: "1px solid var(--color-border-default)",
-                    background: "var(--color-surface-card)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "var(--color-text-muted)",
-                  }}
-                >
-                  <MoreHorizontal size={14} />
-                </button>
-
-                {showMenu && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      right: 0,
-                      top: "calc(100% + 4px)",
-                      background: "var(--color-surface-card)",
-                      border: "1px solid var(--color-border-default)",
-                      borderRadius: 12,
-                      boxShadow: "var(--nc-shadow-3)",
-                      padding: 4,
-                      zIndex: 100,
-                      minWidth: 160,
-                      animation: "nc-mode-in 150ms var(--nc-ease) both",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); onEdit?.(); }}
-                      style={{
-                        width: "100%", display: "flex", alignItems: "center", gap: 8,
-                        padding: "8px 12px", border: "none", background: "transparent",
-                        borderRadius: 8, cursor: "pointer", fontSize: 13,
-                        color: "var(--color-text-primary)", textAlign: "left",
-                      }}
-                      className="hover:bg-[rgba(0,0,0,0.05)]"
-                    >
-                      <Pencil size={14} />
-                      Modifier
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); onDelete?.(); }}
-                      style={{
-                        width: "100%", display: "flex", alignItems: "center", gap: 8,
-                        padding: "8px 12px", border: "none", background: "transparent",
-                        borderRadius: 8, cursor: "pointer", fontSize: 13,
-                        color: "#e53e3e", textAlign: "left",
-                      }}
-                      className="hover:bg-[rgba(229,62,62,0.06)]"
-                    >
-                      <Trash2 size={14} />
-                      Supprimer
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+        {/* Toolbar flottante au hover — masquée pendant l'édition */}
+        {showToolbar && !editing && !isPending && (
+          <MessageToolbar
+            align={isSelf ? "right" : "left"}
+            topEmojis={topEmojis}
+            reactedEmojis={myReactions}
+            onReact={handleReact}
+            onReply={() => onReply(message)}
+            onEdit={canEdit ? () => setEditing(true) : undefined}
+            onDelete={canDelete ? () => setShowDeleteConfirm(true) : undefined}
+            onForward={canForward ? () => setShowForwardModal(true) : undefined}
+          />
         )}
       </div>
 
-      {/* Reactions */}
+      {/* Pastilles réactions sous la bulle */}
       {Object.keys(grouped).length > 0 && (
-        <div style={{
-          display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap",
-          justifyContent: isSelf ? "flex-end" : "flex-start",
-        }}>
-          {Object.entries(grouped).map(([emoji, count]) => (
-            <span key={emoji} onClick={() => handleReaction(emoji)}
+        <div
+          style={{
+            display: "flex",
+            gap: 4,
+            marginTop: 4,
+            flexWrap: "wrap",
+            justifyContent: isSelf ? "flex-end" : "flex-start",
+          }}
+        >
+          {Object.entries(grouped).map(([emoji, data]) => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => handleReact(emoji)}
               style={{
-                fontSize: 12, padding: "2px 8px", borderRadius: 9999, background: "var(--color-surface-card)",
-                border: "1px solid var(--color-border-default)", cursor: "pointer",
-                display: "inline-flex", alignItems: "center", gap: 4,
+                fontSize: 12,
+                padding: "2px 8px",
+                borderRadius: 9999,
+                background: data.mine
+                  ? "rgba(224,98,90,0.10)"
+                  : "var(--color-surface-card)",
+                border: `1px solid ${data.mine ? "var(--color-brand)" : "var(--color-border-default)"}`,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                color: data.mine ? "var(--color-brand)" : "var(--color-text-secondary)",
+                fontWeight: data.mine ? 600 : 500,
+                transition: "all 120ms ease",
               }}
             >
-              {emoji} {count}
-            </span>
+              {emoji} {data.count}
+            </button>
           ))}
         </div>
       )}
@@ -227,6 +423,27 @@ export function MessageBubble({ message, isSelf, onEdit, onDelete }: MessageBubb
       <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 3 }}>
         {timeAgo(message.createdAt)}
       </span>
+
+      {showDeleteConfirm && (
+        <DeletePostConfirmDialog
+          onConfirm={handleDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
+
+      {showForwardModal && (
+        <ForwardMessageModal
+          currentUser={currentUser}
+          messageId={message.id}
+          messageSnippet={
+            message.type === "text"
+              ? message.body
+              : message.fileName ?? "[Fichier]"
+          }
+          onClose={() => setShowForwardModal(false)}
+          onDone={() => setShowForwardModal(false)}
+        />
+      )}
     </div>
   );
 }
