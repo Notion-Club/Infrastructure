@@ -36,4 +36,9 @@ export interface Conversation {
   lastMessagePreview?: string;
   lastMessageFromMe?: boolean;
   lastMessageType?: MessageType;
+  // Pagination cursor-based (PR pagination). hasMore = true tant qu'il
+  // existe des messages plus anciens que messages[0] côté DB. Le client
+  // appelle loadOlderMessagesAction(conversationId, beforeMessageId) pour
+  // récupérer le batch précédent. Absent = pas paginé (conv vierge ou court).
+  hasMore?: boolean;
 }

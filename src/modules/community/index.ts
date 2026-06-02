@@ -38,6 +38,7 @@ export {
   toggleMessageReactionAction,
   forwardMessageAction,
   getUserTopEmojisAction,
+  loadOlderMessagesAction,
   type CreatePostResult,
   type UpdatePostResult,
   type DeletePostResult,
@@ -59,6 +60,7 @@ export {
   type ToggleMessageReactionResult,
   type ForwardMessageResult,
   type GetUserTopEmojisResult,
+  type LoadOlderMessagesResult,
 } from "./server/actions";
 
 // Validation (zod + constants)
