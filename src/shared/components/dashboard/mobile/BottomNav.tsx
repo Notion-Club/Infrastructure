@@ -18,41 +18,45 @@ const NAV_ITEMS: NavItem[] = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
-  const pillRef  = useRef<HTMLDivElement>(null);
+  const itemRefs       = useRef<(HTMLAnchorElement | null)[]>([]);
+  const pillRef        = useRef<HTMLDivElement>(null);
+  // Index du dernier item cliqué — permet d'éviter que le snap (useLayoutEffect)
+  // n'annule l'animation CSS déclenchée au clic (Next.js pre-fetch peut committer
+  // une nouvelle pathname en < 50 ms, avant la fin de la transition de 220 ms).
+  const lastClickedRef = useRef<number>(-1);
 
-  // Identique au moveTo() du snippet Transitions.dev.
-  // animate=false → snap sans transition (premier rendu, resize, retour nav).
-  // animate=true  → glissement CSS (déclenché directement au clic).
   const moveTo = useCallback((idx: number, animate: boolean) => {
     const el   = itemRefs.current[idx];
     const pill = pillRef.current;
     if (!el || !pill) return;
 
     if (!animate) {
-      // Sauvegarde la transition CSS courante (vide = class CSS actif),
-      // suspend, snap, force reflow, puis restaure → la class reprend.
       const prev = pill.style.transition;
       pill.style.transition = "none";
       pill.style.top    = `${el.offsetTop}px`;
       pill.style.height = `${el.offsetHeight}px`;
       pill.style.transform = `translateX(${el.offsetLeft}px)`;
       pill.style.width     = `${el.offsetWidth}px`;
-      void pill.offsetWidth; // force reflow
+      void pill.offsetWidth;
       pill.style.transition = prev;
     } else {
-      // La transition est portée par la class CSS nc-nav-pill.
       pill.style.transform = `translateX(${el.offsetLeft}px)`;
       pill.style.width     = `${el.offsetWidth}px`;
     }
   }, []);
 
-  // Snap au bon item sans animation : premier rendu + retour/avance navigateur.
   useLayoutEffect(() => {
     const idx = NAV_ITEMS.findIndex(
       ({ href }) => pathname === href || pathname.startsWith(href + "/"),
     );
-    moveTo(idx, false);
+    // Si l'utilisateur a cliqué sur cet item, l'animation CSS est déjà en cours —
+    // on ne snappe pas (ça annulerait la transition). On nettoie et on laisse glisser.
+    if (lastClickedRef.current === idx) {
+      lastClickedRef.current = -1;
+      return;
+    }
+    lastClickedRef.current = -1;
+    moveTo(idx, false); // Snap : premier rendu ou retour/avance navigateur.
   }, [pathname, moveTo]);
 
   return (
@@ -99,7 +103,7 @@ export function BottomNav() {
             key={href}
             href={href}
             ref={(el) => { itemRefs.current[i] = el; }}
-            onClick={() => moveTo(i, true)}
+            onClick={() => { lastClickedRef.current = i; moveTo(i, true); }}
             style={{
               position: "relative",
               zIndex: 1,

@@ -73,12 +73,10 @@ export function Topbar() {
   const avatarUrl = identity?.avatarUrl ?? null;
   const avatarColor = identity?.avatarColor ?? "#e0625a";
 
-  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
-  const pillRef  = useRef<HTMLDivElement>(null);
+  const itemRefs       = useRef<(HTMLAnchorElement | null)[]>([]);
+  const pillRef        = useRef<HTMLDivElement>(null);
+  const lastClickedRef = useRef<number>(-1);
 
-  // Pattern identique au moveTo() du snippet Transitions.dev.
-  // animate=false → snap (reflow trick, transition suspendue).
-  // animate=true  → glissement (la class nc-nav-pill porte la transition).
   const moveTo = useCallback((idx: number, animate: boolean) => {
     const el   = itemRefs.current[idx];
     const pill = pillRef.current;
@@ -99,11 +97,15 @@ export function Topbar() {
     }
   }, []);
 
-  // Snap sans animation : premier rendu + navigation retour/avance.
   useLayoutEffect(() => {
     const idx = NAV_ITEMS.findIndex(
       ({ href }) => pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")),
     );
+    if (lastClickedRef.current === idx) {
+      lastClickedRef.current = -1;
+      return;
+    }
+    lastClickedRef.current = -1;
     moveTo(idx, false);
   }, [pathname, moveTo]);
 
@@ -178,7 +180,7 @@ export function Topbar() {
                   key={href}
                   href={href}
                   ref={(el) => { itemRefs.current[i] = el; }}
-                  onClick={() => moveTo(i, true)}
+                  onClick={() => { lastClickedRef.current = i; moveTo(i, true); }}
                   style={{
                     position: "relative",
                     zIndex: 1,
