@@ -163,9 +163,6 @@ export function Topbar() {
               style={{
                 position: "absolute",
                 left: 0,
-                top: 0,
-                height: 0,
-                width: 0,
                 background: "var(--nc-nav-active-bg)",
                 borderRadius: 9999,
                 pointerEvents: "none",
