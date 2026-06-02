@@ -231,9 +231,28 @@ export function CommunityPostDetailPage({
         </div>
 
         {postData.imageUrl && (
-          <div style={{ borderRadius: 12, overflow: "hidden" }}>
-            <img src={postData.imageUrl} alt="" style={{ width: "100%", maxHeight: 400, objectFit: "cover", display: "block" }} />
-          </div>
+          /* Slack-like : preview modérée + click pour agrandir dans onglet */
+          <a
+            href={postData.imageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "inline-block" }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={postData.imageUrl}
+              alt=""
+              style={{
+                maxWidth: 520,
+                maxHeight: 420,
+                borderRadius: 12,
+                border: "1px solid var(--color-border-default)",
+                objectFit: "cover",
+                display: "block",
+              }}
+              loading="lazy"
+            />
+          </a>
         )}
 
         {postData.videoUrl && (

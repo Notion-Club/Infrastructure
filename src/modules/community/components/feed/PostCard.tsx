@@ -227,9 +227,8 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
             {postData.title}
           </h2>
         )}
-        <p
+        <div
           style={{
-            margin: 0,
             fontSize: 14,
             color: "var(--color-text-secondary)",
             lineHeight: 1.55,
@@ -241,16 +240,32 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
           }}
         >
           {renderBodyRich(postData.body, postData.mentions)}
-        </p>
+        </div>
 
         {postData.imageUrl && (
-          <div style={{ borderRadius: 12, overflow: "hidden", marginTop: 4 }}>
+          /* Slack-like : preview modérée, ratio préservé, click pour ouvrir */
+          <a
+            href={postData.imageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            style={{ display: "inline-block", marginTop: 4 }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={postData.imageUrl}
               alt=""
-              style={{ width: "100%", maxHeight: 260, objectFit: "cover", display: "block" }}
+              style={{
+                maxWidth: 380,
+                maxHeight: 320,
+                borderRadius: 10,
+                border: "1px solid var(--color-border-default)",
+                objectFit: "cover",
+                display: "block",
+              }}
+              loading="lazy"
             />
-          </div>
+          </a>
         )}
 
         {postData.videoUrl && isYouTube(postData.videoUrl) && (
