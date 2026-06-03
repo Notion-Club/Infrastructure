@@ -147,7 +147,7 @@ export function MessageToolbar({
           <div
             style={{
               position: "absolute",
-              [align === "right" ? "right" : "left"]: 0,
+              [align === "right" ? "left" : "right"]: 0,
               bottom: "calc(100% + 6px)",
               background: "var(--color-surface-card)",
               border: "1px solid var(--color-border-default)",
@@ -251,7 +251,7 @@ export function MessageToolbar({
             <div
               style={{
                 position: "absolute",
-                [align === "right" ? "right" : "left"]: 0,
+                [align === "right" ? "left" : "right"]: 0,
                 top: "calc(100% + 6px)",
                 background: "var(--color-surface-card)",
                 border: "1px solid var(--color-border-default)",

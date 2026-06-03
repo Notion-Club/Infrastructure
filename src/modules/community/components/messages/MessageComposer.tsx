@@ -497,23 +497,47 @@ export function MessageComposer({
           onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
         />
 
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={!canSend}
-          style={{
-            width: 36, height: 36, borderRadius: "50%",
-            background: canSend ? "var(--color-brand)" : "var(--nc-btn-disabled-bg)",
-            border: "none", cursor: canSend ? "pointer" : "not-allowed",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: canSend ? "#fff" : "var(--nc-btn-disabled-text)",
-            flexShrink: 0,
-            transition: "all 150ms ease",
-          }}
-          aria-label="Envoyer"
-        >
-          <Send size={16} />
-        </button>
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          {pendingFile?.uploading && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: "calc(100% + 8px)",
+                right: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                background: "var(--color-surface-card)",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: 8,
+                padding: "5px 10px",
+                fontSize: 12,
+                color: "var(--color-text-secondary)",
+                whiteSpace: "nowrap",
+                boxShadow: "var(--nc-shadow-3)",
+              }}
+            >
+              <span className="nc-blink-dot" style={{ flexShrink: 0 }} />
+              Fichier en cours de chargement…
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!canSend}
+            style={{
+              width: 36, height: 36, borderRadius: "50%",
+              background: canSend ? "var(--color-brand)" : "var(--nc-btn-disabled-bg)",
+              border: "none", cursor: canSend ? "pointer" : "not-allowed",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: canSend ? "#fff" : "var(--nc-btn-disabled-text)",
+              transition: "all 150ms ease",
+            }}
+            aria-label="Envoyer"
+          >
+            <Send size={16} />
+          </button>
+        </div>
       </div>
 
       {/* OPS-44 — Lightbox d'agrandissement pour images ET PDF, ouverte au

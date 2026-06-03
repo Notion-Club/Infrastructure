@@ -330,6 +330,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
               highlighted={highlightedId === msg.id}
               lockedMessageId={lockedMessageId}
               onLockChange={setLockedMessageId}
+              onScrollToMessage={handleJumpToMessage}
             />
           ))
         )}

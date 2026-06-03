@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   BookOpen,
-  Users,
+  MessageCircle,
   Calendar,
   Library,
   Bell,
@@ -32,7 +32,7 @@ const LOGO_DARK =
 const NAV_ITEMS: NavItem[] = [
   { label: "Accueil", icon: Home, href: "/dashboard" },
   { label: "Formation", icon: BookOpen, href: "/formation" },
-  { label: "Communauté", icon: Users, href: "/communaute" },
+  { label: "Communauté", icon: MessageCircle, href: "/communaute" },
   { label: "Coaching", icon: Calendar, href: "/coaching" },
   { label: "Ressources", icon: Library, href: "/ressources" },
 ];

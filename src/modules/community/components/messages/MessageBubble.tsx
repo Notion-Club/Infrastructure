@@ -34,6 +34,8 @@ interface MessageBubbleProps {
   // pour être partagé entre toutes les bulles.
   lockedMessageId: string | null;
   onLockChange: (messageId: string | null) => void;
+  // Callback pour scroller vers un message cité (quote-reply click).
+  onScrollToMessage?: (id: string) => void;
 }
 
 export function MessageBubble({
@@ -44,6 +46,7 @@ export function MessageBubble({
   highlighted,
   lockedMessageId,
   onLockChange,
+  onScrollToMessage,
 }: MessageBubbleProps) {
   const [showToolbar, setShowToolbar] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -81,6 +84,7 @@ export function MessageBubble({
   // Un message en cours de persistance porte un id "pending-…". Pas d'actions
   // destructives ni de réaction tant qu'on n'a pas le vrai UUID DB.
   const isPending = message.id.startsWith("pending-");
+  const isImage = message.type === "image" && !!message.fileUrl;
 
   if (message.deleted) {
     return (
@@ -216,16 +220,17 @@ export function MessageBubble({
         {/* Bulle */}
         <div
           style={{
-            maxWidth: 360,
-            padding: "10px 14px",
+            maxWidth: isImage ? 240 : 360,
+            padding: isImage ? 0 : "10px 14px",
             borderRadius: isSelf ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-            background: isSelf ? "var(--color-brand)" : "var(--color-surface-raised)",
-            color: isSelf ? "#fff" : "var(--color-text-primary)",
-            border: isSelf ? "none" : "1px solid var(--color-border-default)",
+            background: isImage ? "transparent" : isSelf ? "var(--color-surface-raised)" : "var(--color-brand)",
+            color: isImage ? undefined : isSelf ? "var(--color-text-primary)" : "#fff",
+            border: isImage ? "none" : isSelf ? "1px solid var(--color-border-default)" : "none",
             fontSize: 14,
             lineHeight: 1.5,
             wordBreak: "break-word",
             position: "relative",
+            overflow: "hidden",
           }}
         >
           {/* Badge Forwarded (mig. 028) */}
@@ -239,7 +244,7 @@ export function MessageBubble({
                 fontStyle: "italic",
                 opacity: 0.8,
                 marginBottom: 6,
-                color: isSelf ? "rgba(255,255,255,0.85)" : "var(--color-text-muted)",
+                color: isSelf ? "var(--color-text-muted)" : "rgba(255,255,255,0.85)",
               }}
             >
               <Forward size={11} />
@@ -250,15 +255,18 @@ export function MessageBubble({
           {/* Quote block (mig. 027) — message cité au-dessus du body */}
           {message.replySnippet && (
             <div
+              onClick={() => message.replyToMessageId && onScrollToMessage?.(message.replyToMessageId)}
+              className={message.replyToMessageId ? "hover:opacity-70" : ""}
               style={{
                 display: "flex",
                 alignItems: "stretch",
                 gap: 8,
                 marginBottom: 6,
                 padding: "6px 10px",
-                background: isSelf ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.04)",
+                background: isSelf ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.18)",
                 borderRadius: 8,
-                borderLeft: `3px solid ${isSelf ? "rgba(255,255,255,0.6)" : "var(--color-brand)"}`,
+                borderLeft: `3px solid ${isSelf ? "var(--color-brand)" : "rgba(255,255,255,0.6)"}`,
+                cursor: message.replyToMessageId ? "pointer" : "default",
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -266,7 +274,7 @@ export function MessageBubble({
                   style={{
                     fontSize: 11,
                     fontWeight: 600,
-                    color: isSelf ? "rgba(255,255,255,0.9)" : "var(--color-brand)",
+                    color: isSelf ? "var(--color-brand)" : "rgba(255,255,255,0.9)",
                     marginBottom: 2,
                   }}
                 >
@@ -275,7 +283,7 @@ export function MessageBubble({
                 <div
                   style={{
                     fontSize: 12,
-                    color: isSelf ? "rgba(255,255,255,0.8)" : "var(--color-text-secondary)",
+                    color: isSelf ? "var(--color-text-secondary)" : "rgba(255,255,255,0.8)",
                     lineHeight: 1.4,
                     whiteSpace: "nowrap",
                     overflow: "hidden",
@@ -309,12 +317,12 @@ export function MessageBubble({
                   minWidth: 180,
                   padding: "6px 8px",
                   border: "1px solid",
-                  borderColor: isSelf ? "rgba(255,255,255,0.4)" : "var(--color-border-default)",
+                  borderColor: isSelf ? "var(--color-border-default)" : "rgba(255,255,255,0.4)",
                   borderRadius: 6,
                   fontSize: 14,
                   fontFamily: "inherit",
-                  background: isSelf ? "rgba(255,255,255,0.15)" : "var(--color-surface-card)",
-                  color: isSelf ? "#fff" : "var(--color-text-primary)",
+                  background: isSelf ? "var(--color-surface-card)" : "rgba(255,255,255,0.15)",
+                  color: isSelf ? "var(--color-text-primary)" : "#fff",
                   outline: "none",
                   resize: "vertical",
                 }}
@@ -331,7 +339,7 @@ export function MessageBubble({
                     padding: "4px 8px",
                     border: "none",
                     background: "transparent",
-                    color: isSelf ? "rgba(255,255,255,0.9)" : "var(--color-text-muted)",
+                    color: isSelf ? "var(--color-text-muted)" : "rgba(255,255,255,0.9)",
                     fontSize: 12,
                     cursor: "pointer",
                     borderRadius: 6,
@@ -348,7 +356,7 @@ export function MessageBubble({
                   style={{
                     padding: "4px 10px",
                     border: "none",
-                    background: isSelf ? "rgba(255,255,255,0.2)" : "var(--color-brand)",
+                    background: isSelf ? "var(--color-brand)" : "rgba(255,255,255,0.2)",
                     color: "#fff",
                     fontSize: 12,
                     fontWeight: 600,
@@ -369,9 +377,8 @@ export function MessageBubble({
                 <span style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
               )}
               {message.type === "image" && message.fileUrl && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {/* Slack-like : image taille modérée, click ouvre lightbox
-                      globale (cf. ImageLightboxRoot via 'nc-image-open'). */}
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  {/* iMessage-style : image remplit entièrement la bulle, click ouvre lightbox globale. */}
                   <button
                     type="button"
                     onClick={(e) => {
@@ -387,7 +394,8 @@ export function MessageBubble({
                       border: "none",
                       background: "transparent",
                       cursor: "zoom-in",
-                      display: "inline-block",
+                      display: "block",
+                      width: "100%",
                     }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -395,9 +403,8 @@ export function MessageBubble({
                       src={message.fileUrl}
                       alt={message.fileName ?? ""}
                       style={{
-                        maxWidth: 320,
+                        width: "100%",
                         maxHeight: 320,
-                        borderRadius: 8,
                         display: "block",
                         objectFit: "cover",
                       }}
@@ -406,7 +413,7 @@ export function MessageBubble({
                   </button>
                   {/* Body texte optionnel accompagnant l'image */}
                   {message.body && (
-                    <span style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
+                    <span style={{ padding: "8px 12px", whiteSpace: "pre-wrap", display: "block" }}>{linkify(message.body)}</span>
                   )}
                 </div>
               )}
@@ -427,10 +434,10 @@ export function MessageBubble({
                     gap: 10,
                     padding: "8px 12px",
                     borderRadius: 8,
-                    background: isSelf ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.04)",
+                    background: isSelf ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.18)",
                     border: isSelf
-                      ? "1px solid rgba(255,255,255,0.25)"
-                      : "1px solid var(--color-border-default)",
+                      ? "1px solid var(--color-border-default)"
+                      : "1px solid rgba(255,255,255,0.25)",
                     color: "inherit",
                     textDecoration: "none",
                     maxWidth: 320,
@@ -481,7 +488,7 @@ export function MessageBubble({
                 fontStyle: "italic",
                 opacity: 0.7,
                 marginTop: 2,
-                color: isSelf ? "rgba(255,255,255,0.8)" : "var(--color-text-muted)",
+                color: isSelf ? "var(--color-text-muted)" : "rgba(255,255,255,0.8)",
               }}
               title={`Modifié le ${fullDateTime(message.editedAt)}`}
             >

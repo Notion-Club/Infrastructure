@@ -11,7 +11,7 @@ const MOCK_FORMATION = {
   progressPercent: 58,
   modulesCompleted: 5,
   modulesTotal: 12,
-  resumeUrl: "/formation/module-6/video-3",
+  resumeUrl: "/formation",
   formationUrl: "/formation",
 };
 

@@ -3,7 +3,7 @@
 import { useLayoutEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, BookOpen, Users, Calendar, Library, type LucideIcon } from "lucide-react";
+import { Home, BookOpen, MessageCircle, Calendar, Library, type LucideIcon } from "lucide-react";
 
 type NavItem = {
   label: string;
@@ -14,7 +14,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { label: "Accueil", icon: Home, href: "/dashboard" },
   { label: "Formation", icon: BookOpen, href: "/formation" },
-  { label: "Communauté", icon: Users, href: "/communaute" },
+  { label: "Communauté", icon: MessageCircle, href: "/communaute" },
   { label: "Coaching", icon: Calendar, href: "/coaching" },
   { label: "Ressources", icon: Library, href: "/ressources" },
 ];
