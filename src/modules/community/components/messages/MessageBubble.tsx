@@ -190,6 +190,11 @@ export function MessageBubble({
         boxShadow: highlighted ? "0 0 0 3px rgba(224,98,90,0.35)" : "none",
         borderRadius: highlighted ? 16 : undefined,
         transition: "box-shadow 600ms ease",
+        // Quand le menu / picker est ouvert sur ce message, on monte la bulle
+        // au-dessus des suivantes — sinon le dropdown (z-index local) est
+        // recouvert par la bulle voisine qui crée son propre stacking
+        // context (chaque bulle a position:relative).
+        zIndex: isThisLocked ? 100 : undefined,
       }}
       onMouseEnter={() => {
         // Si un autre message est locked (menu déroulant ouvert ailleurs),
