@@ -23,6 +23,8 @@ import {
   resendVerificationEmail,
   sendVerificationEmail,
 } from "@/modules/auth/server/email";
+import { createNotionMember } from "@/shared/lib/notion/write";
+import { createSupabaseAdminClient } from "@/shared/lib/supabase/admin";
 
 // ============================================================================
 // Types de retour communs
@@ -117,6 +119,32 @@ export async function signUpAction(input: SignupInput): Promise<AuthResult> {
     await sendVerificationEmail({ userId, email, firstName });
   } catch (err) {
     console.error("[signUp] sendVerificationEmail failed:", err);
+  }
+
+  // Création de la page Notion Membres (best-effort). Si Notion répond OK,
+  // on persiste l'ID retourné dans profiles.notion_member_page_id — clé de
+  // tous les flows coaching/membres ultérieurs. Si Notion down ou DB non
+  // configurée (env var absente), on log et on n'embraye pas le signup.
+  try {
+    const notionPageId = await createNotionMember({
+      uuid: userId,
+      firstName,
+      lastName,
+      email,
+    });
+    if (notionPageId) {
+      const admin = createSupabaseAdminClient();
+      const { error: updateErr } = await admin
+        .from("profiles")
+        .update({ notion_member_page_id: notionPageId })
+        .eq("id", userId)
+        .is("notion_member_page_id", null); // idempotence : ne réécrit pas
+      if (updateErr) {
+        console.error("[signUp] persist notion_member_page_id failed:", updateErr.message);
+      }
+    }
+  } catch (err) {
+    console.error("[signUp] createNotionMember threw:", err);
   }
 
   // TODO(posthog) : track('user_signed_up_challenge', { user_id: userId }).
