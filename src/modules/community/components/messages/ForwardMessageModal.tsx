@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Search, Forward, Check } from "lucide-react";
 import { toast } from "sonner";
 import type { User } from "../../types/user.types";
-import { forwardMessageAction, listMembersAction } from "../../server/actions";
+import { forwardMessageAction } from "../../server/actions";
 import type { CommunityMember } from "../../server/queries";
 import { FORWARD_MAX_TARGETS } from "../../lib/validation";
+import { useMembersList } from "../../hooks/useMembersList";
 import { UserAvatar } from "../shared/UserAvatar";
 
 interface ForwardMessageModalProps {
@@ -42,59 +43,30 @@ export function ForwardMessageModal({
   onClose,
   onDone,
 }: ForwardMessageModalProps) {
-  const [members, setMembers] = useState<CommunityMember[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [sending, setSending] = useState(false);
   const [mounted, setMounted] = useState(false);
-  // OPS-99 — État de chargement explicite. Avant : on affichait "Aucun membre
-  // trouvé" dès le premier render alors que la query n'était pas encore
-  // résolue, ce qui donnait l'impression d'un bug même quand la liste finissait
-  // par arriver. Maintenant, on distingue "en cours de chargement" vs "vraiment
-  // vide" pour que l'utilisateur ait un feedback visuel correct.
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // OPS-99 v3 — Cache module-level via hook partagé. Première ouverture =
+  // fetch (~200-700ms). Toutes les suivantes = instantané. Le hook gère
+  // aussi le partage entre composants (NewConversationModal pourra
+  // bénéficier du même cache en migrant plus tard).
+  const { members: allMembers, loading, error: fetchError } = useMembersList();
+
+  // Filtre l'utilisateur courant — pas de self-forward. useMemo pour ne
+  // pas recalculer à chaque keypress dans la search.
+  const members = useMemo<CommunityMember[]>(
+    () =>
+      currentUser?.id
+        ? allMembers.filter((m) => m.id !== currentUser.id)
+        : allMembers,
+    [allMembers, currentUser?.id],
+  );
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    // OPS-99 v2 — fix confirmé par les runtime logs Vercel. La Server Action
-    // `listMembersAction` partait bien (2 requêtes Supabase 200 OK visibles)
-    // mais le state React ne se mettait jamais à jour, restant figé sur
-    // "Chargement des membres…".
-    //
-    // Cause : le pattern `let alive = true` + cleanup `alive = false` causait
-    // un échec en combinaison avec React 19 StrictMode (double-mount). Le
-    // premier effect lance la promesse PUIS son cleanup met `alive = false`.
-    // La closure de la promesse capture cette variable → quand la résolution
-    // arrive, `if (!alive) return` court-circuite. Le second effect crée
-    // un NOUVEAU `alive = true` mais sa propre promesse peut aussi être
-    // cleanup avant résolution si le parent re-render (ex: lockedMessageId
-    // qui passe à null après fermeture du menu kebab).
-    //
-    // Fix : on supprime totalement le guard `alive`. En React 19 le setState
-    // après unmount est inoffensif (warning console au pire, plus de crash
-    // depuis React 18+). Mieux vaut un setState orphelin qu'un état figé
-    // qui rend la modale inutilisable.
-    setLoading(true);
-    setFetchError(null);
-
-    listMembersAction()
-      .then((list) => {
-        const filtered = currentUser?.id
-          ? list.filter((m) => m.id !== currentUser.id)
-          : list;
-        setMembers(filtered);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("[ForwardMessageModal] listMembersAction failed:", err);
-        setFetchError("Impossible de charger la liste des membres.");
-        setLoading(false);
-      });
-  }, [currentUser?.id]);
 
   // Lock body scroll + Echap close — pattern identique au lightbox du
   // composer. Évite que la page scrolle derrière le modal.
@@ -320,16 +292,53 @@ export function ForwardMessageModal({
         {/* Members list */}
         <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
           {loading ? (
-            <div
-              style={{
-                padding: 32,
-                textAlign: "center",
-                color: "var(--color-text-muted)",
-                fontSize: 13,
-              }}
-            >
-              Chargement des membres…
-            </div>
+            // Skeleton — 5 lignes grises animées pulse pour donner un
+            // feedback visuel cohérent avec MessageBubbleSkeleton du thread.
+            // Beaucoup plus rassurant que le texte "Chargement…" qui peut
+            // donner l'impression que rien ne se passe.
+            <>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 12px",
+                  }}
+                  className="animate-pulse"
+                >
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: "50%",
+                      background: "var(--color-surface-raised)",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div
+                      style={{
+                        width: `${50 + (i * 7) % 30}%`,
+                        height: 12,
+                        borderRadius: 4,
+                        background: "var(--color-surface-raised)",
+                      }}
+                    />
+                    <div
+                      style={{
+                        width: "30%",
+                        height: 10,
+                        borderRadius: 4,
+                        background: "var(--color-surface-raised)",
+                        opacity: 0.6,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </>
           ) : fetchError ? (
             <div
               style={{

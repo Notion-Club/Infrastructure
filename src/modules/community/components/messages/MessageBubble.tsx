@@ -7,6 +7,7 @@ import type { Message } from "../../types/conversation.types";
 import { timeAgo, fullDateTime } from "../../utils/date-helpers";
 import { linkify } from "../../utils/linkify";
 import { useUserTopEmojis } from "../../hooks/useUserTopEmojis";
+import { prefetchMembersList } from "../../hooks/useMembersList";
 import {
   deleteMessageAction,
   editMessageAction,
@@ -201,6 +202,13 @@ export function MessageBubble({
         // on n'affiche PAS la toolbar de celui-ci pour éviter le chevauchement.
         if (isAnotherLocked) return;
         setShowToolbar(true);
+        // Prefetch best-effort de la liste des membres pour la modale
+        // Forward. Si l'utilisateur clique "Transférer" derrière, la modale
+        // s'affiche instantanément (cache déjà rempli) au lieu d'attendre
+        // ~200-700ms le round-trip Server Action.
+        // La fonction est no-op si déjà en cache → safe d'appeler à chaque
+        // hover.
+        if (!isPending) prefetchMembersList();
       }}
       onMouseLeave={() => {
         // Si CE message est locked (picker/menu ouvert), on garde la toolbar
