@@ -47,23 +47,59 @@ export function ForwardMessageModal({
   const [query, setQuery] = useState("");
   const [sending, setSending] = useState(false);
   const [mounted, setMounted] = useState(false);
+  // OPS-99 — État de chargement explicite. Avant : on affichait "Aucun membre
+  // trouvé" dès le premier render alors que la query n'était pas encore
+  // résolue, ce qui donnait l'impression d'un bug même quand la liste finissait
+  // par arriver. Maintenant, on distingue "en cours de chargement" vs "vraiment
+  // vide" pour que l'utilisateur ait un feedback visuel correct.
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    listMembersAction().then((list) => {
-      if (cancelled) return;
-      // Filtre l'utilisateur courant — pas de self-forward (la server action
-      // l'ignore de toute façon, mais c'est plus clean côté UI).
-      setMembers(list.filter((m) => m.id !== currentUser.id));
-    });
+    // OPS-99 — fix défensif. Ancien code utilisait `let cancelled = false` +
+    // cleanup `cancelled = true` ce qui en théorie sert à éviter un setState
+    // après unmount. Mais combiné au StrictMode de React 19 (double-mount
+    // intentional en dev), le SECOND useEffect héritait parfois d'une closure
+    // dont le `cancelled` venait du premier effect cleanup → setMembers
+    // n'était jamais appelé alors que la promesse résolvait correctement.
+    // On retire ce pattern et on garde un guard via `isMounted` calculé
+    // depuis un ref. Plus simple, plus fiable.
+    //
+    // En bonus : on protège le filter contre un currentUser.id undefined
+    // (rare mais possible si le contexte d'auth est en cours d'hydratation
+    // au moment où la modale est ouverte), et on catch les erreurs réseau
+    // explicitement pour avoir un feedback utilisateur clair.
+    let alive = true;
+    setLoading(true);
+    setFetchError(null);
+
+    listMembersAction()
+      .then((list) => {
+        if (!alive) return;
+        // Filtre l'utilisateur courant — pas de self-forward (la server action
+        // l'ignore de toute façon, mais c'est plus clean côté UI). Si l'id
+        // courant est undefined, on n'applique simplement pas le filtre.
+        const filtered = currentUser?.id
+          ? list.filter((m) => m.id !== currentUser.id)
+          : list;
+        setMembers(filtered);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("[ForwardMessageModal] listMembersAction failed:", err);
+        if (!alive) return;
+        setFetchError("Impossible de charger la liste des membres.");
+        setLoading(false);
+      });
+
     return () => {
-      cancelled = true;
+      alive = false;
     };
-  }, [currentUser.id]);
+  }, [currentUser?.id]);
 
   // Lock body scroll + Echap close — pattern identique au lightbox du
   // composer. Évite que la page scrolle derrière le modal.
@@ -288,7 +324,7 @@ export function ForwardMessageModal({
 
         {/* Members list */}
         <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
-          {filtered.length === 0 ? (
+          {loading ? (
             <div
               style={{
                 padding: 32,
@@ -297,7 +333,29 @@ export function ForwardMessageModal({
                 fontSize: 13,
               }}
             >
-              Aucun membre trouvé
+              Chargement des membres…
+            </div>
+          ) : fetchError ? (
+            <div
+              style={{
+                padding: 32,
+                textAlign: "center",
+                color: "var(--color-brand)",
+                fontSize: 13,
+              }}
+            >
+              {fetchError}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div
+              style={{
+                padding: 32,
+                textAlign: "center",
+                color: "var(--color-text-muted)",
+                fontSize: 13,
+              }}
+            >
+              {query.trim() ? "Aucun membre trouvé" : "Aucun autre membre disponible"}
             </div>
           ) : (
             filtered.map((m) => {

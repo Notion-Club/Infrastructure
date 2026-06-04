@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { SmilePlus, Reply, MoreHorizontal, Pencil, Trash2, Forward } from "lucide-react";
 
 // Picker complet — étendu (16 emojis) pour couvrir le besoin "j'ai pas mon
@@ -49,8 +50,26 @@ export function MessageToolbar({
 }: MessageToolbarProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Le menu et le picker sont rendus via createPortal (cf. plus bas) pour
+  // sortir du stacking context de la bulle parente — sinon, malgré un
+  // z-index élevé, ils passaient sous les bulles voisines (chaque bulle
+  // crée son propre stacking context via position:relative). Voir le bug
+  // visible sur prod où "Transférer" disparaissait sous le message suivant.
   const pickerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  // Refs sur les boutons trigger pour positionner les popovers en absolu
+  // depuis le viewport (via getBoundingClientRect dans le portal).
+  const pickerBtnRef = useRef<HTMLButtonElement>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const [pickerPos, setPickerPos] = useState<{ top: number; left: number; right: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; right: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Hydratation côté client (createPortal nécessite document, qui n'existe
+  // pas au SSR).
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Click-outside global : ferme le picker / le menu si on clique hors.
   // Utilisé en complément du onMouseLeave parent — l'user peut vouloir
@@ -58,15 +77,71 @@ export function MessageToolbar({
   useEffect(() => {
     if (!pickerOpen && !menuOpen) return;
     function close(e: MouseEvent) {
-      if (pickerOpen && pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        pickerOpen &&
+        pickerRef.current &&
+        !pickerRef.current.contains(target) &&
+        pickerBtnRef.current &&
+        !pickerBtnRef.current.contains(target)
+      ) {
         setPickerOpen(false);
       }
-      if (menuOpen && menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (
+        menuOpen &&
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
+        menuBtnRef.current &&
+        !menuBtnRef.current.contains(target)
+      ) {
         setMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
+  }, [pickerOpen, menuOpen]);
+
+  // Calcule la position du popover dès qu'il s'ouvre, en se basant sur le
+  // bounding rect du bouton trigger. Comme le popover est dans document.body
+  // via createPortal, il faut le positionner en `position: fixed` par rapport
+  // au viewport (pas par rapport au parent).
+  useEffect(() => {
+    if (!pickerOpen || !pickerBtnRef.current) return;
+    const rect = pickerBtnRef.current.getBoundingClientRect();
+    setPickerPos({
+      // Bottom du popover = top du trigger - 6px (popover au-dessus, comme avant)
+      top: rect.top - 6,
+      left: rect.left,
+      right: window.innerWidth - rect.right,
+    });
+  }, [pickerOpen]);
+
+  useEffect(() => {
+    if (!menuOpen || !menuBtnRef.current) return;
+    const rect = menuBtnRef.current.getBoundingClientRect();
+    setMenuPos({
+      // Top du popover = bottom du trigger + 6px (popover en-dessous)
+      top: rect.bottom + 6,
+      left: rect.left,
+      right: window.innerWidth - rect.right,
+    });
+  }, [menuOpen]);
+
+  // Si la fenêtre est scrollée pendant que le popover est ouvert, on le
+  // ferme — éviter qu'il "flotte" hors de son bouton trigger. Plus simple
+  // qu'un reposition continu via scroll listener.
+  useEffect(() => {
+    if (!pickerOpen && !menuOpen) return;
+    function onScrollOrResize() {
+      setPickerOpen(false);
+      setMenuOpen(false);
+    }
+    window.addEventListener("scroll", onScrollOrResize, { capture: true, passive: true });
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, { capture: true });
+      window.removeEventListener("resize", onScrollOrResize);
+    };
   }, [pickerOpen, menuOpen]);
 
   // Remonte au parent dès qu'un des deux popovers s'ouvre/ferme, pour qu'il
@@ -120,35 +195,41 @@ export function MessageToolbar({
         );
       })}
 
-      {/* Picker complet — bouton + popup */}
-      <div ref={pickerRef} style={{ position: "relative" }}>
-        <button
-          type="button"
-          onClick={() => setPickerOpen((o) => !o)}
-          title="Plus d'emojis"
-          style={{
-            width: 28,
-            height: 28,
-            border: "none",
-            background: pickerOpen ? "rgba(0,0,0,0.06)" : "transparent",
-            borderRadius: "50%",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--color-text-muted)",
-            transition: "background 120ms ease",
-          }}
-          className="hover:bg-[rgba(0,0,0,0.05)]"
-        >
-          <SmilePlus size={14} />
-        </button>
-        {pickerOpen && (
+      {/* Picker complet — bouton trigger seul, le popover est rendu via portal */}
+      <button
+        ref={pickerBtnRef}
+        type="button"
+        onClick={() => setPickerOpen((o) => !o)}
+        title="Plus d'emojis"
+        style={{
+          width: 28,
+          height: 28,
+          border: "none",
+          background: pickerOpen ? "rgba(0,0,0,0.06)" : "transparent",
+          borderRadius: "50%",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--color-text-muted)",
+          transition: "background 120ms ease",
+        }}
+        className="hover:bg-[rgba(0,0,0,0.05)]"
+      >
+        <SmilePlus size={14} />
+      </button>
+      {mounted && pickerOpen && pickerPos &&
+        createPortal(
           <div
+            ref={pickerRef}
             style={{
-              position: "absolute",
-              [align === "right" ? "right" : "left"]: 0,
-              bottom: "calc(100% + 6px)",
+              position: "fixed",
+              // Popover au-dessus du trigger : on positionne le BOTTOM du
+              // popover sur le top du trigger. CSS-side : on utilise
+              // `bottom: window.innerHeight - pickerPos.top` pour ancrer.
+              bottom: window.innerHeight - pickerPos.top,
+              [align === "right" ? "right" : "left"]:
+                align === "right" ? pickerPos.right : pickerPos.left,
               background: "var(--color-surface-card)",
               border: "1px solid var(--color-border-default)",
               borderRadius: 12,
@@ -157,8 +238,11 @@ export function MessageToolbar({
               display: "grid",
               gridTemplateColumns: "repeat(8, 1fr)",
               gap: 2,
-              zIndex: 1000,
+              // z-index très élevé — on est dans document.body, donc plus
+              // de conflit avec le stacking context d'une bulle voisine.
+              zIndex: 9999,
               width: 264,
+              animation: "nc-mode-in 150ms var(--nc-ease) both",
             }}
           >
             {EMOJI_PICKER.map((e) => (
@@ -186,9 +270,9 @@ export function MessageToolbar({
                 {e}
               </button>
             ))}
-          </div>
+          </div>,
+          document.body,
         )}
-      </div>
 
       {/* Séparateur visuel */}
       <span
@@ -223,81 +307,89 @@ export function MessageToolbar({
         <Reply size={14} />
       </button>
 
-      {/* Kebab — Modifier / Supprimer (auteur) ou Transférer (tous) */}
+      {/* Kebab — bouton trigger seul, menu rendu via portal pour échapper
+          au stacking context des bulles voisines (fix prod confirmé sur
+          la capture où "Transférer" passait sous la bulle suivante). */}
       {hasKebab && (
-        <div ref={menuRef} style={{ position: "relative" }}>
-          <button
-            type="button"
-            onClick={() => setMenuOpen((o) => !o)}
-            title="Plus d'actions"
-            style={{
-              width: 28,
-              height: 28,
-              border: "none",
-              background: menuOpen ? "rgba(0,0,0,0.06)" : "transparent",
-              borderRadius: "50%",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--color-text-muted)",
-              transition: "background 120ms ease",
-            }}
-            className="hover:bg-[rgba(0,0,0,0.05)]"
-          >
-            <MoreHorizontal size={14} />
-          </button>
-          {menuOpen && (
-            <div
-              style={{
-                position: "absolute",
-                [align === "right" ? "right" : "left"]: 0,
-                top: "calc(100% + 6px)",
-                background: "var(--color-surface-card)",
-                border: "1px solid var(--color-border-default)",
-                borderRadius: 12,
-                boxShadow: "var(--nc-shadow-3)",
-                padding: 4,
-                zIndex: 1000,
-                minWidth: 180,
-                animation: "nc-mode-in 150ms var(--nc-ease) both",
-              }}
-            >
-              {onEdit && (
-                <MenuItem
-                  icon={<Pencil size={14} />}
-                  label="Modifier"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onEdit();
-                  }}
-                />
-              )}
-              {onForward && (
-                <MenuItem
-                  icon={<Forward size={14} />}
-                  label="Transférer"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onForward();
-                  }}
-                />
-              )}
-              {onDelete && (
-                <MenuItem
-                  icon={<Trash2 size={14} />}
-                  label="Supprimer"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onDelete();
-                  }}
-                  danger
-                />
-              )}
-            </div>
-          )}
-        </div>
+        <button
+          ref={menuBtnRef}
+          type="button"
+          onClick={() => setMenuOpen((o) => !o)}
+          title="Plus d'actions"
+          style={{
+            width: 28,
+            height: 28,
+            border: "none",
+            background: menuOpen ? "rgba(0,0,0,0.06)" : "transparent",
+            borderRadius: "50%",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--color-text-muted)",
+            transition: "background 120ms ease",
+          }}
+          className="hover:bg-[rgba(0,0,0,0.05)]"
+        >
+          <MoreHorizontal size={14} />
+        </button>
       )}
+      {mounted && hasKebab && menuOpen && menuPos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{
+              position: "fixed",
+              top: menuPos.top,
+              [align === "right" ? "right" : "left"]:
+                align === "right" ? menuPos.right : menuPos.left,
+              background: "var(--color-surface-card)",
+              border: "1px solid var(--color-border-default)",
+              borderRadius: 12,
+              boxShadow: "var(--nc-shadow-3)",
+              padding: 4,
+              // z-index très élevé — on est dans document.body, donc on
+              // passe au-dessus de toutes les bulles et stacking contexts
+              // des messages voisins. C'est le fix robuste de OPS-95 / 105.
+              zIndex: 9999,
+              minWidth: 180,
+              animation: "nc-mode-in 150ms var(--nc-ease) both",
+            }}
+          >
+            {onEdit && (
+              <MenuItem
+                icon={<Pencil size={14} />}
+                label="Modifier"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onEdit();
+                }}
+              />
+            )}
+            {onForward && (
+              <MenuItem
+                icon={<Forward size={14} />}
+                label="Transférer"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onForward();
+                }}
+              />
+            )}
+            {onDelete && (
+              <MenuItem
+                icon={<Trash2 size={14} />}
+                label="Supprimer"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDelete();
+                }}
+                danger
+              />
+            )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
