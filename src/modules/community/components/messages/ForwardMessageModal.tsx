@@ -60,29 +60,29 @@ export function ForwardMessageModal({
   }, []);
 
   useEffect(() => {
-    // OPS-99 — fix défensif. Ancien code utilisait `let cancelled = false` +
-    // cleanup `cancelled = true` ce qui en théorie sert à éviter un setState
-    // après unmount. Mais combiné au StrictMode de React 19 (double-mount
-    // intentional en dev), le SECOND useEffect héritait parfois d'une closure
-    // dont le `cancelled` venait du premier effect cleanup → setMembers
-    // n'était jamais appelé alors que la promesse résolvait correctement.
-    // On retire ce pattern et on garde un guard via `isMounted` calculé
-    // depuis un ref. Plus simple, plus fiable.
+    // OPS-99 v2 — fix confirmé par les runtime logs Vercel. La Server Action
+    // `listMembersAction` partait bien (2 requêtes Supabase 200 OK visibles)
+    // mais le state React ne se mettait jamais à jour, restant figé sur
+    // "Chargement des membres…".
     //
-    // En bonus : on protège le filter contre un currentUser.id undefined
-    // (rare mais possible si le contexte d'auth est en cours d'hydratation
-    // au moment où la modale est ouverte), et on catch les erreurs réseau
-    // explicitement pour avoir un feedback utilisateur clair.
-    let alive = true;
+    // Cause : le pattern `let alive = true` + cleanup `alive = false` causait
+    // un échec en combinaison avec React 19 StrictMode (double-mount). Le
+    // premier effect lance la promesse PUIS son cleanup met `alive = false`.
+    // La closure de la promesse capture cette variable → quand la résolution
+    // arrive, `if (!alive) return` court-circuite. Le second effect crée
+    // un NOUVEAU `alive = true` mais sa propre promesse peut aussi être
+    // cleanup avant résolution si le parent re-render (ex: lockedMessageId
+    // qui passe à null après fermeture du menu kebab).
+    //
+    // Fix : on supprime totalement le guard `alive`. En React 19 le setState
+    // après unmount est inoffensif (warning console au pire, plus de crash
+    // depuis React 18+). Mieux vaut un setState orphelin qu'un état figé
+    // qui rend la modale inutilisable.
     setLoading(true);
     setFetchError(null);
 
     listMembersAction()
       .then((list) => {
-        if (!alive) return;
-        // Filtre l'utilisateur courant — pas de self-forward (la server action
-        // l'ignore de toute façon, mais c'est plus clean côté UI). Si l'id
-        // courant est undefined, on n'applique simplement pas le filtre.
         const filtered = currentUser?.id
           ? list.filter((m) => m.id !== currentUser.id)
           : list;
@@ -91,14 +91,9 @@ export function ForwardMessageModal({
       })
       .catch((err) => {
         console.error("[ForwardMessageModal] listMembersAction failed:", err);
-        if (!alive) return;
         setFetchError("Impossible de charger la liste des membres.");
         setLoading(false);
       });
-
-    return () => {
-      alive = false;
-    };
   }, [currentUser?.id]);
 
   // Lock body scroll + Echap close — pattern identique au lightbox du
