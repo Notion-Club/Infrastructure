@@ -752,58 +752,68 @@ export async function listConversations(): Promise<Conversation[]> {
   }
   if (!rows || rows.length === 0) return [];
 
-  // Pour calculer unreadCount sans tirer tous les messages, on fetche
-  // uniquement ceux postérieurs au plus ancien last_read par viewer.
-  // En pratique, la liste-vue n'affiche que le count : on garde une query
-  // light qui ne ramène que conversation_id + sender_id + created_at.
+  // OPS-98 — On délègue à une RPC SQL (mig. 032) qui calcule en une seule
+  // passe le dernier message non-supprimé + le compteur de non-lus pour
+  // chaque conv. Avant : on ramenait TOUS les messages des 100 convs et on
+  // filtrait en JS → latence visible (le ticket décrit un placeholder
+  // "Aucun message" qui flash avant que le preview arrive). Maintenant : 1
+  // query indexée DISTINCT ON, ~10x plus rapide.
+  type ConversationSummary = {
+    conversation_id: string;
+    last_message_id: string;
+    last_message_type: string;
+    last_message_body: string;
+    last_message_file_name: string | null;
+    last_message_sender_id: string;
+    last_message_created_at: string;
+    unread_count: number;
+  };
   const convIds = rows.map((r) => r.id);
-  const { data: lightMessages } = await supabase
-    .from("messages")
-    .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name")
-    .in("conversation_id", convIds)
-    .returns<MessageRow[]>();
+  // .returns<>() ne fonctionne pas correctement sur les RPC supabase-js v2 :
+  // il infère un union d'erreur ("Cannot cast single object to array type")
+  // même quand la fonction returns SETOF. Workaround : cast manuel via
+  // `as unknown as ConversationSummary[]` (la fonction SQL garantit le shape).
+  const { data: summariesRaw } = await supabase.rpc("list_conversation_summaries", {
+    conv_ids: convIds,
+    viewer_id: viewerId,
+  });
+  const summaries = (summariesRaw ?? []) as unknown as ConversationSummary[];
 
-  const messages = lightMessages ?? [];
-
-  // Index du dernier message par conversation (le plus récent non-supprimé).
-  // O(N) sur tous les messages des 100 dernières convs — acceptable pour
-  // la liste latérale, qu'on garde rapide à charger.
-  const lastByConv = new Map<string, MessageRow>();
-  for (const m of messages) {
-    if (m.deleted) continue;
-    const current = lastByConv.get(m.conversation_id);
-    if (!current || m.created_at > current.created_at) {
-      lastByConv.set(m.conversation_id, m);
-    }
-  }
+  const summaryByConv = new Map(
+    summaries.map((s) => [s.conversation_id, s]),
+  );
 
   return rows.map((row) => {
     const isA = row.participant_a_id === viewerId;
     const other = isA ? row.participant_b : row.participant_a;
     const otherId = isA ? row.participant_b_id : row.participant_a_id;
-    const last = lastByConv.get(row.id);
+    const summary = summaryByConv.get(row.id);
     // Preview troncage côté serveur à 140 chars (l'UI affichera ~50 via
     // CSS text-overflow). Pour les attachments (image/pdf), on fournit
     // un libellé symbolique pour que l'UI affiche "📷 Image" / "📎 Fichier".
     let preview: string | undefined;
-    if (last) {
-      if (last.type === "text") {
-        preview = last.body.slice(0, 140);
-      } else if (last.type === "image") {
+    if (summary) {
+      if (summary.last_message_type === "text") {
+        preview = summary.last_message_body.slice(0, 140);
+      } else if (summary.last_message_type === "image") {
         preview = "📷 Image";
       } else {
-        preview = `📎 ${last.file_name ?? "Fichier"}`;
+        preview = `📎 ${summary.last_message_file_name ?? "Fichier"}`;
       }
     }
     return {
       id: row.id,
       participant: other ? mapProfileToUser(other) : deletedUserShape(otherId),
       messages: [],
-      unreadCount: computeUnreadCount(row, viewerId, messages),
+      unreadCount: summary?.unread_count ?? 0,
       lastMessageAt: row.last_message_at,
       lastMessagePreview: preview,
-      lastMessageFromMe: last ? last.sender_id === viewerId : undefined,
-      lastMessageType: last ? (last.type as MessageType) : undefined,
+      lastMessageFromMe: summary
+        ? summary.last_message_sender_id === viewerId
+        : undefined,
+      lastMessageType: summary
+        ? (summary.last_message_type as MessageType)
+        : undefined,
     };
   });
 }
