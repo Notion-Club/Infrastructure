@@ -54,13 +54,21 @@ export function ForwardMessageModal({
 
   useEffect(() => {
     let cancelled = false;
+    console.log("[ForwardModal] mount, fetching members, currentUser.id =", currentUser.id);
     listMembersAction().then((list) => {
-      if (cancelled) return;
-      // Filtre l'utilisateur courant — pas de self-forward (la server action
-      // l'ignore de toute façon, mais c'est plus clean côté UI).
-      setMembers(list.filter((m) => m.id !== currentUser.id));
+      console.log("[ForwardModal] listMembersAction returned", list.length, "members:", list.map((m) => `${m.id} ${m.name}`));
+      if (cancelled) {
+        console.log("[ForwardModal] cancelled, skipping setState");
+        return;
+      }
+      const filtered = list.filter((m) => m.id !== currentUser.id);
+      console.log("[ForwardModal] after filter currentUser:", filtered.length);
+      setMembers(filtered);
+    }).catch((err) => {
+      console.error("[ForwardModal] listMembersAction error:", err);
     });
     return () => {
+      console.log("[ForwardModal] cleanup, setting cancelled=true");
       cancelled = true;
     };
   }, [currentUser.id]);
