@@ -630,29 +630,44 @@ export async function deletePostMediaAction(
 // pas appeler queries.ts qui utilise createSupabaseServerClient sans
 // "use server").
 export async function listMembersAction(): Promise<CommunityMember[]> {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, first_name, last_name, display_name, username, avatar_url, role")
-    .order("username", { ascending: true, nullsFirst: false })
-    .limit(50)
-    .returns<
-      Array<{
-        id: string;
-        first_name: string | null;
-        last_name: string | null;
-        display_name: string | null;
-        username: string | null;
-        avatar_url: string | null;
-        role: string | null;
-      }>
-    >();
+  const t0 = Date.now();
+  console.log("[listMembersAction] START");
+  try {
+    const supabase = await createSupabaseServerClient();
+    console.log("[listMembersAction] supabase client created", Date.now() - t0, "ms");
 
-  if (error) {
-    console.error("[listMembersAction] failed:", error.message);
-    return [];
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log("[listMembersAction] auth.getUser →", user?.id ?? "NO_USER", authError?.message ?? "no_auth_err");
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, display_name, username, avatar_url, role")
+      .order("username", { ascending: true, nullsFirst: false })
+      .limit(50)
+      .returns<
+        Array<{
+          id: string;
+          first_name: string | null;
+          last_name: string | null;
+          display_name: string | null;
+          username: string | null;
+          avatar_url: string | null;
+          role: string | null;
+        }>
+      >();
+    console.log("[listMembersAction] query done", Date.now() - t0, "ms — rows:", data?.length ?? 0, "error:", error?.message ?? "none");
+
+    if (error) {
+      console.error("[listMembersAction] failed:", error.message);
+      return [];
+    }
+    const mapped = (data ?? []).map(mapProfileMember);
+    console.log("[listMembersAction] END", Date.now() - t0, "ms — returning", mapped.length, "members");
+    return mapped;
+  } catch (err) {
+    console.error("[listMembersAction] CAUGHT EXCEPTION:", err);
+    throw err;
   }
-  return (data ?? []).map(mapProfileMember);
 }
 
 // ============================================================================
