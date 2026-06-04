@@ -157,7 +157,7 @@ export function MessageToolbar({
               display: "grid",
               gridTemplateColumns: "repeat(8, 1fr)",
               gap: 2,
-              zIndex: 200,
+              zIndex: 1000,
               width: 264,
             }}
           >
@@ -258,7 +258,7 @@ export function MessageToolbar({
                 borderRadius: 12,
                 boxShadow: "var(--nc-shadow-3)",
                 padding: 4,
-                zIndex: 200,
+                zIndex: 1000,
                 minWidth: 180,
                 animation: "nc-mode-in 150ms var(--nc-ease) both",
               }}
