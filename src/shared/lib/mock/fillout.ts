@@ -1,18 +1,24 @@
-// Construit les URLs Fillout depuis les env vars NEXT_PUBLIC_FILLOUT_*_FORM_ID.
-// Fallback sur l'ancien placeholder si non défini (préserve le build / la dev
-// sans config), avec un warning console côté serveur uniquement.
+// URLs Fillout consommées par la page /coaching.
 //
-// Variables attendues (cf. .env.example) :
-//   - NEXT_PUBLIC_FILLOUT_COACHING_FORM_ID
-//   - NEXT_PUBLIC_FILLOUT_SALES_FORM_ID
-// À configurer côté Vercel (Production + Preview).
+// Préférence : variables d'environnement (configurées côté Vercel pour la
+// prod). Fallback : URLs des formulaires actuels pour permettre le dev local
+// sans config.
+//
+// Variables attendues (préfixe NEXT_PUBLIC_ car consommées côté client) :
+//   - NEXT_PUBLIC_FILLOUT_COACHING_URL : URL complète du formulaire coaching
+//   - NEXT_PUBLIC_FILLOUT_SALES_URL    : URL complète du formulaire sales
+//                                         (Théo prépare un form dédié — vide
+//                                         pour l'instant côté Vercel)
 
-const COACHING_ID =
-  process.env.NEXT_PUBLIC_FILLOUT_COACHING_FORM_ID || "FILLOUT_COACHING_ID";
-const SALES_ID =
-  process.env.NEXT_PUBLIC_FILLOUT_SALES_FORM_ID || "FILLOUT_VENTE_ID";
+const COACHING_FALLBACK = "https://gouman.fillout.com/coaching";
+// Pas de fallback sales tant que le form n'est pas créé : on tombe sur la
+// même URL coaching pour ne pas crasher l'UI en dev, mais ça doit être
+// remplacé en prod.
+const SALES_FALLBACK = COACHING_FALLBACK;
 
 export const FILLOUT_URLS = {
-  coaching: `https://forms.fillout.com/t/${COACHING_ID}`,
-  sales: `https://forms.fillout.com/t/${SALES_ID}`,
+  coaching:
+    process.env.NEXT_PUBLIC_FILLOUT_COACHING_URL || COACHING_FALLBACK,
+  sales:
+    process.env.NEXT_PUBLIC_FILLOUT_SALES_URL || SALES_FALLBACK,
 };

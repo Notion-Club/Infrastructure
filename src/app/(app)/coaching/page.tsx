@@ -26,7 +26,7 @@ import {
   MOCK_EXPIRED_PAST_CALLS,
 } from "@/shared/lib/mock/coaching";
 import { FILLOUT_URLS } from "@/shared/lib/mock/fillout";
-import { MOCK_USER } from "@/shared/lib/mock/user";
+import { ensureNotionMemberPage } from "@/modules/coaching";
 
 const STORAGE_KEY = "nc_coaching_dev_state";
 
@@ -97,35 +97,45 @@ interface CTAConfig {
 
 function getCTAConfig(
   state: UserState,
-  openModal: (url: string) => void
+  openModal: (url: string) => void,
+  preparing: boolean,
 ): CTAConfig {
+  // Texte affiché pendant que ensureNotionMemberPage tourne (~200-500ms en
+  // moyenne — peut monter à 1-2s au tout premier clic d'un ancien membre
+  // Notion qu'on doit matcher par email et tagger l'UUID).
+  const prepLabel = "Préparation…";
+
   switch (state) {
     case "free":
       return {
         icon: Sparkles,
         secondaryText: "Discutons de ton projet",
-        buttonText: "Réserver un appel découverte",
+        buttonText: preparing ? prepLabel : "Réserver un appel découverte",
+        disabled: preparing,
         onButtonClick: () => openModal(FILLOUT_URLS.sales),
       };
     case "formation_0_calls":
       return {
         icon: CalendarCheck,
         secondaryText: "Bloque ton créneau",
-        buttonText: "Réserver mon coaching",
+        buttonText: preparing ? prepLabel : "Réserver mon coaching",
+        disabled: preparing,
         onButtonClick: () => openModal(FILLOUT_URLS.coaching),
       };
     case "formation_1_call":
       return {
         icon: TrendingUp,
         secondaryText: "Passe au niveau supérieur",
-        buttonText: "Passer à l'Accompagnement",
+        buttonText: preparing ? prepLabel : "Passer à l'Accompagnement",
+        disabled: preparing,
         onButtonClick: () => openModal(FILLOUT_URLS.sales),
       };
     case "accompagnement_eligible":
       return {
         icon: CalendarPlus,
         secondaryText: "Avance sur ton projet",
-        buttonText: "Réserver un coaching",
+        buttonText: preparing ? prepLabel : "Réserver un coaching",
+        disabled: preparing,
         onButtonClick: () => openModal(FILLOUT_URLS.coaching),
       };
     case "accompagnement_not_eligible":
@@ -142,7 +152,8 @@ function getCTAConfig(
       return {
         icon: RefreshCw,
         secondaryText: "Renouvelle ton accompagnement",
-        buttonText: "Renouveler mon accompagnement",
+        buttonText: preparing ? prepLabel : "Renouveler mon accompagnement",
+        disabled: preparing,
         onButtonClick: () => openModal(FILLOUT_URLS.sales),
       };
   }
@@ -198,11 +209,27 @@ function getRightColumnConfig(state: UserState): RightColumnConfig {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+interface PrefillUserInfo {
+  id: string | null;
+  mail: string | null;
+  prenom: string | null;
+  nom: string | null;
+}
+
+const EMPTY_USER_INFO: PrefillUserInfo = {
+  id: null,
+  mail: null,
+  prenom: null,
+  nom: null,
+};
+
 export default function CoachingPage() {
   const [userState, setUserState] =
     useState<UserState>("accompagnement_eligible");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalUrl, setModalUrl] = useState("");
+  const [preparing, setPreparing] = useState(false);
+  const [userInfo, setUserInfo] = useState<PrefillUserInfo>(EMPTY_USER_INFO);
 
   // Restore persisted dev state
   useEffect(() => {
@@ -215,13 +242,39 @@ export default function CoachingPage() {
     localStorage.setItem(STORAGE_KEY, state);
   }
 
-  function openModal(url: string) {
+  async function openModal(url: string) {
+    // Garde contre les doubles clics rapides.
+    if (preparing) return;
+    setPreparing(true);
+
+    // Résout (ou crée / matche par email) la page Notion Membres de l'user
+    // courant. Tout en best-effort : si Notion KO, on ouvre quand même Fillout
+    // mais sans préfile (l'user devra se chercher dans la liste).
+    try {
+      const result = await ensureNotionMemberPage();
+      if (result.ok) {
+        setUserInfo({
+          id: result.pageId, // null possible si Notion KO
+          mail: result.email,
+          prenom: result.firstName,
+          nom: result.lastName,
+        });
+      } else {
+        // Pas authentifié ou profile introuvable — on ouvre Fillout vide.
+        setUserInfo(EMPTY_USER_INFO);
+      }
+    } catch (err) {
+      console.error("[coaching] ensureNotionMemberPage threw:", err);
+      setUserInfo(EMPTY_USER_INFO);
+    }
+
     setModalUrl(url);
     setModalOpen(true);
+    setPreparing(false);
   }
 
   const headerConfig = getHeaderConfig(userState);
-  const ctaConfig = getCTAConfig(userState, openModal);
+  const ctaConfig = getCTAConfig(userState, openModal, preparing);
   const rightConfig = getRightColumnConfig(userState);
   const isExpired = userState === "accompagnement_expired";
   const allCallsEmpty =
@@ -315,9 +368,11 @@ export default function CoachingPage() {
       <FilloutModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        url={modalUrl}
-        userEmail={MOCK_USER.email}
-        memberId={MOCK_USER.notion_member_page_id}
+        baseUrl={modalUrl}
+        id={userInfo.id}
+        mail={userInfo.mail}
+        prenom={userInfo.prenom}
+        nom={userInfo.nom}
       />
     </>
   );
