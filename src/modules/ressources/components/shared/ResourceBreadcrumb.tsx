@@ -20,6 +20,7 @@ export function ResourceBreadcrumb({ items }: ResourceBreadcrumbProps) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <button
         type="button"
+        data-fb-label="Bouton Revenir à Ressources · Fil d'ariane"
         onClick={() => router.push('/ressources')}
         style={{
           display: 'inline-flex',
@@ -45,6 +46,7 @@ export function ResourceBreadcrumb({ items }: ResourceBreadcrumbProps) {
       {items.length > 0 && (
         <nav
           aria-label="Fil d'Ariane"
+          data-fb-label="Fil d'ariane chemin · Page ressource"
           style={{
             display: 'flex',
             alignItems: 'center',

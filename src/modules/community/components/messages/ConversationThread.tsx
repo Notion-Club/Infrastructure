@@ -192,9 +192,10 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div data-fb-label="Thread de messages · Communauté" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Thread header */}
       <div
+        data-fb-label="En-tête · Thread de messages"
         style={{
           display: "flex",
           alignItems: "center",
@@ -209,6 +210,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
           <button
             type="button"
             onClick={onBack}
+            data-fb-label="Bouton Retour liste · Thread de messages"
             style={{
               width: 32, height: 32, borderRadius: "50%",
               border: "none", background: "transparent",
@@ -235,6 +237,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
         <button
           type="button"
           onClick={() => setSearchOpen((v) => !v)}
+          data-fb-label="Bouton Rechercher · Thread de messages"
           aria-label={searchOpen ? "Fermer la recherche" : "Rechercher dans la conversation"}
           aria-pressed={searchOpen}
           style={{
@@ -266,6 +269,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
       {/* Messages */}
       <div
         ref={scrollRef}
+        data-fb-label="Liste des messages · Thread de messages"
         style={{
           flex: 1,
           overflowY: "auto",
@@ -283,6 +287,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
               type="button"
               onClick={handleLoadOlder}
               disabled={isLoadingOlder}
+              data-fb-label="Bouton Charger messages précédents · Thread de messages"
               style={{
                 display: "inline-flex",
                 alignItems: "center",

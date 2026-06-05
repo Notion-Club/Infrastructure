@@ -125,9 +125,9 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
   }
 
   return (
-    <div style={{ display: "flex", gap: 12 }}>
+    <div data-fb-label="Carte commentaire · Détail du post" style={{ display: "flex", gap: 12 }}>
       <UserHoverCard user={comment.author} devRole={devRole}>
-        <div style={{ cursor: "pointer", flexShrink: 0 }}>
+        <div data-fb-label="Avatar auteur · Carte commentaire" style={{ cursor: "pointer", flexShrink: 0 }}>
           <UserAvatar user={comment.author} size={36} />
         </div>
       </UserHoverCard>
@@ -198,6 +198,7 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
             <button
               type="button"
               onClick={() => setReplyOpen((o) => !o)}
+              data-fb-label="Bouton Répondre · Carte commentaire"
               style={{
                 fontSize: 12,
                 color: replyOpen ? "var(--color-brand)" : "var(--color-text-muted)",

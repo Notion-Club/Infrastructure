@@ -57,10 +57,16 @@ export function ResetPasswordRequestForm() {
   }
 
   return (
-    <div className="nc-shine-card w-full max-w-[420px]">
+    <div
+      className="nc-shine-card w-full max-w-[420px]"
+      data-fb-label="Carte auth · Mot de passe oublié"
+    >
       <div className="nc-shine-card__inner flex flex-col gap-6">
         <header className="flex flex-col gap-2">
-          <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">
+          <h2
+            className="text-[18px] font-semibold text-[var(--color-text-primary)]"
+            data-fb-label="Titre · Formulaire mot de passe oublié"
+          >
             Mot de passe oublié
           </h2>
           <p className="text-[14px] text-[var(--color-text-secondary)]">
@@ -72,12 +78,18 @@ export function ResetPasswordRequestForm() {
         {successMessage ? (
           <div
             role="status"
+            data-fb-label="Encadré Confirmation envoi · Formulaire mot de passe oublié"
             className="rounded-2xl border border-[rgba(34,197,94,0.25)] bg-[rgba(34,197,94,0.08)] px-4 py-3 text-[14px] leading-snug text-[var(--color-text-primary)]"
           >
             {successMessage}
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col gap-5"
+            noValidate
+            data-fb-label="Formulaire · Formulaire mot de passe oublié"
+          >
             <label htmlFor="email" className="flex flex-col gap-2">
               <span className="text-[14px] font-medium text-[var(--color-text-secondary)]">
                 Email
@@ -91,6 +103,7 @@ export function ResetPasswordRequestForm() {
                 required
                 disabled={isPending}
                 aria-invalid={fieldErrors.email ? true : undefined}
+                data-fb-label="Champ Email · Formulaire mot de passe oublié"
                 className="nc-input disabled:cursor-not-allowed disabled:opacity-60"
               />
               {fieldErrors.email && (
@@ -103,6 +116,7 @@ export function ResetPasswordRequestForm() {
             <button
               type="submit"
               disabled={isPending}
+              data-fb-label="Bouton Envoyer le lien · Formulaire mot de passe oublié"
               className="nc-btn-shine group flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-5 py-3.5 text-[15px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(224,98,90,0.55)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_14px_32px_-10px_rgba(224,98,90,0.65)] active:translate-y-0 active:shadow-[0_6px_16px_-6px_rgba(224,98,90,0.55)] disabled:cursor-not-allowed disabled:opacity-80"
             >
               <span className="relative z-10 flex items-center gap-2">
@@ -117,6 +131,7 @@ export function ResetPasswordRequestForm() {
           <Link
             href="/login"
             className="font-medium text-[var(--color-text-secondary)] underline underline-offset-4 hover:text-[var(--color-text-primary)]"
+            data-fb-label="Lien Retour à la connexion · Formulaire mot de passe oublié"
           >
             Retour à la connexion
           </Link>

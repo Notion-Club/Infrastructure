@@ -29,10 +29,10 @@ export function ProgramView({
     null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+    <div data-fb-label="Page programme" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
       <FormationBackLink />
 
-      <header style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <header data-fb-label="En-tête programme · Page programme" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <h1
           style={{
             fontSize: "clamp(32px, 4vw, 48px)",
@@ -63,6 +63,7 @@ export function ProgramView({
 
         {isComplete && (
           <div
+            data-fb-label="Encadré programme terminé · Page programme"
             style={{
               marginTop: 4,
               background: "linear-gradient(110deg, rgba(224,98,90,0.10), rgba(224,98,90,0.03))",
@@ -82,7 +83,7 @@ export function ProgramView({
         )}
       </header>
 
-      <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <section data-fb-label="Liste des modules · Page programme" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {detail.modules.map((m) => (
           <ModuleAccordion
             key={m.id}

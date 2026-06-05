@@ -43,6 +43,7 @@ export function ConversationList({
 
   return (
     <div
+      data-fb-label="Liste conversations · Communauté"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -65,6 +66,7 @@ export function ConversationList({
           <button
             type="button"
             onClick={() => setShowModal(true)}
+            data-fb-label="Bouton Nouvelle conversation · Liste conversations"
             style={{
               width: 30, height: 30, borderRadius: "50%",
               background: "var(--color-brand)", color: "#fff",
@@ -78,7 +80,9 @@ export function ConversationList({
             <Plus size={16} />
           </button>
         </div>
-        <div style={{
+        <div
+          data-fb-label="Barre de recherche · Liste conversations"
+          style={{
           display: "flex", alignItems: "center", gap: 6,
           background: "var(--color-surface-raised)", borderRadius: 9999,
           padding: "7px 12px", border: "1px solid var(--color-border-default)",
@@ -89,6 +93,7 @@ export function ConversationList({
             placeholder="Rechercher…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            data-fb-label="Champ de recherche · Liste conversations"
             style={{ flex: 1, border: "none", background: "transparent", fontSize: 13, outline: "none", color: "var(--color-text-primary)" }}
           />
         </div>

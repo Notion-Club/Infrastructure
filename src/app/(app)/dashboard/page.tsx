@@ -72,6 +72,7 @@ export default async function DashboardPage() {
                 Bon retour
               </p>
               <h1
+                data-fb-label="Titre Salutation · Tableau de bord"
                 style={{
                   fontSize: "clamp(42px, 5vw, 64px)",
                   fontWeight: 700,
@@ -87,6 +88,7 @@ export default async function DashboardPage() {
 
             {/* Search bar desktop */}
             <div
+              data-fb-label="Barre de recherche · Tableau de bord"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -136,6 +138,7 @@ export default async function DashboardPage() {
           {/* Greeting — mobile uniquement */}
           <div className="md:hidden flex flex-col gap-1">
             <h1
+              data-fb-label="Titre Salutation · Tableau de bord"
               style={{
                 fontSize: "clamp(36px, 9vw, 48px)",
                 fontWeight: 700,
@@ -151,6 +154,7 @@ export default async function DashboardPage() {
 
           {/* Search bar — mobile uniquement */}
           <div
+            data-fb-label="Barre de recherche · Tableau de bord"
             className="md:hidden flex items-center gap-2 bg-[var(--color-surface-card)] border border-[var(--color-border-default)] rounded-full px-4 py-2.5"
             style={{ cursor: "pointer" }}
           >
@@ -164,13 +168,17 @@ export default async function DashboardPage() {
           </div>
 
           {/* Widgets */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div
+            data-fb-label="Grille de widgets · Tableau de bord"
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
             <EmailConfirmBanner />
             <FormationWidget />
             <ProfilWidget />
 
             {/* Placeholder zone future */}
             <div
+              data-fb-label="Encadré « À venir » · Grille de widgets"
               className="col-span-1 md:col-span-2"
               style={{
                 border: "1.5px dashed var(--color-border-default)",

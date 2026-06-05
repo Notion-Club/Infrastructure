@@ -20,6 +20,7 @@ export function TemplatePageFooter({
 
   return (
     <div
+      data-fb-label="Pied de page template · Page template"
       style={{
         marginTop: 48,
         background: 'var(--color-surface-card)',
@@ -35,6 +36,7 @@ export function TemplatePageFooter({
           href={template.urlNotionPublicPage}
           target="_blank"
           rel="noopener noreferrer"
+          data-fb-label="Bouton Dupliquer dans Notion · Pied de page template"
           style={{
             width: '100%',
             display: 'flex',
@@ -58,6 +60,7 @@ export function TemplatePageFooter({
         </a>
       ) : (
         <div
+          data-fb-label="Cadenas accès · Pied de page template"
           style={{
             width: '100%',
             display: 'flex',
@@ -93,6 +96,7 @@ export function TemplatePageFooter({
             Ces templates peuvent aussi t&apos;intéresser
           </h2>
           <div
+            data-fb-label="Grille templates liés · Pied de page template"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',

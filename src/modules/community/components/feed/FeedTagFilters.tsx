@@ -23,6 +23,7 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
 
   return (
     <div
+      data-fb-label="Filtres tags · Feed"
       style={{
         display: "flex",
         alignItems: "center",
@@ -39,6 +40,7 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
               key={f.value}
               type="button"
               onClick={() => onChange(f.value)}
+              data-fb-label={`Filtre tag « ${f.label} » · Feed`}
               style={{
                 /* Fixed min-width prevents layout shift when font-weight changes */
                 minWidth: 90,
@@ -67,6 +69,7 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
       <button
         type="button"
         onClick={onNewPost}
+        data-fb-label="Bouton Nouveau post · Feed"
         className="nc-btn-shine hidden md:inline-flex"
         style={{
           alignItems: "center",

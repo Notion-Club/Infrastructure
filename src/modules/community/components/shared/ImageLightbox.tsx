@@ -67,6 +67,7 @@ export function ImageLightbox({ url, alt = "", onClose }: ImageLightboxProps) {
         type="button"
         onClick={onClose}
         aria-label="Fermer l'aperçu"
+        data-fb-label="Bouton Fermer · Aperçu image"
         style={{
           position: "fixed",
           top: 16,
@@ -95,6 +96,7 @@ export function ImageLightbox({ url, alt = "", onClose }: ImageLightboxProps) {
         src={url}
         alt={alt}
         onClick={(e) => e.stopPropagation()}
+        data-fb-label="Image agrandie · Aperçu image"
         style={{
           maxWidth: "90vw",
           maxHeight: "90vh",

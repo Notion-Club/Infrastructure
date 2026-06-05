@@ -53,6 +53,7 @@ export function EmailField({
 
   return (
     <div
+      data-fb-label="Encadré email · Section profil"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -86,6 +87,7 @@ export function EmailField({
           id="platform-email"
           name="platform-email"
           type="email"
+          data-fb-label="Champ Email Notion Club · Section profil"
           value={platformEmail}
           onChange={(e) => onPlatformEmailChange(e.target.value)}
           onBlur={onPlatformEmailBlur}
@@ -189,6 +191,7 @@ export function EmailField({
               id="notion-email"
               name="notion-email"
               type="email"
+              data-fb-label="Champ Email Notion · Section profil"
               value={notionEmail}
               onChange={(e) => onNotionEmailChange(e.target.value)}
               onBlur={onNotionEmailBlur}
@@ -235,6 +238,7 @@ function Checkbox({
 }) {
   return (
     <label
+      data-fb-label="Interrupteur Email Notion séparé · Section profil"
       style={{
         display: "inline-flex",
         alignItems: "center",

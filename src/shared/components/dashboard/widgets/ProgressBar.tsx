@@ -6,7 +6,7 @@ type ProgressBarProps = {
 
 export function ProgressBar({ percent, from, to }: ProgressBarProps) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <div data-fb-label="Barre de progression" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <div
         style={{
           height: 5,

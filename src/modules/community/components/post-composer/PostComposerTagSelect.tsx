@@ -189,6 +189,7 @@ export function PostComposerTagSelect({
         onClick={handleToggle}
         aria-haspopup="listbox"
         aria-expanded={open}
+        data-fb-label="Sélecteur de tag · Composer de post"
         style={{
           display: "inline-flex",
           alignItems: "center",

@@ -44,6 +44,7 @@ export function SuggestTemplateCard({ variant }: SuggestCardProps) {
       <div
         role="button"
         tabIndex={0}
+        data-fb-label="Carte suggestion · Grille des ressources"
         onClick={() => setModalOpen(true)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -93,6 +94,7 @@ export function SuggestTemplateCard({ variant }: SuggestCardProps) {
         </div>
 
         <span
+          data-fb-label="Bouton Suggérer · Carte suggestion"
           style={{
             display: 'inline-flex',
             alignItems: 'center',

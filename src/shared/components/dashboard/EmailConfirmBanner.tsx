@@ -29,7 +29,10 @@ export async function EmailConfirmBanner() {
   const showGmail = isGmailLikeUser(email);
 
   return (
-    <div className="nc-shine-card col-span-1 md:col-span-2">
+    <div
+      className="nc-shine-card col-span-1 md:col-span-2"
+      data-fb-label="Bannière Confirmation email · Tableau de bord"
+    >
       <div
         className="nc-shine-card__inner"
         style={{ padding: "20px 24px" }}

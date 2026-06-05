@@ -64,6 +64,7 @@ export function EmailConfirmBannerActions({
           rel="noopener noreferrer"
           aria-label="Ouvrir Gmail"
           title="Ouvrir Gmail"
+          data-fb-label="Bouton Ouvrir Gmail · Bannière Confirmation email"
           style={{
             width: 36,
             height: 36,
@@ -95,6 +96,7 @@ export function EmailConfirmBannerActions({
         type="button"
         onClick={handleClick}
         disabled={disabled}
+        data-fb-label="Bouton Renvoyer l'email · Bannière Confirmation email"
         style={{
           height: 36,
           padding: "0 18px",

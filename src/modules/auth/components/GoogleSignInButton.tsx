@@ -9,8 +9,10 @@ import { signInWithGoogleAction } from "@/modules/auth/server/actions";
 // fait que ce composant ne reçoit jamais de réponse "success".
 export function GoogleSignInButton({
   label = "Continuer avec Google",
+  "data-fb-label": dataFbLabel,
 }: {
   label?: string;
+  "data-fb-label"?: string;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -27,6 +29,7 @@ export function GoogleSignInButton({
         variant="outline"
         className="w-full gap-2"
         disabled={isPending}
+        data-fb-label={dataFbLabel}
       >
         <GoogleLogo className="size-4" />
         {isPending ? "Redirection..." : label}

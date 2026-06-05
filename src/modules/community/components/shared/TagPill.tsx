@@ -20,6 +20,7 @@ export function TagPill({ tag, size = "md" }: TagPillProps) {
 
   return (
     <span
+      data-fb-label={`Badge tag « ${config.label} » · Communauté`}
       style={{
         display: "inline-flex",
         alignItems: "center",

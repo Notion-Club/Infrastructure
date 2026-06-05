@@ -67,6 +67,7 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
+        data-fb-label="Modale Nouvelle conversation · Communauté"
         style={{
           background: "var(--color-surface-card)",
           borderRadius: 20,
@@ -82,7 +83,7 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
           padding: "16px 20px", borderBottom: "1px solid var(--color-border-default)",
         }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Nouvelle conversation</h3>
-          <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex" }}>
+          <button type="button" onClick={onClose} data-fb-label="Bouton Fermer · Modale Nouvelle conversation" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex" }}>
             <X size={20} />
           </button>
         </div>
@@ -100,6 +101,7 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
               placeholder="Rechercher un membre…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              data-fb-label="Champ de recherche membre · Modale Nouvelle conversation"
               style={{ flex: 1, border: "none", background: "transparent", fontSize: 14, outline: "none", color: "var(--color-text-primary)" }}
             />
           </div>
@@ -112,6 +114,7 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
               key={m.id}
               type="button"
               onClick={() => { onSelect(m.id); onClose(); }}
+              data-fb-label="Carte membre · Modale Nouvelle conversation"
               style={{
                 width: "100%",
                 display: "flex",

@@ -154,6 +154,7 @@ function ReactionPill({ reaction, compact, onReact, allReactions }: ReactionPill
         onPointerDown={onPressDown}
         onPointerUp={onPressUp}
         onPointerCancel={onPressUp}
+        data-fb-label={`Réaction ${emoji} · Barre de réactions`}
         style={{
           position: "relative",
           display: "inline-flex",
@@ -314,6 +315,7 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
           <button
             type="button"
             onClick={onCommentClick}
+            data-fb-label="Compteur commentaires · Barre de réactions"
             style={{
               fontSize: compact ? 12 : 13,
               color: "var(--color-text-muted)",

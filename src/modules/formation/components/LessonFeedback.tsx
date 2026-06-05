@@ -49,6 +49,7 @@ export function LessonFeedback({ courseName, formationName, moduleName }: Props)
       <button
         type="button"
         onClick={openPopup}
+        data-fb-label="Bouton Un feedback ? · Lecteur de leçon"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -95,6 +96,7 @@ export function LessonFeedback({ courseName, formationName, moduleName }: Props)
                 onClick={(e) => e.stopPropagation()}
                 className="nc-pop-card"
                 data-closing={closing}
+                data-fb-label="Modale feedback leçon · Lecteur de leçon"
                 style={{
                   width: "100%",
                   maxWidth: 460,
@@ -171,7 +173,7 @@ export function FeedbackBody({
   if (phase === "done") return <DonePanel showCountdown={!onDone} />;
 
   return (
-    <div style={{ padding: 22 }}>
+    <div data-fb-label="Formulaire feedback leçon · Modale feedback" style={{ padding: 22 }}>
       <header
         style={{
           display: "flex",
@@ -225,6 +227,7 @@ export function FeedbackBody({
               key={label}
               type="button"
               onClick={() => setAvis(label)}
+              data-fb-label={`Réaction « ${label} » · Formulaire feedback leçon`}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -278,6 +281,7 @@ export function FeedbackBody({
               onChange={(e) => setComment(e.target.value.slice(0, 1900))}
               placeholder="Optionnel — ton retour nous aide à améliorer le Notion Club…"
               rows={3}
+              data-fb-label="Champ commentaire feedback · Formulaire feedback leçon"
               style={{
                 width: "100%",
                 border: "1px solid var(--color-border-default)",
@@ -297,6 +301,7 @@ export function FeedbackBody({
               type="button"
               onClick={submit}
               disabled={phase === "sending"}
+              data-fb-label="Bouton Envoyer mon feedback · Formulaire feedback leçon"
               style={{
                 marginTop: 12,
                 width: "100%",

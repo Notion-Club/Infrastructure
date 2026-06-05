@@ -30,6 +30,7 @@ export function PostKebabMenu({ onEdit, onDelete, onTogglePin, pinned }: PostKeb
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        data-fb-label="Menu options · Communauté"
         style={{
           width: 32,
           height: 32,

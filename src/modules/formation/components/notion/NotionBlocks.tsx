@@ -178,31 +178,32 @@ function SingleBlock({ block }: { block: NotionBlock }) {
   switch (block.type) {
     case "paragraph":
       return (
-        <p style={paragraphStyle}>
+        <p data-fb-label="Paragraphe Notion · Corps Notion" style={paragraphStyle}>
           <RichText spans={block.rich} />
         </p>
       );
     case "heading_1":
       return (
-        <h2 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--color-text-primary)", margin: "24px 0 8px" }}>
+        <h2 data-fb-label="Titre Notion · Corps Notion" style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--color-text-primary)", margin: "24px 0 8px" }}>
           <RichText spans={block.rich} />
         </h2>
       );
     case "heading_2":
       return (
-        <h3 style={{ fontSize: 21, fontWeight: 600, letterSpacing: "-0.01em", color: "var(--color-text-primary)", margin: "20px 0 6px" }}>
+        <h3 data-fb-label="Titre Notion · Corps Notion" style={{ fontSize: 21, fontWeight: 600, letterSpacing: "-0.01em", color: "var(--color-text-primary)", margin: "20px 0 6px" }}>
           <RichText spans={block.rich} />
         </h3>
       );
     case "heading_3":
       return (
-        <h4 style={{ fontSize: 17, fontWeight: 600, color: "var(--color-text-primary)", margin: "16px 0 4px" }}>
+        <h4 data-fb-label="Titre Notion · Corps Notion" style={{ fontSize: 17, fontWeight: 600, color: "var(--color-text-primary)", margin: "16px 0 4px" }}>
           <RichText spans={block.rich} />
         </h4>
       );
     case "quote":
       return (
         <blockquote
+          data-fb-label="Citation Notion · Corps Notion"
           style={{
             borderLeft: "3px solid var(--color-brand)",
             paddingLeft: 14,
@@ -219,6 +220,7 @@ function SingleBlock({ block }: { block: NotionBlock }) {
     case "callout":
       return (
         <div
+          data-fb-label="Callout Notion · Corps Notion"
           style={{
             display: "flex",
             gap: 10,
@@ -241,6 +243,7 @@ function SingleBlock({ block }: { block: NotionBlock }) {
     case "code":
       return (
         <pre
+          data-fb-label="Bloc code Notion · Corps Notion"
           style={{
             background: "#1f1c1c",
             color: "#f5f5f5",
@@ -258,7 +261,7 @@ function SingleBlock({ block }: { block: NotionBlock }) {
       );
     case "image":
       return (
-        <figure style={{ margin: "14px 0" }}>
+        <figure data-fb-label="Image Notion · Corps Notion" style={{ margin: "14px 0" }}>
           {block.url && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -347,6 +350,7 @@ function BlockList({ blocks }: { blocks: NotionBlock[] }) {
       out.push(
         <ListTag
           key={`list-${group[0].id}`}
+          data-fb-label="Liste Notion · Corps Notion"
           style={{
             margin: "8px 0",
             paddingLeft: 22,
@@ -382,7 +386,7 @@ export function NotionBlocks({ blocks }: { blocks: NotionBlock[] }) {
     );
   }
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
+    <div data-fb-label="Corps Notion · Leçon" style={{ display: "flex", flexDirection: "column" }}>
       <BlockList blocks={blocks} />
     </div>
   );

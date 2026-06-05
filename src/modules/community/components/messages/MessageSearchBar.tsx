@@ -124,6 +124,7 @@ export function MessageSearchBar({
 
   return (
     <div
+      data-fb-label="Barre de recherche · Thread de messages"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -152,6 +153,7 @@ export function MessageSearchBar({
               onClose();
             }
           }}
+          data-fb-label="Champ de recherche · Thread de messages"
           placeholder="Rechercher dans la conversation…"
           style={{
             flex: 1,
@@ -223,6 +225,7 @@ export function MessageSearchBar({
                   key={hit.id}
                   type="button"
                   onClick={() => onJumpToMessage(hit.id)}
+                  data-fb-label="Résultat de recherche · Thread de messages"
                   style={{
                     width: "100%",
                     textAlign: "left",

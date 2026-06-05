@@ -102,7 +102,7 @@ export function CommentReplyItem({ reply, devRole, currentUser }: CommentReplyIt
   }
 
   return (
-    <div style={{ display: "flex", gap: 10, paddingLeft: 24 }}>
+    <div data-fb-label="Réponse à un commentaire · Détail du post" style={{ display: "flex", gap: 10, paddingLeft: 24 }}>
       <div
         style={{
           width: 1.5,

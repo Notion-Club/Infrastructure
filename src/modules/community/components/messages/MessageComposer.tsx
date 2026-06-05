@@ -231,6 +231,7 @@ export function MessageComposer({
 
   return (
     <div
+      data-fb-label="Composer de message · Communauté"
       style={{
         borderTop: "1px solid var(--color-border-default)",
         background: "var(--color-surface-card)",
@@ -450,6 +451,7 @@ export function MessageComposer({
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
+          data-fb-label="Bouton Joindre un fichier · Composer de message"
           style={{
             width: 36, height: 36, borderRadius: "50%",
             border: "1px solid var(--color-border-default)",
@@ -476,6 +478,7 @@ export function MessageComposer({
           }}
           onInput={handleTextareaInput}
           onKeyDown={handleKeyDown}
+          data-fb-label="Champ de saisie · Composer de message"
           placeholder={`Tapez un message… (${isMac ? "⌘" : "Entrée"} pour envoyer)`}
           rows={1}
           style={{
@@ -501,6 +504,7 @@ export function MessageComposer({
           type="button"
           onClick={handleSend}
           disabled={!canSend}
+          data-fb-label="Bouton Envoyer · Composer de message"
           style={{
             width: 36, height: 36, borderRadius: "50%",
             background: canSend ? "var(--color-brand)" : "var(--nc-btn-disabled-bg)",

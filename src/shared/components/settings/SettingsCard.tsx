@@ -5,6 +5,7 @@ type SettingsCardProps = {
   description?: string;
   children: ReactNode;
   tone?: "default" | "danger";
+  fbLabel?: string;
 };
 
 export function SettingsCard({
@@ -12,10 +13,12 @@ export function SettingsCard({
   description,
   children,
   tone = "default",
+  fbLabel,
 }: SettingsCardProps) {
   const isDanger = tone === "danger";
   return (
     <section
+      data-fb-label={fbLabel ?? "Section réglages · Réglages"}
       style={{
         background: "var(--color-surface-card)",
         border: isDanger
@@ -31,6 +34,7 @@ export function SettingsCard({
     >
       <header style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <h2
+          data-fb-label="Titre section · Réglages"
           style={{
             margin: 0,
             fontSize: 17,

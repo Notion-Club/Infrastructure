@@ -66,6 +66,7 @@ export function ModuleAccordion({
   return (
     <div
       ref={rootRef}
+      data-fb-label={`Accordéon module « ${module.name} » · Page programme`}
       style={{
         background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
@@ -80,6 +81,7 @@ export function ModuleAccordion({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        data-fb-label={`En-tête accordéon module « ${module.name} » · Accordéon module`}
         style={{
           width: "100%",
           display: "flex",
@@ -212,6 +214,7 @@ function LessonRow({
     <button
       type="button"
       onClick={onClick}
+      data-fb-label={`Lien leçon « ${course.name} » · Accordéon module`}
       style={{
         display: "flex",
         alignItems: "center",

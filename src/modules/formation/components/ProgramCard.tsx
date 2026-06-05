@@ -21,6 +21,7 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
 
   return (
     <article
+      data-fb-label={`Carte programme « ${program.name} » · Liste des programmes`}
       className="transition-transform duration-200 hover:-translate-y-0.5"
       style={{
         background: "var(--color-surface-card)",
@@ -40,6 +41,7 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
       <button
         type="button"
         aria-label={`Ouvrir la formation ${program.name}`}
+        data-fb-label={`Carte programme « ${program.name} » · Liste des programmes`}
         onClick={() => go(detailHref)}
         style={{
           position: "absolute",
@@ -112,6 +114,7 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
 
       {program.nextCourseLabel && !completed && (
         <div
+          data-fb-label="Encadré prochaine leçon · Carte programme"
           style={{
             background: "var(--color-surface-raised)",
             borderRadius: 14,
@@ -145,6 +148,7 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
         <button
           type="button"
           onClick={() => go(resumeHref)}
+          data-fb-label="Bouton Reprendre · Carte programme"
           style={{
             background: "var(--color-brand)",
             color: "white",

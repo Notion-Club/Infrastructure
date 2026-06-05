@@ -66,9 +66,9 @@ export function LessonNavigation({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "20px 0 4px 0" }}>
+    <div data-fb-label="Navigation leçon · Leçon" style={{ display: "flex", flexDirection: "column", gap: 14, padding: "20px 0 4px 0" }}>
       {done && (
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--color-brand)", alignSelf: "flex-end" }}>
+        <div data-fb-label="Badge Leçon complétée · Navigation leçon" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--color-brand)", alignSelf: "flex-end" }}>
           <CheckCircle2 size={13} /> Leçon complétée
         </div>
       )}
@@ -78,6 +78,7 @@ export function LessonNavigation({
           <button
             type="button"
             onClick={() => navTo(prev)}
+            data-fb-label="Bouton Leçon précédente · Navigation leçon"
             style={{
               background: "var(--color-surface-card)",
               color: "var(--color-text-primary)",
@@ -103,6 +104,7 @@ export function LessonNavigation({
           type="button"
           onClick={handleMain}
           disabled={pending}
+          data-fb-label="Bouton Leçon suivante · Navigation leçon"
           style={{
             background: "var(--color-brand)",
             color: "white",
@@ -127,6 +129,7 @@ export function LessonNavigation({
       <button
         type="button"
         onClick={() => { startLessonTransition(); router.push(`/formation/${programSlug}`); }}
+        data-fb-label="Lien Retour au module · Navigation leçon"
         style={{
           alignSelf: "center",
           background: "transparent",

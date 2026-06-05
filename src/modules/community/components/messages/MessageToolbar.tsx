@@ -154,6 +154,7 @@ export function MessageToolbar({
 
   return (
     <div
+      data-fb-label="Barre d'actions message · Bulle de message"
       style={{
         display: "flex",
         alignItems: "center",
@@ -174,6 +175,7 @@ export function MessageToolbar({
             key={emoji}
             type="button"
             onClick={() => onReact(emoji)}
+            data-fb-label={`Réaction rapide ${emoji} · Barre d'actions message`}
             title={isActive ? "Retirer la réaction" : "Réagir"}
             style={{
               width: 28,
@@ -200,6 +202,7 @@ export function MessageToolbar({
         ref={pickerBtnRef}
         type="button"
         onClick={() => setPickerOpen((o) => !o)}
+        data-fb-label="Bouton Plus d'emojis · Barre d'actions message"
         title="Plus d'emojis"
         style={{
           width: 28,
@@ -288,6 +291,7 @@ export function MessageToolbar({
       <button
         type="button"
         onClick={onReply}
+        data-fb-label="Bouton Répondre · Barre d'actions message"
         title="Répondre"
         style={{
           width: 28,
@@ -315,6 +319,7 @@ export function MessageToolbar({
           ref={menuBtnRef}
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
+          data-fb-label="Menu Plus d'actions · Barre d'actions message"
           title="Plus d'actions"
           style={{
             width: 28,

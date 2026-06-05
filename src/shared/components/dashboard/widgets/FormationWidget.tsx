@@ -21,6 +21,7 @@ export function FormationWidget() {
   return (
     <article
       onClick={() => router.push(MOCK_FORMATION.formationUrl)}
+      data-fb-label="Encadré Formation · Tableau de bord"
       style={{
         background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
@@ -102,6 +103,7 @@ export function FormationWidget() {
             e.stopPropagation();
             router.push(MOCK_FORMATION.resumeUrl);
           }}
+          data-fb-label="Bouton Reprendre · Widget Formation"
           style={{
             background: "var(--color-brand)",
             color: "white",

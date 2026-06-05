@@ -76,7 +76,7 @@ export function CommentList({ postId, comments: initialComments, currentUser, de
       />
 
       {/* Comments list — each manages its own inline reply */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div data-fb-label="Liste des commentaires · Détail du post" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {comments.map((comment) => (
           <CommentItem
             key={comment.id}

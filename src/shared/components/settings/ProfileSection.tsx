@@ -267,6 +267,7 @@ export function ProfileSection({
     <SettingsCard
       title="Informations du profil"
       description="Ces informations sont visibles dans l'application et utilisées pour votre facturation."
+      fbLabel="Section profil · Réglages"
     >
       <form
         onSubmit={handleSubmit}
@@ -292,6 +293,7 @@ export function ProfileSection({
             onChange={(v) => update("first_name", v)}
             autoComplete="given-name"
             placeholder="Théo"
+            fbLabel="Champ Prénom · Section profil"
           />
           <TextField
             id="last_name"
@@ -300,6 +302,7 @@ export function ProfileSection({
             onChange={(v) => update("last_name", v)}
             autoComplete="family-name"
             placeholder="GOUMAN"
+            fbLabel="Champ Nom · Section profil"
           />
         </div>
 
@@ -346,6 +349,7 @@ export function ProfileSection({
             <button
               type="submit"
               disabled={saving}
+              data-fb-label="Bouton Enregistrer · Section profil"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -382,6 +386,7 @@ type TextFieldProps = {
   autoComplete?: string;
   helper?: string;
   placeholder?: string;
+  fbLabel?: string;
 };
 
 function TextField({
@@ -393,6 +398,7 @@ function TextField({
   autoComplete,
   helper,
   placeholder,
+  fbLabel,
 }: TextFieldProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -414,6 +420,7 @@ function TextField({
         onChange={(e) => onChange(e.target.value)}
         autoComplete={autoComplete}
         placeholder={placeholder}
+        data-fb-label={fbLabel}
         className="nc-input"
       />
       {helper && (
@@ -493,6 +500,7 @@ function UsernameField({
           id="username"
           name="nc-handle"
           type="text"
+          data-fb-label="Champ Nom d'utilisateur · Section profil"
           value={value}
           onChange={(e) => {
             // Lowercase + filtrage caractères pour éviter d'autoriser
@@ -581,6 +589,7 @@ function BioField({
       <textarea
         id="bio"
         name="bio"
+        data-fb-label="Champ Bio · Section profil"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}

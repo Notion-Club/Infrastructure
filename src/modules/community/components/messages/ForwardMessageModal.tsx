@@ -144,6 +144,7 @@ export function ForwardMessageModal({
       }}
     >
       <div
+        data-fb-label="Modale Transférer le message · Communauté"
         style={{
           background: "var(--color-surface-card)",
           borderRadius: 16,
@@ -175,6 +176,7 @@ export function ForwardMessageModal({
             type="button"
             onClick={onClose}
             aria-label="Fermer"
+            data-fb-label="Bouton Fermer · Modale Transférer le message"
             style={{
               width: 28,
               height: 28,
@@ -247,6 +249,7 @@ export function ForwardMessageModal({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Rechercher un membre…"
+              data-fb-label="Champ de recherche membre · Modale Transférer le message"
               style={{
                 width: "100%",
                 padding: "8px 12px 8px 32px",
@@ -369,6 +372,7 @@ export function ForwardMessageModal({
                   key={m.id}
                   type="button"
                   onClick={() => toggleMember(m.id)}
+                  data-fb-label="Carte membre · Modale Transférer le message"
                   style={{
                     width: "100%",
                     display: "flex",
@@ -461,6 +465,7 @@ export function ForwardMessageModal({
             type="button"
             onClick={handleSend}
             disabled={selected.size === 0 || sending}
+            data-fb-label="Bouton Transférer · Modale Transférer le message"
             style={{
               padding: "8px 18px",
               border: "none",

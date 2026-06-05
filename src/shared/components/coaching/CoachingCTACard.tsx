@@ -27,6 +27,7 @@ export function CoachingCTACard({
 
   return (
     <div
+      data-fb-label="Carte CTA coaching · CTA coaching"
       className="nc-shine-card"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -41,6 +42,7 @@ export function CoachingCTACard({
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           {/* Icon circle */}
           <div
+            data-fb-label="Icône · CTA coaching"
             style={{
               width: 52,
               height: 52,
@@ -65,6 +67,7 @@ export function CoachingCTACard({
 
           {/* Secondary text */}
           <p
+            data-fb-label="Sous-titre · CTA coaching"
             style={{
               flex: 1,
               fontSize: 14,
@@ -84,6 +87,7 @@ export function CoachingCTACard({
           >
             <button
               type="button"
+              data-fb-label="Bouton CTA · CTA coaching"
               onClick={disabled ? undefined : onButtonClick}
               disabled={disabled}
               className={!disabled ? "nc-btn-shine" : undefined}

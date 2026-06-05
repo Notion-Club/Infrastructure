@@ -18,6 +18,7 @@ export function DuplicateButton({ url }: DuplicateButtonProps) {
         href={url}
         target="_blank"
         rel="noopener noreferrer"
+        data-fb-label="Bouton Dupliquer · Page template"
         style={{
           display: 'inline-flex',
           alignItems: 'center',

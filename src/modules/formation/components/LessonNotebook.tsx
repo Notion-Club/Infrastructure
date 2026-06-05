@@ -74,6 +74,7 @@ export function LessonNotebook({ synthese, resources, courseId, initialNote }: P
 
   return (
     <div
+      data-fb-label="Carnet de leçon · Notebook leçon"
       style={{
         borderTop: "1px solid var(--color-border-default)",
         background: "var(--color-surface-raised)",
@@ -81,6 +82,7 @@ export function LessonNotebook({ synthese, resources, courseId, initialNote }: P
     >
       {/* Onglets */}
       <div
+        data-fb-label="Onglets du carnet · Notebook leçon"
         style={{
           display: "flex",
           gap: 2,
@@ -157,6 +159,7 @@ function SwitchButton({
       ref={buttonRef}
       type="button"
       onClick={onClick}
+      data-fb-label={`Onglet « ${label} » · Notebook leçon`}
       style={{
         flex: 1,
         // minWidth:0 → les 3 onglets peuvent rétrécir et se partager la largeur

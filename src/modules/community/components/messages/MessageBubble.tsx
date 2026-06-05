@@ -228,6 +228,7 @@ export function MessageBubble({
       >
         {/* Bulle */}
         <div
+          data-fb-label="Bulle de message · Thread de messages"
           style={{
             maxWidth: 360,
             padding: "10px 14px",
@@ -547,6 +548,7 @@ export function MessageBubble({
               key={emoji}
               type="button"
               onClick={() => handleReact(emoji)}
+              data-fb-label={`Réaction ${emoji} · Bulle de message`}
               style={{
                 fontSize: 12,
                 padding: "2px 8px",

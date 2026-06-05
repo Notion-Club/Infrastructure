@@ -116,6 +116,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
     <>
     <article
       onClick={handleCardClick}
+      data-fb-label="Carte post · Feed"
       style={{
         background: "var(--color-surface-card)",
         border: pinned ? "1.5px solid var(--color-brand)" : "1px solid var(--color-border-default)",
@@ -161,6 +162,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
             <button
               type="button"
               onClick={(e) => e.stopPropagation()}
+              data-fb-label="Avatar auteur · Carte post"
               style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
             >
               <UserAvatar user={post.author} size={40} />
@@ -172,6 +174,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
                 <button
                   type="button"
                   onClick={(e) => e.stopPropagation()}
+                  data-fb-label="Lien auteur · Carte post"
                   style={{
                     background: "none",
                     border: "none",
@@ -203,7 +206,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
         </div>
 
         {(isAuthor || isPrivileged) && (
-          <div onClick={(e) => e.stopPropagation()}>
+          <div data-fb-label="Menu options du post · Carte post" onClick={(e) => e.stopPropagation()}>
             <PostKebabMenu
               onEdit={isAuthor ? () => setShowEditComposer(true) : undefined}
               onDelete={() => setShowDeleteConfirm(true)}
@@ -218,6 +221,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {postData.title && (
           <h2
+            data-fb-label="Titre du post · Carte post"
             style={{
               margin: 0,
               fontSize: 17,
@@ -253,6 +257,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
               e.stopPropagation();
               setImageLightbox(true);
             }}
+            data-fb-label="Image du post · Carte post"
             style={{
               padding: 0,
               border: "none",
@@ -293,7 +298,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
       </div>
 
       {/* Footer */}
-      <div onClick={(e) => e.stopPropagation()}>
+      <div data-fb-label="Barre de réactions · Carte post" onClick={(e) => e.stopPropagation()}>
         <ReactionsBar
           reactions={reactions}
           commentCount={postData.commentCount}

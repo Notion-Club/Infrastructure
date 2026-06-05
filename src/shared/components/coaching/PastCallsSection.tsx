@@ -16,8 +16,9 @@ export function PastCallsSection({
   archived = false,
 }: PastCallsSectionProps) {
   return (
-    <div>
+    <div data-fb-label="Section · Appels passés">
       <h2
+        data-fb-label="Titre · Appels passés"
         style={{
           fontSize: 13,
           fontWeight: 600,
@@ -32,6 +33,7 @@ export function PastCallsSection({
 
       {bannerText && (
         <div
+          data-fb-label="Bannière · Appels passés"
           style={{
             fontSize: 13,
             color: "var(--color-text-secondary)",

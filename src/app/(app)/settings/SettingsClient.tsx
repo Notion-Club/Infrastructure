@@ -198,6 +198,7 @@ export function SettingsClient({
                 {state.isMocked && (
                   <div
                     role="status"
+                    data-fb-label="Badge mode démo · Réglages"
                     style={{
                       padding: "10px 14px",
                       borderRadius: 12,

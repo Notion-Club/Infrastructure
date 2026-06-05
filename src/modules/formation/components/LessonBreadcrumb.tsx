@@ -91,6 +91,7 @@ export function LessonBreadcrumb({
         aria-label={`Parcourir la formation — leçon ${courseName}`}
         aria-expanded={open}
         onClick={() => (open && !closing ? closeMenu() : (setClosing(false), setOpen(true)))}
+        data-fb-label="Déclencheur fil d'ariane · Fil d'ariane leçon"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -131,6 +132,7 @@ export function LessonBreadcrumb({
         <div
           className="nc-dropdown"
           data-closing={closing}
+          data-fb-label="Menu navigation formation · Fil d'ariane leçon"
           style={{
             position: "absolute",
             top: "calc(100% + 6px)",
@@ -149,6 +151,7 @@ export function LessonBreadcrumb({
           <button
             type="button"
             onClick={() => navigate(`/formation/${formation.slug}`, false)}
+            data-fb-label="Lien Vue d'ensemble du programme · Fil d'ariane leçon"
             style={{
               display: "flex",
               alignItems: "center",

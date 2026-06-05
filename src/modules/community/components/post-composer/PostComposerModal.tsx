@@ -409,6 +409,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
       )}
 
       <div
+        data-fb-label="Composer de post · Communauté"
         style={{
           background: "var(--color-surface-card)",
           borderRadius: 20,
@@ -433,6 +434,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
             {isEditMode ? "Modifier le post" : "Que souhaites-tu partager ?"}
           </h2>
           <button type="button" onClick={onClose}
+            data-fb-label="Bouton Fermer · Composer de post"
             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex", borderRadius: "50%", padding: 4 }}
             className="hover:bg-[rgba(0,0,0,0.06)]"
           >
@@ -447,6 +449,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
             <input
               type="text"
               data-nc-field="post-title"
+              data-fb-label="Champ Titre · Composer de post"
               placeholder="Titre"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -600,6 +603,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => !uploading && imageInputRef.current?.click()}
                 disabled={uploading}
+                data-fb-label="Bouton Ajouter une image · Composer de post"
                 style={{
                   width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
                   cursor: uploading ? "not-allowed" : "pointer",
@@ -639,6 +643,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
                 contentEditable
                 suppressContentEditableWarning
                 onInput={syncBody}
+                data-fb-label="Champ de saisie · Composer de post"
                 style={{
                   minHeight: 120,
                   padding: "14px",
@@ -753,6 +758,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
             type="button"
             onClick={handlePublish}
             disabled={publishing}
+            data-fb-label="Bouton Publier · Composer de post"
             style={{
               padding: "9px 24px",
               // Toujours brand pour permettre le clic-pour-valider. Le clic

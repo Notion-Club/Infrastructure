@@ -194,6 +194,7 @@ export function PhoneField({
           name={id}
           type="tel"
           inputMode="tel"
+          data-fb-label="Champ Téléphone · Section profil"
           value={value.national}
           onChange={handleNationalChange}
           onBlur={handleNationalBlur}
@@ -311,6 +312,7 @@ function CountryPicker({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
+        data-fb-label="Sélecteur pays · Section profil"
         style={{
           display: "inline-flex",
           alignItems: "center",

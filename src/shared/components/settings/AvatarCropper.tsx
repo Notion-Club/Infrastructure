@@ -81,6 +81,7 @@ export function AvatarCropper({
       role="dialog"
       aria-modal="true"
       aria-label="Recadrer la photo de profil"
+      data-fb-label="Modale recadrage avatar · Section profil"
       onClick={(e) => {
         if (e.target === e.currentTarget && !submitting && !busy) onCancel();
       }}
@@ -173,6 +174,7 @@ export function AvatarCropper({
             onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z - 0.1))}
             aria-label="Dézoomer"
             disabled={zoom <= MIN_ZOOM || submitting || busy}
+            data-fb-label="Bouton Dézoomer · Modale recadrage avatar"
             style={iconBtnStyle(zoom <= MIN_ZOOM)}
           >
             <ZoomOut size={16} />
@@ -191,12 +193,14 @@ export function AvatarCropper({
               cursor: "pointer",
             }}
             aria-label="Zoom"
+            data-fb-label="Curseur Zoom · Modale recadrage avatar"
           />
           <button
             type="button"
             onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + 0.1))}
             aria-label="Zoomer"
             disabled={zoom >= MAX_ZOOM || submitting || busy}
+            data-fb-label="Bouton Zoomer · Modale recadrage avatar"
             style={iconBtnStyle(zoom >= MAX_ZOOM)}
           >
             <ZoomIn size={16} />
@@ -206,6 +210,7 @@ export function AvatarCropper({
             onClick={reset}
             aria-label="Réinitialiser le cadrage"
             disabled={submitting || busy}
+            data-fb-label="Bouton Réinitialiser cadrage · Modale recadrage avatar"
             style={iconBtnStyle(false)}
           >
             <RotateCcw size={16} />
@@ -224,6 +229,7 @@ export function AvatarCropper({
             type="button"
             onClick={onCancel}
             disabled={submitting || busy}
+            data-fb-label="Bouton Annuler · Modale recadrage avatar"
             style={{
               padding: "9px 18px",
               borderRadius: 9999,
@@ -242,6 +248,7 @@ export function AvatarCropper({
             type="button"
             onClick={handleConfirm}
             disabled={submitting || busy || !croppedAreaPixels}
+            data-fb-label="Bouton Valider · Modale recadrage avatar"
             style={{
               display: "inline-flex",
               alignItems: "center",

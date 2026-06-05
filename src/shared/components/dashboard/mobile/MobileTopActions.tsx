@@ -63,6 +63,7 @@ export function MobileTopActions() {
       <button
         type="button"
         aria-label={`${UNREAD_COUNT} notifications`}
+        data-fb-label="Bouton Notifications · Barre de navigation"
         className="nc-mobile-action-btn"
         style={{ color: "var(--color-text-secondary)" }}
       >
@@ -99,6 +100,7 @@ export function MobileTopActions() {
           type="button"
           aria-label="Menu compte"
           onClick={() => setAvatarOpen((o) => !o)}
+          data-fb-label="Avatar compte · Barre de navigation"
           style={{
             width: 38,
             height: 38,
@@ -138,6 +140,7 @@ export function MobileTopActions() {
         {avatarOpen && (
           <div
             role="menu"
+            data-fb-label="Menu compte · Barre de navigation"
             className="nc-dropdown-panel"
             style={{
               position: "absolute",
@@ -175,6 +178,7 @@ export function MobileTopActions() {
               href="/settings"
               role="menuitem"
               onClick={() => setAvatarOpen(false)}
+              data-fb-label="Lien « Réglages » · Menu compte"
               style={{
                 display: "block",
                 padding: "10px 10px",
@@ -193,6 +197,7 @@ export function MobileTopActions() {
               role="menuitem"
               onClick={handleSignOut}
               disabled={signingOut}
+              data-fb-label="Bouton « Se déconnecter » · Menu compte"
               style={{
                 display: "block",
                 width: "100%",
