@@ -7,6 +7,7 @@ import type { Comment } from "../../types/comment.types";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
+import { RichTextRenderer, isRichHtml } from "@/shared/components/editor/RichTextRenderer";
 import { renderBodyRich } from "../../utils/render-mentions";
 import { UserAvatar } from "../shared/UserAvatar";
 import { UserHoverCard } from "../shared/UserHoverCard";
@@ -184,8 +185,10 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
               disabled={updating}
             />
           ) : (
-            <div style={{ fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>
-              {renderBodyRich(commentData.body, commentData.mentions)}
+            <div style={{ fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.55 }}>
+              {isRichHtml(commentData.body)
+                ? <RichTextRenderer html={commentData.body} />
+                : renderBodyRich(commentData.body, commentData.mentions)}
             </div>
           )}
         </div>

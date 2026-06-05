@@ -946,3 +946,35 @@ html.dark .nc-lt-scrim {
     transition-duration: 1ms;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TipTap — prose styles (.nc-prose) + editor placeholder
+   ───────────────────────────────────────────────────────────────────────────── */
+.nc-prose p { margin: 0; line-height: 1.6; }
+.nc-prose p + p { margin-top: 4px; }
+.nc-prose strong { font-weight: 600; }
+.nc-prose em { font-style: italic; }
+.nc-prose ul { margin: 4px 0; padding-left: 20px; list-style: disc; }
+.nc-prose ol { margin: 4px 0; padding-left: 20px; list-style: decimal; }
+.nc-prose li { margin: 2px 0; }
+.nc-prose a,
+.nc-prose .nc-link { color: var(--color-brand); text-decoration: underline; word-break: break-all; }
+.nc-prose a:hover { opacity: 0.75; }
+.nc-prose img,
+.nc-prose .nc-editor-img { max-width: 100%; border-radius: 8px; margin: 4px 0; display: block; }
+.nc-prose .nc-mention { color: var(--color-brand); font-weight: 600; }
+/* YouTube extension wrapper */
+.nc-prose div[data-youtube-video],
+.nc-prose [data-youtube-video] { margin: 8px 0; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9; }
+.nc-prose div[data-youtube-video] iframe { width: 100%; height: 100%; border: none; display: block; }
+/* Loom / Tella custom extension */
+.nc-prose div[data-iframe-embed] { margin: 8px 0; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9; }
+.nc-prose div[data-iframe-embed] iframe { width: 100%; height: 100%; border: none; display: block; }
+/* TipTap placeholder (via @tiptap/extension-placeholder) */
+.nc-editor-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--color-text-muted);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}

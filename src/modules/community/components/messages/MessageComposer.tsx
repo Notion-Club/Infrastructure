@@ -1,26 +1,20 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Paperclip, Send, X, FileText, Loader2, Reply as ReplyIcon } from "lucide-react";
+import { Send, X, FileText, Loader2, Reply as ReplyIcon } from "lucide-react";
 import { toast } from "sonner";
 import { uploadDmFileAction } from "../../server/actions";
+import { RichTextEditor } from "@/shared/components/editor/RichTextEditor";
 
 interface PendingFile {
   name: string;
-  // Blob URL local pour la preview avant envoi (lightbox + thumbnail).
-  // Distinct de fileUrl qui est l'URL publique Supabase persistée.
   previewUrl: string | null;
-  // URL publique Supabase, retournée par uploadPostMediaAction. null tant
-  // que l'upload n'est pas terminé.
   fileUrl: string | null;
   type: "image" | "pdf";
   uploading: boolean;
 }
 
-// Quote-reply : info minimale nécessaire pour afficher la preview au-dessus
-// du textarea ET la propager dans sendMessageAction (reply_to_message_id +
-// snippet + author_name dénormalisés, cf. mig. 027).
 export interface ReplyContext {
   messageId: string;
   authorName: string;
@@ -28,36 +22,17 @@ export interface ReplyContext {
 }
 
 interface MessageComposerProps {
-  // Signature étendue : on remonte aussi fileUrl pour que la chaîne
-  // d'envoi puisse persister l'URL publique Supabase dans messages.file_url
-  // (avant : on n'envoyait que fileName, l'URL réelle était perdue).
   onSend: (
     body: string,
     type?: "text" | "pdf" | "image",
     fileUrl?: string,
     fileName?: string,
   ) => void;
-  // Appelé à chaque frappe (throttle géré par le hook caller). Sert à
-  // broadcast un ping "je suis en train d'écrire" sur le channel Realtime.
   onTyping?: () => void;
   disabled?: boolean;
   disabledMessage?: string;
-  // Si fourni, affiche un quote-block au-dessus du textarea avec l'auteur +
-  // le snippet du message cité, et une croix pour annuler. Le parent
-  // (ConversationThread) résout cet état et l'utilise pour enrichir la
-  // payload sendMessageAction.
   replyContext?: ReplyContext;
   onCancelReply?: () => void;
-}
-
-// Détection navigateur Mac — sur Mac on remplace le mot "Entrée" par
-// l'icône ⌘ dans le hint du textarea, pour s'aligner sur la convention
-// visuelle macOS. Calculé côté client uniquement (SSR-safe via useEffect).
-function detectMac(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const platform = navigator.platform || "";
-  const ua = navigator.userAgent || "";
-  return /Mac|iPhone|iPod|iPad/i.test(platform) || /Macintosh/i.test(ua);
 }
 
 export function MessageComposer({
@@ -68,102 +43,47 @@ export function MessageComposer({
   replyContext,
   onCancelReply,
 }: MessageComposerProps) {
-  const [value, setValue] = useState("");
+  const [bodyHtml, setBodyHtml] = useState("");
+  const [bodyEmpty, setBodyEmpty] = useState(true);
   const [dragging, setDragging] = useState(false);
   const [pendingFile, setPendingFile] = useState<PendingFile | null>(null);
-  const [isMac, setIsMac] = useState(false);
-  // OPS-44 — Lightbox sur la preview d'image / PDF avant envoi. On ouvre
-  // au click de la vignette ; on garde l'état "viewing" séparé du
-  // pendingFile pour que la fermeture de la lightbox ne supprime pas le
-  // fichier en attente.
   const [viewing, setViewing] = useState<PendingFile | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [mounted, setMounted] = useState(false);
+  // resetKey clears the TipTap editor after send
+  const [resetKey, setResetKey] = useState(0);
 
-  // Hydratation : on calcule isMac une fois côté client pour éviter un
-  // mismatch SSR (server n'a pas navigator).
-  useEffect(() => {
-    setIsMac(detectMac());
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   function handleSend() {
     if (disabled) return;
     if (pendingFile) {
-      // Blocage si l'upload Supabase n'est pas encore terminé — sinon on
-      // enverrait un message avec fileUrl null, donc rien à afficher chez
-      // le destinataire.
       if (pendingFile.uploading || !pendingFile.fileUrl) {
         toast.info("Attends la fin de l'upload…");
         return;
       }
-      // Body = texte tapé (optionnel) + on passe fileUrl/fileName à part.
-      // Avant : body = pendingFile.name (le nom du fichier comme texte).
-      const trimmedText = value.trim();
-      onSend(
-        trimmedText, // body texte facultatif accompagnant le fichier
-        pendingFile.type,
-        pendingFile.fileUrl,
-        pendingFile.name,
-      );
+      const trimmedText = bodyEmpty ? "" : bodyHtml;
+      onSend(trimmedText, pendingFile.type, pendingFile.fileUrl, pendingFile.name);
       if (pendingFile.previewUrl) URL.revokeObjectURL(pendingFile.previewUrl);
       setPendingFile(null);
       setViewing(null);
-      setValue("");
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-      }
+      setBodyHtml("");
+      setBodyEmpty(true);
+      setResetKey((k) => k + 1);
       return;
     }
-    if (!value.trim()) return;
-    onSend(value.trim(), "text");
-    setValue("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }
-
-  function handleTextareaInput(e: React.FormEvent<HTMLTextAreaElement>) {
-    const el = e.currentTarget;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+    if (bodyEmpty) return;
+    onSend(bodyHtml, "text");
+    setBodyHtml("");
+    setBodyEmpty(true);
+    setResetKey((k) => k + 1);
   }
 
   async function attachFile(file: File) {
     const isImage = file.type.startsWith("image/");
-    // On utilise le type DB existant : "image" pour les vraies images
-    // (rendu inline), "pdf" comme bucket générique pour TOUS les autres
-    // types de fichier (rendu icône + nom + lien download). On ne crée
-    // pas un type DB "file" dédié pour éviter la migration et garder
-    // le rendu déjà en place.
     const type: "image" | "pdf" = isImage ? "image" : "pdf";
-
-    // Blob URL local pour la preview/lightbox AVANT l'upload — le user voit
-    // déjà sa miniature pendant qu'on push vers Supabase. Pas de preview
-    // visuelle pour les non-images (PDF, docx, etc.), on affiche juste le
-    // nom + icône.
     const previewUrl = isImage ? URL.createObjectURL(file) : null;
-    setPendingFile({
-      name: file.name,
-      previewUrl,
-      fileUrl: null,
-      type,
-      uploading: true,
-    });
+    setPendingFile({ name: file.name, previewUrl, fileUrl: null, type, uploading: true });
 
-    // uploadDmFileAction = whitelist large (PDF, Office, archives, audio,
-    // vidéo, etc.) + 25 MB max. Distinct d'uploadPostMediaAction qui reste
-    // strictement images-seulement pour les posts. RLS community_insert_own
-    // identique (mig. 018, scope uploads/<auth.uid>/).
-    //
-    // Bucket public — voir mig. 018 pour la note sécu (les fichiers DM
-    // partagés sont techniquement accessibles via l'URL si copiée).
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -175,9 +95,7 @@ export function MessageComposer({
         return;
       }
       setPendingFile((prev) =>
-        prev
-          ? { ...prev, fileUrl: result.publicUrl, uploading: false }
-          : null,
+        prev ? { ...prev, fileUrl: result.publicUrl, uploading: false } : null,
       );
     } catch (err) {
       console.error("[MessageComposer.attachFile] upload failed:", err);
@@ -185,20 +103,6 @@ export function MessageComposer({
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPendingFile(null);
     }
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    attachFile(file);
-    e.target.value = "";
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) attachFile(file);
   }
 
   function removePendingFile() {
@@ -224,85 +128,50 @@ export function MessageComposer({
     );
   }
 
-  // Désactivé tant que l'upload est en cours — évite l'envoi avant que
-  // fileUrl soit disponible. Le bouton bascule en spinner discret.
   const fileReady = pendingFile ? !pendingFile.uploading && !!pendingFile.fileUrl : true;
-  const canSend = (!!pendingFile || value.trim().length > 0) && fileReady;
+  const canSend = (!!pendingFile || !bodyEmpty) && fileReady;
 
   return (
     <div
       style={{
         borderTop: "1px solid var(--color-border-default)",
         background: "var(--color-surface-card)",
+        position: "relative",
       }}
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
       onDragLeave={() => setDragging(false)}
-      onDrop={handleDrop}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        const file = e.dataTransfer.files[0];
+        if (file) attachFile(file);
+      }}
     >
       {dragging && (
         <div
           style={{
-            position: "absolute",
-            inset: 0,
+            position: "absolute", inset: 0,
             background: "rgba(224,98,90,0.08)",
             border: "2px dashed var(--color-brand)",
             borderRadius: 12,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 14,
-            color: "var(--color-brand)",
-            zIndex: 10,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 14, color: "var(--color-brand)", zIndex: 10,
           }}
         >
           Déposez votre fichier ici
         </div>
       )}
 
-      {/* Quote-reply preview — la prop replyContext pilote l'affichage. La
-          payload reply_to_message_id sera passée côté parent dans onSend(). */}
+      {/* Quote-reply preview */}
       {replyContext && (
-        <div
-          style={{
-            padding: "10px 16px 0",
-            display: "flex",
-            alignItems: "stretch",
-            gap: 10,
-          }}
-        >
-          <div
-            style={{
-              width: 3,
-              borderRadius: 9999,
-              background: "var(--color-brand)",
-              flexShrink: 0,
-            }}
-          />
+        <div style={{ padding: "10px 16px 0", display: "flex", alignItems: "stretch", gap: 10 }}>
+          <div style={{ width: 3, borderRadius: 9999, background: "var(--color-brand)", flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 12,
-                color: "var(--color-brand)",
-                fontWeight: 600,
-                marginBottom: 2,
-              }}
-            >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-brand)", fontWeight: 600, marginBottom: 2 }}>
               <ReplyIcon size={12} />
               Réponse à {replyContext.authorName}
             </div>
-            <div
-              style={{
-                fontSize: 13,
-                color: "var(--color-text-secondary)",
-                lineHeight: 1.4,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
+            <div style={{ fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {replyContext.snippet}
             </div>
           </div>
@@ -311,20 +180,7 @@ export function MessageComposer({
               type="button"
               onClick={onCancelReply}
               aria-label="Annuler la réponse"
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: "50%",
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--color-text-muted)",
-                flexShrink: 0,
-                alignSelf: "flex-start",
-              }}
+              style={{ width: 24, height: 24, borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", flexShrink: 0, alignSelf: "flex-start" }}
               className="hover:bg-[rgba(0,0,0,0.06)]"
             >
               <X size={14} />
@@ -335,99 +191,35 @@ export function MessageComposer({
 
       {/* Pending file preview */}
       {pendingFile && (
-        <div
-          style={{
-            padding: "10px 16px 0",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 8,
-          }}
-        >
-          <div
-            style={{
-              position: "relative",
-              display: "inline-flex",
-              borderRadius: 10,
-              overflow: "hidden",
-              border: "1px solid var(--color-border-default)",
-            }}
-          >
-            {/* OPS-44 — clic sur la vignette = ouvrir la lightbox. La croix
-                de suppression au coin supérieur droit garde son comportement
-                via stopPropagation pour ne pas déclencher l'ouverture. */}
+        <div style={{ padding: "10px 16px 0", display: "flex", alignItems: "flex-start", gap: 8 }}>
+          <div style={{ position: "relative", display: "inline-flex", borderRadius: 10, overflow: "hidden", border: "1px solid var(--color-border-default)" }}>
             <button
               type="button"
-              // Lightbox UNIQUEMENT pour les images (la previewUrl est null
-              // pour les non-images, on n'a rien à agrandir avant l'envoi).
               onClick={() => {
-                if (pendingFile.type === "image" && pendingFile.previewUrl) {
-                  setViewing(pendingFile);
-                }
+                if (pendingFile.type === "image" && pendingFile.previewUrl) setViewing(pendingFile);
               }}
-              aria-label={
-                pendingFile.type === "image"
-                  ? "Agrandir l'image"
-                  : `Fichier ${pendingFile.name}`
-              }
-              style={{
-                padding: 0,
-                margin: 0,
-                background: "transparent",
-                border: "none",
-                cursor: pendingFile.type === "image" ? "zoom-in" : "default",
-                display: "block",
-              }}
+              aria-label={pendingFile.type === "image" ? "Agrandir l'image" : `Fichier ${pendingFile.name}`}
+              style={{ padding: 0, margin: 0, background: "transparent", border: "none", cursor: pendingFile.type === "image" ? "zoom-in" : "default", display: "block" }}
             >
               {pendingFile.type === "image" && pendingFile.previewUrl ? (
-                <img
-                  src={pendingFile.previewUrl}
-                  alt="preview"
-                  style={{ width: 80, height: 80, objectFit: "cover", display: "block" }}
-                />
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={pendingFile.previewUrl} alt="preview" style={{ width: 80, height: 80, objectFit: "cover", display: "block" }} />
               ) : (
-                <div
-                  style={{
-                    width: 80, height: 80, display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center", gap: 4,
-                    background: "var(--color-surface-raised)", fontSize: 10,
-                    color: "var(--color-text-muted)", padding: 4, textAlign: "center",
-                  }}
-                >
+                <div style={{ width: 80, height: 80, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, background: "var(--color-surface-raised)", fontSize: 10, color: "var(--color-text-muted)", padding: 4, textAlign: "center" }}>
                   <FileText size={24} style={{ color: "var(--color-text-secondary)" }} />
                   <span style={{ wordBreak: "break-all", lineHeight: 1.2 }}>{pendingFile.name}</span>
                 </div>
               )}
-              {/* Overlay loader pendant l'upload Supabase — l'user voit
-                  que le fichier n'est pas encore prêt à être envoyé. */}
               {pendingFile.uploading && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background: "rgba(0,0,0,0.45)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    pointerEvents: "none",
-                  }}
-                >
+                <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
                   <Loader2 size={20} color="#fff" className="animate-spin" />
                 </div>
               )}
             </button>
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                removePendingFile();
-              }}
-              style={{
-                position: "absolute", top: 4, right: 4,
-                width: 20, height: 20, borderRadius: "50%",
-                background: "rgba(0,0,0,0.55)", border: "none",
-                cursor: "pointer", display: "flex", alignItems: "center",
-                justifyContent: "center", color: "#fff",
-              }}
+              onClick={(e) => { e.stopPropagation(); removePendingFile(); }}
+              style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "rgba(0,0,0,0.55)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}
             >
               <X size={11} />
             </button>
@@ -435,68 +227,39 @@ export function MessageComposer({
         </div>
       )}
 
-      <div style={{ padding: "12px 16px", display: "flex", alignItems: "flex-end", gap: 8 }}>
-        <input
-          ref={fileRef}
-          type="file"
-          // Whitelist large : images + PDF + Office + texte + archives +
-          // audio + vidéo. Synchro avec DM_FILE_ALLOWED_MIME côté server.
-          // Le server retourne une erreur claire si le MIME n'est pas autorisé.
-          accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.zip,.rar,.7z,.tar,.gz,audio/*,video/*"
-          style={{ display: "none" }}
-          onChange={handleFileChange}
-        />
-
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          style={{
-            width: 36, height: 36, borderRadius: "50%",
-            border: "1px solid var(--color-border-default)",
-            background: "var(--color-surface-raised)", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "var(--color-text-muted)", flexShrink: 0,
-            transition: "background 150ms ease",
-          }}
-          className="hover:bg-[var(--nc-nav-hover-bg)]"
-          aria-label="Joindre un fichier"
-        >
-          <Paperclip size={16} />
-        </button>
-
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
-            // Ping typing channel — le hook gère le throttle (1 ping / 2s).
-            // On émet seulement quand il y a vraiment du texte ajouté pour
-            // éviter de signaler "écrit…" sur un backspace en boucle.
-            if (e.target.value.length > 0) onTyping?.();
-          }}
-          onInput={handleTextareaInput}
-          onKeyDown={handleKeyDown}
-          placeholder={`Tapez un message… (${isMac ? "⌘" : "Entrée"} pour envoyer)`}
-          rows={1}
+      {/* Editor row */}
+      <div style={{ padding: "8px 12px 8px 16px", display: "flex", alignItems: "flex-end", gap: 8 }}>
+        {/* TipTap editor — replaces textarea */}
+        <div
           style={{
             flex: 1,
-            padding: "9px 14px",
             border: "1px solid var(--color-border-default)",
             borderRadius: 20,
-            fontSize: 14,
-            resize: "none",
-            outline: "none",
-            fontFamily: "inherit",
-            lineHeight: 1.5,
-            background: "var(--color-surface-raised)",
-            color: "var(--color-text-primary)",
-            transition: "border-color 150ms ease, height 150ms ease",
             overflow: "hidden",
+            background: "var(--color-surface-raised)",
+            transition: "border-color 150ms ease",
           }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--color-brand)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
-        />
+          onFocusCapture={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-brand)"; }}
+          onBlurCapture={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-border-default)"; }}
+        >
+          <RichTextEditor
+            key={resetKey}
+            placeholder="Tapez un message…"
+            minHeight={36}
+            onChange={(html, isEmpty) => {
+              setBodyHtml(html);
+              setBodyEmpty(isEmpty);
+              if (!isEmpty) onTyping?.();
+            }}
+            onImageUpload={async (file) => {
+              await attachFile(file);
+              // Image is handled via pendingFile, not inline in the body
+              return null;
+            }}
+          />
+        </div>
 
+        {/* Send button + upload tooltip */}
         <div style={{ position: "relative", flexShrink: 0 }}>
           {pendingFile?.uploading && (
             <div
@@ -540,142 +303,25 @@ export function MessageComposer({
         </div>
       </div>
 
-      {/* OPS-44 — Lightbox d'agrandissement pour images ET PDF, ouverte au
-          click sur la vignette de la preview ci-dessus. */}
-      {viewing && viewing.previewUrl && (
-        <FileLightbox
-          url={viewing.previewUrl}
-          name={viewing.name}
-          type={viewing.type}
-          onClose={() => setViewing(null)}
-        />
+      {/* Lightbox for pending image preview */}
+      {mounted && viewing && viewing.previewUrl && (
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => { if (e.target === e.currentTarget) setViewing(null); }}
+            style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(0,0,0,0.78)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          >
+            <button type="button" onClick={() => setViewing(null)}
+              style={{ position: "fixed", top: 16, right: 16, width: 40, height: 40, borderRadius: "50%", background: "rgba(255,255,255,0.12)", color: "white", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <X size={18} />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={viewing.previewUrl} alt={viewing.name} style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain", borderRadius: 12 }} />
+          </div>,
+          document.body,
+        )
       )}
     </div>
-  );
-}
-
-// ============================================================================
-// FileLightbox — overlay plein écran avec backdrop dim + blur. Images
-// affichées en `object-fit: contain` à max 90vw/90vh. PDF rendus via
-// <iframe> qui s'appuie sur le viewer natif du navigateur (zoom, scroll,
-// pagination gérés nativement). Fermeture : click backdrop, bouton X,
-// touche Échap. Mode mobile : le pinch-to-zoom navigateur fonctionne sur
-// l'image (et l'iframe PDF). Pas de swipe-to-close volontairement — on
-// reste sur les 2 affordances explicites (backdrop click + bouton X).
-// ============================================================================
-function FileLightbox({
-  url,
-  name,
-  type,
-  onClose,
-}: {
-  url: string;
-  name: string;
-  type: "image" | "pdf";
-  onClose: () => void;
-}) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
-
-  if (!mounted) return null;
-
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={
-        type === "image" ? "Aperçu agrandi de l'image" : "Aperçu agrandi du PDF"
-      }
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9998,
-        background: "rgba(0, 0, 0, 0.78)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-        animation: "nc-mode-in 180ms var(--nc-ease) both",
-      }}
-    >
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Fermer l'aperçu"
-        style={{
-          position: "fixed",
-          top: 16,
-          right: 16,
-          width: 40,
-          height: 40,
-          borderRadius: "50%",
-          background: "rgba(255, 255, 255, 0.12)",
-          color: "white",
-          border: "1px solid rgba(255, 255, 255, 0.2)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-          transition: "background 150ms ease",
-        }}
-        className="hover:bg-white/25"
-      >
-        <X size={18} />
-      </button>
-
-      {type === "image" ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img
-          src={url}
-          alt={name}
-          style={{
-            maxWidth: "90vw",
-            maxHeight: "90vh",
-            objectFit: "contain",
-            borderRadius: 12,
-            boxShadow: "0 24px 48px -12px rgba(0, 0, 0, 0.5)",
-            display: "block",
-          }}
-        />
-      ) : (
-        <iframe
-          src={url}
-          title={name}
-          style={{
-            width: "min(90vw, 1100px)",
-            height: "90vh",
-            border: "none",
-            borderRadius: 12,
-            background: "var(--color-surface-card)",
-            boxShadow: "0 24px 48px -12px rgba(0, 0, 0, 0.5)",
-            display: "block",
-          }}
-        />
-      )}
-    </div>,
-    document.body,
   );
 }

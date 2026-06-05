@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { Message } from "../../types/conversation.types";
 import { timeAgo, fullDateTime } from "../../utils/date-helpers";
 import { linkify } from "../../utils/linkify";
+import { RichTextRenderer, isRichHtml } from "@/shared/components/editor/RichTextRenderer";
 import { useUserTopEmojis } from "../../hooks/useUserTopEmojis";
 import {
   deleteMessageAction,
@@ -374,7 +375,9 @@ export function MessageBubble({
           ) : (
             <>
               {message.type === "text" && (
-                <span style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
+                isRichHtml(message.body)
+                  ? <RichTextRenderer html={message.body} style={{ color: "inherit" }} />
+                  : <span style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
               )}
               {message.type === "image" && message.fileUrl && (
                 <div style={{ display: "flex", flexDirection: "column" }}>

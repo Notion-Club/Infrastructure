@@ -7,6 +7,7 @@ import type { Post } from "../../types/post.types";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
+import { RichTextRenderer, isRichHtml } from "@/shared/components/editor/RichTextRenderer";
 import { renderBodyRich } from "../../utils/render-mentions";
 import { UserAvatar } from "../shared/UserAvatar";
 import { UserHoverCard } from "../shared/UserHoverCard";
@@ -241,7 +242,9 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
             whiteSpace: "pre-wrap",
           }}
         >
-          {renderBodyRich(postData.body, postData.mentions)}
+          {isRichHtml(postData.body)
+            ? <RichTextRenderer html={postData.body} />
+            : renderBodyRich(postData.body, postData.mentions)}
         </div>
 
         {postData.imageUrl && (
