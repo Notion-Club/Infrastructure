@@ -113,7 +113,21 @@ async function buildNotificationContext(
   supabase: ReturnType<typeof createSupabaseAdminClient>,
   notif: PendingNotification,
 ): Promise<NotificationContext | null> {
-  // 1. Vérifie les préférences email du destinataire pour cette catégorie.
+  // 1a. Vérifie le toggle global du canal email (channel_preferences).
+  //     Sémantique de la migration 012 : absence de row = défaut email ON.
+  //     Si l'user a explicitement désactivé le canal email globalement, on
+  //     coupe TOUTES les notifs email — peu importe les préférences fines.
+  const { data: channelPref } = await supabase
+    .from("channel_preferences")
+    .select("enabled")
+    .eq("user_id", notif.recipient_id)
+    .eq("channel", "email")
+    .maybeSingle<{ enabled: boolean }>();
+
+  if (channelPref?.enabled === false) return null;
+
+  // 1b. Vérifie la préférence fine email pour la catégorie community_messages
+  //     (notification_preferences). Même sémantique : absence = ON par défaut.
   const { data: pref } = await supabase
     .from("notification_preferences")
     .select("enabled")

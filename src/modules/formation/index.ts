@@ -15,6 +15,14 @@ export {
   getLessonView,
 } from "./server/queries";
 
+// Queries dashboard (widgets accueil)
+export {
+  getDashboardFormationData,
+  getDashboardProfilData,
+  type DashboardFormationData,
+  type DashboardProfilData,
+} from "./server/dashboard";
+
 // Mutations (server actions)
 export {
   markCourseCompleted,
