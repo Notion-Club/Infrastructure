@@ -52,7 +52,7 @@ export async function findNotionMemberByEmail(
       {
         method: "POST",
         body: {
-          filter: { property: "Email", email: { equals: email } },
+          filter: { property: NOTION_PROP_EMAIL, email: { equals: email } },
           page_size: 1,
         },
       },
@@ -61,7 +61,7 @@ export async function findNotionMemberByEmail(
     const page = data.results?.[0];
     if (!page) return null;
 
-    const uuidProp = page.properties?.UUID;
+    const uuidProp = page.properties?.[NOTION_PROP_UUID];
     const currentUuid =
       uuidProp?.rich_text?.map((t) => t.plain_text).join("").trim() || null;
 
@@ -90,7 +90,7 @@ export async function updateNotionMemberUuid(
       method: "PATCH",
       body: {
         properties: {
-          UUID: {
+          [NOTION_PROP_UUID]: {
             rich_text: [{ text: { content: uuid } }],
           },
         },
@@ -106,16 +106,23 @@ export async function updateNotionMemberUuid(
   }
 }
 
+// Schéma réel de la DB Notion Membres (vérifié via API le 2026-06-05) :
+//   - "Nom"          (title)      → rempli avec firstName + lastName, fallback email
+//   - "E-mail"       (email)      → email
+//   - "UUID Supabase" (rich_text) → profiles.id pour la réconciliation
+//   - "Éligible au Call" (formula) → géré par Théo, on n'écrit pas
+//
+// On centralise les noms dans des constantes pour les changer en un seul
+// endroit si la DB évolue.
+const NOTION_PROP_TITLE = "Nom";
+const NOTION_PROP_EMAIL = "E-mail";
+const NOTION_PROP_UUID = "UUID Supabase";
+
 // Crée une page dans la DB Notion Membres. Retourne l'ID Notion (UUID avec
 // tirets) ou null en cas d'échec/désactivation.
 //
-// Schéma attendu côté Notion (Théo configure la DB pour matcher) :
-//   - "Name"  : title (rempli avec firstName + lastName, fallback email)
-//   - "Email" : email
-//   - "UUID"  : rich_text (UUID Supabase pour réconciliation)
-//
-// Si le schéma diffère (ex: noms français), la création échouera avec un
-// validation_error Notion — on log mais on ne throw pas.
+// Si le schéma Notion diverge (renommage de colonne par Théo), la création
+// échouera avec un validation_error Notion — on log mais on ne throw pas.
 export async function createNotionMember(
   input: CreateNotionMemberInput,
 ): Promise<string | null> {
@@ -136,13 +143,13 @@ export async function createNotionMember(
       body: {
         parent: { database_id: databaseId },
         properties: {
-          Name: {
+          [NOTION_PROP_TITLE]: {
             title: [{ text: { content: fullName } }],
           },
-          Email: {
+          [NOTION_PROP_EMAIL]: {
             email: input.email,
           },
-          UUID: {
+          [NOTION_PROP_UUID]: {
             rich_text: [{ text: { content: input.uuid } }],
           },
         },
