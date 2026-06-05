@@ -26,7 +26,7 @@ import {
   MOCK_EXPIRED_PAST_CALLS,
 } from "@/shared/lib/mock/coaching";
 import { FILLOUT_URLS } from "@/shared/lib/mock/fillout";
-import { ensureNotionMemberPage } from "@/modules/coaching";
+import { ensureNotionMemberPage } from "@/modules/coaching/server/ensureNotionMemberPage";
 
 const STORAGE_KEY = "nc_coaching_dev_state";
 
@@ -248,13 +248,16 @@ export default function CoachingPage() {
     setPreparing(true);
 
     // Résout (ou crée / matche par email) la page Notion Membres de l'user
-    // courant. Tout en best-effort : si Notion KO, on ouvre quand même Fillout
-    // mais sans préfile (l'user devra se chercher dans la liste).
+    // courant. Le param `id` envoyé à Fillout est l'UUID Supabase (clé
+    // universelle) — Fillout filtre le RecordPicker sur la colonne
+    // "UUID Supabase" de la DB Notion Membres pour pré-sélectionner l'user.
+    // Tout en best-effort : si Notion KO, on ouvre quand même Fillout avec
+    // l'UUID Supabase (Fillout fera le match plus tard quand Notion sera back).
     try {
       const result = await ensureNotionMemberPage();
       if (result.ok) {
         setUserInfo({
-          id: result.pageId, // null possible si Notion KO
+          id: result.supabaseUuid,
           mail: result.email,
           prenom: result.firstName,
           nom: result.lastName,

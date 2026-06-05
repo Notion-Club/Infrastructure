@@ -4,6 +4,16 @@
 // Garantit que l'user authentifié a une page Notion Membres associée, et
 // renvoie les infos nécessaires pour pré-remplir Fillout (id, mail, prenom, nom).
 //
+// ⚠️ Décision (2026-06-06) : l'`id` envoyé à Fillout est l'**UUID Supabase**
+//    (profiles.id), PAS le notion_member_page_id. C'est l'UUID Supabase qui
+//    sert de clé universelle dans tout l'écosystème. Côté Fillout, le
+//    RecordPicker filtre sur la colonne "UUID Supabase" de la DB Notion
+//    Membres pour pré-sélectionner le bon record.
+//
+//    Le notion_member_page_id reste stocké en DB pour la traçabilité et pour
+//    permettre PATCH la bonne page Notion lors de la réconciliation, mais
+//    il n'est pas envoyé au browser.
+//
 // 3 cas gérés :
 //   A. Cache hit : profiles.notion_member_page_id est déjà rempli → retour direct.
 //   B. Ancien membre Notion : findNotionMemberByEmail trouve une page existante
@@ -13,8 +23,8 @@
 //   C. Vraie création : aucune page Notion trouvée → createNotionMember + persist.
 //
 // Best-effort : si Notion est down ou pas configuré (NOTION_MEMBERS_DATABASE_ID
-// absent), on retourne pageId=null mais ok=true — l'UI dégrade en ouvrant
-// Fillout sans préfile plutôt que de bloquer le user.
+// absent), on retourne quand même supabaseUuid pour que Fillout ait au moins
+// l'identification (et qu'il puisse essayer le match côté Notion plus tard).
 
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/shared/lib/supabase/admin";
@@ -27,7 +37,8 @@ import {
 export type EnsureNotionMemberResult =
   | {
       ok: true;
-      pageId: string | null;
+      supabaseUuid: string;          // = profiles.id, clé universelle envoyée à Fillout
+      notionPageId: string | null;   // = traçabilité interne (pas envoyée au browser)
       firstName: string | null;
       lastName: string | null;
       email: string;
@@ -68,7 +79,8 @@ export async function ensureNotionMemberPage(): Promise<EnsureNotionMemberResult
   if (profile.notion_member_page_id) {
     return {
       ok: true,
-      pageId: profile.notion_member_page_id,
+      supabaseUuid: profile.id,
+      notionPageId: profile.notion_member_page_id,
       firstName: profile.first_name,
       lastName: profile.last_name,
       email: user.email,
@@ -77,23 +89,21 @@ export async function ensureNotionMemberPage(): Promise<EnsureNotionMemberResult
 
   // ── Cas B et C : pas encore liée — on cherche puis on crée si absent ─
   const admin = createSupabaseAdminClient();
-  let pageId: string | null = null;
+  let notionPageId: string | null = null;
 
   const found = await findNotionMemberByEmail(user.email);
   if (found) {
     // Cas B — ancien membre Notion. On écrit l'UUID Supabase dedans (si pas
     // déjà présent — idempotence en cas de relance) puis on remplit profiles.
     if (found.currentUuid !== profile.id) {
-      const updated = await updateNotionMemberUuid(found.pageId, profile.id);
-      if (!updated) {
-        // Best-effort : on garde le pageId pour le retour même si le PATCH a
-        // échoué. La prochaine tentative re-tentera l'update.
-      }
+      await updateNotionMemberUuid(found.pageId, profile.id);
+      // Best-effort : si le PATCH échoue, on garde quand même le pageId pour
+      // la prochaine tentative.
     }
-    pageId = found.pageId;
+    notionPageId = found.pageId;
   } else {
     // Cas C — vraie création.
-    pageId = await createNotionMember({
+    notionPageId = await createNotionMember({
       uuid: profile.id,
       firstName: profile.first_name,
       lastName: profile.last_name,
@@ -101,12 +111,12 @@ export async function ensureNotionMemberPage(): Promise<EnsureNotionMemberResult
     });
   }
 
-  // Persiste le pageId dans profiles si on en a un. Guard `is null` pour
+  // Persiste le notion_member_page_id dans profiles. Guard `is null` pour
   // l'idempotence : si un autre appel concurrent a déjà rempli, on n'écrase pas.
-  if (pageId) {
+  if (notionPageId) {
     const { error: updateErr } = await admin
       .from("profiles")
-      .update({ notion_member_page_id: pageId })
+      .update({ notion_member_page_id: notionPageId })
       .eq("id", profile.id)
       .is("notion_member_page_id", null);
     if (updateErr) {
@@ -119,7 +129,8 @@ export async function ensureNotionMemberPage(): Promise<EnsureNotionMemberResult
 
   return {
     ok: true,
-    pageId,
+    supabaseUuid: profile.id,
+    notionPageId,
     firstName: profile.first_name,
     lastName: profile.last_name,
     email: user.email,
