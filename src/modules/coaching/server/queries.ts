@@ -146,24 +146,38 @@ export async function getCallsForCurrentUser(): Promise<{
   const past: CoachingCallView[] = [];
 
   for (const c of calls) {
+    // Date-based split :
+    //  - sans statut (= "upcoming" par normalisation) ET date future → upcoming
+    //  - tous les autres cas (statut Accepté/No-show/Refusé OU date passée)
+    //    → past
+    // La DB Notion n'a pas d'option "À venir", donc un call est upcoming
+    // uniquement quand l'admin n'a pas encore renseigné de statut ET que
+    // la date est devant nous.
+    const scheduledTs = c.scheduledAt
+      ? new Date(c.scheduledAt).getTime()
+      : NaN;
+    const isFutureUpcoming =
+      c.status === "upcoming" &&
+      !Number.isNaN(scheduledTs) &&
+      scheduledTs >= now;
+
     const view: CoachingCallView = {
       id: c.notionPageId,
       date: c.scheduledAt,
       host: c.host || "Théo", // fallback gracieux si host vide
       subject: c.subject,
-      status: statusToView(c.status),
+      // Si l'admin n'a pas mis de statut mais que la date est passée, on
+      // l'affiche comme "no_show" plutôt que de laisser le pill "à venir"
+      // (qui n'a pas de sens sur un call passé).
+      status: isFutureUpcoming
+        ? "upcoming"
+        : c.status === "upcoming"
+        ? "no_show"
+        : statusToView(c.status),
       notion_page_id: c.notionPageId,
     };
     if (c.aiSummary) view.ai_summary = c.aiSummary;
     if (c.fathomUrl) view.fathom_url = c.fathomUrl;
-
-    // Un call est "à venir" UNIQUEMENT si son statut est upcoming ET sa date
-    // est dans le futur. Un upcoming expiré (admin a oublié de le passer en
-    // accepted/no_show) tombe dans past pour ne pas polluer la section
-    // "prochains coachings".
-    const scheduledTs = view.date ? new Date(view.date).getTime() : NaN;
-    const isFutureUpcoming =
-      c.status === "upcoming" && !Number.isNaN(scheduledTs) && scheduledTs >= now;
 
     if (isFutureUpcoming) {
       upcoming.push(view);

@@ -18,49 +18,50 @@ import {
   normalizeNotionId,
   getTitle,
   getRichText,
-  getSelect,
   type NotionPage,
+  type NotionPropertyValue,
 } from "@/shared/lib/notion/client";
 
-// ── Schema de la DB Notion Appels de suivi ──────────────────────────────
+// ── Schema de la DB Notion "Appel de Suivi" ─────────────────────────────
+// Vérifié via GET /databases/{id} le 2026-06-06.
 //
-// ⚠️ TODO : valider les noms exacts via GET /databases/{id} une fois la DB
-//    connectée à l'intégration. Le bug récurrent : noms en français à accents
-//    ou avec apostrophes (ex: "E-mail" et pas "Email", "Résumé" et pas
-//    "Resume"). On centralise ici pour pouvoir corriger en un seul endroit.
-//
-// Sources d'info partielles :
-//  - "Membre" est la relation vers DB Membres (159bad05-...). Mais le nom
-//    pourrait être "Membres", "Personne", "Lié à" — à vérifier.
-//  - "Date" est le champ date de l'appel.
-//  - "Statut" select : à valider les options exactes (français).
-//  - "Résumé" rich_text : peut être généré par Notion AI.
-//  - "URL Fathom" url : lien externe.
-//  - Le titre de la page sert de sujet (subject).
-const PROP_TITLE = "Nom"; // title — même convention que DB Membres
+// Particularités à noter :
+//  - Le titre s'appelle "Name" et NON "Nom" (vs la DB Membres qui utilise
+//    "Nom"). Incohérence côté Notion mais on s'aligne sur le réel.
+//  - "Host" est de type `people` (Notion User), pas `select`. On lit
+//    le premier user et on prend son name.
+//  - "Status" est de type Notion `status` (pas `select`). Les options
+//    sont {"Accepté", "Refusé", "No-show"} — pas d'option "À venir".
+//    Un appel à venir = status vide/null (on infère côté code).
+//  - "Résumé IA" (rich_text) est le champ qu'on lit pour le résumé court.
+//    Le contenu de la page (blocs Notion) sert de transcription complète,
+//    rendue inline via NotionBlocks au clic "Voir la transcription".
+const PROP_TITLE = "Name"; // title
 const PROP_MEMBER = "Membre"; // relation → DB Membres
 const PROP_DATE = "Date"; // date
-const PROP_HOST = "Coach"; // select (Théo / Noah) — à confirmer
-const PROP_STATUS = "Statut"; // select
-const PROP_SUMMARY = "Résumé"; // rich_text
+const PROP_HOST = "Host"; // people (Notion user) — first user wins
+const PROP_STATUS = "Status"; // status (NOT select) — Accepté/Refusé/No-show
+const PROP_SUMMARY = "Résumé IA"; // rich_text
 const PROP_FATHOM_URL = "URL Fathom"; // url
 
-// Mapping des libellés Notion vers notre enum de statut. On accepte plusieurs
-// variantes (FR avec/sans accents, EN) pour être robuste à un renommage léger.
+// Mapping des libellés Notion vers notre enum de statut.
+//
+// Important : "À venir" n'est PAS une option dans Notion. Un appel sans
+// statut renseigné est considéré upcoming si sa date est future, sinon
+// cancelled (admin a oublié de le passer en accepted/no_show, on l'archive
+// proprement). Ce dernier cas est traité dans `getCallsForCurrentUser`,
+// pas ici — on retourne "upcoming" par défaut quand status est null.
 function normalizeStatus(raw: string | null): NotionCallStatus {
-  if (!raw) return "upcoming";
+  if (!raw) return "upcoming"; // status vide → à venir (filtré par date plus tard)
   const norm = raw.toLowerCase().replace(/[’'`]/g, "").trim();
   if (norm.startsWith("a venir") || norm.startsWith("à venir")) return "upcoming";
   if (norm.startsWith("accept") || norm.startsWith("effect") || norm.startsWith("fait"))
     return "accepted";
+  if (norm.startsWith("refus")) return "cancelled"; // option "Refusé" Notion
   if (norm.startsWith("no") || norm.startsWith("absent")) return "no_show";
   if (norm.startsWith("annul") || norm.startsWith("cancel")) return "cancelled";
   return "upcoming";
 }
-
-// Mapping host : on garde la string telle qu'écrite dans Notion. Le front
-// (HOST_PROFILES dans CallCard) saura mapper "Théo"/"Noah" vers les initiales.
-// Tout autre host tombe sur un fallback gris (cf. CallCard).
 
 export type NotionCallStatus =
   | "upcoming"
@@ -85,18 +86,36 @@ interface NotionQueryResponse {
 }
 
 // ── Helpers de propriétés non encore exposés par client.ts ──────────────
+//
+// Plutôt qu'étendre NotionPropertyValue dans client.ts (qui sert plusieurs
+// modules), on lit les types manquants en local via des extractors typés.
+type PropWithDate = NotionPropertyValue & {
+  date?: { start?: string | null } | null;
+};
+type PropWithStatusObj = NotionPropertyValue & {
+  status?: { name: string } | null;
+};
+type PropWithPeople = NotionPropertyValue & {
+  people?: Array<{ name?: string | null }>;
+};
+
 function getDateStart(page: NotionPage, prop: string): string {
-  // L'API Notion renvoie { date: { start: "2026-05-15T14:00:00Z", end: null } }
-  // mais NotionPropertyValue dans client.ts ne déclare pas `date`. On lit en
-  // raw pour éviter de toucher au type partagé.
-  const raw = (page.properties[prop] as unknown as {
-    date?: { start?: string | null } | null;
-  })?.date;
-  return raw?.start ?? "";
+  return (page.properties[prop] as PropWithDate | undefined)?.date?.start ?? "";
+}
+
+function getStatusName(page: NotionPage, prop: string): string | null {
+  return (
+    (page.properties[prop] as PropWithStatusObj | undefined)?.status?.name ?? null
+  );
+}
+
+function getFirstPersonName(page: NotionPage, prop: string): string | null {
+  const people = (page.properties[prop] as PropWithPeople | undefined)?.people;
+  return people?.[0]?.name ?? null;
 }
 
 function getUrl(page: NotionPage, prop: string): string | null {
-  return (page.properties[prop] as unknown as { url?: string | null })?.url ?? null;
+  return page.properties[prop]?.url ?? null;
 }
 
 // ── Conversion d'une page Notion vers notre type ────────────────────────
@@ -106,9 +125,9 @@ function toNotionCoachingCall(page: NotionPage): NotionCoachingCall {
   return {
     notionPageId: normalizeNotionId(page.id),
     scheduledAt: getDateStart(page, PROP_DATE),
-    host: getSelect(page, PROP_HOST) ?? "",
+    host: getFirstPersonName(page, PROP_HOST) ?? "",
     subject: getTitle(page, PROP_TITLE) || "Coaching",
-    status: normalizeStatus(getSelect(page, PROP_STATUS)),
+    status: normalizeStatus(getStatusName(page, PROP_STATUS)),
     aiSummary: summary.length > 0 ? summary : null,
     fathomUrl: fathom && fathom.length > 0 ? fathom : null,
   };
