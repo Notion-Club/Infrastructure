@@ -298,7 +298,7 @@ export function CommentComposer({
 
   return (
     <>
-    <div style={{ display: "flex", gap: 10, position: "relative" }}>
+    <div data-fb-label="Composer de commentaire · Détail du post" style={{ display: "flex", gap: 10, position: "relative" }}>
       <UserAvatar user={currentUser} size={36} />
       <div style={{ flex: 1 }}>
         {replyingTo && (
@@ -424,6 +424,7 @@ export function CommentComposer({
               suppressContentEditableWarning
               onInput={handleInput}
               onKeyDown={handleKeyDown}
+              data-fb-label="Champ de saisie · Composer de commentaire"
               style={{ minHeight: 60, padding: "10px 14px", fontSize: 14, outline: "none", fontFamily: "inherit", lineHeight: 1.55, color: "var(--color-text-primary)", wordBreak: "break-word" }}
             />
 
@@ -527,6 +528,7 @@ export function CommentComposer({
             type="button"
             onClick={handleSubmit}
             disabled={(editorEmpty && !pendingImageUrl) || disabled}
+            data-fb-label="Bouton Commenter · Composer de commentaire"
             style={{
               padding: "7px 18px",
               background: (!editorEmpty || pendingImageUrl) && !disabled ? "var(--color-brand)" : "var(--nc-btn-disabled-bg)",

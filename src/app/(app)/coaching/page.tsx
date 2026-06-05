@@ -261,6 +261,7 @@ export default function CoachingPage() {
                 <FreeTeaserPanel />
               ) : allCallsEmpty ? (
                 <div
+                  data-fb-label="Encadré aucun appel · Coaching"
                   style={{
                     background: "var(--color-surface-card)",
                     border: "1px solid var(--color-border-default)",

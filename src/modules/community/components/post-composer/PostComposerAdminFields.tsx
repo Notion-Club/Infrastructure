@@ -47,6 +47,7 @@ export function PostComposerAdminFields({
 
   return (
     <div
+      data-fb-label="Options admin · Composer de post"
       style={{
         background: "rgba(224,98,90,0.04)",
         border: "1px solid rgba(224,98,90,0.15)",

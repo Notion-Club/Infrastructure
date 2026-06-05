@@ -31,6 +31,7 @@ export function SecuritySection({ user, isMocked }: SecuritySectionProps) {
     <SettingsCard
       title="Sécurité"
       description="Gérez votre mot de passe et vos méthodes de connexion."
+      fbLabel="Section sécurité · Réglages"
     >
       {emailIdentity && (
         <>
@@ -83,6 +84,7 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        data-fb-label="Bouton changer mot de passe · Section sécurité"
         style={{
           display: "flex",
           alignItems: "center",
@@ -307,6 +309,7 @@ function PasswordChangeForm({
         <button
           type="submit"
           disabled={!canSubmit}
+          data-fb-label="Bouton Mettre à jour mot de passe · Section sécurité"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -369,6 +372,7 @@ function PasswordField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           autoComplete={autoComplete}
+          data-fb-label={`Champ ${label} · Section sécurité`}
           className="nc-input"
           style={{ paddingRight: 44 }}
         />
@@ -473,7 +477,10 @@ function GoogleIdentityBlock({
 
   if (!googleIdentity) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div
+        data-fb-label="Bloc Google · Section sécurité"
+        style={{ display: "flex", flexDirection: "column", gap: 10 }}
+      >
         <h3
           style={{
             margin: 0,
@@ -496,7 +503,10 @@ function GoogleIdentityBlock({
   const googleEmail = getGoogleEmail(googleIdentity);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div
+      data-fb-label="Bloc Google · Section sécurité"
+      style={{ display: "flex", flexDirection: "column", gap: 10 }}
+    >
       <h3
         style={{
           margin: 0,
@@ -549,6 +559,7 @@ function GoogleIdentityBlock({
           type="button"
           onClick={unlinkGoogle}
           disabled={pending}
+          data-fb-label="Bouton Déconnecter Google · Section sécurité"
           style={{
             padding: "8px 14px",
             borderRadius: 9999,

@@ -40,6 +40,7 @@ export function ConversationItem({ conversation, active, onClick, onPrefetch }: 
       onClick={onClick}
       onMouseEnter={onPrefetch}
       onFocus={onPrefetch}
+      data-fb-label={`Carte conversation « ${conversation.participant.name} » · Liste conversations`}
       style={{
         width: "100%",
         display: "flex",

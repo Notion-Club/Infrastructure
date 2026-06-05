@@ -153,6 +153,7 @@ export function NotificationsSection({
     <SettingsCard
       title="Notifications"
       description="Cliquez sur un canal en-tête pour activer/désactiver toutes ses notifications, ou utilisez les switches pour ajuster chaque type."
+      fbLabel="Section notifications · Réglages"
     >
       <NotificationsMatrix
         categories={visibleCategories}
@@ -167,6 +168,7 @@ export function NotificationsSection({
           type="button"
           onClick={handleSave}
           disabled={saving}
+          data-fb-label="Bouton Enregistrer préférences · Section notifications"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -240,6 +242,7 @@ function NotificationsMatrix({
     <div
       role="table"
       aria-label="Préférences de notification par type et canal"
+      data-fb-label="Matrice notifications · Section notifications"
       style={{
         borderRadius: 14,
         border: "1px solid var(--color-border-default)",
@@ -374,6 +377,7 @@ function ChannelHeaderButton({
       role="switch"
       aria-checked={active}
       aria-label={`Canal ${label}`}
+      data-fb-label={`Interrupteur canal ${label} · Section notifications`}
       onClick={onClick}
       style={{
         width: "100%",
@@ -449,6 +453,7 @@ function SwitchToggle({
       role="switch"
       aria-checked={checked}
       aria-label={ariaLabel}
+      data-fb-label={`Interrupteur ${ariaLabel} · Section notifications`}
       onClick={disabled ? undefined : onChange}
       disabled={disabled}
       style={{

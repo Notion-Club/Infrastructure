@@ -14,8 +14,12 @@ export function CoachingHeader({
   nextCallPill,
 }: CoachingHeaderProps) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div
+      data-fb-label="En-tête coaching · Coaching"
+      style={{ display: "flex", flexDirection: "column", gap: 10 }}
+    >
       <h1
+        data-fb-label="Titre · En-tête coaching"
         style={{
           fontSize: "clamp(28px, 4vw, 40px)",
           fontWeight: 700,
@@ -29,6 +33,7 @@ export function CoachingHeader({
       </h1>
 
       <p
+        data-fb-label="Sous-titre · En-tête coaching"
         style={{
           fontSize: 15,
           color: "var(--color-text-secondary)",
@@ -44,6 +49,7 @@ export function CoachingHeader({
       {includedPill && (
         <div style={{ marginTop: 4 }}>
           <span
+            data-fb-label="Badge coaching inclus · En-tête coaching"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -65,6 +71,7 @@ export function CoachingHeader({
       {nextCallPill && (
         <div style={{ marginTop: 4 }}>
           <span
+            data-fb-label="Badge prochain coaching · En-tête coaching"
             style={{
               display: "inline-flex",
               alignItems: "center",

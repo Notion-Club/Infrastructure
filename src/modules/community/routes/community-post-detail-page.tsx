@@ -120,6 +120,7 @@ export function CommunityPostDetailPage({
       <button
         type="button"
         onClick={() => router.back()}
+        data-fb-label="Bouton Retour · Détail du post"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -143,6 +144,7 @@ export function CommunityPostDetailPage({
 
       {/* Post complet */}
       <article
+        data-fb-label="Carte post · Détail du post"
         style={{
           background: "var(--color-surface-card)",
           border: "1px solid var(--color-border-default)",
@@ -172,14 +174,14 @@ export function CommunityPostDetailPage({
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <UserHoverCard user={post.author} devRole={devRole}>
-              <div style={{ cursor: "pointer" }}>
+              <div data-fb-label="Avatar auteur · Détail du post" style={{ cursor: "pointer" }}>
                 <UserAvatar user={post.author} size={44} />
               </div>
             </UserHoverCard>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <UserHoverCard user={post.author} devRole={devRole}>
-                  <span style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", cursor: "pointer" }}>
+                  <span data-fb-label="Lien auteur · Détail du post" style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", cursor: "pointer" }}>
                     {post.author.name}
                   </span>
                 </UserHoverCard>
@@ -225,7 +227,7 @@ export function CommunityPostDetailPage({
 
         {/* Content */}
         {postData.title && (
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--color-text-primary)", lineHeight: 1.3 }}>
+          <h1 data-fb-label="Titre du post · Détail du post" style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--color-text-primary)", lineHeight: 1.3 }}>
             {postData.title}
           </h1>
         )}
@@ -239,6 +241,7 @@ export function CommunityPostDetailPage({
           <button
             type="button"
             onClick={() => setImageLightbox(true)}
+            data-fb-label="Image du post · Détail du post"
             style={{
               padding: 0,
               border: "none",
@@ -276,7 +279,7 @@ export function CommunityPostDetailPage({
         )}
 
         {/* Reactions */}
-        <div style={{ paddingTop: 4, borderTop: "1px solid var(--color-border-default)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div data-fb-label="Barre de réactions · Détail du post" style={{ paddingTop: 4, borderTop: "1px solid var(--color-border-default)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <ReactionsBar reactions={reactions} onReact={handleReaction} />
           <ReactionPicker onSelect={handleReaction} mode="post" selectedEmojis={reactions.filter((r) => r.userReacted).map((r) => r.emoji)} />
         </div>
@@ -285,6 +288,7 @@ export function CommunityPostDetailPage({
       {/* Comments */}
       <div
         id="comments"
+        data-fb-label="Encadré commentaires · Détail du post"
         style={{
           background: "var(--color-surface-card)",
           border: "1px solid var(--color-border-default)",

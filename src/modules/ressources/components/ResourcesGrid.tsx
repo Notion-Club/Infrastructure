@@ -114,6 +114,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Filter bar */}
       <div
+        data-fb-label="Filtre barre · Grille des ressources"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -129,6 +130,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               <button
                 key={filter}
                 type="button"
+                data-fb-label={`Filtre « ${filter} » · Grille des ressources`}
                 onClick={() => {
                   setPrimaryFilter(filter);
                   if (filter === 'Templates') {
@@ -165,6 +167,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
             <button
               ref={filterBtnRef}
               type="button"
+              data-fb-label="Bouton Filtres · Grille des ressources"
               onClick={() => setFilterOpen((o) => !o)}
               style={{
                 display: 'inline-flex',
@@ -209,6 +212,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
             {filterOpen && (
               <div
+                data-fb-label="Modale filtres · Grille des ressources"
                 style={{
                   position: 'absolute',
                   top: 'calc(100% + 8px)',
@@ -264,6 +268,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                       return (
                         <label
                           key={type}
+                          data-fb-label={`Filtre « ${type} » · Grille des ressources`}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -297,6 +302,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                   >
                     <button
                       type="button"
+                      data-fb-label="Bouton Réinitialiser filtres · Grille des ressources"
                       onClick={() => {
                         resetFilters();
                         setFilterOpen(false);
@@ -330,7 +336,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
       {/* Grid */}
       {filteredItems.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div data-fb-label="Grille des ressources" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredItems.map((item) =>
             item.category === 'resource' ? (
               <ResourceCard
@@ -363,6 +369,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           <p style={{ fontSize: 14, margin: 0 }}>Aucun élément ne correspond à ces filtres.</p>
           <button
             type="button"
+            data-fb-label="Bouton Réinitialiser filtres · Grille des ressources"
             onClick={resetFilters}
             style={{
               fontSize: 13,

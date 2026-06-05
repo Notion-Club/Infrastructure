@@ -71,9 +71,12 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex w-full max-w-sm flex-col gap-6">
+    <div
+      className="flex w-full max-w-sm flex-col gap-6"
+      data-fb-label="Carte auth · Formulaire de connexion"
+    >
       {/* Bouton SSO Google en HAUT (décision Brique 1) */}
-      <GoogleSignInButton />
+      <GoogleSignInButton data-fb-label="Bouton Google · Formulaire de connexion" />
 
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
@@ -84,7 +87,12 @@ export function LoginForm() {
         </div>
       </div>
 
-      <form action={onSubmit} className="flex flex-col gap-4" noValidate>
+      <form
+        action={onSubmit}
+        className="flex flex-col gap-4"
+        noValidate
+        data-fb-label="Formulaire · Formulaire de connexion"
+      >
         <div className="flex flex-col gap-2">
           <Label htmlFor="email">Email</Label>
           <Input
@@ -94,6 +102,7 @@ export function LoginForm() {
             required
             autoComplete="email"
             disabled={isPending}
+            data-fb-label="Champ Email · Formulaire de connexion"
           />
           {fieldErrors.email && (
             <p className="text-xs text-destructive">{fieldErrors.email}</p>
@@ -106,6 +115,7 @@ export function LoginForm() {
             <Link
               href="/reset-password"
               className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+              data-fb-label="Lien Mot de passe oublié · Formulaire de connexion"
             >
               Mot de passe oublié ?
             </Link>
@@ -117,20 +127,29 @@ export function LoginForm() {
             required
             autoComplete="current-password"
             disabled={isPending}
+            data-fb-label="Champ Mot de passe · Formulaire de connexion"
           />
           {fieldErrors.password && (
             <p className="text-xs text-destructive">{fieldErrors.password}</p>
           )}
         </div>
 
-        <Button type="submit" disabled={isPending}>
+        <Button
+          type="submit"
+          disabled={isPending}
+          data-fb-label="Bouton Se connecter · Formulaire de connexion"
+        >
           {isPending ? "Connexion..." : "Se connecter"}
         </Button>
       </form>
 
       <p className="text-center text-sm text-muted-foreground">
         Pas encore de compte ?{" "}
-        <Link href="/signup" className="underline underline-offset-4">
+        <Link
+          href="/signup"
+          className="underline underline-offset-4"
+          data-fb-label="Lien Créer un compte · Formulaire de connexion"
+        >
           Inscris-toi
         </Link>
       </p>

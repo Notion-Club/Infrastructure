@@ -71,6 +71,7 @@ export function NotificationPopover() {
         type="button"
         aria-label="Notifications"
         onClick={() => setOpen((o) => !o)}
+        data-fb-label="Bouton Notifications · Barre de navigation"
         style={{
           position: "relative",
           display: "flex",
@@ -120,6 +121,7 @@ export function NotificationPopover() {
         <div
           role="dialog"
           aria-label="Notifications"
+          data-fb-label="Menu Notifications · Barre de navigation"
           style={{
             position: "absolute",
             top: "calc(100% + 8px)",
@@ -156,6 +158,7 @@ export function NotificationPopover() {
             <button
               type="button"
               onClick={markAllRead}
+              data-fb-label="Bouton « Tout marquer lu » · Menu Notifications"
               style={{
                 fontSize: 13,
                 color: "var(--color-brand)",
@@ -175,6 +178,7 @@ export function NotificationPopover() {
             {notifications.map((notif, idx) => (
               <li
                 key={notif.id}
+                data-fb-label={`Carte notification « ${notif.user} » · Menu Notifications`}
                 style={{
                   display: "flex",
                   alignItems: "flex-start",

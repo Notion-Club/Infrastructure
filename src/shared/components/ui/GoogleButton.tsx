@@ -7,6 +7,7 @@ type GoogleButtonProps = {
   loading?: boolean;
   className?: string;
   onClick?: () => void;
+  "data-fb-label"?: string;
 };
 
 export function GoogleButton({
@@ -14,12 +15,14 @@ export function GoogleButton({
   loading = false,
   className,
   onClick,
+  "data-fb-label": dataFbLabel,
 }: GoogleButtonProps) {
   return (
     <button
       type="button"
       disabled={loading}
       onClick={onClick}
+      data-fb-label={dataFbLabel}
       className={cn(
         "flex w-full items-center justify-center gap-3 rounded-full border border-dashed border-[var(--color-border-default)] bg-[var(--color-surface-raised)] px-5 py-3 text-[15px] font-medium text-[var(--color-text-primary)] transition-all duration-200 ease-out hover:border-[#d4d4d8] hover:bg-[#eeeeee] disabled:cursor-not-allowed disabled:opacity-70",
         className,

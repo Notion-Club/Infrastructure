@@ -37,6 +37,7 @@ export function LessonPlayerCard({
 }: Props) {
   return (
     <div
+      data-fb-label="Carte lecteur de leçon · Leçon"
       style={{
         background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
@@ -47,9 +48,10 @@ export function LessonPlayerCard({
       }}
     >
       {/* 1 — Titre + description (+ pill feedback) */}
-      <div style={{ padding: "22px 24px 18px" }}>
+      <div data-fb-label="En-tête leçon · Lecteur de leçon" style={{ padding: "22px 24px 18px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <h1
+            data-fb-label="Titre leçon · Lecteur de leçon"
             style={{
               fontSize: 24,
               fontWeight: 700,
@@ -86,7 +88,7 @@ export function LessonPlayerCard({
 
       {/* Body du cours (tout le contenu Notion hors vidéo) */}
       {blocks.length > 0 && (
-        <div style={{ padding: "18px 24px 22px" }}>
+        <div data-fb-label="Corps de la leçon · Lecteur de leçon" style={{ padding: "18px 24px 22px" }}>
           <NotionBlocks blocks={blocks} />
         </div>
       )}
@@ -108,7 +110,7 @@ function VideoEmbed({ url, title }: { url: string | null; title: string }) {
   if (!url) return null;
   const isFile = /\.(mp4|webm|mov)(\?|$)/i.test(url) && !url.includes("tella.tv");
   return (
-    <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", background: "#000" }}>
+    <div data-fb-label="Lecteur vidéo · Leçon" style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", background: "#000" }}>
       {isFile ? (
         <video src={url} controls style={{ width: "100%", height: "100%" }} />
       ) : (

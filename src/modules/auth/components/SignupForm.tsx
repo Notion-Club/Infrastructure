@@ -60,6 +60,7 @@ export function SignupForm() {
       action={onSubmit}
       className="flex w-full max-w-sm flex-col gap-4"
       noValidate
+      data-fb-label="Formulaire · Formulaire d'inscription"
     >
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">
@@ -71,6 +72,7 @@ export function SignupForm() {
             required
             autoComplete="given-name"
             disabled={isPending}
+            data-fb-label="Champ Prénom · Formulaire d'inscription"
           />
           {fieldErrors.firstName && (
             <p className="text-xs text-destructive">{fieldErrors.firstName}</p>
@@ -85,6 +87,7 @@ export function SignupForm() {
             required
             autoComplete="family-name"
             disabled={isPending}
+            data-fb-label="Champ Nom · Formulaire d'inscription"
           />
           {fieldErrors.lastName && (
             <p className="text-xs text-destructive">{fieldErrors.lastName}</p>
@@ -101,6 +104,7 @@ export function SignupForm() {
           required
           autoComplete="email"
           disabled={isPending}
+          data-fb-label="Champ Email · Formulaire d'inscription"
         />
         {fieldErrors.email && (
           <p className="text-xs text-destructive">{fieldErrors.email}</p>
@@ -117,6 +121,7 @@ export function SignupForm() {
           minLength={8}
           autoComplete="new-password"
           disabled={isPending}
+          data-fb-label="Champ Mot de passe · Formulaire d'inscription"
         />
         {fieldErrors.password && (
           <p className="text-xs text-destructive">{fieldErrors.password}</p>
@@ -126,13 +131,21 @@ export function SignupForm() {
         </p>
       </div>
 
-      <Button type="submit" disabled={isPending}>
+      <Button
+        type="submit"
+        disabled={isPending}
+        data-fb-label="Bouton Créer mon compte · Formulaire d'inscription"
+      >
         {isPending ? "Création..." : "Créer mon compte"}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">
         Déjà un compte ?{" "}
-        <Link href="/login" className="underline underline-offset-4">
+        <Link
+          href="/login"
+          className="underline underline-offset-4"
+          data-fb-label="Lien Se connecter · Formulaire d'inscription"
+        >
           Se connecter
         </Link>
       </p>

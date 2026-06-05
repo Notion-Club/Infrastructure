@@ -11,8 +11,9 @@ export function UpcomingCallsSection({
   emptyMessage = "Aucun coaching prévu pour le moment.",
 }: UpcomingCallsSectionProps) {
   return (
-    <div style={{ marginBottom: 28 }}>
+    <div data-fb-label="Section · Appels à venir" style={{ marginBottom: 28 }}>
       <h2
+        data-fb-label="Titre · Appels à venir"
         style={{
           fontSize: 13,
           fontWeight: 600,

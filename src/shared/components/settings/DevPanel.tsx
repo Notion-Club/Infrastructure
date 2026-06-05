@@ -48,6 +48,7 @@ export function DevPanel({ scenarioId, onScenarioChange }: DevPanelProps) {
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Ouvrir le panneau de simulation"
+          data-fb-label="Bouton panneau dev · Réglages"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -72,6 +73,7 @@ export function DevPanel({ scenarioId, onScenarioChange }: DevPanelProps) {
         <div
           role="dialog"
           aria-label="Simulations dev"
+          data-fb-label="Panneau dev · Réglages"
           style={{
             width: 320,
             maxWidth: "calc(100vw - 40px)",
@@ -156,6 +158,7 @@ export function DevPanel({ scenarioId, onScenarioChange }: DevPanelProps) {
                   <button
                     type="button"
                     onClick={() => onScenarioChange(scenario.id)}
+                    data-fb-label="Bouton scénario · Panneau dev"
                     style={{
                       width: "100%",
                       textAlign: "left",

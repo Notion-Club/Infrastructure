@@ -3,6 +3,7 @@ import { Lock } from "lucide-react";
 export function FreeTeaserPanel() {
   return (
     <div
+      data-fb-label="Encadré teaser coaching · CTA coaching"
       style={{
         position: "relative",
         borderRadius: 16,
@@ -112,6 +113,7 @@ export function FreeTeaserPanel() {
         </div>
 
         <h3
+          data-fb-label="Titre · Encadré teaser coaching"
           style={{
             fontSize: 18,
             fontWeight: 700,
@@ -139,6 +141,7 @@ export function FreeTeaserPanel() {
 
         <a
           href="#"
+          data-fb-label="Lien Découvrir l'Accompagnement · Encadré teaser coaching"
           style={{
             fontSize: 14,
             fontWeight: 600,

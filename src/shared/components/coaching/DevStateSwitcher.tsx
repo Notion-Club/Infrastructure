@@ -13,6 +13,7 @@ interface DevStateSwitcherProps {
 export function DevStateSwitcher({ currentState, onChange }: DevStateSwitcherProps) {
   return (
     <div
+      data-fb-label="Switcher état dev · Coaching"
       style={{
         background: "#fffbeb",
         borderBottom: "1px solid #fde68a",
@@ -50,6 +51,7 @@ export function DevStateSwitcher({ currentState, onChange }: DevStateSwitcherPro
                 key={state}
                 type="button"
                 onClick={() => onChange(state)}
+                data-fb-label="Bouton état · Switcher état dev"
                 style={{
                   fontSize: 12,
                   fontWeight: isActive ? 600 : 500,

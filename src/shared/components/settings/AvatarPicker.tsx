@@ -242,6 +242,7 @@ export function AvatarPicker({
         role="dialog"
         aria-modal="true"
         aria-label="Personnaliser l'avatar"
+        data-fb-label="Modale sélecteur avatar · Section profil"
         onClick={(e) => {
           if (
             e.target === e.currentTarget &&
@@ -353,6 +354,7 @@ export function AvatarPicker({
                 type="button"
                 onClick={handleRemovePhoto}
                 disabled={removing}
+                data-fb-label="Bouton Supprimer la photo · Modale sélecteur avatar"
                 style={{
                   alignSelf: "center",
                   display: "inline-flex",
@@ -393,6 +395,7 @@ export function AvatarPicker({
               type="button"
               onClick={onClose}
               disabled={savingColor || uploading || removing}
+              data-fb-label="Bouton Fermer · Modale sélecteur avatar"
               style={{
                 padding: "9px 18px",
                 borderRadius: 9999,
@@ -500,6 +503,7 @@ function AvatarPreview({
           onClick={onOpenColorPopup}
           aria-label="Changer la couleur de fond"
           aria-expanded={colorPopupOpen}
+          data-fb-label="Bouton Couleur · Modale sélecteur avatar"
           style={{
             position: "absolute",
             inset: 4,
@@ -580,6 +584,7 @@ const ColorPopup = forwardRef<HTMLDivElement, ColorPopupProps>(
                 role="radio"
                 aria-checked={active}
                 aria-label={`Couleur ${color}`}
+                data-fb-label="Pastille couleur · Modale sélecteur avatar"
                 onClick={() => onSelect(color)}
                 style={{
                   width: "100%",
@@ -610,6 +615,7 @@ const ColorPopup = forwardRef<HTMLDivElement, ColorPopupProps>(
             type="button"
             onClick={onCancel}
             disabled={saving}
+            data-fb-label="Bouton Annuler couleur · Modale sélecteur avatar"
             style={{
               padding: "7px 14px",
               borderRadius: 9999,
@@ -628,6 +634,7 @@ const ColorPopup = forwardRef<HTMLDivElement, ColorPopupProps>(
             type="button"
             onClick={onSave}
             disabled={!canSave || saving}
+            data-fb-label="Bouton Appliquer couleur · Modale sélecteur avatar"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -761,6 +768,7 @@ function PhotoDropZone({ onFile }: { onFile: (file: File) => void }) {
         onDrop={handleDrop}
         onPaste={handleClipboardPaste}
         aria-label="Zone de dépôt pour photo de profil"
+        data-fb-label="Zone de dépôt photo · Modale sélecteur avatar"
         style={{
           border: `2px dashed ${isDragging ? "var(--color-brand)" : "var(--color-border-default)"}`,
           background: isDragging

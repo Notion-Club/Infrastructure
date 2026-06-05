@@ -48,6 +48,7 @@ export function FilloutModal({
   return (
     <div
       onClick={handleOverlayClick}
+      data-fb-label="Modale réservation · Coaching"
       style={{
         position: "fixed",
         inset: 0,
@@ -63,6 +64,7 @@ export function FilloutModal({
     >
       {/* Modal window */}
       <div
+        data-fb-label="Fenêtre formulaire · Modale réservation"
         style={{
           width: "100%",
           maxWidth: 700,

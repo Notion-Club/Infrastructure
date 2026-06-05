@@ -32,6 +32,7 @@ export function MarkAsSeenButton() {
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <button
           type="button"
+          data-fb-label="Bouton Marquer comme vue · Page ressource"
           onClick={() => setSeenAt(new Date())}
           disabled={seen}
           style={{

@@ -19,6 +19,7 @@ export function LessonView({
 
   return (
     <div
+      data-fb-label="Page leçon"
       style={{
         maxWidth: 880,
         margin: "0 auto",
@@ -27,7 +28,7 @@ export function LessonView({
         gap: 22,
       }}
     >
-      <nav aria-label="Fil d'ariane" style={{ display: "flex" }}>
+      <nav aria-label="Fil d'ariane" data-fb-label="Fil d'ariane · Leçon" style={{ display: "flex" }}>
         <LessonBreadcrumb
           formation={formation}
           currentModuleSlug={mod.slug}

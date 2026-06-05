@@ -69,6 +69,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Navigation principale"
+      data-fb-label="Barre de navigation"
       style={{
         position: "fixed",
         bottom: "calc(10px + env(safe-area-inset-bottom))",
@@ -111,6 +112,7 @@ export function BottomNav() {
             key={href}
             href={href}
             ref={(el) => { itemRefs.current[i] = el; }}
+            data-fb-label={`Onglet « ${label} » · Barre de navigation`}
             onClick={(e) => {
               // Animation immédiate au clic — avant que Next.js charge la page.
               lastClickedRef.current = i;

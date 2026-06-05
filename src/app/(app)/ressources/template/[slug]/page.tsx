@@ -41,7 +41,7 @@ export default async function TemplateDetailPage({ params }: PageProps) {
           <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
             <div style={{ maxWidth: 720, margin: '0 auto' }}>
               {/* Breadcrumb */}
-              <div style={{ marginBottom: 32 }}>
+              <div data-fb-label="Fil d'ariane · Page template" style={{ marginBottom: 32 }}>
                 <ResourceBreadcrumb
                   items={[
                     { label: 'Templates', href: '/ressources?cat=template' },
@@ -52,6 +52,7 @@ export default async function TemplateDetailPage({ params }: PageProps) {
 
               {/* Header card — title, description, badges, video */}
               <div
+                data-fb-label="Encadré contenu · Page template"
                 style={{
                   background: 'var(--color-surface-card)',
                   borderRadius: 20,
@@ -62,6 +63,7 @@ export default async function TemplateDetailPage({ params }: PageProps) {
                 }}
               >
                 <h1
+                  data-fb-label="Titre · Page template"
                   style={{
                     fontSize: 'clamp(36px, 5vw, 52px)',
                     fontWeight: 700,
@@ -92,11 +94,15 @@ export default async function TemplateDetailPage({ params }: PageProps) {
                 >
                   {formatDate(template.dateCreation)}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: template.urlTella ? 24 : 0 }}>
+                <div data-fb-label="Badges méta · Page template" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: template.urlTella ? 24 : 0 }}>
                   <ResourceBadge variant="template" label="Template" />
                   <ResourceBadge variant="type" label={template.type} />
                 </div>
-                {template.urlTella && <TellaEmbed url={template.urlTella} />}
+                {template.urlTella && (
+                  <div data-fb-label="Embed vidéo Tella · Page template">
+                    <TellaEmbed url={template.urlTella} />
+                  </div>
+                )}
               </div>
 
               {/* Footer unifié : bouton dupliquer + templates liés (conditionnel) */}

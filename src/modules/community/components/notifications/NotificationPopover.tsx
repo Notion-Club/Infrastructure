@@ -59,6 +59,7 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
         type="button"
         aria-label="Notifications"
         onClick={() => setOpen((o) => !o)}
+        data-fb-label="Bouton Notifications · Communauté"
         className={buttonClassName}
         style={{
           width: 40,
@@ -105,6 +106,7 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
 
       {open && (
         <div
+          data-fb-label="Popover notifications · Communauté"
           style={{
             position: "absolute",
             top: "calc(100% + 10px)",
@@ -141,6 +143,7 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
               <button
                 type="button"
                 onClick={markAllRead}
+                data-fb-label="Bouton Tout marquer comme lu · Popover notifications"
                 style={{
                   fontSize: 12,
                   color: "var(--color-brand)",
@@ -162,6 +165,7 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
                 key={n.id}
                 type="button"
                 onClick={() => handleNotifClick(n)}
+                data-fb-label="Carte notification · Popover notifications"
                 style={{
                   width: "100%",
                   display: "flex",

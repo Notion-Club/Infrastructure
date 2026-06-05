@@ -102,7 +102,7 @@ function renderBlock(block: ContentBlock, idx: number) {
 
     case 'tella_embed':
       return (
-        <div key={idx} style={{ margin: '24px 0' }}>
+        <div key={idx} data-fb-label="Embed vidéo Tella · Corps Notion" style={{ margin: '24px 0' }}>
           <TellaEmbed url={block.url} />
         </div>
       );
@@ -112,6 +112,7 @@ function renderBlock(block: ContentBlock, idx: number) {
         // eslint-disable-next-line @next/next/no-img-element
         <img
           key={idx}
+          data-fb-label="Image · Corps Notion"
           src={block.url}
           alt={block.alt ?? ''}
           style={{
@@ -146,7 +147,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
           <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
             <div style={{ maxWidth: 720, margin: '0 auto' }}>
               {/* Breadcrumb */}
-              <div style={{ marginBottom: 32 }}>
+              <div data-fb-label="Fil d'ariane · Page ressource" style={{ marginBottom: 32 }}>
                 <ResourceBreadcrumb
                   items={[
                     ...(resource.type[0]
@@ -159,6 +160,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
 
               {/* Encadré blanc : header + contenu complet */}
               <div
+                data-fb-label="Encadré contenu · Page ressource"
                 style={{
                   background: 'var(--color-surface-card)',
                   borderRadius: 20,
@@ -170,6 +172,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
               >
                 {/* Header */}
                 <h1
+                  data-fb-label="Titre · Page ressource"
                   style={{
                     fontSize: 'clamp(36px, 5vw, 52px)',
                     fontWeight: 700,
@@ -200,7 +203,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                 >
                   {formatDate(resource.dateCreation)}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <div data-fb-label="Badges méta · Page ressource" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <ResourceBadge variant="ressource" label="Ressource" />
                   {resource.formation.map((f) => (
                     <ResourceBadge key={f} variant="formation" label={f} />
@@ -221,7 +224,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
 
                 {/* Contenu */}
                 {hasAccess ? (
-                  <div>
+                  <div data-fb-label="Corps Notion · Page ressource">
                     {resource.content.map((block, idx) => renderBlock(block, idx))}
                   </div>
                 ) : (

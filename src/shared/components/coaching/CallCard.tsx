@@ -84,6 +84,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
     // Clic sur le fond/bords de l'encadré ferme l'accordéon
     <div
       ref={cardRef}
+      data-fb-label="Carte appel · Carte appel"
       onClick={() => { if (isOpen) closeCard(); }}
       style={{
         background: "var(--color-surface-card)",
@@ -120,6 +121,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
         {/* Left — title + date + host */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <h2
+            data-fb-label="Titre · Carte appel"
             style={{
               fontSize: 15,
               fontWeight: 700,
@@ -154,6 +156,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
 
             {/* Host avatar */}
             <div
+              data-fb-label="Avatar coach · Carte appel"
               style={{
                 width: 22,
                 height: 22,
@@ -212,6 +215,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
         {isExpandable && (
           <div
             aria-label={isOpen ? "Fermer les détails" : "Voir les détails"}
+            data-fb-label="Bouton détails · Carte appel"
             style={{
               width: 30,
               height: 30,
@@ -300,6 +304,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    data-fb-label="Bouton Demander à ChatGPT · Carte appel"
                     onClick={(e) => e.stopPropagation()}
                     style={{
                       display: "inline-flex",
@@ -334,6 +339,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    data-fb-label="Bouton Demander à Claude · Carte appel"
                     onClick={(e) => e.stopPropagation()}
                     style={{
                       display: "inline-flex",
@@ -402,6 +408,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                 {call.ai_summary!.length > 280 && (
                   <button
                     type="button"
+                    data-fb-label="Bouton Voir plus résumé · Carte appel"
                     onClick={(e) => {
                       e.stopPropagation();
                       setSummaryExpanded((s) => !s);

@@ -203,6 +203,7 @@ export function CommunityPage({
       {/* Global container card */}
       <div
         className="md:flex md:flex-col md:flex-1 md:min-h-0"
+        data-fb-label="Encadré principal · Communauté"
         style={{
           background: "var(--color-surface-raised)",
           border: "1px solid var(--color-border-default)",
@@ -214,6 +215,7 @@ export function CommunityPage({
         {/* iOS-style pill switcher — full width, sticky header */}
         <div
           className="md:shrink-0"
+          data-fb-label="Switcher feed/messages · Communauté"
           style={{
             padding: "12px 16px",
             borderBottom: "1px solid var(--color-border-default)",
@@ -259,6 +261,7 @@ export function CommunityPage({
                   key={value}
                   ref={(el) => { tabItemRefs.current[i] = el; }}
                   type="button"
+                  data-fb-label={`Onglet « ${label} » · Switcher feed/messages`}
                   onClick={() => {
                     tabLastClickedRef.current = i;
                     moveTabTo(i, true);
@@ -331,6 +334,7 @@ export function CommunityPage({
             <div
               ref={scrollRef}
               className="md:flex-1 md:min-h-0 md:overflow-y-auto"
+              data-fb-label="Liste · Feed"
               style={{ padding: "0 16px 16px" }}
             >
               {showSkeleton ? (
@@ -366,6 +370,7 @@ export function CommunityPage({
           type="button"
           onClick={() => setShowComposer(true)}
           className="nc-feed-fab md:hidden"
+          data-fb-label="Bouton Nouveau post · Feed"
           aria-label="Nouveau post"
         >
           <SquarePen size={22} strokeWidth={2.25} />

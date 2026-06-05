@@ -19,6 +19,7 @@ export function TemplateCard({ template, currentCapability }: TemplateCardProps)
     <div
       role="button"
       tabIndex={0}
+      data-fb-label={`Carte template « ${template.titre} » · Grille des ressources`}
       onClick={() => router.push('/ressources/template/' + template.slug)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -66,7 +67,9 @@ export function TemplateCard({ template, currentCapability }: TemplateCardProps)
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <ResourceBadge variant="template" label="Template" />
         {isLocked && (
-          <ResourceBadge variant="neutral" label={template.visibilite} icon={<Lock size={10} />} />
+          <span data-fb-label="Cadenas accès · Carte template">
+            <ResourceBadge variant="neutral" label={template.visibilite} icon={<Lock size={10} />} />
+          </span>
         )}
       </div>
 

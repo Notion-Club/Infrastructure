@@ -17,6 +17,7 @@ export function FormationBackLink() {
     <button
       type="button"
       onClick={go}
+      data-fb-label="Lien retour Tous les programmes · Page programme"
       style={{
         alignSelf: "flex-start",
         background: "none",

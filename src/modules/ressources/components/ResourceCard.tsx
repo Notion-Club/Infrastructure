@@ -19,6 +19,7 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
     <div
       role="button"
       tabIndex={0}
+      data-fb-label={`Carte ressource « ${resource.titre} » · Grille des ressources`}
       onClick={() => router.push('/ressources/ressource/' + resource.slug)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -66,7 +67,9 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <ResourceBadge variant="ressource" label="Ressource" />
         {isLocked && (
-          <ResourceBadge variant="neutral" label={resource.visibilite} icon={<Lock size={10} />} />
+          <span data-fb-label="Cadenas accès · Carte ressource">
+            <ResourceBadge variant="neutral" label={resource.visibilite} icon={<Lock size={10} />} />
+          </span>
         )}
       </div>
 

@@ -33,6 +33,7 @@ export function ReactionPicker({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        data-fb-label="Bouton Réagir · Communauté"
         style={{
           display: "inline-flex",
           alignItems: "center",

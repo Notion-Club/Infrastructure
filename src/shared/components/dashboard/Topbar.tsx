@@ -143,6 +143,7 @@ export function Topbar() {
       }}
     >
       <div
+        data-fb-label="Barre de navigation"
         className="nc-topbar-pill"
         style={{
           width: "100%",
@@ -160,6 +161,7 @@ export function Topbar() {
           <Link
             href="/dashboard"
             aria-label="Notion Club — retour à l'accueil"
+            data-fb-label="Logo Notion Club · Barre de navigation"
             style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}
           >
             <Image
@@ -199,6 +201,7 @@ export function Topbar() {
                   href={href}
                   ref={(el) => { itemRefs.current[i] = el; }}
                   onClick={() => { lastClickedRef.current = i; moveTo(i, true); }}
+                  data-fb-label={`Onglet « ${label} » · Barre de navigation`}
                   style={{
                     position: "relative",
                     zIndex: 1,
@@ -230,6 +233,7 @@ export function Topbar() {
           <button
             type="button"
             aria-label="Notifications"
+            data-fb-label="Bouton Notifications · Barre de navigation"
             style={{
               width: 40,
               height: 40,
@@ -278,6 +282,7 @@ export function Topbar() {
             type="button"
             aria-label="Menu compte"
             onClick={() => setAvatarOpen((o) => !o)}
+            data-fb-label="Avatar compte · Barre de navigation"
             style={{
               width: 36,
               height: 36,
@@ -314,6 +319,7 @@ export function Topbar() {
           {avatarOpen && (
             <div
               role="menu"
+              data-fb-label="Menu compte · Barre de navigation"
               className="nc-dropdown-panel"
               style={{
                 position: "absolute",
@@ -345,6 +351,7 @@ export function Topbar() {
                 href="/settings"
                 role="menuitem"
                 onClick={() => setAvatarOpen(false)}
+                data-fb-label="Lien « Réglages » · Menu compte"
                 style={{
                   display: "block",
                   padding: "10px 10px",
@@ -363,6 +370,7 @@ export function Topbar() {
                 role="menuitem"
                 onClick={handleSignOut}
                 disabled={signingOut}
+                data-fb-label="Bouton « Se déconnecter » · Menu compte"
                 style={{
                   display: "block",
                   width: "100%",
