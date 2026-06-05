@@ -2,21 +2,26 @@
 
 import { useEffect } from "react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
+import { buildFilloutUrl } from "@/shared/lib/fillout/url";
 
 interface FilloutModalProps {
   isOpen: boolean;
   onClose: () => void;
-  url: string;
-  userEmail: string;
-  memberId: string;
+  baseUrl: string;
+  id: string | null;
+  mail: string | null;
+  prenom: string | null;
+  nom: string | null;
 }
 
 export function FilloutModal({
   isOpen,
   onClose,
-  url,
-  userEmail,
-  memberId,
+  baseUrl,
+  id,
+  mail,
+  prenom,
+  nom,
 }: FilloutModalProps) {
   // Close on Escape
   useEffect(() => {
@@ -39,7 +44,7 @@ export function FilloutModal({
 
   if (!isOpen) return null;
 
-  const iframeUrl = `${url}?email=${encodeURIComponent(userEmail)}&member_id=${encodeURIComponent(memberId)}`;
+  const iframeUrl = buildFilloutUrl(baseUrl, { id, mail, prenom, nom });
 
   function handleOverlayClick(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target === e.currentTarget) onClose();
