@@ -2,8 +2,11 @@
 
 import { useState, useRef } from "react";
 import Image from "next/image";
-import { AlignJustify, X } from "lucide-react";
-import type { MockCall } from "@/shared/lib/mock/coaching";
+import { AlignJustify, X, FileText, ExternalLink, Loader2 } from "lucide-react";
+import type { CallCardData } from "@/shared/lib/mock/coaching";
+import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
+import type { NotionBlock } from "@/shared/lib/notion/blocks";
+import { getCallTranscriptionBlocks } from "@/modules/coaching/server/getCallTranscriptionBlocks";
 
 // Au branchement backend — remplacer par de vraies URLs Cloudinary pour les photos de profil des coaches
 const HOST_PROFILES: Record<string, { initials: string; bg: string }> = {
@@ -47,20 +50,59 @@ const STATUS_STYLES = {
 } as const;
 
 interface CallCardProps {
-  call: MockCall;
+  call: CallCardData;
   archived?: boolean;
 }
+
+type TranscriptionState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "ready"; blocks: NotionBlock[] }
+  | { kind: "empty" } // pas de blocs sur la page Notion
+  | { kind: "error"; reason: string };
 
 export function CallCard({ call, archived = false }: CallCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const [transcription, setTranscription] = useState<TranscriptionState>({
+    kind: "idle",
+  });
+  const [transcriptionOpen, setTranscriptionOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const isUpcoming = call.status === "upcoming";
   const isExpandable = !isUpcoming;
   const hasSummary = !!call.ai_summary;
+  const hasTranscriptionAccess = !!call.notion_page_id && !isUpcoming;
+  const hasFathom = !!call.fathom_url;
   const statusStyle = STATUS_STYLES[call.status];
-  const host = HOST_PROFILES[call.host] ?? { initials: call.host[0], bg: "#6b7280" };
+  const host = HOST_PROFILES[call.host] ?? { initials: call.host[0] ?? "?", bg: "#6b7280" };
+
+  async function loadTranscription() {
+    if (!call.notion_page_id) return;
+    // Pré-cache : si on a déjà chargé, on toggle l'affichage sans refaire l'appel.
+    if (transcription.kind === "ready" || transcription.kind === "empty") {
+      setTranscriptionOpen((o) => !o);
+      return;
+    }
+    setTranscriptionOpen(true);
+    setTranscription({ kind: "loading" });
+    try {
+      const result = await getCallTranscriptionBlocks(call.notion_page_id);
+      if (!result.ok) {
+        setTranscription({ kind: "error", reason: result.reason });
+        return;
+      }
+      setTranscription(
+        result.blocks.length === 0
+          ? { kind: "empty" }
+          : { kind: "ready", blocks: result.blocks },
+      );
+    } catch (err) {
+      console.error("[CallCard] loadTranscription failed:", err);
+      setTranscription({ kind: "error", reason: "fetch_failed" });
+    }
+  }
 
   function handleToggle() {
     if (!isExpandable) return;
@@ -454,6 +496,159 @@ export function CallCard({ call, archived = false }: CallCardProps) {
               >
                 Pas de résumé disponible pour ce coaching.
               </p>
+            )}
+
+            {/* ── Actions transcription + Fathom ───────────────────── */}
+            {(hasTranscriptionAccess || hasFathom) && (
+              <div
+                data-fb-label="Actions transcription · Carte appel"
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                  marginTop: 14,
+                  paddingTop: 14,
+                  borderTop: "1px dashed var(--color-border-default)",
+                }}
+              >
+                {hasTranscriptionAccess && (
+                  <button
+                    type="button"
+                    data-fb-label="Bouton Voir la transcription · Carte appel"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      loadTranscription();
+                    }}
+                    disabled={transcription.kind === "loading"}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "7px 12px",
+                      background: transcriptionOpen
+                        ? "rgba(224,98,90,0.08)"
+                        : "var(--color-surface-raised)",
+                      border: `1px solid ${
+                        transcriptionOpen
+                          ? "rgba(224,98,90,0.25)"
+                          : "var(--color-border-default)"
+                      }`,
+                      borderRadius: 9999,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: transcriptionOpen
+                        ? "var(--color-brand)"
+                        : "var(--color-text-primary)",
+                      cursor:
+                        transcription.kind === "loading" ? "wait" : "pointer",
+                      transition:
+                        "background 180ms ease, border-color 180ms ease",
+                    }}
+                  >
+                    {transcription.kind === "loading" ? (
+                      <Loader2
+                        size={13}
+                        style={{
+                          flexShrink: 0,
+                          animation: "nc-spin 0.9s linear infinite",
+                        }}
+                      />
+                    ) : (
+                      <FileText size={13} style={{ flexShrink: 0 }} />
+                    )}
+                    {transcriptionOpen
+                      ? "Masquer la transcription"
+                      : "Voir la transcription"}
+                  </button>
+                )}
+                {hasFathom && (
+                  <a
+                    href={call.fathom_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-fb-label="Bouton Ouvrir dans Fathom · Carte appel"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "7px 12px",
+                      background: "var(--color-surface-raised)",
+                      border: "1px solid var(--color-border-default)",
+                      borderRadius: 9999,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "var(--color-text-primary)",
+                      textDecoration: "none",
+                      transition:
+                        "background 180ms ease, border-color 180ms ease",
+                    }}
+                  >
+                    <ExternalLink size={13} style={{ flexShrink: 0 }} />
+                    Ouvrir dans Fathom
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* ── Transcription rendue inline (lazy) ──────────────── */}
+            {transcriptionOpen && (
+              <div
+                data-fb-label="Bloc transcription · Carte appel"
+                style={{
+                  marginTop: 14,
+                  padding: "14px 16px",
+                  background: "var(--color-surface-raised)",
+                  borderRadius: 12,
+                  border: "1px solid var(--color-border-default)",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {transcription.kind === "loading" && (
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "var(--color-text-muted)",
+                      fontStyle: "italic",
+                      margin: 0,
+                    }}
+                  >
+                    Chargement de la transcription…
+                  </p>
+                )}
+                {transcription.kind === "empty" && (
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "var(--color-text-muted)",
+                      fontStyle: "italic",
+                      margin: 0,
+                    }}
+                  >
+                    La transcription n&apos;est pas encore disponible pour ce
+                    coaching.
+                  </p>
+                )}
+                {transcription.kind === "error" && (
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "var(--color-text-muted)",
+                      fontStyle: "italic",
+                      margin: 0,
+                    }}
+                  >
+                    Impossible de charger la transcription
+                    {transcription.reason === "forbidden"
+                      ? " (accès refusé)"
+                      : ""}
+                    .
+                  </p>
+                )}
+                {transcription.kind === "ready" && (
+                  <NotionBlocks blocks={transcription.blocks} />
+                )}
+              </div>
             )}
           </div>
         </div>

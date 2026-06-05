@@ -3,7 +3,7 @@
 import type { NotionBlock } from "@/shared/lib/notion/blocks";
 import { toEmbedSrc } from "@/shared/lib/notion/video";
 import type { LessonResourceLink } from "../server/notion";
-import { NotionBlocks } from "./notion/NotionBlocks";
+import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
 import { LessonFeedback } from "./LessonFeedback";
 import { LessonNotebook } from "./LessonNotebook";
 
