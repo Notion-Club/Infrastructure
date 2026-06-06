@@ -1,36 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Sparkles,
-  CalendarCheck,
-  TrendingUp,
-  CalendarPlus,
-  CalendarX,
-  RefreshCw,
-  type LucideIcon,
-} from "lucide-react";
 
 import { DevStateSwitcher } from "@/shared/components/coaching/DevStateSwitcher";
-import { CoachingHeader } from "@/shared/components/coaching/CoachingHeader";
-import { CoachingCTACard } from "@/shared/components/coaching/CoachingCTACard";
-import { UpcomingCallsSection } from "@/shared/components/coaching/UpcomingCallsSection";
-import { PastCallsSection } from "@/shared/components/coaching/PastCallsSection";
+import {
+  CoachingHeroBanner,
+  type HeroButtonConfig,
+} from "@/shared/components/coaching/CoachingHeroBanner";
+import { CoachingHistory } from "@/shared/components/coaching/CoachingHistory";
+import { EmptyCallsState } from "@/shared/components/coaching/EmptyCallsState";
 import { FreeTeaserPanel } from "@/shared/components/coaching/FreeTeaserPanel";
 import { FilloutModal } from "@/shared/components/coaching/FilloutModal";
-import {
-  type UserState,
-  type CallCardData,
-} from "@/shared/lib/mock/coaching";
+import { type UserState, type CallCardData } from "@/shared/lib/mock/coaching";
 import { FILLOUT_URLS } from "@/shared/lib/mock/fillout";
 import { ensureNotionMemberPage } from "@/modules/coaching/server/ensureNotionMemberPage";
 import { type NextCallPillData } from "@/shared/components/coaching/NextCallPill";
 import { type CoachingEligibility } from "@/modules/coaching/server/eligibility";
 
 // Forme utilisée à la fois par les mocks (DevStateSwitcher) et les vraies
-// données Notion. CallCardData a `host: string` (élargi vs MockCall qui
-// contraignait à "Théo" | "Noah") + champs optionnels notion_page_id /
-// fathom_url qui activent le bouton transcription côté CallCard.
+// données Notion. CallCardData a `host: string` + champs optionnels Notion.
 type CallLike = CallCardData;
 
 interface RealCallsPayload {
@@ -40,22 +28,16 @@ interface RealCallsPayload {
 
 interface CoachingPageClientProps {
   realCalls: RealCallsPayload;
-  // Prochain appel à venir lu depuis Notion (status non renseigné + date ≥ now).
-  // `null` quand il n'y a pas d'appel planifié — la pill du header est masquée.
   nextCall: NextCallPillData | null;
-  // Éligibilité hebdo + message contextuel — lus depuis les formules Notion
-  // "Éligible au Call" et "Alerte Calls". `null` si pas de page Membre Notion
-  // matchée → l'UI retombe sur le comportement statique des mocks.
   eligibility: CoachingEligibility | null;
 }
 
 const STORAGE_KEY = "nc_coaching_dev_state";
 
-// Les états dev qui doivent afficher les vraies données plutôt que les mocks.
-// Tous les états où l'user a des coachings (passés ou à venir) — la même
-// source de vérité Notion peuple les sections. Seuls `free` et
-// `formation_0_calls` restent en mocks (états où la liste est par définition
-// vide, et où Théo veut tester le rendu "aucun appel").
+// Libellé du bouton pendant la préparation Fillout (ensureNotionMemberPage).
+const LOADING_LABEL = "On charge…";
+
+// États qui affichent les vraies données Notion plutôt que les mocks.
 const REAL_DATA_STATES: ReadonlySet<UserState> = new Set([
   "formation_1_call",
   "accompagnement_eligible",
@@ -63,190 +45,173 @@ const REAL_DATA_STATES: ReadonlySet<UserState> = new Set([
   "accompagnement_expired",
 ] as UserState[]);
 
-// ─── Header config ───────────────────────────────────────────────────────────
+// ─── Hero (Slot 1) : copy statique par état ────────────────────────────────
 
-interface HeaderConfig {
+interface HeroStatic {
   title: string;
-  subtitle: string;
-  includedPill?: string;
+  // Description statique. Les états dynamiques (accompagnement_*,
+  // formation_1_call) la surchargent en live plus bas.
+  description: string;
+  accroche: string;
 }
 
-function getHeaderConfig(state: UserState): HeaderConfig {
+function getHeroStatic(state: UserState): HeroStatic {
   switch (state) {
     case "free":
       return {
-        title: "Tes appels de coaching",
-        subtitle:
-          "Le coaching individuel est réservé aux membres de l'Accompagnement. Tu peux d'abord échanger avec moi sur ton projet pour voir si c'est fait pour toi.",
+        title: "Appels de coaching",
+        description: "Les appels de coaching sont réservés aux membres",
+        accroche: "1 coaching est offert",
       };
     case "formation_0_calls":
       return {
-        title: "Ton coaching inclus",
-        subtitle:
-          "Ton offre Formation inclut un appel de coaching avec Théo ou Noah. C'est l'occasion de débloquer le point qui te fait le plus perdre du temps en ce moment.",
-        includedPill: "1 coaching inclus dans ton offre",
+        title: "Le bouton d'urgence est disponible",
+        description:
+          "Ton offre inclut un appel de coaching offert avec Théo ou Nathan. Réserve le dès que tu as un point bloquant.",
+        accroche: "Réserve ton appel d'urgence",
       };
     case "formation_1_call":
       return {
-        title: "Tu as utilisé ton coaching inclus",
-        subtitle:
-          "Ton appel avec Théo est passé. Si tu veux aller plus loin et accéder à des coachings réguliers pour construire ton activité de consultant Notion, on peut en parler ensemble.",
+        title: "Le bouton d'urgence a été utilisé",
+        description: "", // dynamique (date + host du call inclus)
+        accroche: "Passe au niveau supérieur",
       };
     case "accompagnement_eligible":
       return {
         title: "Tous tes appels",
-        // Sous-titre rempli dynamiquement plus bas via overrideSubtitle (live
-        // Notion : total réel + nombre de calls restants cette semaine).
-        subtitle: "",
+        description: "", // dynamique (total + réservables cette semaine)
+        accroche: "On peut t'aider à avancer ?",
       };
     case "accompagnement_not_eligible":
       return {
         title: "Tous tes appels",
-        subtitle: "",
+        description: "", // dynamique
+        accroche: "Ta limite hebdomadaire est atteinte",
       };
     case "accompagnement_expired":
       return {
         title: "Ton accompagnement est terminé",
-        subtitle:
-          "Tu as terminé tes 120 jours d'accompagnement. Tu peux toujours consulter tes résumés de coachings passés ci-dessous. Si tu veux continuer à être accompagné pour structurer ton activité, on peut en parler.",
+        description:
+          "Les 120 jours d'accompagnement sont atteints, tu peux toujours consulter tes résumés des appels passés.",
+        accroche: "Passe au niveau supérieur",
       };
   }
 }
 
-// ─── CTA card config ─────────────────────────────────────────────────────────
+// ─── Hero (Slot 1) : bouton CTA par état ───────────────────────────────────
 
-interface CTAConfig {
-  icon: LucideIcon;
-  iconOpacity?: number;
-  secondaryText: string;
-  buttonText: string;
-  disabled?: boolean;
-  disabledTooltip?: string;
-  onButtonClick?: () => void;
-}
-
-function getCTAConfig(
+function getHeroButton(
   state: UserState,
   openModal: (url: string) => void,
   preparing: boolean,
-): CTAConfig {
-  // Texte affiché pendant que ensureNotionMemberPage tourne (~200-500ms en
-  // moyenne — peut monter à 1-2s au tout premier clic d'un ancien membre
-  // Notion qu'on doit matcher par email et tagger l'UUID).
-  const prepLabel = "Préparation…";
-
+): HeroButtonConfig {
   switch (state) {
     case "free":
       return {
-        icon: Sparkles,
-        secondaryText: "Discutons de ton projet",
-        buttonText: preparing ? prepLabel : "Réserver un appel découverte",
+        label: preparing ? LOADING_LABEL : "Réserver un coaching offert",
         disabled: preparing,
-        onButtonClick: () => openModal(FILLOUT_URLS.sales),
+        onClick: () => openModal(FILLOUT_URLS.sales),
       };
     case "formation_0_calls":
       return {
-        icon: CalendarCheck,
-        secondaryText: "Bloque ton créneau",
-        buttonText: preparing ? prepLabel : "Réserver mon coaching",
+        label: preparing ? LOADING_LABEL : "Voir les créneaux",
         disabled: preparing,
-        onButtonClick: () => openModal(FILLOUT_URLS.coaching),
+        onClick: () => openModal(FILLOUT_URLS.coaching),
       };
     case "formation_1_call":
       return {
-        icon: TrendingUp,
-        secondaryText: "Passe au niveau supérieur",
-        buttonText: preparing ? prepLabel : "Passer à l'Accompagnement",
+        label: preparing ? LOADING_LABEL : "Rejoins l'accompagnement",
         disabled: preparing,
-        onButtonClick: () => openModal(FILLOUT_URLS.sales),
+        onClick: () => openModal(FILLOUT_URLS.sales),
       };
     case "accompagnement_eligible":
       return {
-        icon: CalendarPlus,
-        secondaryText: "Avance sur ton projet",
-        buttonText: preparing ? prepLabel : "Réserver un coaching",
+        label: preparing ? LOADING_LABEL : "Réserve un appel.",
         disabled: preparing,
-        onButtonClick: () => openModal(FILLOUT_URLS.coaching),
+        onClick: () => openModal(FILLOUT_URLS.coaching),
       };
     case "accompagnement_not_eligible":
       return {
-        icon: CalendarX,
-        iconOpacity: 0.5,
-        secondaryText: "Tu as atteint ta limite hebdomadaire",
-        buttonText: "Quota hebdo atteint",
+        label: "Calendrier indisponible",
         disabled: true,
         disabledTooltip:
-          "Tu peux réserver à nouveau lundi prochain.\nTu peux planifier sans limite le weekend.",
+          "Tu pourras réserver de nouveaux appels à partir de dimanche.",
       };
     case "accompagnement_expired":
       return {
-        icon: RefreshCw,
-        secondaryText: "Renouvelle ton accompagnement",
-        buttonText: preparing ? prepLabel : "Renouveler mon accompagnement",
+        label: preparing ? LOADING_LABEL : "Réserver un appel avec Théo",
         disabled: preparing,
-        onButtonClick: () => openModal(FILLOUT_URLS.sales),
+        onClick: () => openModal(FILLOUT_URLS.sales),
       };
   }
 }
 
-// ─── Right column config ──────────────────────────────────────────────────────
+// ─── Slot 2 : config historique (vraies données vs mocks) ──────────────────
 
-interface RightColumnConfig {
+interface HistoryConfig {
   showUpcoming: boolean;
   upcomingCalls: CallLike[];
   pastCalls: CallLike[];
-  pastBannerText?: string;
+  archived: boolean;
 }
 
-function getRightColumnConfig(
+function getHistoryConfig(
   state: UserState,
   realCalls: RealCallsPayload,
-): RightColumnConfig {
-  // États où les vraies données Notion du user sont affichées. Le banner et
-  // la visibilité de la section upcoming dépendent du state — l'état dérive
-  // du contexte business (formation finie, accompagnement actif, expiré),
-  // pas du contenu réel des calls.
+): HistoryConfig {
   if (REAL_DATA_STATES.has(state)) {
     switch (state) {
       case "formation_1_call":
         return {
-          showUpcoming: false, // formation : 1 seul call inclus, jamais d'upcoming après
+          showUpcoming: false, // 1 seul call inclus, jamais d'upcoming après
           upcomingCalls: [],
           pastCalls: realCalls.past,
-          pastBannerText: "Tu as utilisé ton coaching inclus.",
+          archived: false,
         };
       case "accompagnement_expired":
         return {
-          showUpcoming: false, // accompagnement terminé, plus de futurs calls
+          showUpcoming: false, // accompagnement terminé
           upcomingCalls: [],
           pastCalls: realCalls.past,
-          pastBannerText: "Accompagnement terminé.",
+          archived: true,
         };
-      // accompagnement_eligible / not_eligible : section upcoming visible
       default:
         return {
           showUpcoming: true,
           upcomingCalls: realCalls.upcoming,
           pastCalls: realCalls.past,
+          archived: false,
         };
     }
   }
 
   switch (state) {
-    case "free":
-      return { showUpcoming: false, upcomingCalls: [], pastCalls: [] };
     case "formation_0_calls":
       return {
         showUpcoming: true,
         upcomingCalls: [],
         pastCalls: [],
+        archived: false,
       };
     default:
-      return { showUpcoming: false, upcomingCalls: [], pastCalls: [] };
+      return {
+        showUpcoming: false,
+        upcomingCalls: [],
+        pastCalls: [],
+        archived: false,
+      };
   }
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Helpers de description dynamique ──────────────────────────────────────
+
+function formatDateShort(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+}
+
+// ─── Page ──────────────────────────────────────────────────────────────────
 
 interface PrefillUserInfo {
   id: string | null;
@@ -274,10 +239,19 @@ export default function CoachingPageClient({
   const [preparing, setPreparing] = useState(false);
   const [userInfo, setUserInfo] = useState<PrefillUserInfo>(EMPTY_USER_INFO);
 
-  // Restore persisted dev state
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY) as UserState | null;
-    if (saved) setUserState(saved);
+    // setState via microtask : sort du corps synchrone de l'effect (eslint
+    // react-hooks/set-state-in-effect) tout en restant immédiat à l'usage.
+    let cancelled = false;
+    (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      const saved = localStorage.getItem(STORAGE_KEY) as UserState | null;
+      if (saved) setUserState(saved);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function handleStateChange(state: UserState) {
@@ -286,16 +260,8 @@ export default function CoachingPageClient({
   }
 
   async function openModal(url: string) {
-    // Garde contre les doubles clics rapides.
     if (preparing) return;
     setPreparing(true);
-
-    // Résout (ou crée / matche par email) la page Notion Membres de l'user
-    // courant. Le param `id` envoyé à Fillout est l'UUID Supabase (clé
-    // universelle) — Fillout filtre le RecordPicker sur la colonne
-    // "UUID Supabase" de la DB Notion Membres pour pré-sélectionner l'user.
-    // Tout en best-effort : si Notion KO, on ouvre quand même Fillout avec
-    // l'UUID Supabase (Fillout fera le match plus tard quand Notion sera back).
     try {
       const result = await ensureNotionMemberPage();
       if (result.ok) {
@@ -306,37 +272,29 @@ export default function CoachingPageClient({
           nom: result.lastName,
         });
       } else {
-        // Pas authentifié ou profile introuvable — on ouvre Fillout vide.
         setUserInfo(EMPTY_USER_INFO);
       }
     } catch (err) {
       console.error("[coaching] ensureNotionMemberPage threw:", err);
       setUserInfo(EMPTY_USER_INFO);
     }
-
     setModalUrl(url);
     setModalOpen(true);
     setPreparing(false);
   }
 
-  const headerConfig = getHeaderConfig(userState);
-  const ctaConfigBase = getCTAConfig(userState, openModal, preparing);
-  const rightConfig = getRightColumnConfig(userState, realCalls);
+  const heroStatic = getHeroStatic(userState);
+  const heroButtonBase = getHeroButton(userState, openModal, preparing);
+  const historyConfig = getHistoryConfig(userState, realCalls);
 
-  // Sous-titre dynamique pour les états accompagnement_* — calcule en live :
-  //   - total = upcoming + past (= tout sauf cancelled, déjà filtré côté queries)
-  //   - cette semaine = appels dont la date tombe dans la semaine en cours
-  //
-  // Quota par défaut : 2 calls/semaine pour les accompagnements. Si Théo veut
-  // une autre limite par offre, on devra exposer le quota côté Notion ; pour
-  // l'instant 2 colle à la formule "Éligible au Call" actuelle.
-  function computeAccompagnementSubtitle(): string {
+  // Description dynamique des états accompagnement_* — total réel + réservables
+  // cette semaine. Calcule en live, présentation uniquement.
+  function computeAccompagnementDescription(): string {
     const allCalls = [...realCalls.upcoming, ...realCalls.past];
     const total = allCalls.length;
 
-    // Lundi 00:00 → dimanche 23:59:59 de la semaine en cours (locale).
     const now = new Date();
-    const dayOfWeek = now.getDay(); // 0=dimanche, 1=lundi, …
+    const dayOfWeek = now.getDay();
     const monday = new Date(now);
     const offsetToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     monday.setDate(now.getDate() + offsetToMonday);
@@ -356,106 +314,101 @@ export default function CoachingPageClient({
     const remaining = Math.max(0, QUOTA - thisWeekCount);
 
     if (userState === "accompagnement_not_eligible" || remaining === 0) {
-      return `Tu as réservé ${total} coachings au total, tu pourras planifier de nouveaux coachings à partir de la semaine prochaine.`;
+      return `Tu as réservé ${total} appels au total, tu pourras planifier de nouveaux appels à partir de la semaine prochaine.`;
     }
     const reservablesPart =
       remaining === 1
         ? "1 est réservable cette semaine"
         : `${remaining} sont réservables cette semaine`;
-    return `Tu as réservé ${total} coachings au total, ${reservablesPart}.`;
+    return `Tu as réservé ${total} appels au total, ${reservablesPart}.`;
   }
 
-  const headerOverrideSubtitle: string | undefined =
+  // Description dynamique de formation_1_call — date + host du call inclus.
+  function computeFormation1Description(): string {
+    const lastPast = [...realCalls.past].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    )[0];
+    const datePart = lastPast ? formatDateShort(lastPast.date) : "";
+    const hostPart = lastPast?.host ?? "Théo";
+    const whenPart = datePart ? `a eu lieu le ${datePart}` : "a déjà eu lieu";
+    return `L'appel inclus dans ton offre ${whenPart} avec ${hostPart}. Rejoins l'accompagnement pour accéder à des appels illimités avec les coachs.`;
+  }
+
+  // Résolution de la description finale (statique ou dynamique).
+  let description = heroStatic.description;
+  if (
     userState === "accompagnement_eligible" ||
     userState === "accompagnement_not_eligible"
-      ? computeAccompagnementSubtitle()
-      : undefined;
+  ) {
+    description = computeAccompagnementDescription();
+  } else if (userState === "formation_1_call") {
+    description = computeFormation1Description();
+  }
 
-  // Override CTA avec la formule Notion "Éligible au Call" pour les états
-  // formation_0_calls / accompagnement_eligible / accompagnement_not_eligible.
-  //
-  // Quand eligibility est dispo et que la formule Notion dit "pas éligible",
-  // on grise le bouton et on remplace le label par "Quota hebdo atteint".
-  // Le message "Alerte Calls" (week-end / fin de suivi / quota restant) est
-  // affiché en tooltip — c'est Théo qui le rédige côté Notion, on ne fait que
-  // l'afficher.
-  //
-  // États où on N'override PAS :
-  //  - free / formation_1_call / accompagnement_expired : CTA orienté commerce
-  //    (réserver découverte, passer à l'Accompagnement, renouveler), pas
-  //    soumis au quota hebdo.
+  // Override CTA via la formule Notion "Éligible au Call" pour les états de
+  // réservation. Présentation pilotée par la donnée eligibility existante —
+  // aucune logique de données réécrite.
   const isBookingState =
     userState === "formation_0_calls" ||
     userState === "accompagnement_eligible" ||
     userState === "accompagnement_not_eligible";
 
-  // Cas spécial "Formation uniquement" → upsell Accompagnement quand le call
-  // inclus a été pris.
-  //
-  // Côté Notion :
-  //   - Offre = "Formation uniquement" + 0 call accepté → "éligible" (1 call
-  //     restant) → bouton normal "Réserver mon coaching".
-  //   - Offre = "Formation uniquement" + 1 call accepté → "pas éligible" →
-  //     ICI on ne veut PAS griser le bouton ("Quota hebdo atteint" est
-  //     trompeur, ce n'est pas une question de quota hebdo mais de plafond
-  //     d'offre). On bascule vers le CTA upsell sales (= le même que
-  //     l'état dev `formation_1_call`).
-  //
-  // Pour les membres en Accompagnement : le grisage "Quota hebdo atteint"
-  // reste pertinent (quota = 2/semaine).
+  // Formation uniquement + plafond d'offre atteint → upsell sales (et non un
+  // grisage "quota hebdo" trompeur).
   const isFormationOnlyMaxed =
     isBookingState &&
     eligibility?.offer === "Formation uniquement" &&
     eligibility?.isEligible === false;
 
-  const ctaConfig = isFormationOnlyMaxed
-    ? {
-        ...ctaConfigBase,
-        icon: TrendingUp,
-        secondaryText: "Passe au niveau supérieur",
-        buttonText: preparing ? "Préparation…" : "Passer à l'Accompagnement",
-        disabled: preparing,
-        onButtonClick: () => openModal(FILLOUT_URLS.sales),
-        disabledTooltip: undefined,
-      }
-    : isBookingState && eligibility
-      ? {
-          ...ctaConfigBase,
-          // Si pas éligible → grisé. Sinon on garde le state du base (qui peut
-          // être disabled pendant preparing).
-          disabled: !eligibility.isEligible || ctaConfigBase.disabled,
-          iconOpacity: !eligibility.isEligible ? 0.5 : ctaConfigBase.iconOpacity,
-          icon: !eligibility.isEligible ? CalendarX : ctaConfigBase.icon,
-          buttonText: !eligibility.isEligible
-            ? "Quota hebdo atteint"
-            : ctaConfigBase.buttonText,
-          secondaryText: !eligibility.isEligible
-            ? "Tu as atteint ta limite hebdomadaire"
-            : ctaConfigBase.secondaryText,
-          disabledTooltip: !eligibility.isEligible
-            ? eligibility.alertMessage ||
-              "Tu peux réserver à nouveau lundi prochain.\nTu peux planifier sans limite le weekend."
-            : undefined,
-        }
-      : ctaConfigBase;
+  let button: HeroButtonConfig = heroButtonBase;
+  let accroche = heroStatic.accroche;
 
-  // Pill prochain coaching :
-  //  - États accompagnement avec data Notion → vrai objet (modale détail live).
-  //  - Autres états (free / formation / mocks DevStateSwitcher) → libellé mock.
-  //
-  // Quand l'user est sur un état accompagnement mais que Notion n'a rien à
-  // venir, on laisse la pill mock (DevStateSwitcher) pour ne pas casser le
-  // démo de Théo sur ces états — sinon l'aperçu visuel disparaît pendant les
-  // tests UI.
-  const headerNextCall: NextCallPillData | undefined =
+  if (isFormationOnlyMaxed) {
+    button = {
+      label: preparing ? LOADING_LABEL : "Rejoins l'accompagnement",
+      disabled: preparing,
+      onClick: () => openModal(FILLOUT_URLS.sales),
+    };
+    accroche = "Passe au niveau supérieur";
+  } else if (isBookingState && eligibility && !eligibility.isEligible) {
+    button = {
+      label: "Calendrier indisponible",
+      disabled: true,
+      disabledTooltip:
+        eligibility.alertMessage ||
+        "Tu pourras réserver de nouveaux appels à partir de dimanche.",
+    };
+    accroche = "Ta limite hebdomadaire est atteinte";
+  }
+
+  // Pill prochain appel — états accompagnement avec data Notion live.
+  const heroNextCall: NextCallPillData | undefined =
     (userState === "accompagnement_eligible" ||
       userState === "accompagnement_not_eligible") &&
     nextCall
       ? nextCall
       : undefined;
-  const isExpired = userState === "accompagnement_expired";
+
   const allCallsEmpty =
-    rightConfig.upcomingCalls.length === 0 && rightConfig.pastCalls.length === 0;
+    historyConfig.upcomingCalls.length === 0 &&
+    historyConfig.pastCalls.length === 0;
+
+  // Slot 2 : teaser Free / état vide / historique.
+  let slot2: React.ReactNode;
+  if (userState === "free") {
+    slot2 = <FreeTeaserPanel />;
+  } else if (allCallsEmpty) {
+    slot2 = <EmptyCallsState />;
+  } else {
+    slot2 = (
+      <CoachingHistory
+        pastCalls={historyConfig.pastCalls}
+        upcomingCalls={historyConfig.upcomingCalls}
+        showUpcoming={historyConfig.showUpcoming}
+        archived={historyConfig.archived}
+      />
+    );
+  }
 
   return (
     <>
@@ -472,80 +425,40 @@ export default function CoachingPageClient({
             />
           </div>
 
-          {/* Main content */}
+          {/* Contenu principal */}
           <div
             className="px-4 pt-6 pb-[100px] md:px-10 md:pt-8 md:pb-12"
             style={{ maxWidth: 1100, margin: "0 auto" }}
           >
-            <div className="nc-mode-in">
-              <CoachingHeader
-                {...headerConfig}
-                subtitle={headerOverrideSubtitle ?? headerConfig.subtitle}
-                nextCall={headerNextCall}
+            {/* Encadré global unique — Slot 1 (bannière) + Slot 2 (historique) */}
+            <div
+              className="nc-mode-in"
+              data-fb-label="Encadré global · Coaching"
+              style={{
+                background: "var(--color-surface-card)",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: 20,
+                boxShadow: "var(--nc-shadow-3)",
+                padding: 14,
+              }}
+            >
+              {/* Slot 1 — Bannière HERO */}
+              <CoachingHeroBanner
+                title={heroStatic.title}
+                description={description}
+                accroche={accroche}
+                button={button}
+                nextCall={heroNextCall}
               />
-            </div>
 
-            {/* Single-column layout */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 28 }}>
-              {/* CTA card — horizontal full-width */}
-              <CoachingCTACard {...ctaConfig} />
-
-              {/* Calls sections */}
-              {userState === "free" ? (
-                <FreeTeaserPanel />
-              ) : allCallsEmpty ? (
-                <div
-                  data-fb-label="Encadré aucun appel · Coaching"
-                  style={{
-                    background: "var(--color-surface-card)",
-                    border: "1px solid var(--color-border-default)",
-                    borderRadius: 20,
-                    padding: "48px 32px",
-                    textAlign: "center",
-                    boxShadow: "var(--nc-shadow-3)",
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Telegram-Animated-Emojis/e2eb0709f7ba004d73ce96e041865c95deeaf80a/People/Eyes.webp"
-                    alt=""
-                    width={96}
-                    height={96}
-                    style={{ display: "block", margin: "0 auto 20px" }}
-                  />
-                  <p
-                    style={{
-                      fontSize: 18,
-                      fontWeight: 600,
-                      color: "var(--color-text-secondary)",
-                      margin: 0,
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    On s&apos;est jamais appelé,<br />ça serait peut-être l&apos;occasion
-                  </p>
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                  {rightConfig.showUpcoming && (
-                    <UpcomingCallsSection
-                      calls={rightConfig.upcomingCalls}
-                      emptyMessage="Aucun coaching prévu pour le moment."
-                    />
-                  )}
-                  <PastCallsSection
-                    calls={rightConfig.pastCalls}
-                    bannerText={rightConfig.pastBannerText}
-                    archived={isExpired}
-                  />
-                </div>
-              )}
+              {/* Slot 2 — Historique / teaser / état vide */}
+              <div style={{ padding: "20px 10px 8px" }}>{slot2}</div>
             </div>
           </div>
         </main>
       </div>
 
-      {/* Fillout modal — outside nc-page-halo */}
+      {/* Fillout modal — hors de nc-page-halo */}
       <FilloutModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
