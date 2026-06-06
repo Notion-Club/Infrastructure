@@ -59,6 +59,9 @@ html {
   --color-surface-raised: #201d1b;   /* nav pills, inputs */
   --color-surface-card: #2a2725;     /* dropdowns, modals, cards */
   --color-border-default: #332e2b;   /* bordures subtiles */
+  /* Fond des tuiles posées SUR une surface-card (ex. tuiles d'appels dans
+     l'encadré coaching) — plus clair que la card pour créer du contraste. */
+  --nc-tile-bg: #37322f;
   --nc-nav-active-bg: rgba(255, 255, 255, 0.09);
   --nc-nav-hover-bg: rgba(255, 255, 255, 0.05);
   --nc-segmented-active-bg: rgba(255, 255, 255, 0.92);
@@ -126,6 +129,9 @@ html {
   --nc-nav-hover-bg: rgba(0, 0, 0, 0.04);
   --nc-segmented-active-bg: #ffffff;
   --nc-segmented-active-text: #000000;
+  /* Fond des tuiles posées sur une surface-card (light = identique à la card,
+     le contraste vient de la bordure ; surchargé en dark pour du relief). */
+  --nc-tile-bg: #ffffff;
   /* Boutons CTA sombres — s'inversent en dark mode */
   --nc-btn-dark-bg: #1a1a1a;
   --nc-btn-dark-text: #ffffff;

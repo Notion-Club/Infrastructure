@@ -27,7 +27,6 @@ import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
 import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
 import { ChatGPTGuideModal } from "@/shared/components/coaching/ChatGPTGuideModal";
 import { TranscriptLoadingText } from "@/shared/components/coaching/TranscriptLoadingText";
-import { GradualBlurOverlay } from "@/shared/components/GradualBlurOverlay";
 import type { NotionBlock } from "@/shared/lib/notion/blocks";
 import { getCallTranscriptionBlocks } from "@/modules/coaching/server/getCallTranscriptionBlocks";
 
@@ -144,6 +143,10 @@ export function CallDetailModal({
     kind: "idle",
   });
   const transcriptFetchStartedRef = useRef(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Voiles de flou haut/bas : affichés seulement quand il reste du contenu
+  // masqué de ce côté (sinon premières / dernières lignes nettes et visibles).
+  const [scrollEdges, setScrollEdges] = useState({ top: false, bottom: false });
   const mounted = useSyncExternalStore(
     subscribeToMount,
     () => true,
@@ -211,6 +214,34 @@ export function CallDetailModal({
       cancelled = true;
     };
   }, [isOpen, tab, notionPageId]);
+
+  // Calcule la présence de contenu débordant en haut / bas du corps scrollable
+  // pour piloter l'opacité des voiles de flou. Recalcule au scroll, au resize
+  // et quand le contenu change de hauteur (chargement de la transcription).
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => {
+      const top = el.scrollTop > 6;
+      const bottom = el.scrollTop + el.clientHeight < el.scrollHeight - 6;
+      setScrollEdges((prev) =>
+        prev.top === top && prev.bottom === bottom ? prev : { top, bottom },
+      );
+    };
+    const raf = requestAnimationFrame(update);
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    window.addEventListener("resize", update);
+    return () => {
+      cancelAnimationFrame(raf);
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [isOpen, tab]);
 
   if (!isOpen || !mounted) return null;
 
@@ -394,8 +425,9 @@ export function CallDetailModal({
             }}
           >
             <div
+              ref={scrollRef}
               style={{
-                padding: "18px 28px 12px",
+                padding: "20px 28px 16px",
                 overflowY: "auto",
                 flex: 1,
               }}
@@ -406,8 +438,48 @@ export function CallDetailModal({
               )}
             </div>
 
-            <GradualBlurOverlay position="absolute" edge="top" height={48} zIndex={4} />
-            <GradualBlurOverlay position="absolute" edge="bottom" height={48} zIndex={4} />
+            {/* Voile de flou léger, scroll-aware : visible uniquement quand du
+                contenu déborde de ce côté, fondu pour rester discret. */}
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 36,
+                zIndex: 4,
+                pointerEvents: "none",
+                opacity: scrollEdges.top ? 1 : 0,
+                transition: "opacity 260ms var(--nc-ease)",
+                backdropFilter: "blur(2px)",
+                WebkitBackdropFilter: "blur(2px)",
+                maskImage:
+                  "linear-gradient(to bottom, black 0%, rgba(0,0,0,0.55) 50%, transparent 100%)",
+                WebkitMaskImage:
+                  "linear-gradient(to bottom, black 0%, rgba(0,0,0,0.55) 50%, transparent 100%)",
+              }}
+            />
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 36,
+                zIndex: 4,
+                pointerEvents: "none",
+                opacity: scrollEdges.bottom ? 1 : 0,
+                transition: "opacity 260ms var(--nc-ease)",
+                backdropFilter: "blur(2px)",
+                WebkitBackdropFilter: "blur(2px)",
+                maskImage:
+                  "linear-gradient(to top, black 0%, rgba(0,0,0,0.55) 50%, transparent 100%)",
+                WebkitMaskImage:
+                  "linear-gradient(to top, black 0%, rgba(0,0,0,0.55) 50%, transparent 100%)",
+              }}
+            />
 
             {/* Copier la transcription — onglet Transcription, contenu prêt */}
             {tab === "transcript" &&

@@ -81,7 +81,7 @@ export function CallTile({ call, variant, archived = false }: CallTileProps) {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
-          background: "var(--color-surface-card)",
+          background: "var(--nc-tile-bg)",
           border: `1px solid ${
             hovered && clickable
               ? "rgba(224,98,90,0.28)"
