@@ -9,7 +9,7 @@ import {
 } from "@/shared/components/coaching/CoachingHeroBanner";
 import { CoachingHistory } from "@/shared/components/coaching/CoachingHistory";
 import { EmptyCallsState } from "@/shared/components/coaching/EmptyCallsState";
-import { FreeTeaserPanel } from "@/shared/components/coaching/FreeTeaserPanel";
+import { UpcomingEmptyState } from "@/shared/components/coaching/UpcomingEmptyState";
 import { FilloutModal } from "@/shared/components/coaching/FilloutModal";
 import { type UserState, type CallCardData } from "@/shared/lib/mock/coaching";
 import { FILLOUT_URLS } from "@/shared/lib/mock/fillout";
@@ -389,14 +389,21 @@ export default function CoachingPageClient({
       ? nextCall
       : undefined;
 
+  // L'utilisateur peut réserver tant que le CTA de la bannière est actif.
+  const canBook = !button.disabled;
+
   const allCallsEmpty =
     historyConfig.upcomingCalls.length === 0 &&
     historyConfig.pastCalls.length === 0;
 
-  // Slot 2 : teaser Free / état vide / historique.
+  // Slot 2 :
+  //  - free / formation_0_calls : liste vide par nature → état « Aucun appel à
+  //    venir » (titre + skeleton, même design que le chargement transcription)
+  //  - aucun appel du tout (accompagnement) → état vide « eyes »
+  //  - sinon → historique (switcher passés / à venir)
   let slot2: React.ReactNode;
-  if (userState === "free") {
-    slot2 = <FreeTeaserPanel />;
+  if (userState === "free" || userState === "formation_0_calls") {
+    slot2 = <UpcomingEmptyState eligible={canBook} />;
   } else if (allCallsEmpty) {
     slot2 = <EmptyCallsState />;
   } else {
@@ -406,6 +413,7 @@ export default function CoachingPageClient({
         upcomingCalls={historyConfig.upcomingCalls}
         showUpcoming={historyConfig.showUpcoming}
         archived={historyConfig.archived}
+        eligible={canBook}
       />
     );
   }

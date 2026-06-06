@@ -17,6 +17,7 @@ import { History, CalendarClock } from "lucide-react";
 import type { CallCardData } from "@/shared/lib/mock/coaching";
 import { CallTile } from "@/shared/components/coaching/CallTile";
 import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
+import { UpcomingEmptyState } from "@/shared/components/coaching/UpcomingEmptyState";
 
 type HistoryView = "past" | "upcoming";
 
@@ -27,6 +28,9 @@ interface CoachingHistoryProps {
   showUpcoming: boolean;
   // Atténue les tuiles (accompagnement expiré).
   archived?: boolean;
+  // L'utilisateur peut-il réserver ? Pilote la description de l'état vide
+  // « à venir ».
+  eligible?: boolean;
 }
 
 function sectionLabel(text: string) {
@@ -81,6 +85,7 @@ export function CoachingHistory({
   upcomingCalls,
   showUpcoming,
   archived = false,
+  eligible = false,
 }: CoachingHistoryProps) {
   const [view, setView] = useState<HistoryView>("past");
 
@@ -126,17 +131,7 @@ export function CoachingHistory({
       {view === "past" ? (
         <PastGrid calls={contentPastCalls} archived={archived} />
       ) : upcomingCalls.length === 0 ? (
-        <p
-          style={{
-            fontSize: 14,
-            color: "var(--color-text-muted)",
-            margin: 0,
-            padding: "12px 0",
-            lineHeight: 1.55,
-          }}
-        >
-          Aucun appel prévu pour le moment.
-        </p>
+        <UpcomingEmptyState eligible={eligible} />
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2" data-fb-label="Grille appels à venir · Coaching">
           {upcomingCalls.map((call) => (
