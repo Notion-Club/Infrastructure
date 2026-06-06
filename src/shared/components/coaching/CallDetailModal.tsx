@@ -835,14 +835,12 @@ function SkeletonLines() {
 
 // Bouton « Copier la transcription ».
 //
-// Motion design : au succès, le bouton se contracte fluidement en un cercle
-// vert plein affichant l'icône Copy → Check (gratifiant, contraste net — fini
-// le fond vert translucide). Après ~2 s, il reprend sa forme initiale de pill.
-// La largeur est animée en pixels (toujours interpolable) pour un morph fluide.
+// Motion design : au succès le bouton se contracte fluidement en un cercle de
+// 36px (fond rouge signature pastel, comme la pill « Ton prochain appel »)
+// affichant le morph Copy → Check, maintient ~2 s, puis reprend sa forme pill.
+// La pill épouse exactement son contenu (largeur auto) ; le repli du libellé
+// passe par une colonne grid 1fr → 0fr, toujours interpolable → morph fluide.
 type CopyState = "idle" | "loading" | "copied" | "error";
-
-const COPY_PILL_WIDTH = 122;
-const COPY_CIRCLE_SIZE = 36;
 
 function CopyTranscriptButton({ transcriptUrl }: { transcriptUrl: string }) {
   const [copyState, setCopyState] = useState<CopyState>("idle");
@@ -873,91 +871,108 @@ function CopyTranscriptButton({ transcriptUrl }: { transcriptUrl: string }) {
   }
 
   const copied = copyState === "copied";
-  const label =
-    copyState === "loading"
-      ? "Copie…"
-      : copyState === "error"
-        ? "Réessayer"
-        : "Copier";
+  const loading = copyState === "loading";
+  const label = loading
+    ? "Copie…"
+    : copyState === "error"
+      ? "Réessayer"
+      : "Copier";
+
+  const morph = "480ms var(--nc-ease)";
 
   return (
     <button
       type="button"
       onClick={handleCopy}
-      disabled={copyState === "loading" || copied}
+      disabled={loading || copied}
       aria-label="Copier la transcription"
       data-fb-label="Bouton Copier transcription · Modale détail"
       style={{
         display: "inline-flex",
         alignItems: "center",
-        height: COPY_CIRCLE_SIZE,
-        width: copied ? COPY_CIRCLE_SIZE : COPY_PILL_WIDTH,
-        // padding-left fixe l'icône au centre du cercle quand contracté
-        // ((36 - 16) / 2 = 10) et à gauche de la pill sinon.
-        paddingLeft: copied ? 10 : 14,
-        paddingRight: 0,
+        height: 36,
+        // padding nul quand cercle → la largeur tombe à 36 (icône centrée) ;
+        // sinon la pill épouse son contenu (pas de vide à droite).
+        paddingLeft: copied ? 0 : 14,
+        paddingRight: copied ? 0 : 16,
         borderRadius: 9999,
         fontSize: 13,
         fontWeight: 600,
         whiteSpace: "nowrap",
         overflow: "hidden",
-        cursor: copyState === "loading" ? "wait" : "pointer",
-        background: copied ? "#16a34a" : "var(--color-surface-card)",
-        border: `1px solid ${copied ? "#16a34a" : "var(--color-border-default)"}`,
-        color: copied ? "#ffffff" : "var(--color-text-primary)",
+        cursor: loading ? "wait" : "pointer",
+        background: copied
+          ? "linear-gradient(rgba(224,98,90,0.12), rgba(224,98,90,0.12)), var(--color-surface-card)"
+          : "var(--color-surface-card)",
+        border: `1px solid ${
+          copied ? "rgba(224,98,90,0.30)" : "var(--color-border-default)"
+        }`,
+        color: copied ? "var(--color-brand)" : "var(--color-text-primary)",
         boxShadow: copied
-          ? "0 6px 18px rgba(34,197,94,0.38)"
+          ? "0 4px 16px rgba(224,98,90,0.22)"
           : "0 2px 10px rgba(0,0,0,0.08)",
-        transition:
-          "width 480ms var(--nc-ease), padding-left 480ms var(--nc-ease), background 360ms var(--nc-ease), border-color 360ms var(--nc-ease), color 300ms var(--nc-ease), box-shadow 420ms var(--nc-ease)",
+        transition: `padding ${morph}, background 360ms var(--nc-ease), border-color 360ms var(--nc-ease), color 300ms var(--nc-ease), box-shadow 420ms var(--nc-ease)`,
       }}
     >
-      {/* Icône — morph Copy → Check */}
+      {/* Icône — wrapper qui s'élargit (16 → 36) pour centrer l'icône dans le
+          cercle. Stage 16×16 fixe pour le cross-fade Copy → Check. */}
       <span
         style={{
-          position: "relative",
-          width: 16,
-          height: 16,
-          flexShrink: 0,
           display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: 16,
+          width: copied ? 36 : 16,
+          marginRight: copied ? 0 : 8,
+          flexShrink: 0,
+          transition: `width ${morph}, margin-right ${morph}`,
         }}
       >
-        <Copy
-          size={16}
-          style={{
-            position: "absolute",
-            inset: 0,
-            opacity: copied ? 0 : 1,
-            transform: copied ? "scale(0.4) rotate(-20deg)" : "scale(1)",
-            transition:
-              "opacity 240ms var(--nc-ease), transform 320ms var(--nc-ease)",
-          }}
-        />
-        <Check
-          size={16}
-          strokeWidth={2.75}
-          style={{
-            position: "absolute",
-            inset: 0,
-            color: "#ffffff",
-            opacity: copied ? 1 : 0,
-            transform: copied ? "scale(1)" : "scale(0.4) rotate(20deg)",
-            transition:
-              "opacity 240ms var(--nc-ease), transform 320ms var(--nc-ease)",
-          }}
-        />
+        <span style={{ position: "relative", width: 16, height: 16 }}>
+          <Copy
+            size={16}
+            style={{
+              position: "absolute",
+              inset: 0,
+              opacity: copied ? 0 : 1,
+              transform: copied ? "scale(0.5)" : "scale(1)",
+              transition:
+                "opacity 280ms var(--nc-ease), transform 360ms var(--nc-ease)",
+            }}
+          />
+          <Check
+            size={16}
+            strokeWidth={2.75}
+            style={{
+              position: "absolute",
+              inset: 0,
+              color: "var(--color-brand)",
+              opacity: copied ? 1 : 0,
+              transform: copied ? "scale(1)" : "scale(0.5)",
+              transition:
+                "opacity 280ms var(--nc-ease), transform 360ms var(--nc-ease)",
+            }}
+          />
+        </span>
       </span>
 
-      {/* Libellé — se replie (opacité + largeur) quand le bouton devient cercle */}
+      {/* Libellé — repli fluide via colonne grid 1fr → 0fr */}
       <span
         style={{
-          marginLeft: copied ? 0 : 7,
+          display: "grid",
+          gridTemplateColumns: copied ? "0fr" : "1fr",
           opacity: copied ? 0 : 1,
-          transition:
-            "opacity 200ms var(--nc-ease), margin-left 480ms var(--nc-ease)",
+          minWidth: 0,
+          transition: `grid-template-columns ${morph}, opacity 220ms var(--nc-ease)`,
         }}
       >
-        {label}
+        <span
+          className={loading ? "t-shimmer nc-shimmer-text" : undefined}
+          data-text={loading ? label : undefined}
+          style={{ overflow: "hidden", whiteSpace: "nowrap" }}
+        >
+          {label}
+        </span>
       </span>
     </button>
   );

@@ -617,6 +617,14 @@ html {
   }
 }
 
+/* Shimmer gris réutilisable (sans typo imposée) — ex. libellé « Copie… ». */
+.nc-shimmer-text {
+  --shimmer-base: var(--color-text-muted);
+  --shimmer-highlight: var(--color-text-secondary);
+  --shimmer-dur: 1400ms;
+  --shimmer-band: 320%;
+}
+
 /* Instance concrète : variables + typo du texte de chargement transcript.
  * Base = texte muet du DS, highlight = rouge signature. Light + dark via
  * les tokens, rien en dur. */

@@ -62,19 +62,22 @@ export function CoachingTabs<T extends string>({
     }
   }, []);
 
+  const activeIndex = tabs.findIndex((t) => t.value === active);
+
   // Repositionne sans animation quand l'onglet actif change pour une raison
-  // autre qu'un clic (montage, resize, switch programmatique). Le clic gère
-  // lui-même l'animation et marque lastClickedRef pour éviter le double-move.
+  // autre qu'un clic (montage, switch programmatique). On dépend de
+  // `activeIndex` (primitif) et non du tableau `tabs` : sinon chaque re-render
+  // parent (chargement transcription, scroll…) recrée `tabs` et relancerait
+  // l'effet, ce qui couperait l'animation de glisse en plein milieu.
   useLayoutEffect(() => {
-    const idx = tabs.findIndex((t) => t.value === active);
-    if (idx < 0) return;
-    if (lastClickedRef.current === idx) {
+    if (activeIndex < 0) return;
+    if (lastClickedRef.current === activeIndex) {
       lastClickedRef.current = -1;
       return;
     }
     lastClickedRef.current = -1;
-    moveTabTo(idx, false);
-  }, [active, tabs, moveTabTo]);
+    moveTabTo(activeIndex, false);
+  }, [activeIndex, moveTabTo]);
 
   return (
     <div
