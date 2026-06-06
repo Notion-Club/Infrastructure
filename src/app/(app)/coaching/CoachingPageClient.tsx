@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
-import { DevStateSwitcher } from "@/shared/components/coaching/DevStateSwitcher";
+import { useRegisterDevTools } from "@/shared/components/dev/DevToolbox";
+import { CoachingDevTools } from "@/shared/components/coaching/CoachingDevTools";
 import {
   CoachingHeroBanner,
   type HeroButtonConfig,
@@ -254,10 +255,19 @@ export default function CoachingPageClient({
     };
   }, []);
 
-  function handleStateChange(state: UserState) {
+  const handleStateChange = useCallback((state: UserState) => {
     setUserState(state);
     localStorage.setItem(STORAGE_KEY, state);
-  }
+  }, []);
+
+  // Enregistre le panneau d'outils dev (toggles des 6 états) dans la toolbox
+  // de la barre de navigation. Mémoïsé pour ne pas ré-enregistrer à chaque
+  // render. DEV ONLY — à retirer au branchement backend.
+  const devPanel = useMemo(
+    () => <CoachingDevTools current={userState} onChange={handleStateChange} />,
+    [userState, handleStateChange],
+  );
+  useRegisterDevTools(devPanel);
 
   async function openModal(url: string) {
     if (preparing) return;
@@ -422,20 +432,9 @@ export default function CoachingPageClient({
     <>
       <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
         <main style={{ position: "relative", zIndex: 1 }}>
-          {/* DEV ONLY — à retirer au branchement backend */}
-          <div
-            className="pt-[84px] md:pt-[88px]"
-            style={{ position: "sticky", top: 0, zIndex: 39 }}
-          >
-            <DevStateSwitcher
-              currentState={userState}
-              onChange={handleStateChange}
-            />
-          </div>
-
           {/* Contenu principal */}
           <div
-            className="px-4 pt-6 pb-[100px] md:px-10 md:pt-8 md:pb-12"
+            className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-12"
             style={{ maxWidth: 1100, margin: "0 auto" }}
           >
             {/* Encadré global unique — Slot 1 (bannière) + Slot 2 (historique) */}
