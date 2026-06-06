@@ -21,8 +21,6 @@ import { FilloutModal } from "@/shared/components/coaching/FilloutModal";
 import {
   type UserState,
   type CallCardData,
-  MOCK_PAST_CALLS,
-  MOCK_EXPIRED_PAST_CALLS,
 } from "@/shared/lib/mock/coaching";
 import { FILLOUT_URLS } from "@/shared/lib/mock/fillout";
 import { ensureNotionMemberPage } from "@/modules/coaching/server/ensureNotionMemberPage";
@@ -45,11 +43,15 @@ interface CoachingPageClientProps {
 const STORAGE_KEY = "nc_coaching_dev_state";
 
 // Les états dev qui doivent afficher les vraies données plutôt que les mocks.
-// Pour les autres états (free, formation_*), on garde les mocks pour que Théo
-// puisse tester les variants UI dans le DevStateSwitcher.
+// Tous les états où l'user a des coachings (passés ou à venir) — la même
+// source de vérité Notion peuple les sections. Seuls `free` et
+// `formation_0_calls` restent en mocks (états où la liste est par définition
+// vide, et où Théo veut tester le rendu "aucun appel").
 const REAL_DATA_STATES: ReadonlySet<UserState> = new Set([
+  "formation_1_call",
   "accompagnement_eligible",
   "accompagnement_not_eligible",
+  "accompagnement_expired",
 ] as UserState[]);
 
 // ─── Header config ───────────────────────────────────────────────────────────
@@ -194,15 +196,34 @@ function getRightColumnConfig(
   state: UserState,
   realCalls: RealCallsPayload,
 ): RightColumnConfig {
-  // États "accompagnement actif" : on affiche les vrais appels Notion du user.
-  // Les autres états restent sur les mocks (Théo teste les variants UI via le
-  // DevStateSwitcher sans avoir besoin de données réelles).
+  // États où les vraies données Notion du user sont affichées. Le banner et
+  // la visibilité de la section upcoming dépendent du state — l'état dérive
+  // du contexte business (formation finie, accompagnement actif, expiré),
+  // pas du contenu réel des calls.
   if (REAL_DATA_STATES.has(state)) {
-    return {
-      showUpcoming: true,
-      upcomingCalls: realCalls.upcoming,
-      pastCalls: realCalls.past,
-    };
+    switch (state) {
+      case "formation_1_call":
+        return {
+          showUpcoming: false, // formation : 1 seul call inclus, jamais d'upcoming après
+          upcomingCalls: [],
+          pastCalls: realCalls.past,
+          pastBannerText: "Tu as utilisé ton coaching inclus.",
+        };
+      case "accompagnement_expired":
+        return {
+          showUpcoming: false, // accompagnement terminé, plus de futurs calls
+          upcomingCalls: [],
+          pastCalls: realCalls.past,
+          pastBannerText: "Accompagnement terminé.",
+        };
+      // accompagnement_eligible / not_eligible : section upcoming visible
+      default:
+        return {
+          showUpcoming: true,
+          upcomingCalls: realCalls.upcoming,
+          pastCalls: realCalls.past,
+        };
+    }
   }
 
   switch (state) {
@@ -214,22 +235,6 @@ function getRightColumnConfig(
         upcomingCalls: [],
         pastCalls: [],
       };
-    case "formation_1_call":
-      return {
-        showUpcoming: true,
-        upcomingCalls: [],
-        pastCalls: MOCK_PAST_CALLS.slice(0, 1),
-        pastBannerText: "Tu as utilisé ton coaching inclus le 12 mars 2026.",
-      };
-    case "accompagnement_expired":
-      return {
-        showUpcoming: false,
-        upcomingCalls: [],
-        pastCalls: MOCK_EXPIRED_PAST_CALLS,
-        pastBannerText: "Accompagnement terminé le 18 février 2026",
-      };
-    // accompagnement_eligible / accompagnement_not_eligible déjà traités
-    // dans le bloc REAL_DATA_STATES ci-dessus.
     default:
       return { showUpcoming: false, upcomingCalls: [], pastCalls: [] };
   }
