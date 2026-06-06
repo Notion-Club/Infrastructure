@@ -1,17 +1,17 @@
 "use client";
 
-// Toolbox « état dev » de la barre de navigation — pattern réutilisable par
-// toutes les pages.
+// Toolbox de la barre de navigation — pattern réutilisable par toutes les pages.
 //
-// Principe :
-//   • Chaque page enregistre SON panneau d'outils dev via `useRegisterDevTools`
-//     (un seul panneau actif à la fois — une page à la fois).
-//   • `DevToolboxButton` (rendu dans la Topbar + les actions mobiles) lit ce
-//     panneau et l'affiche dans un dropdown. S'il n'y a pas de panneau pour la
-//     page courante, le bouton ne s'affiche pas (ex. /ressources sans options).
+// Le dropdown agrège deux zones :
+//   • EN HAUT  — section « retours » globale (icônes feedback + tickets), la
+//     même sur toutes les pages. Enregistrée par le FeedbackWidget via
+//     `useRegisterFeedbackTools`.
+//   • EN BAS   — panneau d'état dev SPÉCIFIQUE à la page courante. Enregistré
+//     par la page via `useRegisterDevTools` (absent → section non affichée).
 //
-// Le panneau est passé tel quel (ReactNode) : ses toggles vivent dans l'arbre
-// React de la page, donc ils pilotent directement l'état de la page.
+// Le bouton clé à molette s'affiche dès qu'au moins une des deux zones existe.
+// Les panneaux sont passés en ReactNode : leurs contrôles vivent dans l'arbre
+// React de leur émetteur, donc pilotent directement son état.
 
 import {
   createContext,
@@ -26,54 +26,89 @@ import {
 import { Wrench } from "lucide-react";
 
 interface DevToolboxSetApi {
-  set: (node: ReactNode | null) => void;
+  setPanel: (node: ReactNode | null) => void;
+  setFeedback: (node: ReactNode | null) => void;
+  requestClose: () => void;
 }
 
-// Deux contextes séparés : le « set » est stable (les pages le consomment sans
-// re-render quand le panneau change) ; le « panel » change et ne re-rend que
-// les boutons de la toolbar.
+interface DevToolboxState {
+  panel: ReactNode | null;
+  feedback: ReactNode | null;
+  closeNonce: number;
+}
+
+// « set » stable (consommé par les émetteurs sans re-render) vs « state »
+// (consommé par les boutons de la toolbar).
 const SetContext = createContext<DevToolboxSetApi | null>(null);
-const PanelContext = createContext<ReactNode | null>(null);
+const StateContext = createContext<DevToolboxState>({
+  panel: null,
+  feedback: null,
+  closeNonce: 0,
+});
 
 export function DevToolboxProvider({ children }: { children: ReactNode }) {
-  const [panel, setPanel] = useState<ReactNode | null>(null);
-  const set = useCallback((node: ReactNode | null) => setPanel(node), []);
-  const api = useMemo<DevToolboxSetApi>(() => ({ set }), [set]);
+  const [panel, setPanelState] = useState<ReactNode | null>(null);
+  const [feedback, setFeedbackState] = useState<ReactNode | null>(null);
+  const [closeNonce, setCloseNonce] = useState(0);
+
+  const setPanel = useCallback((node: ReactNode | null) => setPanelState(node), []);
+  const setFeedback = useCallback(
+    (node: ReactNode | null) => setFeedbackState(node),
+    [],
+  );
+  const requestClose = useCallback(() => setCloseNonce((n) => n + 1), []);
+
+  const api = useMemo<DevToolboxSetApi>(
+    () => ({ setPanel, setFeedback, requestClose }),
+    [setPanel, setFeedback, requestClose],
+  );
+  const state = useMemo<DevToolboxState>(
+    () => ({ panel, feedback, closeNonce }),
+    [panel, feedback, closeNonce],
+  );
 
   return (
     <SetContext.Provider value={api}>
-      <PanelContext.Provider value={panel}>{children}</PanelContext.Provider>
+      <StateContext.Provider value={state}>{children}</StateContext.Provider>
     </SetContext.Provider>
   );
 }
 
-/**
- * Enregistre le panneau d'outils dev de la page courante. Mémoïse `node` côté
- * appelant (`useMemo`) pour ne pas ré-enregistrer à chaque render.
- */
+/** Enregistre le panneau d'état dev de la page courante (zone du bas). */
 export function useRegisterDevTools(node: ReactNode) {
   const api = useContext(SetContext);
-
-  // Met à jour le panneau quand `node` change (sans flicker : pas de reset
-  // à null entre deux valeurs).
   useEffect(() => {
-    api?.set(node);
+    api?.setPanel(node);
   }, [api, node]);
-
-  // Nettoie uniquement au démontage de la page.
   useEffect(() => {
-    return () => api?.set(null);
+    return () => api?.setPanel(null);
   }, [api]);
+}
+
+/** Enregistre la section « retours » globale (zone du haut). */
+export function useRegisterFeedbackTools(node: ReactNode) {
+  const api = useContext(SetContext);
+  useEffect(() => {
+    api?.setFeedback(node);
+  }, [api, node]);
+  useEffect(() => {
+    return () => api?.setFeedback(null);
+  }, [api]);
+}
+
+/** Demande la fermeture du dropdown (ex. avant d'ouvrir la sélection/le form). */
+export function useDevToolboxClose() {
+  const api = useContext(SetContext);
+  return api?.requestClose ?? (() => {});
 }
 
 // ── Bouton + dropdown ──────────────────────────────────────────────────────
 
 type Phase = "closed" | "open" | "closing";
-const CLOSE_DUR = 150; // doit rester aligné sur --dropdown-close-dur
+const CLOSE_DUR = 150; // aligné sur --dropdown-close-dur
 
 interface DevToolboxButtonProps {
   size?: number;
-  // Ajoute une ombre portée (boutons flottants mobiles).
   floating?: boolean;
 }
 
@@ -81,7 +116,7 @@ export function DevToolboxButton({
   size = 40,
   floating = false,
 }: DevToolboxButtonProps) {
-  const panel = useContext(PanelContext);
+  const { panel, feedback, closeNonce } = useContext(StateContext);
   const [phase, setPhase] = useState<Phase>("closed");
   const [entered, setEntered] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -98,8 +133,6 @@ export function DevToolboxButton({
     if (closeTimer.current) window.clearTimeout(closeTimer.current);
     setPhase("open");
     setEntered(false);
-    // Double rAF : laisse l'état de base (.t-dropdown) peindre avant d'ajouter
-    // .is-open → la transition d'entrée joue.
     requestAnimationFrame(() =>
       requestAnimationFrame(() => setEntered(true)),
     );
@@ -109,6 +142,17 @@ export function DevToolboxButton({
     if (phase === "open") closeMenu();
     else openMenu();
   }
+
+  // Fermeture demandée par un panneau (ex. clic « retour sur un élément »).
+  const prevNonce = useRef(closeNonce);
+  useEffect(() => {
+    if (closeNonce === prevNonce.current) return;
+    prevNonce.current = closeNonce;
+    if (phase === "closed") return;
+    // Défère le setState hors du corps synchrone de l'effet.
+    const id = requestAnimationFrame(() => closeMenu());
+    return () => cancelAnimationFrame(id);
+  }, [closeNonce, phase, closeMenu]);
 
   useEffect(() => {
     if (phase === "closed") return;
@@ -134,8 +178,8 @@ export function DevToolboxButton({
     };
   }, []);
 
-  // Pas de panneau pour la page courante → pas de bouton.
-  if (!panel) return null;
+  // Rien à afficher pour cette page → pas de bouton.
+  if (!feedback && !panel) return null;
 
   const ddClass = `t-dropdown nc-dropdown-panel${
     phase === "open" && entered ? " is-open" : ""
@@ -154,7 +198,6 @@ export function DevToolboxButton({
           height: size,
           borderRadius: "50%",
           border: "none",
-          // Fond pastel rouge opaque (tint brand composé sur la surface).
           background:
             "linear-gradient(rgba(224,98,90,0.14), rgba(224,98,90,0.14)), var(--color-surface-card)",
           color: "var(--color-brand)",
@@ -183,13 +226,30 @@ export function DevToolboxButton({
             position: "absolute",
             top: "calc(100% + 10px)",
             right: 0,
-            minWidth: 252,
+            width: 320,
+            maxWidth: "calc(100vw - 24px)",
             borderRadius: 16,
             overflow: "hidden",
             zIndex: 70,
             padding: 10,
           }}
         >
+          {/* Zone haute — retours (globale) */}
+          {feedback}
+
+          {/* Séparateur entre retours et état de page */}
+          {feedback && panel && (
+            <div
+              aria-hidden
+              style={{
+                height: 1,
+                background: "var(--color-border-default)",
+                margin: "10px 2px",
+              }}
+            />
+          )}
+
+          {/* Zone basse — état dev de la page */}
           {panel}
         </div>
       )}
