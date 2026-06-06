@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Image from "next/image";
-import { AlignJustify, X, ExternalLink } from "lucide-react";
+import { AlignJustify, X, ExternalLink, Copy, Check } from "lucide-react";
 import type { CallCardData } from "@/shared/lib/mock/coaching";
 import { CallDetailModal } from "@/shared/components/coaching/CallDetailModal";
 
@@ -64,10 +64,34 @@ interface CallCardProps {
   archived?: boolean;
 }
 
+type CopyState = "idle" | "loading" | "copied" | "error";
+
 export function CallCard({ call, archived = false }: CallCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [copyState, setCopyState] = useState<CopyState>("idle");
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // Fallback ChatGPT/IA qui refusent de fetcher l'URL : on récupère la
+  // transcription brute via la même route signée et on la copie dans le
+  // presse-papier. L'user n'a plus qu'à la coller dans son IA.
+  async function handleCopyTranscript() {
+    if (!call.transcript_url) return;
+    if (copyState === "loading") return;
+    setCopyState("loading");
+    try {
+      const res = await fetch(call.transcript_url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      await navigator.clipboard.writeText(text);
+      setCopyState("copied");
+      window.setTimeout(() => setCopyState("idle"), 2500);
+    } catch (err) {
+      console.error("[CallCard] copy transcript failed:", err);
+      setCopyState("error");
+      window.setTimeout(() => setCopyState("idle"), 2500);
+    }
+  }
 
   const isUpcoming = call.status === "upcoming";
   const isExpandable = !isUpcoming;
@@ -401,6 +425,65 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                     Demander à Claude
                   </a>
                 </div>
+
+                {/* Fallback universel : copie la transcription brute dans le
+                    presse-papier pour que l'user puisse la coller dans n'importe
+                    quelle IA (utile pour ChatGPT qui refuse de fetch les
+                    URLs avec token). */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCopyTranscript();
+                  }}
+                  disabled={copyState === "loading"}
+                  data-fb-label="Bouton Copier transcription · Carte appel"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    width: "100%",
+                    padding: "8px 12px",
+                    marginBottom: 16,
+                    background: copyState === "copied"
+                      ? "rgba(34,197,94,0.08)"
+                      : "var(--color-surface-raised)",
+                    border: `1px solid ${
+                      copyState === "copied"
+                        ? "rgba(34,197,94,0.3)"
+                        : "var(--color-border-default)"
+                    }`,
+                    borderRadius: 9999,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: copyState === "copied"
+                      ? "#16a34a"
+                      : "var(--color-text-primary)",
+                    cursor: copyState === "loading" ? "wait" : "pointer",
+                    transition:
+                      "background 180ms ease, border-color 180ms ease, color 180ms ease",
+                  }}
+                  className={
+                    copyState === "copied"
+                      ? ""
+                      : "hover:bg-[rgba(0,0,0,0.03)] hover:border-[rgba(0,0,0,0.12)]"
+                  }
+                >
+                  {copyState === "copied" ? (
+                    <Check size={13} style={{ flexShrink: 0 }} />
+                  ) : (
+                    <Copy size={13} style={{ flexShrink: 0 }} />
+                  )}
+                  {copyState === "loading"
+                    ? "Copie en cours…"
+                    : copyState === "copied"
+                    ? "Transcription copiée — colle-la dans ton IA"
+                    : copyState === "error"
+                    ? "Erreur, réessaie"
+                    : "Copier la transcription"}
+                </button>
+
                 <div style={{ height: 1, background: "var(--color-border-default)", marginBottom: 14 }} />
               </>
             )}
