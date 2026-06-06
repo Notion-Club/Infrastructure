@@ -342,6 +342,10 @@ export function CallDetailModal({
                     height: 20,
                     borderRadius: "50%",
                     background: fallback.bg,
+                    // Bord fin (même gris que la date) pour détacher les photos
+                    // sur fond blanc d'un composant blanc.
+                    border: "1px solid var(--color-text-muted)",
+                    boxSizing: "border-box",
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -608,13 +612,14 @@ export function CallDetailModal({
                 alignItems: "center",
                 gap: 4,
                 padding: "7px 14px",
-                background: "var(--nc-btn-dark-bg)",
-                border: "none",
+                background: "var(--color-surface-card)",
+                border: "1px solid var(--color-border-default)",
                 borderRadius: 9999,
                 fontSize: 13,
                 fontWeight: 600,
-                color: "var(--nc-btn-dark-text)",
+                color: "var(--color-text-primary)",
                 cursor: "pointer",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
                 flexShrink: 0,
               }}
             >

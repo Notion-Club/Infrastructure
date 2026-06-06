@@ -59,9 +59,6 @@ html {
   --color-surface-raised: #201d1b;   /* nav pills, inputs */
   --color-surface-card: #2a2725;     /* dropdowns, modals, cards */
   --color-border-default: #332e2b;   /* bordures subtiles */
-  /* Fond des tuiles posées SUR une surface-card (ex. tuiles d'appels dans
-     l'encadré coaching) — plus clair que la card pour créer du contraste. */
-  --nc-tile-bg: #37322f;
   --nc-nav-active-bg: rgba(255, 255, 255, 0.09);
   --nc-nav-hover-bg: rgba(255, 255, 255, 0.05);
   --nc-segmented-active-bg: rgba(255, 255, 255, 0.92);
@@ -914,6 +911,9 @@ html.dark {
   --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
   --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
   --nc-card-dot-color: rgba(255, 255, 255, 0.18);
+  /* Tuiles posées sur une surface-card (tuiles d'appels, skeleton d'aperçu) —
+     plus claires que la card pour créer du contraste en dark. */
+  --nc-tile-bg: #37322f;
   --nc-lock-overlay-bg: rgba(20, 18, 17, 0.87);
   --nc-switch-off-bg: rgba(255, 255, 255, 0.14);
   --nc-btn-disabled-bg: rgba(255, 255, 255, 0.08);
