@@ -24,6 +24,7 @@ import {
 } from "@/shared/lib/mock/coaching";
 import { FILLOUT_URLS } from "@/shared/lib/mock/fillout";
 import { ensureNotionMemberPage } from "@/modules/coaching/server/ensureNotionMemberPage";
+import { type NextCallPillData } from "@/shared/components/coaching/NextCallPill";
 
 // Forme utilisée à la fois par les mocks (DevStateSwitcher) et les vraies
 // données Notion. CallCardData a `host: string` (élargi vs MockCall qui
@@ -38,6 +39,9 @@ interface RealCallsPayload {
 
 interface CoachingPageClientProps {
   realCalls: RealCallsPayload;
+  // Prochain appel à venir lu depuis Notion (status non renseigné + date ≥ now).
+  // `null` quand il n'y a pas d'appel planifié — la pill du header est masquée.
+  nextCall: NextCallPillData | null;
 }
 
 const STORAGE_KEY = "nc_coaching_dev_state";
@@ -60,6 +64,7 @@ interface HeaderConfig {
   title: string;
   subtitle: string;
   includedPill?: string;
+  // Mock legacy — utilisé pour les états dev sans data live (DevStateSwitcher).
   nextCallPill?: string;
 }
 
@@ -258,6 +263,7 @@ const EMPTY_USER_INFO: PrefillUserInfo = {
 
 export default function CoachingPageClient({
   realCalls,
+  nextCall,
 }: CoachingPageClientProps) {
   const [userState, setUserState] =
     useState<UserState>("accompagnement_eligible");
@@ -314,6 +320,21 @@ export default function CoachingPageClient({
   const headerConfig = getHeaderConfig(userState);
   const ctaConfig = getCTAConfig(userState, openModal, preparing);
   const rightConfig = getRightColumnConfig(userState, realCalls);
+
+  // Pill prochain coaching :
+  //  - États accompagnement avec data Notion → vrai objet (modale détail live).
+  //  - Autres états (free / formation / mocks DevStateSwitcher) → libellé mock.
+  //
+  // Quand l'user est sur un état accompagnement mais que Notion n'a rien à
+  // venir, on laisse la pill mock (DevStateSwitcher) pour ne pas casser le
+  // démo de Théo sur ces états — sinon l'aperçu visuel disparaît pendant les
+  // tests UI.
+  const headerNextCall: NextCallPillData | undefined =
+    (userState === "accompagnement_eligible" ||
+      userState === "accompagnement_not_eligible") &&
+    nextCall
+      ? nextCall
+      : undefined;
   const isExpired = userState === "accompagnement_expired";
   const allCallsEmpty =
     rightConfig.upcomingCalls.length === 0 && rightConfig.pastCalls.length === 0;
@@ -339,7 +360,7 @@ export default function CoachingPageClient({
             style={{ maxWidth: 1100, margin: "0 auto" }}
           >
             <div className="nc-mode-in">
-              <CoachingHeader {...headerConfig} />
+              <CoachingHeader {...headerConfig} nextCall={headerNextCall} />
             </div>
 
             {/* Single-column layout */}

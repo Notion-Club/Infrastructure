@@ -1,9 +1,16 @@
 import { Calendar } from "lucide-react";
+import { NextCallPill, type NextCallPillData } from "./NextCallPill";
 
 interface CoachingHeaderProps {
   title: string;
   subtitle: string;
   includedPill?: string;
+  // V1 live : objet riche (date + host + objet + reschedule URL) — clic ouvre
+  // une modale détail. Utilisé pour les vrais appels Notion.
+  nextCall?: NextCallPillData;
+  // Legacy mock : libellé brut affiché comme un span statique non cliquable.
+  // Conservé pour le DevStateSwitcher (mocks accompagnement_*) — à retirer
+  // quand tous les états dev tireront sur les vraies données.
   nextCallPill?: string;
 }
 
@@ -11,6 +18,7 @@ export function CoachingHeader({
   title,
   subtitle,
   includedPill,
+  nextCall,
   nextCallPill,
 }: CoachingHeaderProps) {
   return (
@@ -67,8 +75,11 @@ export function CoachingHeader({
         </div>
       )}
 
-      {/* Pill "Prochain coaching dans X jours" — état accompagnement */}
-      {nextCallPill && (
+      {/* Pill "Prochain coaching" — V1 live (clickable + modale détail) */}
+      {nextCall && <NextCallPill data={nextCall} />}
+
+      {/* Pill "Prochain coaching dans X jours" — legacy mock (non cliquable) */}
+      {!nextCall && nextCallPill && (
         <div style={{ marginTop: 4 }}>
           <span
             data-fb-label="Badge prochain coaching · En-tête coaching"

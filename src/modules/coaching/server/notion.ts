@@ -43,6 +43,8 @@ const PROP_HOST = "Host"; // people (Notion user) — first user wins
 const PROP_STATUS = "Status"; // status (NOT select) — Accepté/Refusé/No-show
 const PROP_SUMMARY = "Résumé IA"; // rich_text
 const PROP_FATHOM_URL = "URL Fathom"; // url
+const PROP_OBJECT = "Objet de la Demande"; // rich_text — affiché dans la pill modale
+const PROP_RESCHEDULE_URL = "Reschedule URL"; // url — bouton "Replanifier ou annuler"
 
 // Mapping des libellés Notion vers notre enum de statut.
 //
@@ -78,6 +80,8 @@ export interface NotionCoachingCall {
   status: NotionCallStatus;
   aiSummary: string | null;
   fathomUrl: string | null;
+  objectRequest: string | null; // "Objet de la Demande" — pitch saisi par le membre
+  rescheduleUrl: string | null; // lien Fillout / TidyCal pour replanifier ou annuler
 }
 
 interface NotionQueryResponse {
@@ -134,6 +138,8 @@ function getUrl(page: NotionPage, prop: string): string | null {
 function toNotionCoachingCall(page: NotionPage): NotionCoachingCall {
   const summary = getRichText(page, PROP_SUMMARY).trim();
   const fathom = getUrl(page, PROP_FATHOM_URL);
+  const object = getRichText(page, PROP_OBJECT).trim();
+  const reschedule = getUrl(page, PROP_RESCHEDULE_URL);
   return {
     notionPageId: normalizeNotionId(page.id),
     scheduledAt: getDateStart(page, PROP_DATE),
@@ -143,6 +149,8 @@ function toNotionCoachingCall(page: NotionPage): NotionCoachingCall {
     status: normalizeStatus(getStatusName(page, PROP_STATUS)),
     aiSummary: summary.length > 0 ? summary : null,
     fathomUrl: fathom && fathom.length > 0 ? fathom : null,
+    objectRequest: object.length > 0 ? object : null,
+    rescheduleUrl: reschedule && reschedule.length > 0 ? reschedule : null,
   };
 }
 

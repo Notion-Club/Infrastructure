@@ -224,6 +224,68 @@ export async function getCallsForCurrentUser(): Promise<{
   return { upcoming, past };
 }
 
+// ── Prochain appel à venir (pour la pill "Ton prochain coaching est…") ──
+//
+// Lit la DB Notion Appels de suivi et retourne le PROCHAIN appel à venir
+// (status sans valeur OU "À venir") dont la date est ≥ maintenant. Si
+// plusieurs candidats, on prend le plus proche dans le temps.
+//
+// Retourne `null` si :
+//  - pas de profil Notion lié (ensureNotionMemberPage KO)
+//  - aucun appel à venir
+//  - notion KO (best-effort)
+//
+// Champs exposés à l'UI :
+//  - scheduledAt : ISO (utilisé pour le formatage "aujourd'hui / demain / dans X j")
+//  - host : nom du Host Notion (people)
+//  - hostAvatarUrl : avatar Notion (people) du Host
+//  - objectRequest : texte de "Objet de la Demande" (rich_text)
+//  - rescheduleUrl : URL "Reschedule URL" (bouton replanifier/annuler)
+export interface NextUpcomingCallView {
+  notionPageId: string;
+  scheduledAt: string;
+  host: string;
+  hostAvatarUrl: string | null;
+  objectRequest: string | null;
+  rescheduleUrl: string | null;
+}
+
+export async function getNextUpcomingCallForCurrentUser(): Promise<NextUpcomingCallView | null> {
+  const member = await ensureNotionMemberPage();
+  if (!member.ok || !member.notionPageId) return null;
+
+  const calls = await fetchCallsForMember(member.notionPageId);
+  const now = Date.now();
+
+  // Candidats à venir : status vide ("upcoming" par normalisation) ET date ≥ now.
+  // On exclut explicitement les statuts "accepted" / "no_show" / "cancelled"
+  // qui ne sont jamais des appels à venir, même si leur date est devant nous
+  // (admin a déjà saisi un statut → l'appel est tranché).
+  const upcoming = calls
+    .filter((c) => c.status === "upcoming")
+    .filter((c) => {
+      if (!c.scheduledAt) return false;
+      const ts = new Date(c.scheduledAt).getTime();
+      return !Number.isNaN(ts) && ts >= now;
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
+    );
+
+  const next = upcoming[0];
+  if (!next) return null;
+
+  return {
+    notionPageId: next.notionPageId,
+    scheduledAt: next.scheduledAt,
+    host: next.host || "Théo",
+    hostAvatarUrl: next.hostAvatarUrl,
+    objectRequest: next.objectRequest,
+    rescheduleUrl: next.rescheduleUrl,
+  };
+}
+
 // Compte le nombre d'appels coachés (accepted) de l'user. Utile pour la
 // logique d'état "formation_0_calls" vs "formation_1_call" côté front.
 export async function getAcceptedCallsCount(): Promise<number> {
