@@ -254,9 +254,19 @@ export default function CoachingPageClient({
     setFocusUpcomingNonce((n) => n + 1);
     router.refresh();
     refreshTimersRef.current.forEach((t) => window.clearTimeout(t));
-    refreshTimersRef.current = [4000, 8000, 12000].map((d) =>
+    // Fenêtre large : la synchro Fillout → Notion peut prendre plusieurs
+    // dizaines de secondes avant que l'appel n'apparaisse dans la query.
+    refreshTimersRef.current = [3000, 6000, 10000, 15000, 22000, 30000].map((d) =>
       window.setTimeout(() => router.refresh(), d),
     );
+  }, [router]);
+
+  // Filet de sécurité : à chaque fermeture du pop-up (auto ou manuelle), on
+  // rafraîchit une fois — si la détection de soumission a échoué mais que
+  // l'utilisateur a bien réservé puis fermé, l'appel apparaîtra quand même.
+  const handleModalClose = useCallback(() => {
+    setModalOpen(false);
+    router.refresh();
   }, [router]);
 
   useEffect(() => {
@@ -510,7 +520,7 @@ export default function CoachingPageClient({
       {/* Fillout modal — hors de nc-page-halo */}
       <FilloutModal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={handleModalClose}
         onSubmitted={handleBookingConfirmed}
         baseUrl={modalUrl}
         id={userInfo.id}

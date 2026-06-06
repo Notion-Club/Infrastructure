@@ -22,6 +22,9 @@ interface FilloutModalProps {
 const FALLBACK_HEIGHT = 560;
 // Délai avant fermeture auto après la confirmation.
 const AUTO_CLOSE_MS = 2000;
+// TEMP — logue les postMessages reçus pour identifier le format exact de
+// l'event de soumission Fillout (à repasser à false une fois calé).
+const FILLOUT_DEBUG = true;
 
 function extractHeight(data: unknown): number | null {
   if (!data || typeof data !== "object") return null;
@@ -48,27 +51,30 @@ function extractHeight(data: unknown): number | null {
 }
 
 // Détection défensive de l'événement « formulaire soumis » émis par Fillout.
-// Le nom exact de l'event varie selon les versions de l'embed : on accepte
-// tout message (string ou objet) dont un champ d'identification contient
-// submit / complete / thank / success, en excluant les events de cycle de vie
-// (step, height, resize, init, load…) pour éviter les faux positifs.
+// Le format exact varie selon les versions de l'embed : on sérialise tout le
+// payload (string ou objet) et on cherche un mot-clé de soumission, en
+// écartant les messages de cycle de vie (height, resize, step…) sauf s'ils
+// contiennent aussi un mot-clé de soumission.
 function isSubmissionMessage(raw: unknown): boolean {
-  const looksLikeSubmit = (s: string) =>
-    /submit|complete|thank|success/i.test(s) &&
-    !/step|height|resize|init|load|ready|scroll|focus|blur/i.test(s);
-
-  if (typeof raw === "string") return looksLikeSubmit(raw);
-  if (!raw || typeof raw !== "object") return false;
-
-  const obj = raw as Record<string, unknown>;
-  for (const key of ["type", "event", "eventType", "eventName", "name", "action"]) {
-    const v = obj[key];
-    if (typeof v === "string" && looksLikeSubmit(v)) return true;
+  let s: string | null = null;
+  if (typeof raw === "string") s = raw;
+  else if (raw && typeof raw === "object") {
+    try {
+      s = JSON.stringify(raw);
+    } catch {
+      s = null;
+    }
   }
-  if (obj.submitted === true || obj.completed === true || obj.isComplete === true) {
-    return true;
-  }
-  return false;
+  if (!s) return false;
+
+  const hasSubmit = /submit|thank\s*-?\s*you|thankyou|finished?|confirmation|success/i.test(s);
+  if (!hasSubmit) return false;
+
+  // Si c'est clairement un message de mesure/cycle de vie sans signal de
+  // soumission, on ignore (déjà filtré par hasSubmit, mais garde-fou).
+  const isLifecycleOnly =
+    /height|resize|scroll|heartbeat|"init"|"ready"|"load"/i.test(s) && !hasSubmit;
+  return !isLifecycleOnly;
 }
 
 export function FilloutModal({
@@ -123,6 +129,10 @@ export function FilloutModal({
     });
 
     function onMessage(e: MessageEvent) {
+      // TEMP debug — capture le format réel des messages Fillout.
+      if (FILLOUT_DEBUG) {
+        console.info("[FilloutModal] postMessage", e.origin, e.data);
+      }
       if (
         typeof e.origin === "string" &&
         !e.origin.toLowerCase().includes("fillout")
