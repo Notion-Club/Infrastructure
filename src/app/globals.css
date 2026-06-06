@@ -643,6 +643,10 @@ html {
   50%       { opacity: 0.45; }
 }
 
+@keyframes nc-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Empilement de cartes — navigation entre leçons (lesson-card).
    La carte sortante s'enfonce dans le bas du "deck" pendant que la
    nouvelle glisse par-dessus depuis le haut. */

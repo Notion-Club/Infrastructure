@@ -176,12 +176,19 @@ const paragraphStyle: React.CSSProperties = {
 
 function SingleBlock({ block }: { block: NotionBlock }) {
   switch (block.type) {
-    case "paragraph":
+    case "paragraph": {
+      // Skip les paragraphs strictement vides — ils créent un gap visuel
+      // inutile (margin 6px haut/bas). Les Notion AI insèrent souvent des
+      // wrappers vides en début / fin de section.
+      const hasText = (block.rich ?? []).some((s) => s.text.length > 0);
+      const hasChildren = (block.children ?? []).length > 0;
+      if (!hasText && !hasChildren) return null;
       return (
         <p data-fb-label="Paragraphe Notion · Corps Notion" style={paragraphStyle}>
           <RichText spans={block.rich} />
         </p>
       );
+    }
     case "heading_1":
       return (
         <h2 data-fb-label="Titre Notion · Corps Notion" style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--color-text-primary)", margin: "24px 0 8px" }}>

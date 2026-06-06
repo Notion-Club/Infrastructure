@@ -124,6 +124,45 @@ async function normalizeBlock(
     return { id: raw.id, type: "fragment", children };
   }
 
+  // Bloc custom Notion AI "transcription" : conteneur Notion AI avec
+  // exactement 3 enfants paragraphes-wrappers ordonnés :
+  //    [0] Summary    (résumé structuré : Action Items + sections)
+  //    [1] Notes      (notes manuelles — souvent vide)
+  //    [2] Transcript (verbatim brut de l'appel)
+  //
+  // L'API Notion ne fournit AUCUN discriminator dans le payload des enfants :
+  // les 3 sont des `paragraph` vides identiques. On se fie à l'ordre fixe.
+  // On ne remonte QUE l'enfant Transcript (index 2) — le Summary et les
+  // Notes sont déjà rendus ailleurs côté coaching (onglet Résumé + propriété
+  // "Résumé IA"), pas besoin de les dupliquer.
+  if (t === "transcription") {
+    if (depth >= MAX_DEPTH) return null;
+    const kids = raw.has_children ? await listChildren(raw.id) : [];
+    const transcriptWrapper = kids[2]; // 3e enfant = Transcript
+    if (!transcriptWrapper) {
+      return { id: raw.id, type: "fragment", children: [] };
+    }
+    const wrapperKids = transcriptWrapper.has_children
+      ? await listChildren(transcriptWrapper.id)
+      : [];
+    const children = await normalizeMany(wrapperKids, depth + 1);
+    return { id: raw.id, type: "fragment", children };
+  }
+
+  // Paragraphe-wrapper : rich_text vide + has_children. C'est un pattern
+  // utilisé par les blocs Notion AI (transcription) pour grouper du contenu
+  // sans ajouter de bullet visible. On le promeut en fragment pour que ses
+  // enfants soient rendus directement, sans <p></p> vide qui crée du gap.
+  if (t === "paragraph" && raw.has_children) {
+    const rich = parseRich(payload?.rich_text as RawRichText[]);
+    const isEmpty = rich.length === 0 || rich.every((s) => s.text.trim() === "");
+    if (isEmpty && depth < MAX_DEPTH) {
+      const kids = await listChildren(raw.id);
+      const children = await normalizeMany(kids, depth + 1);
+      return { id: raw.id, type: "fragment", children };
+    }
+  }
+
   const block: NotionBlock = { id: raw.id, type: t };
 
   switch (t) {

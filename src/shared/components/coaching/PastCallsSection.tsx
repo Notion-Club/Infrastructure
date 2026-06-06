@@ -1,11 +1,11 @@
 import { CallCard } from "@/shared/components/coaching/CallCard";
-import type { MockCall } from "@/shared/lib/mock/coaching";
+import type { CallCardData } from "@/shared/lib/mock/coaching";
 
 const EYES_URL =
   "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Telegram-Animated-Emojis/e2eb0709f7ba004d73ce96e041865c95deeaf80a/People/Eyes.webp";
 
 interface PastCallsSectionProps {
-  calls: MockCall[];
+  calls: CallCardData[];
   bannerText?: string;
   archived?: boolean;
 }

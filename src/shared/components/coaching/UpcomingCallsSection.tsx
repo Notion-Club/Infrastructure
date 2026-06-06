@@ -1,8 +1,8 @@
 import { CallCard } from "@/shared/components/coaching/CallCard";
-import type { MockCall } from "@/shared/lib/mock/coaching";
+import type { CallCardData } from "@/shared/lib/mock/coaching";
 
 interface UpcomingCallsSectionProps {
-  calls: MockCall[];
+  calls: CallCardData[];
   emptyMessage?: string;
 }
 
