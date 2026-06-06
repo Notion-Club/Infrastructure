@@ -53,15 +53,17 @@ export function CoachingHeroBanner({
         overflow: "hidden",
         padding: "28px 24px",
         borderRadius: 20,
-        // Fond brand-tinté très léger + glow renforcé au hover.
+        // Verre dépoli : halo brand + surface translucide + flou d'arrière-plan.
         background:
-          "radial-gradient(120% 140% at 0% 0%, rgba(224,98,90,0.07), transparent 55%), var(--color-surface-card)",
-        border: "1px solid var(--color-border-default)",
-        // Pas de surélévation : juste le halo de lumière brand aux coins
-        // extérieurs (anneau fin) + le shine du bouton.
+          "radial-gradient(130% 150% at 0% 0%, rgba(224,98,90,0.13), transparent 58%), var(--nc-glass-bg)",
+        backdropFilter: "blur(16px) saturate(1.3)",
+        WebkitBackdropFilter: "blur(16px) saturate(1.3)",
+        border: "1px solid var(--nc-glass-border)",
+        // Reflet interne (glass) + halo de lumière brand aux coins au hover.
+        // Pas de surélévation.
         boxShadow: hovered
-          ? "0 0 0 1px rgba(224,98,90,0.18), 0 12px 40px rgba(224,98,90,0.13)"
-          : "var(--nc-shadow-2)",
+          ? "var(--nc-glass-highlight), 0 0 0 1px rgba(224,98,90,0.18), 0 12px 40px rgba(224,98,90,0.16)"
+          : "var(--nc-glass-highlight), var(--nc-shadow-2)",
         transition: "box-shadow 320ms var(--nc-ease)",
       }}
       className="md:!px-9 md:!py-8"

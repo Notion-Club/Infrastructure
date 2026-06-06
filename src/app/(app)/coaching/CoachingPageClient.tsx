@@ -430,16 +430,25 @@ export default function CoachingPageClient({
 
   return (
     <>
-      <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
-        <main style={{ position: "relative", zIndex: 1 }}>
+      {/* Hauteur fixe sur desktop : l'encadré occupe l'espace dispo sous la
+          topbar et le Slot 2 scrolle en interne (la taille de l'encadré ne
+          grandit pas avec le nombre d'appels). Sur mobile : flux naturel. */}
+      <div
+        className="nc-page-halo md:flex md:flex-col"
+        style={{ minHeight: "100dvh" }}
+      >
+        <main
+          className="md:flex md:flex-1 md:min-h-0"
+          style={{ position: "relative", zIndex: 1 }}
+        >
           {/* Contenu principal */}
           <div
-            className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-12"
+            className="px-4 pt-[80px] pb-[88px] md:px-10 md:pt-[104px] md:pb-8 w-full md:flex md:flex-col md:min-h-0"
             style={{ maxWidth: 1100, margin: "0 auto" }}
           >
             {/* Encadré global unique — Slot 1 (bannière) + Slot 2 (historique) */}
             <div
-              className="nc-mode-in"
+              className="nc-mode-in md:flex md:flex-col md:flex-1 md:min-h-0"
               data-fb-label="Encadré global · Coaching"
               style={{
                 background: "var(--color-surface-card)",
@@ -449,17 +458,24 @@ export default function CoachingPageClient({
                 padding: 14,
               }}
             >
-              {/* Slot 1 — Bannière HERO */}
-              <CoachingHeroBanner
-                title={heroStatic.title}
-                description={description}
-                accroche={accroche}
-                button={button}
-                nextCall={heroNextCall}
-              />
+              {/* Slot 1 — Bannière HERO (hauteur fixe) */}
+              <div style={{ flexShrink: 0 }}>
+                <CoachingHeroBanner
+                  title={heroStatic.title}
+                  description={description}
+                  accroche={accroche}
+                  button={button}
+                  nextCall={heroNextCall}
+                />
+              </div>
 
-              {/* Slot 2 — Historique / teaser / état vide */}
-              <div style={{ padding: "20px 10px 8px" }}>{slot2}</div>
+              {/* Slot 2 — Historique / teaser / état vide (scroll interne) */}
+              <div
+                className="md:flex-1 md:min-h-0 md:overflow-y-auto"
+                style={{ padding: "20px 10px 8px" }}
+              >
+                {slot2}
+              </div>
             </div>
           </div>
         </main>

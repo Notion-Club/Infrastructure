@@ -6,7 +6,9 @@
 // Réutilisé tel quel dans les contextes Free et Formation (0 call) où la liste
 // d'appels est par définition vide.
 
-const SKELETON_CARDS = [0, 1];
+// 2 rangées (4 cartes en grille 2 colonnes) : la 1re rangée est coupée par le
+// fondu du haut, la 2de est entière.
+const SKELETON_CARDS = [0, 1, 2, 3];
 
 interface UpcomingEmptyStateProps {
   // La description « Réserve ton appel pour avancer » n'est affichée que si
@@ -53,8 +55,8 @@ export function UpcomingEmptyState({ eligible }: UpcomingEmptyStateProps) {
         style={{
           marginTop: 24,
           WebkitMaskImage:
-            "linear-gradient(to bottom, transparent 0, #000 64px)",
-          maskImage: "linear-gradient(to bottom, transparent 0, #000 64px)",
+            "linear-gradient(to bottom, transparent 0, #000 46px)",
+          maskImage: "linear-gradient(to bottom, transparent 0, #000 46px)",
         }}
       >
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -70,7 +72,9 @@ export function UpcomingEmptyState({ eligible }: UpcomingEmptyStateProps) {
 // Carte d'appel en skeleton — STATIQUE (pas de pulse : c'est un aperçu, pas un
 // chargement). Affiche une ligne entière + une ligne demie (date + coach).
 function SkeletonCallCard() {
-  const barBg = "var(--color-surface-raised)";
+  // border-default contraste sur le fond de tuile (= fond de page) dans les
+  // deux thèmes — surface-raised se confondait avec la tuile en light.
+  const barBg = "var(--color-border-default)";
   return (
     <div
       style={{
