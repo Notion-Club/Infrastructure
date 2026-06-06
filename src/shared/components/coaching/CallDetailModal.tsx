@@ -21,7 +21,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { X } from "lucide-react";
+import { X, Goal, FileText, Copy, Check } from "lucide-react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
 import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
 import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
@@ -366,8 +366,16 @@ export function CallDetailModal({
                 active={tab}
                 onChange={setTab}
                 tabs={[
-                  { value: "summary", label: "Plan d'actions" },
-                  { value: "transcript", label: "Transcription" },
+                  {
+                    value: "summary",
+                    label: "Plan d'actions",
+                    icon: <Goal size={15} />,
+                  },
+                  {
+                    value: "transcript",
+                    label: "Transcription",
+                    icon: <FileText size={15} />,
+                  },
                 ]}
               />
             </div>
@@ -400,6 +408,17 @@ export function CallDetailModal({
 
             <GradualBlurOverlay position="absolute" edge="top" height={48} zIndex={4} />
             <GradualBlurOverlay position="absolute" edge="bottom" height={48} zIndex={4} />
+
+            {/* Copier la transcription — onglet Transcription, contenu prêt */}
+            {tab === "transcript" &&
+              transcript.kind === "ready" &&
+              transcriptUrl && (
+                <div
+                  style={{ position: "absolute", top: 12, right: 18, zIndex: 5 }}
+                >
+                  <CopyTranscriptButton transcriptUrl={transcriptUrl} />
+                </div>
+              )}
           </div>
 
           {/* Barre d'action persistante — Demander à Claude / ChatGPT */}
@@ -679,8 +698,8 @@ function TranscriptReveal({
     <div ref={wrapRef} className="nc-transcript-skel t-skel">
       {!skeletonGone && (
         <div className="t-skel-skeleton" aria-hidden={isReady}>
-          {/* Titre animé centré */}
-          <div style={{ textAlign: "center", marginBottom: 24 }}>
+          {/* Titre animé centré (gros, focal) */}
+          <div style={{ textAlign: "center", padding: "24px 8px 0", marginBottom: 32 }}>
             <TranscriptLoadingText host={host} />
           </div>
           {/* Lignes skeleton — fondues par le haut pour une transition smooth */}
@@ -734,5 +753,113 @@ function SkeletonLines() {
         />
       ))}
     </div>
+  );
+}
+
+// Bouton « Copier la transcription » : fetch du lien signé + écriture
+// presse-papiers, avec morph d'icône Copy → Check et état vert « Copié ! »
+// (revient à l'état initial après ~2 s).
+type CopyState = "idle" | "loading" | "copied" | "error";
+
+function CopyTranscriptButton({ transcriptUrl }: { transcriptUrl: string }) {
+  const [copyState, setCopyState] = useState<CopyState>("idle");
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  async function handleCopy() {
+    if (copyState === "loading") return;
+    setCopyState("loading");
+    try {
+      const res = await fetch(transcriptUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      await navigator.clipboard.writeText(text);
+      setCopyState("copied");
+    } catch (err) {
+      console.error("[CopyTranscriptButton] copy failed:", err);
+      setCopyState("error");
+    }
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => setCopyState("idle"), 2200);
+  }
+
+  const copied = copyState === "copied";
+  const label =
+    copyState === "loading"
+      ? "Copie…"
+      : copied
+        ? "Copié !"
+        : copyState === "error"
+          ? "Réessayer"
+          : "Copier";
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      disabled={copyState === "loading"}
+      aria-label="Copier la transcription"
+      data-fb-label="Bouton Copier transcription · Modale détail"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
+        padding: "7px 13px",
+        borderRadius: 9999,
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: copyState === "loading" ? "wait" : "pointer",
+        background: copied
+          ? "rgba(34,197,94,0.10)"
+          : "var(--color-surface-card)",
+        border: `1px solid ${
+          copied ? "rgba(34,197,94,0.35)" : "var(--color-border-default)"
+        }`,
+        color: copied ? "#16a34a" : "var(--color-text-primary)",
+        boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+        transition:
+          "background 220ms var(--nc-ease), border-color 220ms var(--nc-ease), color 220ms var(--nc-ease)",
+      }}
+    >
+      {/* Morph d'icône Copy → Check */}
+      <span
+        style={{
+          position: "relative",
+          width: 15,
+          height: 15,
+          flexShrink: 0,
+        }}
+      >
+        <Copy
+          size={15}
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: copied ? 0 : 1,
+            transform: copied ? "scale(0.5)" : "scale(1)",
+            transition:
+              "opacity 200ms var(--nc-ease), transform 200ms var(--nc-ease)",
+          }}
+        />
+        <Check
+          size={15}
+          style={{
+            position: "absolute",
+            inset: 0,
+            color: "#16a34a",
+            opacity: copied ? 1 : 0,
+            transform: copied ? "scale(1)" : "scale(0.5)",
+            transition:
+              "opacity 200ms var(--nc-ease), transform 200ms var(--nc-ease)",
+          }}
+        />
+      </span>
+      {label}
+    </button>
   );
 }

@@ -607,9 +607,11 @@ html {
   /* Highlight blanc discret : les glyphes s'éclaircissent doucement au
      passage du band (premium), pas de teinte de marque. */
   --shimmer-highlight: #ffffff;
-  font-size: 14px;
-  line-height: 1.6;
-  font-style: italic;
+  /* Gros titre central pendant le chargement de la transcription. */
+  font-size: clamp(20px, 4vw, 26px);
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 @media (prefers-reduced-motion: reduce) {
