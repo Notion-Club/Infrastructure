@@ -619,6 +619,55 @@ html {
   }
 }
 
+/* ── Skeleton + reveal de la transcription (transitions.dev) ──────────────
+ * Cross-fade skeleton → contenu réel quand la transcription arrive : le
+ * skeleton fond + se floute, le contenu apparaît + se dé-floute, sur la même
+ * durée pour lire comme un seul mouvement.
+ * Adaptation : contenu en flux (transcription de hauteur variable,
+ * scrollable). Le skeleton donne la hauteur pendant le chargement, puis
+ * bascule en overlay absolu au reveal pour laisser NotionBlocks piloter la
+ * hauteur. Classes transitions.dev conservées (`is-revealing`/`is-revealed`). */
+.nc-transcript-skel {
+  --reveal-dur: 420ms;
+  --reveal-blur: 3px;
+  --reveal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+.nc-transcript-skel .t-skel-skeleton {
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    opacity var(--reveal-dur) var(--reveal-ease),
+    filter var(--reveal-dur) var(--reveal-ease);
+}
+.nc-transcript-skel.is-revealing .t-skel-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.nc-transcript-skel .t-skel-content {
+  opacity: 0;
+  filter: blur(var(--reveal-blur));
+  transition:
+    opacity var(--reveal-dur) var(--reveal-ease),
+    filter var(--reveal-dur) var(--reveal-ease);
+}
+.nc-transcript-skel.is-revealed .t-skel-skeleton {
+  opacity: 0;
+  filter: blur(var(--reveal-blur));
+}
+.nc-transcript-skel.is-revealed .t-skel-content {
+  opacity: 1;
+  filter: blur(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-transcript-skel .t-skel-skeleton,
+  .nc-transcript-skel .t-skel-content {
+    transition: none !important;
+  }
+}
+
 /*
  * Grid responsive pour la matrix NotificationsSection.
  * Mobile (< md = 768 px) : colonnes channels compactes 56 px, gap 4 px

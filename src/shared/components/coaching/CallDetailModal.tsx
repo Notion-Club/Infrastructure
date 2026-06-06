@@ -603,16 +603,11 @@ function TranscriptPanel({
     lineHeight: 1.6,
   };
 
-  if (state.kind === "idle" || state.kind === "loading") {
-    return (
-      <p style={{ margin: 0 }}>
-        <TranscriptLoadingText host={host} />
-      </p>
-    );
-  }
   if (state.kind === "empty") {
     return (
-      <p style={italicMuted}>Sorry, la transcription n&apos;est pas encore disponible</p>
+      <p style={italicMuted}>
+        Sorry, la transcription n&apos;est pas encore disponible
+      </p>
     );
   }
   if (state.kind === "error") {
@@ -624,5 +619,104 @@ function TranscriptPanel({
       </p>
     );
   }
-  return <NotionBlocks blocks={state.blocks} />;
+  // idle | loading | ready → skeleton avec reveal du contenu réel.
+  return <TranscriptReveal state={state} host={host} />;
+}
+
+// Skeleton de chargement (titre animé centré + lignes fondues par le haut)
+// qui se cross-fade vers la vraie transcription quand elle arrive.
+//
+// Reste monté tout au long de idle → loading → ready (même position dans
+// l'arbre) pour que le reveal lise comme un seul mouvement. Au passage en
+// `ready` : on ajoute `is-revealing` (skeleton en overlay absolu) puis, à la
+// frame suivante, `is-revealed` (déclenche le cross-fade). Le skeleton est
+// démonté après la durée de reveal.
+function TranscriptReveal({
+  state,
+  host,
+}: {
+  state: TranscriptState;
+  host: string;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [skeletonGone, setSkeletonGone] = useState(false);
+  const isReady = state.kind === "ready";
+
+  useEffect(() => {
+    if (!isReady) return;
+    const el = wrapRef.current;
+    if (!el) return;
+    el.classList.add("is-revealing");
+    // Reflow forcé : enregistre l'état initial (contenu opacity 0 + blur)
+    // avant de déclencher la transition à la frame suivante.
+    void el.offsetWidth;
+    const raf = requestAnimationFrame(() => el.classList.add("is-revealed"));
+    // Démonte le skeleton une fois le cross-fade terminé (≈ --reveal-dur).
+    const timer = window.setTimeout(() => setSkeletonGone(true), 480);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+    };
+  }, [isReady]);
+
+  return (
+    <div ref={wrapRef} className="nc-transcript-skel t-skel">
+      {!skeletonGone && (
+        <div className="t-skel-skeleton" aria-hidden={isReady}>
+          {/* Titre animé centré */}
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <TranscriptLoadingText host={host} />
+          </div>
+          {/* Lignes skeleton — fondues par le haut pour une transition smooth */}
+          <div
+            aria-hidden
+            style={{
+              WebkitMaskImage:
+                "linear-gradient(to bottom, transparent 0, #000 44px)",
+              maskImage: "linear-gradient(to bottom, transparent 0, #000 44px)",
+            }}
+          >
+            <SkeletonLines />
+          </div>
+        </div>
+      )}
+
+      {isReady && (
+        <div className="t-skel-content">
+          <NotionBlocks blocks={state.blocks} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Lignes de texte mockées (2 blocs, largeurs variées) reprenant le pulse
+// skeleton standard de l'app (`nc-skeleton-pulse`).
+function SkeletonLines() {
+  const lines: Array<{ w: string; gapTop?: number }> = [
+    { w: "46%" },
+    { w: "100%" },
+    { w: "100%" },
+    { w: "64%" },
+    { w: "100%", gapTop: 22 },
+    { w: "100%" },
+  ];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {lines.map((line, i) => (
+        <div
+          key={i}
+          style={{
+            height: 12,
+            width: line.w,
+            marginTop: line.gapTop ?? 0,
+            borderRadius: 6,
+            background: "var(--color-surface-raised)",
+            animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
+            animationDelay: `${i * 90}ms`,
+          }}
+        />
+      ))}
+    </div>
+  );
 }
