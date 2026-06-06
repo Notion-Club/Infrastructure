@@ -15,9 +15,9 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
+import { useTheme } from "@/shared/lib/hooks/useTheme";
 
 // Subscribe no-op : on n'a besoin de re-render qu'au mount initial — le store
 // ne change jamais après. useSyncExternalStore appelle getServerSnapshot
@@ -27,8 +27,10 @@ function subscribeToMount(): () => void {
   return () => {};
 }
 
+// Logo OpenAI monochrome SVG (variante « light » = blanche) — recoloré selon
+// le thème via un filtre CSS (blanc en dark, noir en light).
 const CHATGPT_LOGO =
-  "https://res.cloudinary.com/dceobxyts/image/upload/v1776436270/ChatGPT-Logo.svg_rip8m0.png";
+  "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/openai-light.svg";
 
 interface ChatGPTGuideModalProps {
   isOpen: boolean;
@@ -61,6 +63,9 @@ export function ChatGPTGuideModal({
     () => true,
     () => false,
   );
+  const { theme } = useTheme();
+  // Logo blanc (SVG) : blanc tel quel en dark, inversé en noir en light.
+  const logoFilter = theme === "dark" ? undefined : "invert(1)";
 
   // Reset état au close pour que la prochaine ouverture reparte propre.
   const handleClose = useCallback(() => {
@@ -156,12 +161,13 @@ export function ChatGPTGuideModal({
               marginBottom: 14,
             }}
           >
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={CHATGPT_LOGO}
               alt=""
               width={22}
               height={22}
-              style={{ display: "block", flexShrink: 0 }}
+              style={{ display: "block", flexShrink: 0, filter: logoFilter }}
             />
             <h2
               style={{

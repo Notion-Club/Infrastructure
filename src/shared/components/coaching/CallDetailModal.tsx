@@ -20,13 +20,13 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
 import { X, Target, FileText, Copy, Check } from "lucide-react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
 import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
 import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
 import { ChatGPTGuideModal } from "@/shared/components/coaching/ChatGPTGuideModal";
 import { TranscriptLoadingText } from "@/shared/components/coaching/TranscriptLoadingText";
+import { useTheme } from "@/shared/lib/hooks/useTheme";
 import type { NotionBlock } from "@/shared/lib/notion/blocks";
 import { getCallTranscriptionBlocks } from "@/modules/coaching/server/getCallTranscriptionBlocks";
 
@@ -36,10 +36,13 @@ function subscribeToMount(): () => void {
   return () => {};
 }
 
+// Logos monochromes SVG (variante « light » = blanche). On les recolore selon
+// le thème via un filtre CSS : blanc en dark (aucun filtre), noir en light
+// (invert). Voir LOGO_FILTER plus bas.
 const CHATGPT_LOGO =
-  "https://res.cloudinary.com/dceobxyts/image/upload/v1776436270/ChatGPT-Logo.svg_rip8m0.png";
+  "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/openai-light.svg";
 const CLAUDE_LOGO =
-  "https://res.cloudinary.com/dceobxyts/image/upload/v1777030411/IMG_1961_flp3vm.png";
+  "https://cdn.jsdelivr.net/gh/selfhst/icons/svg/claude-light.svg";
 
 const HOST_FALLBACK: Record<string, { initials: string; bg: string }> = {
   Théo: { initials: "TG", bg: "#e0625a" },
@@ -152,6 +155,9 @@ export function CallDetailModal({
     () => true,
     () => false,
   );
+  const { theme } = useTheme();
+  // Logos blancs (SVG) : blanc tel quel en dark, inversés en noir en light.
+  const logoFilter = theme === "dark" ? undefined : "invert(1)";
 
   const handleClose = useCallback(() => {
     setTab("summary");
@@ -531,12 +537,13 @@ export function CallDetailModal({
                 }}
                 className="hover:bg-[#f0fdf4] hover:border-[#86efac] hover:shadow-[0_2px_8px_rgba(34,197,94,0.12)] dark:hover:bg-[rgba(34,197,94,0.07)] dark:hover:border-[rgba(134,239,172,0.2)] dark:hover:shadow-none"
               >
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={CHATGPT_LOGO}
                   alt=""
                   width={15}
                   height={15}
-                  style={{ display: "block", flexShrink: 0 }}
+                  style={{ display: "block", flexShrink: 0, filter: logoFilter }}
                 />
                 Demander à ChatGPT
               </button>
@@ -566,12 +573,13 @@ export function CallDetailModal({
                 }}
                 className="hover:bg-[#fff8f7] hover:border-[rgba(224,98,90,0.35)] hover:shadow-[0_2px_8px_rgba(224,98,90,0.12)] dark:hover:bg-[rgba(224,98,90,0.07)] dark:hover:border-[rgba(224,98,90,0.28)] dark:hover:shadow-none"
               >
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={CLAUDE_LOGO}
                   alt=""
                   width={15}
                   height={15}
-                  style={{ display: "block", flexShrink: 0, borderRadius: 3 }}
+                  style={{ display: "block", flexShrink: 0, filter: logoFilter }}
                 />
                 Demander à Claude
               </a>
