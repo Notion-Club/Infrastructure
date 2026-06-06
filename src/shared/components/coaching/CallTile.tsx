@@ -14,6 +14,7 @@ import { useState } from "react";
 import { CalendarSync } from "lucide-react";
 import type { CallCardData } from "@/shared/lib/mock/coaching";
 import { CallDetailModal } from "@/shared/components/coaching/CallDetailModal";
+import { HostAvatar } from "@/shared/components/coaching/HostAvatar";
 
 // Couleurs de fallback des initiales quand Notion n'a pas de photo de profil.
 const HOST_FALLBACK: Record<string, { initials: string; bg: string }> = {
@@ -204,49 +205,15 @@ export function CallTile({
             {formatDateLong(call.date)} avec
           </span>
 
-          {/* Avatar coach — photo Notion si dispo, sinon initiales colorées */}
-          <div
-            data-fb-label="Avatar coach · Tuile appel"
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: "50%",
-              background: fallback.bg,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              overflow: "hidden",
-            }}
-          >
-            {call.host_avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={call.host_avatar_url}
-                alt={call.host}
-                width={22}
-                height={22}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                }}
-              />
-            ) : (
-              <span
-                style={{
-                  fontSize: 8,
-                  fontWeight: 700,
-                  color: "#fff",
-                  letterSpacing: "0.02em",
-                  lineHeight: 1,
-                }}
-              >
-                {fallback.initials}
-              </span>
-            )}
-          </div>
+          {/* Avatar coach — skeleton → reveal pendant le chargement photo */}
+          <HostAvatar
+            url={call.host_avatar_url}
+            initials={fallback.initials}
+            bg={fallback.bg}
+            size={22}
+            alt={call.host}
+            fbLabel="Avatar coach · Tuile appel"
+          />
 
           <span
             style={{

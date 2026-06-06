@@ -659,6 +659,69 @@ html {
   }
 }
 
+/* ── Skeleton + reveal (transitions.dev) — avatar host pendant le chargement
+ * de la photo. Scopé sous .nc-avatar-skel (les classes t-skel-* sont aussi
+ * employées, autrement scopées, par le reveal de transcription). */
+.nc-avatar-skel {
+  --pulse-dur: 1000ms;
+  --pulse-count: infinite; /* pulse jusqu'au chargement de la photo */
+  --pulse-min: 0.5;
+  --reveal-dur: 400ms;
+  --reveal-blur: 2px;
+  --reveal-ease: ease-in-out;
+  position: relative;
+}
+.nc-avatar-skel .t-skel-skeleton,
+.nc-avatar-skel .t-skel-content {
+  position: absolute;
+  inset: 0;
+}
+.nc-avatar-skel .t-skel-skeleton {
+  z-index: 1;
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    opacity var(--reveal-dur) var(--reveal-ease),
+    filter var(--reveal-dur) var(--reveal-ease);
+}
+.nc-avatar-skel .t-skel-content {
+  z-index: 2;
+  opacity: 0;
+  filter: blur(var(--reveal-blur));
+  transition:
+    opacity var(--reveal-dur) var(--reveal-ease),
+    filter var(--reveal-dur) var(--reveal-ease);
+}
+.nc-avatar-skel.is-revealed .t-skel-skeleton {
+  opacity: 0;
+  filter: blur(var(--reveal-blur));
+}
+.nc-avatar-skel.is-revealed .t-skel-content {
+  opacity: 1;
+  filter: blur(0);
+}
+.nc-avatar-skel .t-skel-skeleton.is-pulsing > * {
+  animation: t-skel-pulse var(--pulse-dur) ease-in-out var(--pulse-count);
+}
+@keyframes t-skel-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: var(--pulse-min);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-avatar-skel .t-skel-skeleton,
+  .nc-avatar-skel .t-skel-content {
+    transition: none !important;
+  }
+  .nc-avatar-skel .t-skel-skeleton.is-pulsing > * {
+    animation: none !important;
+  }
+}
+
 /* ── Texte de chargement animé (transcript) ──────────────────────────────
  * Deux couches combinées sur le même <span> :
  *   1. .t-text-swap — swap JS en 3 phases (sortie vers le haut + blur/fade,
