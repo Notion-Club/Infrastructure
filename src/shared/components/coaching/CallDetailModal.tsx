@@ -26,6 +26,7 @@ import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
 import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
 import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
 import { ChatGPTGuideModal } from "@/shared/components/coaching/ChatGPTGuideModal";
+import { TranscriptLoadingText } from "@/shared/components/coaching/TranscriptLoadingText";
 import type { NotionBlock } from "@/shared/lib/notion/blocks";
 import { getCallTranscriptionBlocks } from "@/modules/coaching/server/getCallTranscriptionBlocks";
 
@@ -380,7 +381,9 @@ export function CallDetailModal({
             }}
           >
             {tab === "summary" && <SummaryPanel blocks={summaryBlocks} />}
-            {tab === "transcript" && <TranscriptPanel state={transcript} />}
+            {tab === "transcript" && (
+              <TranscriptPanel state={transcript} host={host} />
+            )}
           </div>
 
           {/* Barre d'action persistante — Demander à Claude / ChatGPT */}
@@ -585,7 +588,13 @@ function SummaryPanel({
   );
 }
 
-function TranscriptPanel({ state }: { state: TranscriptState }) {
+function TranscriptPanel({
+  state,
+  host,
+}: {
+  state: TranscriptState;
+  host: string;
+}) {
   const italicMuted: React.CSSProperties = {
     fontSize: 14,
     color: "var(--color-text-muted)",
@@ -595,7 +604,11 @@ function TranscriptPanel({ state }: { state: TranscriptState }) {
   };
 
   if (state.kind === "idle" || state.kind === "loading") {
-    return <p style={italicMuted}>2 secondes, on cherche la transcription</p>;
+    return (
+      <p style={{ margin: 0 }}>
+        <TranscriptLoadingText host={host} />
+      </p>
+    );
   }
   if (state.kind === "empty") {
     return (
