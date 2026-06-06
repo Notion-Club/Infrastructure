@@ -29,7 +29,7 @@ interface NextCallPillProps {
 
 export function NextCallPill({ data }: NextCallPillProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const label = formatNextCallLabel(data.scheduledAt);
+  const label = formatNextCallLabel(data.scheduledAt, { host: data.host });
   if (!label) return null;
 
   return (

@@ -78,7 +78,8 @@ export function NextCallDetailModal({
 
   // Libellé long pour le header de modale — on réutilise le helper de la pill
   // pour rester cohérent (aucun risque que pill et modale racontent une histoire
-  // différente côté date).
+  // différente côté date). On omet le host ici : il est affiché dans son propre
+  // bloc juste en dessous, pas besoin de le redire dans le titre.
   const dateLabel = formatNextCallLabel(scheduledAt);
 
   function handleOverlayClick(e: React.MouseEvent<HTMLDivElement>) {

@@ -69,8 +69,6 @@ interface HeaderConfig {
   title: string;
   subtitle: string;
   includedPill?: string;
-  // Mock legacy — utilisé pour les états dev sans data live (DevStateSwitcher).
-  nextCallPill?: string;
 }
 
 function getHeaderConfig(state: UserState): HeaderConfig {
@@ -97,16 +95,14 @@ function getHeaderConfig(state: UserState): HeaderConfig {
     case "accompagnement_eligible":
       return {
         title: "Tous tes appels",
-        subtitle:
-          "Tu as réservé 12 coachings au total, 1 sont réservables cette semaine.",
-        nextCallPill: "Ton prochain coaching est dans 3 jours avec Théo",
+        // Sous-titre rempli dynamiquement plus bas via overrideSubtitle (live
+        // Notion : total réel + nombre de calls restants cette semaine).
+        subtitle: "",
       };
     case "accompagnement_not_eligible":
       return {
         title: "Tous tes appels",
-        subtitle:
-          "Tu as réservé 14 coachings au total, tu pourras planifier de nouveaux coachings à partir de la semaine prochaine.",
-        nextCallPill: "Ton prochain coaching est dans 1 jour avec Noah",
+        subtitle: "",
       };
     case "accompagnement_expired":
       return {
@@ -327,6 +323,54 @@ export default function CoachingPageClient({
   const ctaConfigBase = getCTAConfig(userState, openModal, preparing);
   const rightConfig = getRightColumnConfig(userState, realCalls);
 
+  // Sous-titre dynamique pour les états accompagnement_* — calcule en live :
+  //   - total = upcoming + past (= tout sauf cancelled, déjà filtré côté queries)
+  //   - cette semaine = appels dont la date tombe dans la semaine en cours
+  //
+  // Quota par défaut : 2 calls/semaine pour les accompagnements. Si Théo veut
+  // une autre limite par offre, on devra exposer le quota côté Notion ; pour
+  // l'instant 2 colle à la formule "Éligible au Call" actuelle.
+  function computeAccompagnementSubtitle(): string {
+    const allCalls = [...realCalls.upcoming, ...realCalls.past];
+    const total = allCalls.length;
+
+    // Lundi 00:00 → dimanche 23:59:59 de la semaine en cours (locale).
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0=dimanche, 1=lundi, …
+    const monday = new Date(now);
+    const offsetToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    monday.setDate(now.getDate() + offsetToMonday);
+    monday.setHours(0, 0, 0, 0);
+    const sundayEnd = new Date(monday);
+    sundayEnd.setDate(monday.getDate() + 6);
+    sundayEnd.setHours(23, 59, 59, 999);
+
+    const thisWeekCount = allCalls.filter((c) => {
+      const t = new Date(c.date).getTime();
+      return (
+        !Number.isNaN(t) && t >= monday.getTime() && t <= sundayEnd.getTime()
+      );
+    }).length;
+
+    const QUOTA = 2;
+    const remaining = Math.max(0, QUOTA - thisWeekCount);
+
+    if (userState === "accompagnement_not_eligible" || remaining === 0) {
+      return `Tu as réservé ${total} coachings au total, tu pourras planifier de nouveaux coachings à partir de la semaine prochaine.`;
+    }
+    const reservablesPart =
+      remaining === 1
+        ? "1 est réservable cette semaine"
+        : `${remaining} sont réservables cette semaine`;
+    return `Tu as réservé ${total} coachings au total, ${reservablesPart}.`;
+  }
+
+  const headerOverrideSubtitle: string | undefined =
+    userState === "accompagnement_eligible" ||
+    userState === "accompagnement_not_eligible"
+      ? computeAccompagnementSubtitle()
+      : undefined;
+
   // Override CTA avec la formule Notion "Éligible au Call" pour les états
   // formation_0_calls / accompagnement_eligible / accompagnement_not_eligible.
   //
@@ -406,7 +450,11 @@ export default function CoachingPageClient({
             style={{ maxWidth: 1100, margin: "0 auto" }}
           >
             <div className="nc-mode-in">
-              <CoachingHeader {...headerConfig} nextCall={headerNextCall} />
+              <CoachingHeader
+                {...headerConfig}
+                subtitle={headerOverrideSubtitle ?? headerConfig.subtitle}
+                nextCall={headerNextCall}
+              />
             </div>
 
             {/* Single-column layout */}
