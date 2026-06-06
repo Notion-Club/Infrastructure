@@ -2,9 +2,10 @@
 
 import { useState, useRef } from "react";
 import Image from "next/image";
-import { AlignJustify, X, ExternalLink, Copy, Check } from "lucide-react";
+import { AlignJustify, X, ExternalLink } from "lucide-react";
 import type { CallCardData } from "@/shared/lib/mock/coaching";
 import { CallDetailModal } from "@/shared/components/coaching/CallDetailModal";
+import { ChatGPTGuideModal } from "@/shared/components/coaching/ChatGPTGuideModal";
 
 // Au branchement backend — remplacer par de vraies URLs Cloudinary pour les photos de profil des coaches
 const HOST_PROFILES: Record<string, { initials: string; bg: string }> = {
@@ -17,15 +18,11 @@ const CHATGPT_LOGO =
 const CLAUDE_LOGO =
   "https://res.cloudinary.com/dceobxyts/image/upload/v1777030411/IMG_1961_flp3vm.png";
 
-// Construit le prompt pré-rempli envoyé en query string à ChatGPT/Claude.
-// Le `transcriptUrl` est un lien PUBLIC signé HMAC (24h) vers la transcription
-// brute servie en text/plain.
-//
-// On explicite à l'IA que c'est un lien public web (pas une URL privée
-// nécessitant auth) sinon ChatGPT refuse de fetcher avec son browse tool —
-// il croit que c'est une ressource protégée à cause du token long. Claude
-// n'a pas ce problème mais le wording bénéficie aux deux.
-function buildAIPrompt(host: string, transcriptUrl: string): string {
+// Prompt pour Claude qui a un vrai web fetch tool : on lui passe juste l'URL
+// signée et il fetche le contenu intégral. ChatGPT a sa propre modale wizard
+// (ChatGPTGuideModal) parce que son web tool tronque les longs contenus
+// (~30k chars vs 67k pour une transcription typique).
+function buildClaudePrompt(host: string, transcriptUrl: string): string {
   return `Ouvre cette page web publique avec ton outil de navigation web, lis l'intégralité de la transcription qui s'y trouve, puis aide-moi à en tirer des actions concrètes et réponds à mes questions de suivi sur mon appel coaching avec ${host} (notionclub.fr).
 
 Page à lire : ${transcriptUrl}
@@ -64,34 +61,11 @@ interface CallCardProps {
   archived?: boolean;
 }
 
-type CopyState = "idle" | "loading" | "copied" | "error";
-
 export function CallCard({ call, archived = false }: CallCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [copyState, setCopyState] = useState<CopyState>("idle");
+  const [chatgptGuideOpen, setChatgptGuideOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
-
-  // Fallback ChatGPT/IA qui refusent de fetcher l'URL : on récupère la
-  // transcription brute via la même route signée et on la copie dans le
-  // presse-papier. L'user n'a plus qu'à la coller dans son IA.
-  async function handleCopyTranscript() {
-    if (!call.transcript_url) return;
-    if (copyState === "loading") return;
-    setCopyState("loading");
-    try {
-      const res = await fetch(call.transcript_url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      await navigator.clipboard.writeText(text);
-      setCopyState("copied");
-      window.setTimeout(() => setCopyState("idle"), 2500);
-    } catch (err) {
-      console.error("[CallCard] copy transcript failed:", err);
-      setCopyState("error");
-      window.setTimeout(() => setCopyState("idle"), 2500);
-    }
-  }
 
   const isUpcoming = call.status === "upcoming";
   const isExpandable = !isUpcoming;
@@ -349,20 +323,21 @@ export function CallCard({ call, archived = false }: CallCardProps) {
             )}
 
             {/* Ask AI buttons — gated par la présence d'une URL signée vers
-                la transcription brute publique (24h). On envoie l'URL à
-                ChatGPT/Claude qui la lisent via leur browse tool : pas de
-                limite query string, pas de troncature du résumé. */}
+                la transcription brute publique (24h).
+                  - Claude : ouvre claude.ai avec l'URL dans le prompt — son
+                    web tool fetche correctement le contenu intégral.
+                  - ChatGPT : ouvre une modale wizard 2 étapes (Copier puis
+                    Coller) car son web tool tronque les longs contenus. */}
             {hasTranscriptUrl && (
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-                  <a
-                    href={`https://chatgpt.com/?q=${encodeURIComponent(
-                      buildAIPrompt(call.host, call.transcript_url!)
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setChatgptGuideOpen(true);
+                    }}
                     data-fb-label="Bouton Demander à ChatGPT · Carte appel"
-                    onClick={(e) => e.stopPropagation()}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -375,7 +350,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                       fontSize: 13,
                       fontWeight: 500,
                       color: "var(--color-text-primary)",
-                      textDecoration: "none",
+                      cursor: "pointer",
                       transition: "background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
                     }}
                     className="hover:bg-[#f0fdf4] hover:border-[#86efac] hover:shadow-[0_2px_8px_rgba(34,197,94,0.12)] dark:hover:bg-[rgba(34,197,94,0.07)] dark:hover:border-[rgba(134,239,172,0.2)] dark:hover:shadow-none"
@@ -388,11 +363,11 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                       style={{ display: "block", flexShrink: 0 }}
                     />
                     Demander à ChatGPT
-                  </a>
+                  </button>
 
                   <a
                     href={`https://claude.ai/new?q=${encodeURIComponent(
-                      buildAIPrompt(call.host, call.transcript_url!)
+                      buildClaudePrompt(call.host, call.transcript_url!)
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -425,64 +400,6 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                     Demander à Claude
                   </a>
                 </div>
-
-                {/* Fallback universel : copie la transcription brute dans le
-                    presse-papier pour que l'user puisse la coller dans n'importe
-                    quelle IA (utile pour ChatGPT qui refuse de fetch les
-                    URLs avec token). */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCopyTranscript();
-                  }}
-                  disabled={copyState === "loading"}
-                  data-fb-label="Bouton Copier transcription · Carte appel"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    width: "100%",
-                    padding: "8px 12px",
-                    marginBottom: 16,
-                    background: copyState === "copied"
-                      ? "rgba(34,197,94,0.08)"
-                      : "var(--color-surface-raised)",
-                    border: `1px solid ${
-                      copyState === "copied"
-                        ? "rgba(34,197,94,0.3)"
-                        : "var(--color-border-default)"
-                    }`,
-                    borderRadius: 9999,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: copyState === "copied"
-                      ? "#16a34a"
-                      : "var(--color-text-primary)",
-                    cursor: copyState === "loading" ? "wait" : "pointer",
-                    transition:
-                      "background 180ms ease, border-color 180ms ease, color 180ms ease",
-                  }}
-                  className={
-                    copyState === "copied"
-                      ? ""
-                      : "hover:bg-[rgba(0,0,0,0.03)] hover:border-[rgba(0,0,0,0.12)]"
-                  }
-                >
-                  {copyState === "copied" ? (
-                    <Check size={13} style={{ flexShrink: 0 }} />
-                  ) : (
-                    <Copy size={13} style={{ flexShrink: 0 }} />
-                  )}
-                  {copyState === "loading"
-                    ? "Copie en cours…"
-                    : copyState === "copied"
-                    ? "Transcription copiée — colle-la dans ton IA"
-                    : copyState === "error"
-                    ? "Erreur, réessaie"
-                    : "Copier la transcription"}
-                </button>
 
                 <div style={{ height: 1, background: "var(--color-border-default)", marginBottom: 14 }} />
               </>
@@ -651,6 +568,17 @@ export function CallCard({ call, archived = false }: CallCardProps) {
           host={call.host}
           date={call.date}
           notionPageId={call.notion_page_id ?? null}
+        />
+      )}
+
+      {/* Wizard ChatGPT (2 étapes Copier puis Coller) — workaround pour la
+          troncature du web tool ChatGPT sur les longs contenus. */}
+      {hasTranscriptUrl && (
+        <ChatGPTGuideModal
+          isOpen={chatgptGuideOpen}
+          onClose={() => setChatgptGuideOpen(false)}
+          transcriptUrl={call.transcript_url!}
+          host={call.host}
         />
       )}
     </div>
