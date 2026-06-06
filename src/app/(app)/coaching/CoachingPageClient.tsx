@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 import { useRegisterDevTools } from "@/shared/components/dev/DevToolbox";
 import { CoachingDevTools } from "@/shared/components/coaching/CoachingDevTools";
@@ -240,6 +241,30 @@ export default function CoachingPageClient({
   const [preparing, setPreparing] = useState(false);
   const [userInfo, setUserInfo] = useState<PrefillUserInfo>(EMPTY_USER_INFO);
 
+  const router = useRouter();
+  // Incrémenté à la confirmation d'une réservation → bascule l'historique sur
+  // l'onglet « à venir ».
+  const [focusUpcomingNonce, setFocusUpcomingNonce] = useState(0);
+  const refreshTimersRef = useRef<number[]>([]);
+
+  // « Crawler » : à la confirmation, on rafraîchit la page (re-fetch Notion)
+  // plusieurs fois espacées pour laisser le temps à Fillout de synchroniser le
+  // nouvel appel, puis on montre l'onglet « à venir » où la carte apparaîtra.
+  const handleBookingConfirmed = useCallback(() => {
+    setFocusUpcomingNonce((n) => n + 1);
+    router.refresh();
+    refreshTimersRef.current.forEach((t) => window.clearTimeout(t));
+    refreshTimersRef.current = [4000, 8000, 12000].map((d) =>
+      window.setTimeout(() => router.refresh(), d),
+    );
+  }, [router]);
+
+  useEffect(() => {
+    return () => {
+      refreshTimersRef.current.forEach((t) => window.clearTimeout(t));
+    };
+  }, []);
+
   useEffect(() => {
     // setState via microtask : sort du corps synchrone de l'effect (eslint
     // react-hooks/set-state-in-effect) tout en restant immédiat à l'usage.
@@ -424,6 +449,7 @@ export default function CoachingPageClient({
         showUpcoming={historyConfig.showUpcoming}
         archived={historyConfig.archived}
         eligible={canBook}
+        focusUpcomingNonce={focusUpcomingNonce}
       />
     );
   }
@@ -485,6 +511,7 @@ export default function CoachingPageClient({
       <FilloutModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
+        onSubmitted={handleBookingConfirmed}
         baseUrl={modalUrl}
         id={userInfo.id}
         mail={userInfo.mail}

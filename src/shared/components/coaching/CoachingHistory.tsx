@@ -12,7 +12,7 @@
 // Quand l'état n'a jamais d'appel à venir (formation finie, accompagnement
 // expiré), on masque le switcher et on n'affiche que la grille des passés.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { History, CalendarClock } from "lucide-react";
 import type { CallCardData } from "@/shared/lib/mock/coaching";
 import { CallTile } from "@/shared/components/coaching/CallTile";
@@ -31,6 +31,9 @@ interface CoachingHistoryProps {
   // L'utilisateur peut-il réserver ? Pilote la description de l'état vide
   // « à venir ».
   eligible?: boolean;
+  // Incrémenté après une réservation confirmée → bascule sur l'onglet « à
+  // venir » pour voir la nouvelle carte apparaître.
+  focusUpcomingNonce?: number;
 }
 
 function sectionLabel(text: string) {
@@ -86,8 +89,24 @@ export function CoachingHistory({
   showUpcoming,
   archived = false,
   eligible = false,
+  focusUpcomingNonce = 0,
 }: CoachingHistoryProps) {
-  const [view, setView] = useState<HistoryView>("past");
+  // Démarre sur « à venir » si on arrive juste après une réservation (le
+  // composant peut être monté à ce moment-là, ex. 1er appel jamais réservé).
+  const [view, setView] = useState<HistoryView>(
+    focusUpcomingNonce > 0 ? "upcoming" : "past",
+  );
+
+  // Bascule sur « à venir » quand une réservation est confirmée alors que le
+  // composant est déjà monté (setState déféré pour éviter le lint).
+  const prevFocus = useRef(focusUpcomingNonce);
+  useEffect(() => {
+    if (focusUpcomingNonce === prevFocus.current) return;
+    prevFocus.current = focusUpcomingNonce;
+    if (!showUpcoming) return;
+    const id = requestAnimationFrame(() => setView("upcoming"));
+    return () => cancelAnimationFrame(id);
+  }, [focusUpcomingNonce, showUpcoming]);
 
   // Passés AVEC contenu (résumé ou transcription), triés date décroissante.
   const contentPastCalls = useMemo(() => {

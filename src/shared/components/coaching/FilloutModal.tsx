@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { CalendarCheck } from "lucide-react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
 import { buildFilloutUrl } from "@/shared/lib/fillout/url";
 
 interface FilloutModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // Appelé une fois le formulaire soumis (page de remerciement Fillout
+  // détectée) — sert à rafraîchir la liste des appels à venir.
+  onSubmitted?: () => void;
   baseUrl: string;
   id: string | null;
   mail: string | null;
@@ -16,11 +20,9 @@ interface FilloutModalProps {
 
 // Hauteur de repli tant que Fillout n'a pas annoncé sa taille.
 const FALLBACK_HEIGHT = 560;
+// Délai avant fermeture auto après la confirmation.
+const AUTO_CLOSE_MS = 2000;
 
-// Fillout poste la hauteur de son contenu au parent quand le formulaire est
-// embarqué (changement d'étape, contenu plus long…). Le format exact varie
-// selon les versions de l'embed : on scanne donc défensivement les clés de
-// hauteur les plus courantes plutôt que de coder en dur un seul schéma.
 function extractHeight(data: unknown): number | null {
   if (!data || typeof data !== "object") return null;
   const obj = data as Record<string, unknown>;
@@ -45,17 +47,46 @@ function extractHeight(data: unknown): number | null {
   return null;
 }
 
+// Détection défensive de l'événement « formulaire soumis » émis par Fillout.
+// Le nom exact de l'event varie selon les versions de l'embed : on accepte
+// tout message (string ou objet) dont un champ d'identification contient
+// submit / complete / thank / success, en excluant les events de cycle de vie
+// (step, height, resize, init, load…) pour éviter les faux positifs.
+function isSubmissionMessage(raw: unknown): boolean {
+  const looksLikeSubmit = (s: string) =>
+    /submit|complete|thank|success/i.test(s) &&
+    !/step|height|resize|init|load|ready|scroll|focus|blur/i.test(s);
+
+  if (typeof raw === "string") return looksLikeSubmit(raw);
+  if (!raw || typeof raw !== "object") return false;
+
+  const obj = raw as Record<string, unknown>;
+  for (const key of ["type", "event", "eventType", "eventName", "name", "action"]) {
+    const v = obj[key];
+    if (typeof v === "string" && looksLikeSubmit(v)) return true;
+  }
+  if (obj.submitted === true || obj.completed === true || obj.isComplete === true) {
+    return true;
+  }
+  return false;
+}
+
 export function FilloutModal({
   isOpen,
   onClose,
+  onSubmitted,
   baseUrl,
   id,
   mail,
   prenom,
   nom,
 }: FilloutModalProps) {
-  // Hauteur réelle du contenu Fillout (null tant qu'on ne l'a pas reçue).
   const [contentHeight, setContentHeight] = useState<number | null>(null);
+  // Affiche l'écran de confirmation pendant les 2 s avant fermeture auto.
+  const [submitted, setSubmitted] = useState(false);
+
+  const submittedRef = useRef(false);
+  const closeTimerRef = useRef<number | null>(null);
 
   // Close on Escape
   useEffect(() => {
@@ -76,15 +107,19 @@ export function FilloutModal({
     };
   }, [isOpen]);
 
-  // Écoute les messages de redimensionnement émis par l'iframe Fillout et
-  // ajuste la hauteur pour que tout le formulaire soit visible sans scroll
-  // interne. Reset à l'ouverture / changement de formulaire (microtask pour
-  // éviter le setState synchrone dans l'effet).
+  // Écoute les messages de l'iframe Fillout : redimensionnement + détection de
+  // la soumission (page de remerciement) → confirmation puis fermeture auto et
+  // rafraîchissement des appels à venir. Reset à l'ouverture / changement de
+  // formulaire (microtask pour éviter le setState synchrone dans l'effet).
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
+    submittedRef.current = false;
     void Promise.resolve().then(() => {
-      if (!cancelled) setContentHeight(null);
+      if (!cancelled) {
+        setContentHeight(null);
+        setSubmitted(false);
+      }
     });
 
     function onMessage(e: MessageEvent) {
@@ -99,19 +134,41 @@ export function FilloutModal({
         try {
           data = JSON.parse(data);
         } catch {
+          // Message string non-JSON — peut quand même signaler une soumission.
+          if (!submittedRef.current && isSubmissionMessage(e.data)) {
+            handleSubmitted();
+          }
           return;
         }
       }
+
       const h = extractHeight(data);
       if (h) setContentHeight(Math.ceil(h));
+
+      if (!submittedRef.current && isSubmissionMessage(data)) {
+        handleSubmitted();
+      }
+    }
+
+    function handleSubmitted() {
+      submittedRef.current = true;
+      setSubmitted(true);
+      onSubmitted?.();
+      closeTimerRef.current = window.setTimeout(() => {
+        onClose();
+      }, AUTO_CLOSE_MS);
     }
 
     window.addEventListener("message", onMessage);
     return () => {
       cancelled = true;
       window.removeEventListener("message", onMessage);
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
     };
-  }, [isOpen, baseUrl, id, mail, prenom, nom]);
+  }, [isOpen, baseUrl, id, mail, prenom, nom, onClose, onSubmitted]);
 
   if (!isOpen) return null;
 
@@ -142,6 +199,7 @@ export function FilloutModal({
       <div
         data-fb-label="Fenêtre formulaire · Modale réservation"
         style={{
+          position: "relative",
           width: "100%",
           maxWidth: 700,
           maxHeight: "90vh",
@@ -172,6 +230,65 @@ export function FilloutModal({
             title="Formulaire de réservation"
           />
         </div>
+
+        {/* Écran de confirmation — recouvre le formulaire le temps de la
+            fermeture auto (2 s). */}
+        {submitted && (
+          <div
+            data-fb-label="Confirmation réservation · Modale réservation"
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "var(--color-surface-card)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 14,
+              textAlign: "center",
+              padding: 32,
+              animation: "nc-modal-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both",
+            }}
+          >
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: "50%",
+                background:
+                  "linear-gradient(rgba(224,98,90,0.12), rgba(224,98,90,0.12)), var(--color-surface-card)",
+                border: "1px solid rgba(224,98,90,0.30)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--color-brand)",
+                boxShadow: "0 6px 18px rgba(224,98,90,0.22)",
+              }}
+            >
+              <CalendarCheck size={30} />
+            </div>
+            <p
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: "var(--color-text-primary)",
+                margin: 0,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Rendez-vous confirmé
+            </p>
+            <p
+              style={{
+                fontSize: 14,
+                color: "var(--color-text-secondary)",
+                margin: 0,
+              }}
+            >
+              On l&apos;ajoute à tes appels à venir…
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
