@@ -9,7 +9,16 @@
 // L'onglet Transcript n'appelle la Server Action qu'au mount initial — un
 // changement d'onglet → onglet Résumé puis retour ne refait pas l'appel.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+
+// Subscribe no-op : on n'a besoin de re-render qu'au mount initial — le store
+// ne change jamais après. useSyncExternalStore appelle getServerSnapshot
+// côté SSR (false) et getSnapshot côté client (true), évitant l'écueil
+// du setState-in-effect sans déclencher de hydration mismatch.
+function subscribeToMount(): () => void {
+  return () => {};
+}
 import { X, FileText, Sparkles } from "lucide-react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
 import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
@@ -108,6 +117,15 @@ export function CallDetailModal({
   // cleanup annule le fetch en cours.
   const transcriptFetchStartedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Portal vers document.body pour échapper au stacking context créé par
+  // .nc-page-halo (isolation: isolate) — sinon les cards voisines passent
+  // par-dessus la modale. SSR-safe : false côté server (pas de document),
+  // true au mount client.
+  const mounted = useSyncExternalStore(
+    subscribeToMount,
+    () => true,
+    () => false,
+  );
 
   // Reset état de la modale à la fermeture (onglet, ref de fetch, transcript)
   // puis propage. handleClose est défini tôt pour pouvoir être référencé dans
@@ -182,7 +200,7 @@ export function CallDetailModal({
   }, [isOpen, tab, notionPageId]);
 
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const summaryBlocks = parseSummary(summary);
   const hasTranscriptAccess = !!notionPageId;
@@ -191,14 +209,14 @@ export function CallDetailModal({
     if (e.target === e.currentTarget) handleClose();
   }
 
-  return (
+  return createPortal(
     <div
       onClick={handleOverlayClick}
       data-fb-label="Modale détail · Carte appel"
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 100,
+        zIndex: 9999,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -343,7 +361,8 @@ export function CallDetailModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
