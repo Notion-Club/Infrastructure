@@ -391,7 +391,7 @@ export function CallDetailModal({
 
           {/* Switcher onglets — pilules glissantes (masqué si pas de transcript) */}
           {hasTranscriptAccess && (
-            <div style={{ padding: "16px 28px 0" }}>
+            <div style={{ padding: "16px 28px 16px" }}>
               <CoachingTabs<Tab>
                 ariaLabel="Sections du détail de l'appel"
                 active={tab}
@@ -828,10 +828,16 @@ function SkeletonLines() {
   );
 }
 
-// Bouton « Copier la transcription » : fetch du lien signé + écriture
-// presse-papiers, avec morph d'icône Copy → Check et état vert « Copié ! »
-// (revient à l'état initial après ~2 s).
+// Bouton « Copier la transcription ».
+//
+// Motion design : au succès, le bouton se contracte fluidement en un cercle
+// vert plein affichant l'icône Copy → Check (gratifiant, contraste net — fini
+// le fond vert translucide). Après ~2 s, il reprend sa forme initiale de pill.
+// La largeur est animée en pixels (toujours interpolable) pour un morph fluide.
 type CopyState = "idle" | "loading" | "copied" | "error";
+
+const COPY_PILL_WIDTH = 122;
+const COPY_CIRCLE_SIZE = 36;
 
 function CopyTranscriptButton({ transcriptUrl }: { transcriptUrl: string }) {
   const [copyState, setCopyState] = useState<CopyState>("idle");
@@ -844,7 +850,7 @@ function CopyTranscriptButton({ transcriptUrl }: { transcriptUrl: string }) {
   }, []);
 
   async function handleCopy() {
-    if (copyState === "loading") return;
+    if (copyState === "loading" || copyState === "copied") return;
     setCopyState("loading");
     try {
       const res = await fetch(transcriptUrl);
@@ -857,81 +863,97 @@ function CopyTranscriptButton({ transcriptUrl }: { transcriptUrl: string }) {
       setCopyState("error");
     }
     if (timerRef.current) window.clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => setCopyState("idle"), 2200);
+    // Tient la forme cercle ~2 s avant de revenir à la pill.
+    timerRef.current = window.setTimeout(() => setCopyState("idle"), 2000);
   }
 
   const copied = copyState === "copied";
   const label =
     copyState === "loading"
       ? "Copie…"
-      : copied
-        ? "Copié !"
-        : copyState === "error"
-          ? "Réessayer"
-          : "Copier";
+      : copyState === "error"
+        ? "Réessayer"
+        : "Copier";
 
   return (
     <button
       type="button"
       onClick={handleCopy}
-      disabled={copyState === "loading"}
+      disabled={copyState === "loading" || copied}
       aria-label="Copier la transcription"
       data-fb-label="Bouton Copier transcription · Modale détail"
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 7,
-        padding: "7px 13px",
+        height: COPY_CIRCLE_SIZE,
+        width: copied ? COPY_CIRCLE_SIZE : COPY_PILL_WIDTH,
+        // padding-left fixe l'icône au centre du cercle quand contracté
+        // ((36 - 16) / 2 = 10) et à gauche de la pill sinon.
+        paddingLeft: copied ? 10 : 14,
+        paddingRight: 0,
         borderRadius: 9999,
         fontSize: 13,
         fontWeight: 600,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
         cursor: copyState === "loading" ? "wait" : "pointer",
-        background: copied
-          ? "rgba(34,197,94,0.10)"
-          : "var(--color-surface-card)",
-        border: `1px solid ${
-          copied ? "rgba(34,197,94,0.35)" : "var(--color-border-default)"
-        }`,
-        color: copied ? "#16a34a" : "var(--color-text-primary)",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+        background: copied ? "#16a34a" : "var(--color-surface-card)",
+        border: `1px solid ${copied ? "#16a34a" : "var(--color-border-default)"}`,
+        color: copied ? "#ffffff" : "var(--color-text-primary)",
+        boxShadow: copied
+          ? "0 6px 18px rgba(34,197,94,0.38)"
+          : "0 2px 10px rgba(0,0,0,0.08)",
         transition:
-          "background 220ms var(--nc-ease), border-color 220ms var(--nc-ease), color 220ms var(--nc-ease)",
+          "width 480ms var(--nc-ease), padding-left 480ms var(--nc-ease), background 360ms var(--nc-ease), border-color 360ms var(--nc-ease), color 300ms var(--nc-ease), box-shadow 420ms var(--nc-ease)",
       }}
     >
-      {/* Morph d'icône Copy → Check */}
+      {/* Icône — morph Copy → Check */}
       <span
         style={{
           position: "relative",
-          width: 15,
-          height: 15,
+          width: 16,
+          height: 16,
           flexShrink: 0,
+          display: "inline-flex",
         }}
       >
         <Copy
-          size={15}
+          size={16}
           style={{
             position: "absolute",
             inset: 0,
             opacity: copied ? 0 : 1,
-            transform: copied ? "scale(0.5)" : "scale(1)",
+            transform: copied ? "scale(0.4) rotate(-20deg)" : "scale(1)",
             transition:
-              "opacity 200ms var(--nc-ease), transform 200ms var(--nc-ease)",
+              "opacity 240ms var(--nc-ease), transform 320ms var(--nc-ease)",
           }}
         />
         <Check
-          size={15}
+          size={16}
+          strokeWidth={2.75}
           style={{
             position: "absolute",
             inset: 0,
-            color: "#16a34a",
+            color: "#ffffff",
             opacity: copied ? 1 : 0,
-            transform: copied ? "scale(1)" : "scale(0.5)",
+            transform: copied ? "scale(1)" : "scale(0.4) rotate(20deg)",
             transition:
-              "opacity 200ms var(--nc-ease), transform 200ms var(--nc-ease)",
+              "opacity 240ms var(--nc-ease), transform 320ms var(--nc-ease)",
           }}
         />
       </span>
-      {label}
+
+      {/* Libellé — se replie (opacité + largeur) quand le bouton devient cercle */}
+      <span
+        style={{
+          marginLeft: copied ? 0 : 7,
+          opacity: copied ? 0 : 1,
+          transition:
+            "opacity 200ms var(--nc-ease), margin-left 480ms var(--nc-ease)",
+        }}
+      >
+        {label}
+      </span>
     </button>
   );
 }
