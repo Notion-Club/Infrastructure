@@ -73,6 +73,7 @@ export interface NotionCoachingCall {
   notionPageId: string; // = id de la page Notion (clé pour fetch transcription)
   scheduledAt: string; // ISO ; "" si pas de date renseignée dans Notion
   host: string; // nom brut côté Notion (mappé côté UI)
+  hostAvatarUrl: string | null; // photo de profil Notion du Host (people)
   subject: string; // = title de la page
   status: NotionCallStatus;
   aiSummary: string | null;
@@ -96,7 +97,10 @@ type PropWithStatusObj = NotionPropertyValue & {
   status?: { name: string } | null;
 };
 type PropWithPeople = NotionPropertyValue & {
-  people?: Array<{ name?: string | null }>;
+  people?: Array<{
+    name?: string | null;
+    avatar_url?: string | null;
+  }>;
 };
 
 function getDateStart(page: NotionPage, prop: string): string {
@@ -114,6 +118,14 @@ function getFirstPersonName(page: NotionPage, prop: string): string | null {
   return people?.[0]?.name ?? null;
 }
 
+function getFirstPersonAvatarUrl(
+  page: NotionPage,
+  prop: string,
+): string | null {
+  const people = (page.properties[prop] as PropWithPeople | undefined)?.people;
+  return people?.[0]?.avatar_url ?? null;
+}
+
 function getUrl(page: NotionPage, prop: string): string | null {
   return page.properties[prop]?.url ?? null;
 }
@@ -126,6 +138,7 @@ function toNotionCoachingCall(page: NotionPage): NotionCoachingCall {
     notionPageId: normalizeNotionId(page.id),
     scheduledAt: getDateStart(page, PROP_DATE),
     host: getFirstPersonName(page, PROP_HOST) ?? "",
+    hostAvatarUrl: getFirstPersonAvatarUrl(page, PROP_HOST),
     subject: getTitle(page, PROP_TITLE) || "Coaching",
     status: normalizeStatus(getStatusName(page, PROP_STATUS)),
     aiSummary: summary.length > 0 ? summary : null,

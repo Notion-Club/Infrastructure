@@ -18,6 +18,7 @@ export interface CallCardData {
   id: string;
   date: string;
   host: string; // élargi (string au lieu de "Théo"|"Noah") pour accepter Notion brut
+  host_avatar_url?: string; // photo de profil Notion du Host (people)
   subject: string;
   status: CallStatus;
   ai_summary?: string;

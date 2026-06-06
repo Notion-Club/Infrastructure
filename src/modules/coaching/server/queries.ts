@@ -112,6 +112,7 @@ export interface CoachingCallView {
   id: string;
   date: string;
   host: string;
+  host_avatar_url?: string; // photo de profil Notion du Host (si disponible)
   subject: string;
   status: "accepted" | "no_show" | "upcoming";
   ai_summary?: string;
@@ -178,6 +179,7 @@ export async function getCallsForCurrentUser(): Promise<{
     };
     if (c.aiSummary) view.ai_summary = c.aiSummary;
     if (c.fathomUrl) view.fathom_url = c.fathomUrl;
+    if (c.hostAvatarUrl) view.host_avatar_url = c.hostAvatarUrl;
 
     if (isFutureUpcoming) {
       upcoming.push(view);
