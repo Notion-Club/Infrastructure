@@ -604,7 +604,9 @@ html {
   --shimmer-dur: 2000ms;
   --shimmer-band: 400%;
   --shimmer-base: var(--color-text-muted);
-  --shimmer-highlight: var(--color-brand);
+  /* Highlight blanc discret : les glyphes s'éclaircissent doucement au
+     passage du band (premium), pas de teinte de marque. */
+  --shimmer-highlight: #ffffff;
   font-size: 14px;
   line-height: 1.6;
   font-style: italic;

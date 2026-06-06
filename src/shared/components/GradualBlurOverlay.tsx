@@ -15,41 +15,61 @@ interface GradualBlurOverlayProps {
    * - 'sticky' : voile localisé au scroll d'un conteneur parent (qui doit être
    *   en position: relative + overflow-y: auto). Placer ce composant en dernier
    *   enfant du conteneur scrollable.
+   * - 'absolute' : voile épinglé sur un bord (cf. `edge`) d'un conteneur parent
+   *   en position: relative. Utile pour flouter le haut/bas d'une zone
+   *   scrollable (ex. corps d'une modale).
    */
-  position?: "fixed" | "sticky";
+  position?: "fixed" | "sticky" | "absolute";
+  /**
+   * Bord depuis lequel le flou est le plus fort. 'bottom' (défaut) pour le bas,
+   * 'top' pour le haut. Ignoré en position 'fixed'/'sticky' (toujours en bas).
+   */
+  edge?: "top" | "bottom";
 }
 
 export function GradualBlurOverlay({
   height = 120,
   zIndex = 30,
   position = "fixed",
+  edge = "bottom",
 }: GradualBlurOverlayProps) {
-  const isSticky = position === "sticky";
+  // Direction du dégradé : le flou plein (`black`) est appliqué côté `edge`.
+  const dir = edge === "top" ? "to top" : "to bottom";
+
+  let containerStyle: React.CSSProperties;
+  if (position === "sticky") {
+    containerStyle = {
+      position: "sticky",
+      bottom: 0,
+      height,
+      marginTop: -height,
+      pointerEvents: "none",
+      zIndex,
+    };
+  } else if (position === "absolute") {
+    containerStyle = {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      [edge]: 0,
+      height,
+      pointerEvents: "none",
+      zIndex,
+    };
+  } else {
+    containerStyle = {
+      position: "fixed",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height,
+      pointerEvents: "none",
+      zIndex,
+    };
+  }
 
   return (
-    <div
-      aria-hidden
-      style={
-        isSticky
-          ? {
-              position: "sticky",
-              bottom: 0,
-              height,
-              marginTop: -height,
-              pointerEvents: "none",
-              zIndex,
-            }
-          : {
-              position: "fixed",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height,
-              pointerEvents: "none",
-              zIndex,
-            }
-      }
-    >
+    <div aria-hidden style={containerStyle}>
       {LAYERS.map((l, i) => (
         <div
           key={i}
@@ -58,8 +78,8 @@ export function GradualBlurOverlay({
             inset: 0,
             backdropFilter: `blur(${l.blur}px)`,
             WebkitBackdropFilter: `blur(${l.blur}px)`,
-            maskImage: `linear-gradient(to bottom, transparent ${l.from}%, black ${l.to}%, black 100%)`,
-            WebkitMaskImage: `linear-gradient(to bottom, transparent ${l.from}%, black ${l.to}%, black 100%)`,
+            maskImage: `linear-gradient(${dir}, transparent ${l.from}%, black ${l.to}%, black 100%)`,
+            WebkitMaskImage: `linear-gradient(${dir}, transparent ${l.from}%, black ${l.to}%, black 100%)`,
           }}
         />
       ))}

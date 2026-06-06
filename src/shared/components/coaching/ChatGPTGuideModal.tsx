@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { Check, Copy, ExternalLink, X } from "lucide-react";
+import { Check, Copy, ExternalLink } from "lucide-react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
 
 // Subscribe no-op : on n'a besoin de re-render qu'au mount initial — le store
@@ -184,8 +184,10 @@ export function ChatGPTGuideModal({
               lineHeight: 1.55,
             }}
           >
-            ChatGPT ne lit pas les longs liens directement. Copie d&apos;abord la
-            transcription, puis ouvre ChatGPT et colle-la dans le chat.
+            ChatGPT ne lit pas les longs liens directement.
+            <br />
+            Copie d&apos;abord la transcription, puis ouvre ChatGPT et colle-la
+            dans le chat.
           </p>
         </div>
 
@@ -340,40 +342,6 @@ export function ChatGPTGuideModal({
               Copie la transcription d&apos;abord pour activer cette étape.
             </p>
           )}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            padding: "10px 28px",
-            borderTop: "1px solid var(--color-border-default)",
-            background: "var(--color-surface-raised)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-          }}
-        >
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label="Fermer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "6px 12px",
-              background: "transparent",
-              border: "1px solid var(--color-border-default)",
-              borderRadius: 9999,
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--color-text-primary)",
-              cursor: "pointer",
-            }}
-          >
-            <X size={13} />
-            Fermer
-          </button>
         </div>
       </div>
     </div>,

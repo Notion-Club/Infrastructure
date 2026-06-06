@@ -27,6 +27,7 @@ import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
 import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
 import { ChatGPTGuideModal } from "@/shared/components/coaching/ChatGPTGuideModal";
 import { TranscriptLoadingText } from "@/shared/components/coaching/TranscriptLoadingText";
+import { GradualBlurOverlay } from "@/shared/components/GradualBlurOverlay";
 import type { NotionBlock } from "@/shared/lib/notion/blocks";
 import { getCallTranscriptionBlocks } from "@/modules/coaching/server/getCallTranscriptionBlocks";
 
@@ -372,18 +373,33 @@ export function CallDetailModal({
             </div>
           )}
 
-          {/* Body — contenu de l'onglet actif */}
+          {/* Body — contenu de l'onglet actif, avec flou progressif haut/bas
+              (même effet que /ressources) pour estomper le contenu qui entre
+              et sort de la zone scrollable. */}
           <div
             style={{
-              padding: "18px 28px 12px",
-              overflowY: "auto",
+              position: "relative",
               flex: 1,
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            {tab === "summary" && <SummaryPanel blocks={summaryBlocks} />}
-            {tab === "transcript" && (
-              <TranscriptPanel state={transcript} host={host} />
-            )}
+            <div
+              style={{
+                padding: "18px 28px 12px",
+                overflowY: "auto",
+                flex: 1,
+              }}
+            >
+              {tab === "summary" && <SummaryPanel blocks={summaryBlocks} />}
+              {tab === "transcript" && (
+                <TranscriptPanel state={transcript} host={host} />
+              )}
+            </div>
+
+            <GradualBlurOverlay position="absolute" edge="top" height={48} zIndex={4} />
+            <GradualBlurOverlay position="absolute" edge="bottom" height={48} zIndex={4} />
           </div>
 
           {/* Barre d'action persistante — Demander à Claude / ChatGPT */}
