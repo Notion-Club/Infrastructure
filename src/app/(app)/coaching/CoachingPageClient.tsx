@@ -389,8 +389,36 @@ export default function CoachingPageClient({
     userState === "accompagnement_eligible" ||
     userState === "accompagnement_not_eligible";
 
-  const ctaConfig =
-    isBookingState && eligibility
+  // Cas spécial "Formation uniquement" → upsell Accompagnement quand le call
+  // inclus a été pris.
+  //
+  // Côté Notion :
+  //   - Offre = "Formation uniquement" + 0 call accepté → "éligible" (1 call
+  //     restant) → bouton normal "Réserver mon coaching".
+  //   - Offre = "Formation uniquement" + 1 call accepté → "pas éligible" →
+  //     ICI on ne veut PAS griser le bouton ("Quota hebdo atteint" est
+  //     trompeur, ce n'est pas une question de quota hebdo mais de plafond
+  //     d'offre). On bascule vers le CTA upsell sales (= le même que
+  //     l'état dev `formation_1_call`).
+  //
+  // Pour les membres en Accompagnement : le grisage "Quota hebdo atteint"
+  // reste pertinent (quota = 2/semaine).
+  const isFormationOnlyMaxed =
+    isBookingState &&
+    eligibility?.offer === "Formation uniquement" &&
+    eligibility?.isEligible === false;
+
+  const ctaConfig = isFormationOnlyMaxed
+    ? {
+        ...ctaConfigBase,
+        icon: TrendingUp,
+        secondaryText: "Passe au niveau supérieur",
+        buttonText: preparing ? "Préparation…" : "Passer à l'Accompagnement",
+        disabled: preparing,
+        onButtonClick: () => openModal(FILLOUT_URLS.sales),
+        disabledTooltip: undefined,
+      }
+    : isBookingState && eligibility
       ? {
           ...ctaConfigBase,
           // Si pas éligible → grisé. Sinon on garde le state du base (qui peut
