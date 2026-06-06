@@ -342,9 +342,9 @@ export function CallDetailModal({
                     height: 20,
                     borderRadius: "50%",
                     background: fallback.bg,
-                    // Bord fin (même gris que la date) pour détacher les photos
-                    // sur fond blanc d'un composant blanc.
-                    border: "1px solid var(--color-text-muted)",
+                    // Bord hairline subtil pour détacher les photos sur fond
+                    // blanc d'un composant blanc.
+                    border: "1px solid var(--color-border-default)",
                     boxSizing: "border-box",
                     display: "inline-flex",
                     alignItems: "center",
@@ -956,7 +956,8 @@ function CopyTranscriptButton({ transcriptUrl }: { transcriptUrl: string }) {
         </span>
       </span>
 
-      {/* Libellé — repli fluide via colonne grid 1fr → 0fr */}
+      {/* Libellé — repli fluide via colonne grid 1fr → 0fr ; le texte change
+          avec l'animation de défilement (SwapText), shimmer gris sur « Copie… ». */}
       <span
         style={{
           display: "grid",
@@ -966,14 +967,69 @@ function CopyTranscriptButton({ transcriptUrl }: { transcriptUrl: string }) {
           transition: `grid-template-columns ${morph}, opacity 220ms var(--nc-ease)`,
         }}
       >
-        <span
-          className={loading ? "t-shimmer nc-shimmer-text" : undefined}
-          data-text={loading ? label : undefined}
-          style={{ overflow: "hidden", whiteSpace: "nowrap" }}
-        >
-          {label}
-        </span>
+        <SwapText text={label} shimmer={loading} />
       </span>
     </button>
+  );
+}
+
+// Libellé à transition « défilement » (même effet que le texte de chargement
+// transcript) : à chaque changement de texte l'ancien sort vers le haut +
+// blur/fade, le nouveau entre par le bas. La className de base reste constante
+// (gérée par React) ; texte, classes is-exit/is-enter-start et shimmer sont
+// pilotés impérativement pour ne pas entrer en conflit avec le rendu React.
+function SwapText({ text, shimmer = false }: { text: string; shimmer?: boolean }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const apply = (t: string) => {
+      el.textContent = t;
+      el.setAttribute("data-text", t);
+    };
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      apply(text);
+      return;
+    }
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (reduce) {
+      apply(text);
+      return;
+    }
+    el.classList.add("is-exit");
+    const timer = window.setTimeout(() => {
+      apply(text);
+      el.classList.remove("is-exit");
+      el.classList.add("is-enter-start");
+      void el.offsetWidth;
+      el.classList.remove("is-enter-start");
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [text]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.classList.toggle("t-shimmer", shimmer);
+    el.classList.toggle("nc-shimmer-text", shimmer);
+  }, [shimmer]);
+
+  return (
+    <span
+      ref={ref}
+      data-text=""
+      className="t-text-swap"
+      style={{
+        display: "inline-block",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        minWidth: 0,
+      }}
+    />
   );
 }

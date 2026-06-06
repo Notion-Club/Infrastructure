@@ -126,9 +126,10 @@ html {
   --nc-nav-hover-bg: rgba(0, 0, 0, 0.04);
   --nc-segmented-active-bg: #ffffff;
   --nc-segmented-active-text: #000000;
-  /* Fond des tuiles posées sur une surface-card (light = identique à la card,
-     le contraste vient de la bordure ; surchargé en dark pour du relief). */
-  --nc-tile-bg: #ffffff;
+  /* Fond des tuiles posées sur une surface-card (tuiles d'appels, skeletons
+     d'aperçu) = fond de page. Via cette indirection, la valeur suit
+     automatiquement le thème (light/dark) sans override dédié. */
+  --nc-tile-bg: var(--color-surface-page);
   /* Boutons CTA sombres — s'inversent en dark mode */
   --nc-btn-dark-bg: #1a1a1a;
   --nc-btn-dark-text: #ffffff;
@@ -919,9 +920,6 @@ html.dark {
   --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
   --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
   --nc-card-dot-color: rgba(255, 255, 255, 0.18);
-  /* Tuiles posées sur une surface-card (tuiles d'appels, skeleton d'aperçu) —
-     plus claires que la card pour créer du contraste en dark. */
-  --nc-tile-bg: #37322f;
   --nc-lock-overlay-bg: rgba(20, 18, 17, 0.87);
   --nc-switch-off-bg: rgba(255, 255, 255, 0.14);
   --nc-btn-disabled-bg: rgba(255, 255, 255, 0.08);
