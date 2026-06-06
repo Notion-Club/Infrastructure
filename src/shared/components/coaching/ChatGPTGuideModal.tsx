@@ -254,9 +254,9 @@ export function ChatGPTGuideModal({
             {copyState === "loading"
               ? "Copie en cours…"
               : copyState === "copied"
-                ? "Transcription copiée ✓"
+                ? "Good, transcription copiée !"
                 : copyState === "error"
-                  ? "Erreur, réessaie"
+                  ? "J'ai eu un souci, tu peux réessayer dans 2 secondes ?"
                   : "Copier la transcription"}
           </button>
         </div>
@@ -326,7 +326,7 @@ export function ChatGPTGuideModal({
             }}
           >
             <ExternalLink size={15} style={{ flexShrink: 0 }} />
-            Ouvrir ChatGPT et coller (Cmd+V)
+            Ouvre ChatGPT et colle (Cmd+V)
           </a>
           {step2Disabled && (
             <p

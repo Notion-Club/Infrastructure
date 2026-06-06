@@ -120,9 +120,11 @@ export function FreeTeaserPanel() {
             color: "var(--color-text-primary)",
             margin: "0 0 10px",
             letterSpacing: "-0.02em",
+            maxWidth: 420,
           }}
         >
-          Coaching individuel
+          Passe à la vitesse supérieure pour atteindre les 5 000€ / mois avec
+          Notion grâce à l&apos;accompagnement.
         </h3>
 
         <p
@@ -131,17 +133,16 @@ export function FreeTeaserPanel() {
             color: "var(--color-text-secondary)",
             lineHeight: 1.6,
             margin: "0 0 20px",
-            maxWidth: 340,
+            maxWidth: 380,
           }}
         >
-          Avec l&apos;Accompagnement, tu peux réserver jusqu&apos;à 3 coachings
-          par semaine avec Théo ou Noah pour avancer plus vite sur ton projet
-          Notion.
+          On t&apos;accompagne personnellement à réussir avec un plan d&apos;action
+          sur-mesure, des méthodes, et des appels de suivi avec les coach.
         </p>
 
         <a
           href="#"
-          data-fb-label="Lien Découvrir l'Accompagnement · Encadré teaser coaching"
+          data-fb-label="Lien Découvrir l'accompagnement · Encadré teaser coaching"
           style={{
             fontSize: 14,
             fontWeight: 600,
@@ -149,7 +150,7 @@ export function FreeTeaserPanel() {
             textDecoration: "none",
           }}
         >
-          Découvrir l&apos;Accompagnement →
+          Découvrir l&apos;accompagnement →
         </a>
       </div>
     </div>

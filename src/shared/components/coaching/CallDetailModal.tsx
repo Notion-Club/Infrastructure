@@ -1,29 +1,59 @@
 "use client";
 
-// Modale "Détail du coaching" avec 2 onglets (style Notion AI) :
-//   - Résumé : le `Résumé IA` (rich_text de la propriété Notion) parsé en
-//     sections (titres MAJUSCULES détectés) + paragraphes.
-//   - Transcript : les blocs Notion de la page (transcription complète),
-//     lazy-loadés au 1er clic sur l'onglet.
+// Modale « Détail de l'appel » restylée façon page Notion :
+//   1. Titre = sujet de l'appel
+//   2. Ligne de propriétés : Date · Host (avatar + nom) — pas de Status,
+//      pas de Membre, pas d'« Objet » (porté par le titre)
+//   3. Switcher onglets en pilules glissantes (CoachingTabs) :
+//      Plan d'actions / Transcription
+//   4. Contenu de l'onglet actif
+//   5. Barre d'action persistante (tous onglets) : Demander à Claude /
+//      Demander à ChatGPT — pas de Fathom.
 //
-// L'onglet Transcript n'appelle la Server Action qu'au mount initial — un
-// changement d'onglet → onglet Résumé puis retour ne refait pas l'appel.
+// L'onglet Transcription lazy-load les blocs Notion au 1er affichage.
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
+import { X } from "lucide-react";
+import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
+import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
+import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
+import { ChatGPTGuideModal } from "@/shared/components/coaching/ChatGPTGuideModal";
+import type { NotionBlock } from "@/shared/lib/notion/blocks";
+import { getCallTranscriptionBlocks } from "@/modules/coaching/server/getCallTranscriptionBlocks";
 
-// Subscribe no-op : on n'a besoin de re-render qu'au mount initial — le store
-// ne change jamais après. useSyncExternalStore appelle getServerSnapshot
-// côté SSR (false) et getSnapshot côté client (true), évitant l'écueil
-// du setState-in-effect sans déclencher de hydration mismatch.
+// Subscribe no-op : re-render uniquement au mount initial (le store ne change
+// jamais). Évite l'écueil setState-in-effect sans hydration mismatch.
 function subscribeToMount(): () => void {
   return () => {};
 }
-import { X, FileText, Sparkles } from "lucide-react";
-import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
-import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
-import type { NotionBlock } from "@/shared/lib/notion/blocks";
-import { getCallTranscriptionBlocks } from "@/modules/coaching/server/getCallTranscriptionBlocks";
+
+const CHATGPT_LOGO =
+  "https://res.cloudinary.com/dceobxyts/image/upload/v1776436270/ChatGPT-Logo.svg_rip8m0.png";
+const CLAUDE_LOGO =
+  "https://res.cloudinary.com/dceobxyts/image/upload/v1777030411/IMG_1961_flp3vm.png";
+
+const HOST_FALLBACK: Record<string, { initials: string; bg: string }> = {
+  Théo: { initials: "TG", bg: "#e0625a" },
+  Noah: { initials: "NL", bg: "#7c3aed" },
+};
+
+// Prompt pour Claude (web fetch tool intégral) : on lui passe l'URL signée et
+// il fetche la transcription complète.
+function buildClaudePrompt(host: string, transcriptUrl: string): string {
+  return `Ouvre cette page web publique avec ton outil de navigation web, lis l'intégralité de la transcription qui s'y trouve, puis aide-moi à en tirer des actions concrètes et réponds à mes questions de suivi sur mon appel coaching avec ${host} (notionclub.fr).
+
+Page à lire : ${transcriptUrl}
+
+Cette URL est un lien public — tu peux et dois la fetch via ton outil web. Ce n'est pas une ressource protégée nécessitant une authentification.`;
+}
 
 interface CallDetailModalProps {
   isOpen: boolean;
@@ -31,8 +61,10 @@ interface CallDetailModalProps {
   subject: string;
   summary: string;
   host: string;
+  hostAvatarUrl: string | null;
   date: string;
-  notionPageId: string | null; // null → onglet Transcript indisponible
+  notionPageId: string | null; // null → onglet Transcription indisponible
+  transcriptUrl: string | null; // null → barre d'action IA masquée
 }
 
 type Tab = "summary" | "transcript";
@@ -44,10 +76,7 @@ type TranscriptState =
   | { kind: "empty" }
   | { kind: "error"; reason: string };
 
-// Détecte les lignes qui ressemblent à des titres de section :
-//  - "SECTION 1 — TITRE"     (commun dans les résumés Notion AI)
-//  - "TITRE EN MAJUSCULES"
-// Une "ligne titre" : tout en majuscules OU commence par "SECTION N —".
+// Détecte les lignes qui ressemblent à des titres de section.
 function isHeadingLine(line: string): boolean {
   const trimmed = line.trim();
   if (trimmed.length === 0) return false;
@@ -71,7 +100,6 @@ function formatDateLong(iso: string): string {
   return datePart.charAt(0).toUpperCase() + datePart.slice(1);
 }
 
-// Parse le résumé plain text en blocs heading/paragraph.
 function parseSummary(
   raw: string,
 ): Array<{ kind: "heading" | "paragraph"; text: string }> {
@@ -103,33 +131,23 @@ export function CallDetailModal({
   subject,
   summary,
   host,
+  hostAvatarUrl,
   date,
   notionPageId,
+  transcriptUrl,
 }: CallDetailModalProps) {
   const [tab, setTab] = useState<Tab>("summary");
+  const [chatgptGuideOpen, setChatgptGuideOpen] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptState>({
     kind: "idle",
   });
-  // Empêche le ré-fetch du transcript quand l'utilisateur switch d'onglet
-  // Résumé → Transcript → Résumé → Transcript : on garde la ref du fetch
-  // déjà déclenché. Une ref (et non une dépendance d'effect) — sinon le
-  // changement d'état "idle → loading → ready" relance l'effect et le
-  // cleanup annule le fetch en cours.
   const transcriptFetchStartedRef = useRef(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  // Portal vers document.body pour échapper au stacking context créé par
-  // .nc-page-halo (isolation: isolate) — sinon les cards voisines passent
-  // par-dessus la modale. SSR-safe : false côté server (pas de document),
-  // true au mount client.
   const mounted = useSyncExternalStore(
     subscribeToMount,
     () => true,
     () => false,
   );
 
-  // Reset état de la modale à la fermeture (onglet, ref de fetch, transcript)
-  // puis propage. handleClose est défini tôt pour pouvoir être référencé dans
-  // l'effect Esc ci-dessous.
   const handleClose = useCallback(() => {
     setTab("summary");
     transcriptFetchStartedRef.current = false;
@@ -157,11 +175,7 @@ export function CallDetailModal({
     };
   }, [isOpen]);
 
-  // Lazy load du Transcript quand l'onglet est ouvert pour la 1re fois.
-  // Important : `transcript.kind` n'est PAS dans les dépendances — sinon le
-  // setTranscript("loading") relance l'effect, dont le cleanup annule le
-  // fetch via `cancelled = true` avant que la Server Action ne réponde.
-  // On utilise une ref pour idempotence (1 seul fetch par ouverture).
+  // Lazy load du Transcript au 1er affichage de l'onglet (ref = idempotence).
   useEffect(() => {
     if (!isOpen) return;
     if (tab !== "transcript") return;
@@ -170,9 +184,6 @@ export function CallDetailModal({
     transcriptFetchStartedRef.current = true;
     let cancelled = false;
     (async () => {
-      // setState via microtask : sort du corps synchrone de l'effect (eslint
-      // react-hooks/set-state-in-effect) tout en restant immédiat pour
-      // l'utilisateur.
       await Promise.resolve();
       if (cancelled) return;
       setTranscript({ kind: "loading" });
@@ -199,217 +210,326 @@ export function CallDetailModal({
     };
   }, [isOpen, tab, notionPageId]);
 
-
   if (!isOpen || !mounted) return null;
 
   const summaryBlocks = parseSummary(summary);
   const hasTranscriptAccess = !!notionPageId;
+  const hasAiBar = !!transcriptUrl;
+  const fallback =
+    HOST_FALLBACK[host] ?? {
+      initials: host[0]?.toUpperCase() ?? "?",
+      bg: "#6b7280",
+    };
 
   function handleOverlayClick(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target === e.currentTarget) handleClose();
   }
 
   return createPortal(
-    <div
-      onClick={handleOverlayClick}
-      data-fb-label="Modale détail · Carte appel"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(0, 0, 0, 0.6)",
-        backdropFilter: "blur(4px)",
-        WebkitBackdropFilter: "blur(4px)",
-        padding: "16px",
-      }}
-    >
+    <>
       <div
-        ref={containerRef}
-        data-fb-label="Fenêtre détail · Modale détail"
+        onClick={handleOverlayClick}
+        data-fb-label="Modale détail · Coaching"
         style={{
-          width: "100%",
-          maxWidth: 820,
-          maxHeight: "88vh",
-          background: "var(--color-surface-card)",
-          borderRadius: 12,
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-          overflow: "hidden",
+          position: "fixed",
+          inset: 0,
+          zIndex: 9999,
           display: "flex",
-          flexDirection: "column",
-          animation: "nc-modal-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(0, 0, 0, 0.6)",
+          backdropFilter: "blur(4px)",
+          WebkitBackdropFilter: "blur(4px)",
+          padding: "16px",
         }}
       >
-        <MacOSWindowBar onClose={handleClose} />
-
-        {/* Header — titre + métadonnées */}
         <div
+          data-fb-label="Fenêtre détail · Modale détail"
           style={{
-            padding: "20px 28px 0",
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              color: "var(--color-text-primary)",
-              margin: 0,
-              lineHeight: 1.25,
-              letterSpacing: "-0.02em",
-            }}
-          >
-            {subject}
-          </h2>
-          <p
-            style={{
-              fontSize: 13,
-              color: "var(--color-text-muted)",
-              margin: 0,
-              marginTop: 4,
-            }}
-          >
-            {formatDateLong(date)} avec <strong>{host}</strong>
-          </p>
-        </div>
-
-        {/* Onglets */}
-        <div
-          role="tablist"
-          aria-label="Sections du détail du coaching"
-          style={{
+            width: "100%",
+            maxWidth: 820,
+            maxHeight: "88vh",
+            background: "var(--color-surface-card)",
+            borderRadius: 12,
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+            overflow: "hidden",
             display: "flex",
-            gap: 4,
-            padding: "16px 28px 0",
-            borderBottom: "1px solid var(--color-border-default)",
+            flexDirection: "column",
+            animation: "nc-modal-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both",
           }}
         >
-          <TabButton
-            active={tab === "summary"}
-            onClick={() => setTab("summary")}
-            icon={<Sparkles size={14} />}
-            label="Résumé"
-          />
+          <MacOSWindowBar onClose={handleClose} />
+
+          {/* En-tête façon page Notion — titre + ligne de propriétés */}
+          <div style={{ padding: "20px 28px 0" }}>
+            <h2
+              style={{
+                fontSize: 24,
+                fontWeight: 700,
+                color: "var(--color-text-primary)",
+                margin: 0,
+                lineHeight: 1.2,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {subject}
+            </h2>
+
+            {/* Ligne de propriétés : Date · Host */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                marginTop: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <span
+                style={{ fontSize: 13, color: "var(--color-text-muted)" }}
+              >
+                {formatDateLong(date)}
+              </span>
+              <span
+                aria-hidden
+                style={{ color: "var(--color-border-default)" }}
+              >
+                ·
+              </span>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <span
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: fallback.bg,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                  }}
+                >
+                  {hostAvatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={hostAvatarUrl}
+                      alt={host}
+                      width={20}
+                      height={20}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: 8,
+                        fontWeight: 700,
+                        color: "#fff",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {fallback.initials}
+                    </span>
+                  )}
+                </span>
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--color-text-secondary)",
+                  }}
+                >
+                  {host}
+                </span>
+              </span>
+            </div>
+          </div>
+
+          {/* Switcher onglets — pilules glissantes (masqué si pas de transcript) */}
           {hasTranscriptAccess && (
-            <TabButton
-              active={tab === "transcript"}
-              onClick={() => setTab("transcript")}
-              icon={<FileText size={14} />}
-              label="Transcript"
-            />
+            <div style={{ padding: "16px 28px 0" }}>
+              <CoachingTabs<Tab>
+                ariaLabel="Sections du détail de l'appel"
+                active={tab}
+                onChange={setTab}
+                tabs={[
+                  { value: "summary", label: "Plan d'actions" },
+                  { value: "transcript", label: "Transcription" },
+                ]}
+              />
+            </div>
           )}
-        </div>
 
-        {/* Body — contenu de l'onglet actif */}
-        <div
-          style={{
-            padding: "20px 28px 12px",
-            overflowY: "auto",
-            flex: 1,
-          }}
-        >
-          {tab === "summary" && <SummaryPanel blocks={summaryBlocks} />}
-          {tab === "transcript" && <TranscriptPanel state={transcript} />}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            padding: "12px 28px",
-            borderTop: "1px solid var(--color-border-default)",
-            background: "var(--color-surface-raised)",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            justifyContent: "space-between",
-          }}
-        >
-          <p
+          {/* Body — contenu de l'onglet actif */}
+          <div
             style={{
-              fontSize: 12,
-              color: "var(--color-text-muted)",
-              margin: 0,
+              padding: "18px 28px 12px",
+              overflowY: "auto",
+              flex: 1,
+            }}
+          >
+            {tab === "summary" && <SummaryPanel blocks={summaryBlocks} />}
+            {tab === "transcript" && <TranscriptPanel state={transcript} />}
+          </div>
+
+          {/* Barre d'action persistante — Demander à Claude / ChatGPT */}
+          {hasAiBar && (
+            <div
+              data-fb-label="Barre d'action IA · Modale détail"
+              style={{
+                padding: "12px 28px",
+                borderTop: "1px solid var(--color-border-default)",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 8,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setChatgptGuideOpen(true)}
+                data-fb-label="Bouton Demander à ChatGPT · Modale détail"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 7,
+                  padding: "9px 12px",
+                  background: "var(--color-surface-raised)",
+                  border: "1px solid var(--color-border-default)",
+                  borderRadius: 9999,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "var(--color-text-primary)",
+                  cursor: "pointer",
+                  transition:
+                    "background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
+                }}
+                className="hover:bg-[#f0fdf4] hover:border-[#86efac] hover:shadow-[0_2px_8px_rgba(34,197,94,0.12)] dark:hover:bg-[rgba(34,197,94,0.07)] dark:hover:border-[rgba(134,239,172,0.2)] dark:hover:shadow-none"
+              >
+                <Image
+                  src={CHATGPT_LOGO}
+                  alt=""
+                  width={15}
+                  height={15}
+                  style={{ display: "block", flexShrink: 0 }}
+                />
+                Demander à ChatGPT
+              </button>
+
+              <a
+                href={`https://claude.ai/new?q=${encodeURIComponent(
+                  buildClaudePrompt(host, transcriptUrl!),
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-fb-label="Bouton Demander à Claude · Modale détail"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 7,
+                  padding: "9px 12px",
+                  background: "var(--color-surface-raised)",
+                  border: "1px solid var(--color-border-default)",
+                  borderRadius: 9999,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "var(--color-text-primary)",
+                  textDecoration: "none",
+                  transition:
+                    "background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
+                }}
+                className="hover:bg-[#fff8f7] hover:border-[rgba(224,98,90,0.35)] hover:shadow-[0_2px_8px_rgba(224,98,90,0.12)] dark:hover:bg-[rgba(224,98,90,0.07)] dark:hover:border-[rgba(224,98,90,0.28)] dark:hover:shadow-none"
+              >
+                <Image
+                  src={CLAUDE_LOGO}
+                  alt=""
+                  width={15}
+                  height={15}
+                  style={{ display: "block", flexShrink: 0, borderRadius: 3 }}
+                />
+                Demander à Claude
+              </a>
+            </div>
+          )}
+
+          {/* Footer — warning IA + fermer */}
+          <div
+            style={{
+              padding: "12px 28px",
+              borderTop: "1px solid var(--color-border-default)",
+              background: "var(--color-surface-raised)",
               display: "flex",
               alignItems: "center",
-              gap: 6,
+              gap: 8,
+              justifyContent: "space-between",
             }}
           >
-            <span>⚠️</span>
-            <span>Contenu généré par IA, peut contenir des imprécisions</span>
-          </p>
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label="Fermer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "6px 12px",
-              background: "transparent",
-              border: "1px solid var(--color-border-default)",
-              borderRadius: 9999,
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--color-text-primary)",
-              cursor: "pointer",
-            }}
-          >
-            <X size={13} />
-            Fermer
-          </button>
+            <p
+              style={{
+                fontSize: 12,
+                color: "var(--color-text-muted)",
+                margin: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <span>⚠️</span>
+              <span>Contenu généré par IA, peut contenir des imprécisions</span>
+            </p>
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Fermer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "6px 12px",
+                background: "transparent",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: 9999,
+                fontSize: 13,
+                fontWeight: 500,
+                color: "var(--color-text-primary)",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <X size={13} />
+              Fermer
+            </button>
+          </div>
         </div>
       </div>
-    </div>,
+
+      {/* Wizard ChatGPT (2 étapes Copier / Coller) */}
+      {hasAiBar && (
+        <ChatGPTGuideModal
+          isOpen={chatgptGuideOpen}
+          onClose={() => setChatgptGuideOpen(false)}
+          transcriptUrl={transcriptUrl!}
+          host={host}
+        />
+      )}
+    </>,
     document.body,
   );
 }
 
 // ── Sous-composants ──────────────────────────────────────────────────────
-
-function TabButton({
-  active,
-  onClick,
-  icon,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      data-fb-label={`Onglet ${label} · Modale détail`}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "9px 14px",
-        background: active ? "rgba(0,0,0,0.05)" : "transparent",
-        border: "none",
-        borderRadius: "8px 8px 0 0",
-        fontSize: 13,
-        fontWeight: active ? 600 : 500,
-        color: active
-          ? "var(--color-text-primary)"
-          : "var(--color-text-muted)",
-        cursor: "pointer",
-        position: "relative",
-        bottom: -1,
-        transition: "background 160ms ease, color 160ms ease",
-      }}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
 
 function SummaryPanel({
   blocks,
@@ -426,7 +546,7 @@ function SummaryPanel({
           margin: 0,
         }}
       >
-        Pas de résumé disponible.
+        Plan d&apos;actions indisponible
       </p>
     );
   }
@@ -466,46 +586,28 @@ function SummaryPanel({
 }
 
 function TranscriptPanel({ state }: { state: TranscriptState }) {
+  const italicMuted: React.CSSProperties = {
+    fontSize: 14,
+    color: "var(--color-text-muted)",
+    fontStyle: "italic",
+    margin: 0,
+    lineHeight: 1.6,
+  };
+
   if (state.kind === "idle" || state.kind === "loading") {
-    return (
-      <p
-        style={{
-          fontSize: 14,
-          color: "var(--color-text-muted)",
-          fontStyle: "italic",
-          margin: 0,
-        }}
-      >
-        Chargement de la transcription…
-      </p>
-    );
+    return <p style={italicMuted}>2 secondes, on cherche la transcription</p>;
   }
   if (state.kind === "empty") {
     return (
-      <p
-        style={{
-          fontSize: 14,
-          color: "var(--color-text-muted)",
-          fontStyle: "italic",
-          margin: 0,
-        }}
-      >
-        La transcription n&apos;est pas encore disponible pour ce coaching.
-      </p>
+      <p style={italicMuted}>Sorry, la transcription n&apos;est pas encore disponible</p>
     );
   }
   if (state.kind === "error") {
     return (
-      <p
-        style={{
-          fontSize: 14,
-          color: "var(--color-text-muted)",
-          fontStyle: "italic",
-          margin: 0,
-        }}
-      >
-        Impossible de charger la transcription
-        {state.reason === "forbidden" ? " (accès refusé)" : ""}.
+      <p style={italicMuted}>
+        Sorry, il y a un bug. Impossible de charger la transcription.
+        <br />
+        Écris à @Théo
       </p>
     );
   }
