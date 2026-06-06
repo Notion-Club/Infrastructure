@@ -196,7 +196,11 @@ export async function getCallsForCurrentUser(): Promise<{
     if (!isFutureUpcoming) {
       try {
         const token = signTranscriptToken(c.notionPageId, member.notionPageId);
-        view.transcript_url = `${getOrigin()}/api/coaching/transcript/${token}`;
+        // Path public web (pas /api/...) — ChatGPT déclenche son browse tool
+        // plus volontiers sur une URL qui ressemble à une page web normale
+        // qu'à un endpoint API. Claude n'a pas ce souci, mais le path public
+        // marche pour les deux.
+        view.transcript_url = `${getOrigin()}/transcript/${token}`;
       } catch (err) {
         console.error(
           "[coaching/queries] signTranscriptToken failed:",

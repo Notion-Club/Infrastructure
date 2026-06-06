@@ -18,14 +18,19 @@ const CLAUDE_LOGO =
   "https://res.cloudinary.com/dceobxyts/image/upload/v1777030411/IMG_1961_flp3vm.png";
 
 // Construit le prompt pré-rempli envoyé en query string à ChatGPT/Claude.
-// Le `transcriptUrl` est un lien public signé HMAC (24h) vers la
-// transcription brute servie en text/plain par /api/coaching/transcript.
-// On demande explicitement à l'IA de fetcher l'URL avant de répondre — sans
-// ça, son outil browse ne se déclenche pas toujours.
+// Le `transcriptUrl` est un lien PUBLIC signé HMAC (24h) vers la transcription
+// brute servie en text/plain.
+//
+// On explicite à l'IA que c'est un lien public web (pas une URL privée
+// nécessitant auth) sinon ChatGPT refuse de fetcher avec son browse tool —
+// il croit que c'est une ressource protégée à cause du token long. Claude
+// n'a pas ce problème mais le wording bénéficie aux deux.
 function buildAIPrompt(host: string, transcriptUrl: string): string {
-  return `Lis intégralement la transcription de mon appel coaching avec ${host} (notionclub.fr) accessible ici : ${transcriptUrl}
+  return `Ouvre cette page web publique avec ton outil de navigation web, lis l'intégralité de la transcription qui s'y trouve, puis aide-moi à en tirer des actions concrètes et réponds à mes questions de suivi sur mon appel coaching avec ${host} (notionclub.fr).
 
-Puis aide-moi à en tirer des actions concrètes et réponds à mes questions de suivi.`;
+Page à lire : ${transcriptUrl}
+
+Cette URL est un lien public — tu peux et dois la fetch via ton outil web. Ce n'est pas une ressource protégée nécessitant une authentification.`;
 }
 
 function formatDateLong(iso: string): string {
