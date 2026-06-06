@@ -24,7 +24,6 @@ import { X, Target, FileText, Copy, Check } from "lucide-react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
 import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
 import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
-import { ChatGPTGuideModal } from "@/shared/components/coaching/ChatGPTGuideModal";
 import { TranscriptLoadingText } from "@/shared/components/coaching/TranscriptLoadingText";
 import { useTheme } from "@/shared/lib/hooks/useTheme";
 import type { NotionBlock } from "@/shared/lib/notion/blocks";
@@ -49,14 +48,28 @@ const HOST_FALLBACK: Record<string, { initials: string; bg: string }> = {
   Noah: { initials: "NL", bg: "#7c3aed" },
 };
 
-// Prompt pour Claude (web fetch tool intégral) : on lui passe l'URL signée et
-// il fetche la transcription complète.
-function buildClaudePrompt(host: string, transcriptUrl: string): string {
+// Prompt partagé pour Claude et ChatGPT — les 2 ont un outil web qui fetche
+// l'URL passée. Côté ChatGPT, on déclenche en plus le mode SearchGPT via
+// `hints=search` (cf. buildChatGPTUrl) qui force l'activation du browse tool
+// dès l'ouverture du chat — sans ça il refusait de fetcher.
+function buildAIPrompt(host: string, transcriptUrl: string): string {
   return `Ouvre cette page web publique avec ton outil de navigation web, lis l'intégralité de la transcription qui s'y trouve, puis aide-moi à en tirer des actions concrètes et réponds à mes questions de suivi sur mon appel coaching avec ${host} (notionclub.fr).
 
 Page à lire : ${transcriptUrl}
 
 Cette URL est un lien public — tu peux et dois la fetch via ton outil web. Ce n'est pas une ressource protégée nécessitant une authentification.`;
+}
+
+// URL ChatGPT avec mode search activé (force le browse tool) + chat éphémère.
+//   - hints=search        → active SearchGPT (browse tool ON dès l'ouverture)
+//   - temporary-chat=true → chat éphémère
+//   - q=<prompt>          → message initial
+function buildChatGPTUrl(prompt: string): string {
+  return `https://chatgpt.com/?hints=search&temporary-chat=true&q=${encodeURIComponent(prompt)}`;
+}
+
+function buildClaudeUrl(prompt: string): string {
+  return `https://claude.ai/new?q=${encodeURIComponent(prompt)}`;
 }
 
 interface CallDetailModalProps {
@@ -141,7 +154,6 @@ export function CallDetailModal({
   transcriptUrl,
 }: CallDetailModalProps) {
   const [tab, setTab] = useState<Tab>("summary");
-  const [chatgptGuideOpen, setChatgptGuideOpen] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptState>({
     kind: "idle",
   });
@@ -515,9 +527,10 @@ export function CallDetailModal({
                 gap: 8,
               }}
             >
-              <button
-                type="button"
-                onClick={() => setChatgptGuideOpen(true)}
+              <a
+                href={buildChatGPTUrl(buildAIPrompt(host, transcriptUrl!))}
+                target="_blank"
+                rel="noopener noreferrer"
                 data-fb-label="Bouton Demander à ChatGPT · Modale détail"
                 style={{
                   display: "inline-flex",
@@ -531,7 +544,7 @@ export function CallDetailModal({
                   fontSize: 13,
                   fontWeight: 500,
                   color: "var(--color-text-primary)",
-                  cursor: "pointer",
+                  textDecoration: "none",
                   transition:
                     "background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
                 }}
@@ -546,12 +559,10 @@ export function CallDetailModal({
                   style={{ display: "block", flexShrink: 0, filter: logoFilter }}
                 />
                 Demander à ChatGPT
-              </button>
+              </a>
 
               <a
-                href={`https://claude.ai/new?q=${encodeURIComponent(
-                  buildClaudePrompt(host, transcriptUrl!),
-                )}`}
+                href={buildClaudeUrl(buildAIPrompt(host, transcriptUrl!))}
                 target="_blank"
                 rel="noopener noreferrer"
                 data-fb-label="Bouton Demander à Claude · Modale détail"
@@ -637,16 +648,6 @@ export function CallDetailModal({
           </div>
         </div>
       </div>
-
-      {/* Wizard ChatGPT (2 étapes Copier / Coller) */}
-      {hasAiBar && (
-        <ChatGPTGuideModal
-          isOpen={chatgptGuideOpen}
-          onClose={() => setChatgptGuideOpen(false)}
-          transcriptUrl={transcriptUrl!}
-          host={host}
-        />
-      )}
     </>,
     document.body,
   );
