@@ -10,13 +10,21 @@ import {
   getCallsForCurrentUser,
   getNextUpcomingCallForCurrentUser,
 } from "@/modules/coaching/server/queries";
+import { getCoachingEligibilityForCurrentUser } from "@/modules/coaching/server/eligibility";
 
 export default async function CoachingPage() {
-  // Les deux lectures Notion sont indépendantes — on parallélise pour gagner
-  // ~200-400ms sur le premier render (≈ 1 round-trip Notion au lieu de 2).
-  const [realCalls, nextCall] = await Promise.all([
+  // Les trois lectures Notion sont indépendantes — on parallélise pour gagner
+  // ~400-600ms sur le premier render (1 seule round-trip au lieu de 3).
+  const [realCalls, nextCall, eligibility] = await Promise.all([
     getCallsForCurrentUser(),
     getNextUpcomingCallForCurrentUser(),
+    getCoachingEligibilityForCurrentUser(),
   ]);
-  return <CoachingPageClient realCalls={realCalls} nextCall={nextCall} />;
+  return (
+    <CoachingPageClient
+      realCalls={realCalls}
+      nextCall={nextCall}
+      eligibility={eligibility}
+    />
+  );
 }
