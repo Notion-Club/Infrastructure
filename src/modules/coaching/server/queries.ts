@@ -10,6 +10,8 @@
 // utilisées par la page /coaching.
 
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import { signTranscriptToken } from "@/shared/lib/transcriptToken";
+import { getOrigin } from "@/shared/lib/origin";
 import { ensureNotionMemberPage } from "./ensureNotionMemberPage";
 import {
   fetchCallsForMember,
@@ -118,6 +120,11 @@ export interface CoachingCallView {
   ai_summary?: string;
   fathom_url?: string;
   notion_page_id?: string;
+  // URL signée vers /api/coaching/transcript/<token> (24h de validité).
+  // Renseignée uniquement pour les past calls — embarquée dans les boutons
+  // "Demander à ChatGPT/Claude" qui passent l'URL en query string, l'IA
+  // suit le lien et lit la transcription brute.
+  transcript_url?: string;
 }
 
 // Mapping NotionCallStatus → CallStatus (MockCall ne connaît pas "cancelled").
@@ -180,6 +187,23 @@ export async function getCallsForCurrentUser(): Promise<{
     if (c.aiSummary) view.ai_summary = c.aiSummary;
     if (c.fathomUrl) view.fathom_url = c.fathomUrl;
     if (c.hostAvatarUrl) view.host_avatar_url = c.hostAvatarUrl;
+
+    // Token signé pour les past calls uniquement (les upcoming n'ont pas
+    // de transcript à servir). Best-effort : si TRANSCRIPT_SIGNING_KEY est
+    // absente côté server, signTranscriptToken throw → on log + on laisse
+    // transcript_url undefined → les boutons ChatGPT/Claude se masquent
+    // côté UI.
+    if (!isFutureUpcoming) {
+      try {
+        const token = signTranscriptToken(c.notionPageId, member.notionPageId);
+        view.transcript_url = `${getOrigin()}/api/coaching/transcript/${token}`;
+      } catch (err) {
+        console.error(
+          "[coaching/queries] signTranscriptToken failed:",
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
 
     if (isFutureUpcoming) {
       upcoming.push(view);

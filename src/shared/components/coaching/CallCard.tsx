@@ -17,8 +17,15 @@ const CHATGPT_LOGO =
 const CLAUDE_LOGO =
   "https://res.cloudinary.com/dceobxyts/image/upload/v1777030411/IMG_1961_flp3vm.png";
 
-function buildAIPrompt(host: string, transcript: string): string {
-  return `Dans le cadre de mes projets autour de Notion, je vais te poser des questions sur base de la transcription de l'appel que j'ai eu avec ${host}, coach au notionclub.fr : ${transcript}`;
+// Construit le prompt pré-rempli envoyé en query string à ChatGPT/Claude.
+// Le `transcriptUrl` est un lien public signé HMAC (24h) vers la
+// transcription brute servie en text/plain par /api/coaching/transcript.
+// On demande explicitement à l'IA de fetcher l'URL avant de répondre — sans
+// ça, son outil browse ne se déclenche pas toujours.
+function buildAIPrompt(host: string, transcriptUrl: string): string {
+  return `Lis intégralement la transcription de mon appel coaching avec ${host} (notionclub.fr) accessible ici : ${transcriptUrl}
+
+Puis aide-moi à en tirer des actions concrètes et réponds à mes questions de suivi.`;
 }
 
 function formatDateLong(iso: string): string {
@@ -61,6 +68,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
   const isExpandable = !isUpcoming;
   const hasSummary = !!call.ai_summary;
   const hasDetail = hasSummary || !!call.notion_page_id;
+  const hasTranscriptUrl = !!call.transcript_url;
   const hasFathom = !!call.fathom_url;
   const statusStyle = STATUS_STYLES[call.status];
   const host = HOST_PROFILES[call.host] ?? { initials: call.host[0] ?? "?", bg: "#6b7280" };
@@ -311,13 +319,16 @@ export function CallCard({ call, archived = false }: CallCardProps) {
               </span>
             )}
 
-            {hasSummary ? (
+            {/* Ask AI buttons — gated par la présence d'une URL signée vers
+                la transcription brute publique (24h). On envoie l'URL à
+                ChatGPT/Claude qui la lisent via leur browse tool : pas de
+                limite query string, pas de troncature du résumé. */}
+            {hasTranscriptUrl && (
               <>
-                {/* Ask AI buttons — en premier pour ne pas avoir à scroller le résumé */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
                   <a
                     href={`https://chatgpt.com/?q=${encodeURIComponent(
-                      buildAIPrompt(call.host, call.ai_summary!)
+                      buildAIPrompt(call.host, call.transcript_url!)
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -352,7 +363,7 @@ export function CallCard({ call, archived = false }: CallCardProps) {
 
                   <a
                     href={`https://claude.ai/new?q=${encodeURIComponent(
-                      buildAIPrompt(call.host, call.ai_summary!)
+                      buildAIPrompt(call.host, call.transcript_url!)
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -385,10 +396,12 @@ export function CallCard({ call, archived = false }: CallCardProps) {
                     Demander à Claude
                   </a>
                 </div>
-
-                {/* Séparateur */}
                 <div style={{ height: 1, background: "var(--color-border-default)", marginBottom: 14 }} />
+              </>
+            )}
 
+            {hasSummary ? (
+              <>
                 {/* Section résumé */}
                 <p
                   style={{

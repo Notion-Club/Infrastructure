@@ -24,6 +24,11 @@ export interface CallCardData {
   ai_summary?: string;
   notion_page_id?: string; // = id de la page Notion, sert au fetch transcription
   fathom_url?: string; // = lien Fathom externe
+  // URL signée vers /api/coaching/transcript/<token> (24h de validité).
+  // Embarquée dans les boutons "Demander à ChatGPT/Claude" — l'IA suit le
+  // lien et lit la transcription brute. Présente uniquement pour les past
+  // calls liés à Notion ; absente sur les mocks et upcoming.
+  transcript_url?: string;
 }
 
 export const MOCK_UPCOMING_CALLS: MockCall[] = [
