@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CalendarCheck } from "lucide-react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
 import { buildFilloutUrl } from "@/shared/lib/fillout/url";
 
@@ -20,34 +19,42 @@ interface FilloutModalProps {
 
 // Hauteur de repli tant que Fillout n'a pas annoncé sa taille.
 const FALLBACK_HEIGHT = 560;
-// Délai avant fermeture auto après la confirmation.
-const AUTO_CLOSE_MS = 2000;
+// Délai avant fermeture auto après la confirmation (on laisse voir la page de
+// remerciement native Fillout pendant ce temps).
+const AUTO_CLOSE_MS = 2500;
 // TEMP — logue les postMessages reçus pour identifier le format exact de
 // l'event de soumission Fillout (à repasser à false une fois calé).
 const FILLOUT_DEBUG = true;
 
+// Recherche en profondeur une valeur de hauteur dans le payload (clé contenant
+// « height »), quel que soit le niveau d'imbrication — le format Fillout varie
+// selon les versions de l'embed.
 function extractHeight(data: unknown): number | null {
-  if (!data || typeof data !== "object") return null;
-  const obj = data as Record<string, unknown>;
-  const nested = (key: string): unknown =>
-    obj[key] && typeof obj[key] === "object"
-      ? (obj[key] as Record<string, unknown>).height
-      : undefined;
-  const candidates: unknown[] = [
-    obj.height,
-    obj.scrollHeight,
-    nested("value"),
-    nested("data"),
-    nested("payload"),
-  ];
-  for (const c of candidates) {
-    if (typeof c === "number" && Number.isFinite(c) && c > 0) return c;
-    if (typeof c === "string" && /^\d+(\.\d+)?$/.test(c)) {
-      const n = parseFloat(c);
-      if (n > 0) return n;
+  let best: number | null = null;
+  const visit = (node: unknown, keyHint: string, depth: number) => {
+    if (depth > 4 || node == null) return;
+    const isHeightKey = /height/i.test(keyHint);
+    if (typeof node === "number") {
+      if (isHeightKey && Number.isFinite(node) && node > 0) {
+        best = best == null ? node : Math.max(best, node);
+      }
+      return;
     }
-  }
-  return null;
+    if (typeof node === "string") {
+      if (isHeightKey && /^\d+(\.\d+)?$/.test(node)) {
+        const n = parseFloat(node);
+        if (n > 0) best = best == null ? n : Math.max(best, n);
+      }
+      return;
+    }
+    if (typeof node === "object") {
+      for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+        visit(v, k, depth + 1);
+      }
+    }
+  };
+  visit(data, "", 0);
+  return best;
 }
 
 // Détection défensive de l'événement « formulaire soumis » émis par Fillout.
@@ -88,8 +95,6 @@ export function FilloutModal({
   nom,
 }: FilloutModalProps) {
   const [contentHeight, setContentHeight] = useState<number | null>(null);
-  // Affiche l'écran de confirmation pendant les 2 s avant fermeture auto.
-  const [submitted, setSubmitted] = useState(false);
 
   const submittedRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
@@ -122,10 +127,7 @@ export function FilloutModal({
     let cancelled = false;
     submittedRef.current = false;
     void Promise.resolve().then(() => {
-      if (!cancelled) {
-        setContentHeight(null);
-        setSubmitted(false);
-      }
+      if (!cancelled) setContentHeight(null);
     });
 
     function onMessage(e: MessageEvent) {
@@ -162,7 +164,8 @@ export function FilloutModal({
 
     function handleSubmitted() {
       submittedRef.current = true;
-      setSubmitted(true);
+      // On laisse la page de remerciement native de Fillout visible, puis on
+      // ferme automatiquement après le délai.
       onSubmitted?.();
       closeTimerRef.current = window.setTimeout(() => {
         onClose();
@@ -240,65 +243,6 @@ export function FilloutModal({
             title="Formulaire de réservation"
           />
         </div>
-
-        {/* Écran de confirmation — recouvre le formulaire le temps de la
-            fermeture auto (2 s). */}
-        {submitted && (
-          <div
-            data-fb-label="Confirmation réservation · Modale réservation"
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: "var(--color-surface-card)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 14,
-              textAlign: "center",
-              padding: 32,
-              animation: "nc-modal-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both",
-            }}
-          >
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: "50%",
-                background:
-                  "linear-gradient(rgba(224,98,90,0.12), rgba(224,98,90,0.12)), var(--color-surface-card)",
-                border: "1px solid rgba(224,98,90,0.30)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--color-brand)",
-                boxShadow: "0 6px 18px rgba(224,98,90,0.22)",
-              }}
-            >
-              <CalendarCheck size={30} />
-            </div>
-            <p
-              style={{
-                fontSize: 18,
-                fontWeight: 700,
-                color: "var(--color-text-primary)",
-                margin: 0,
-                letterSpacing: "-0.01em",
-              }}
-            >
-              Rendez-vous confirmé
-            </p>
-            <p
-              style={{
-                fontSize: 14,
-                color: "var(--color-text-secondary)",
-                margin: 0,
-              }}
-            >
-              On l&apos;ajoute à tes appels à venir…
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

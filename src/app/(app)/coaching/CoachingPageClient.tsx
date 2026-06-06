@@ -245,13 +245,17 @@ export default function CoachingPageClient({
   // Incrémenté à la confirmation d'une réservation → bascule l'historique sur
   // l'onglet « à venir ».
   const [focusUpcomingNonce, setFocusUpcomingNonce] = useState(0);
+  // Vrai pendant la fenêtre de synchro Fillout → Notion → skeleton shimmer.
+  const [bookingPending, setBookingPending] = useState(false);
   const refreshTimersRef = useRef<number[]>([]);
+  const pendingTimerRef = useRef<number | null>(null);
 
   // « Crawler » : à la confirmation, on rafraîchit la page (re-fetch Notion)
   // plusieurs fois espacées pour laisser le temps à Fillout de synchroniser le
   // nouvel appel, puis on montre l'onglet « à venir » où la carte apparaîtra.
   const handleBookingConfirmed = useCallback(() => {
     setFocusUpcomingNonce((n) => n + 1);
+    setBookingPending(true);
     router.refresh();
     refreshTimersRef.current.forEach((t) => window.clearTimeout(t));
     // Fenêtre large : la synchro Fillout → Notion peut prendre plusieurs
@@ -259,7 +263,23 @@ export default function CoachingPageClient({
     refreshTimersRef.current = [3000, 6000, 10000, 15000, 22000, 30000].map((d) =>
       window.setTimeout(() => router.refresh(), d),
     );
+    // Au-delà de la fenêtre, on arrête le skeleton (l'état vide reprend si rien
+    // n'est arrivé). Le skeleton disparaît de toute façon dès qu'un appel
+    // apparaît (la grille prend le dessus).
+    if (pendingTimerRef.current) window.clearTimeout(pendingTimerRef.current);
+    pendingTimerRef.current = window.setTimeout(
+      () => setBookingPending(false),
+      33000,
+    );
   }, [router]);
+
+  // Ouvre le pop-up de replanification / annulation avec l'URL Notion de
+  // l'appel (lien Fillout / TidyCal) — même système de fermeture auto.
+  const openRescheduleModal = useCallback((url: string) => {
+    setUserInfo(EMPTY_USER_INFO);
+    setModalUrl(url);
+    setModalOpen(true);
+  }, []);
 
   // Filet de sécurité : à chaque fermeture du pop-up (auto ou manuelle), on
   // rafraîchit une fois — si la détection de soumission a échoué mais que
@@ -272,6 +292,7 @@ export default function CoachingPageClient({
   useEffect(() => {
     return () => {
       refreshTimersRef.current.forEach((t) => window.clearTimeout(t));
+      if (pendingTimerRef.current) window.clearTimeout(pendingTimerRef.current);
     };
   }, []);
 
@@ -460,6 +481,8 @@ export default function CoachingPageClient({
         archived={historyConfig.archived}
         eligible={canBook}
         focusUpcomingNonce={focusUpcomingNonce}
+        bookingPending={bookingPending}
+        onReschedule={openRescheduleModal}
       />
     );
   }

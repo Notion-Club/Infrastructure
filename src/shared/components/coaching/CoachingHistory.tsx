@@ -34,6 +34,11 @@ interface CoachingHistoryProps {
   // Incrémenté après une réservation confirmée → bascule sur l'onglet « à
   // venir » pour voir la nouvelle carte apparaître.
   focusUpcomingNonce?: number;
+  // Vrai pendant la fenêtre de synchro Fillout → Notion après une réservation :
+  // affiche un skeleton shimmer à la place de l'état vide « à venir ».
+  bookingPending?: boolean;
+  // Ouvre le pop-up Fillout de replanification / annulation d'un appel.
+  onReschedule?: (url: string) => void;
 }
 
 function sectionLabel(text: string) {
@@ -50,6 +55,61 @@ function sectionLabel(text: string) {
     >
       {text}
     </h2>
+  );
+}
+
+// Skeletons shimmer affichés pendant la synchro d'une réservation, pour
+// illustrer le chargement du nouvel appel.
+function LoadingCallTiles() {
+  const bar = (w: string, h: number, delay: number) => ({
+    height: h,
+    width: w,
+    borderRadius: 6,
+    background: "var(--color-border-default)",
+    animation: "nc-skeleton-pulse 1.4s ease-in-out infinite",
+    animationDelay: `${delay}ms`,
+  });
+  return (
+    <div
+      className="grid grid-cols-1 gap-3 md:grid-cols-2"
+      data-fb-label="Chargement appel à venir · Coaching"
+      aria-label="Chargement du rendez-vous"
+    >
+      {[0, 1].map((i) => (
+        <div
+          key={i}
+          style={{
+            background: "var(--nc-tile-bg)",
+            border: "1px solid var(--color-border-default)",
+            borderRadius: 14,
+            padding: "16px 18px",
+          }}
+        >
+          <div style={bar("65%", 13, i * 140)} />
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 12,
+            }}
+          >
+            <div
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                background: "var(--color-border-default)",
+                animation: "nc-skeleton-pulse 1.4s ease-in-out infinite",
+                animationDelay: `${i * 140 + 80}ms`,
+                flexShrink: 0,
+              }}
+            />
+            <div style={bar("42%", 11, i * 140 + 160)} />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -90,6 +150,8 @@ export function CoachingHistory({
   archived = false,
   eligible = false,
   focusUpcomingNonce = 0,
+  bookingPending = false,
+  onReschedule,
 }: CoachingHistoryProps) {
   // Démarre sur « à venir » si on arrive juste après une réservation (le
   // composant peut être monté à ce moment-là, ex. 1er appel jamais réservé).
@@ -150,11 +212,22 @@ export function CoachingHistory({
       {view === "past" ? (
         <PastGrid calls={contentPastCalls} archived={archived} />
       ) : upcomingCalls.length === 0 ? (
-        <UpcomingEmptyState eligible={eligible} />
+        // Réservation en cours de synchro → skeleton shimmer au lieu de l'état
+        // vide « aucun appel », le temps que le nouvel appel arrive.
+        bookingPending ? (
+          <LoadingCallTiles />
+        ) : (
+          <UpcomingEmptyState eligible={eligible} />
+        )
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2" data-fb-label="Grille appels à venir · Coaching">
           {upcomingCalls.map((call) => (
-            <CallTile key={call.id} call={call} variant="upcoming" />
+            <CallTile
+              key={call.id}
+              call={call}
+              variant="upcoming"
+              onReschedule={onReschedule}
+            />
           ))}
         </div>
       )}
