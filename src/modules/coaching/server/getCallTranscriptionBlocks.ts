@@ -18,6 +18,7 @@ import {
   type NotionBlock,
 } from "@/shared/lib/notion/blocks";
 import { normalizeNotionId } from "@/shared/lib/notion/client";
+import { filterNavBlocks } from "@/shared/lib/notion/filterNavBlocks";
 import { ensureNotionMemberPage } from "./ensureNotionMemberPage";
 import { fetchCallsForMember } from "./notion";
 
@@ -69,28 +70,3 @@ export async function getCallTranscriptionBlocks(
   }
 }
 
-// Les pages d'appels Notion contiennent souvent un bloc de navigation
-// "↩ Revenir aux appels" qui pointe vers la DB parente. Il est utile dans
-// Notion mais n'a aucun sens dans notre app — on l'enlève des blocs rendus.
-// On filtre aussi les dividers solitaires en tête qui sont juste là pour
-// séparer cette nav du contenu réel.
-function filterNavBlocks(blocks: NotionBlock[]): NotionBlock[] {
-  if (blocks.length === 0) return blocks;
-  const out = [...blocks];
-  // Drop tête : si le 1er bloc est un paragraphe qui contient "Revenir aux
-  // appels" (avec ou sans flèche), on l'enlève. Match permissif.
-  const first = out[0];
-  if (first.type === "paragraph" && first.rich) {
-    const text = first.rich
-      .map((s) => s.text)
-      .join("")
-      .toLowerCase();
-    if (text.includes("revenir aux appels")) {
-      out.shift();
-      // Si juste derrière il y a un divider, on l'enlève aussi (séparait nav
-      // du contenu).
-      if (out[0]?.type === "divider") out.shift();
-    }
-  }
-  return out;
-}
