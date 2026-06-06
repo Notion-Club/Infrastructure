@@ -6,9 +6,25 @@
 // component pour préserver l'expérience de test de Théo via DevStateSwitcher.
 
 import CoachingPageClient from "./CoachingPageClient";
-import { getCallsForCurrentUser } from "@/modules/coaching/server/queries";
+import {
+  getCallsForCurrentUser,
+  getNextUpcomingCallForCurrentUser,
+} from "@/modules/coaching/server/queries";
+import { getCoachingEligibilityForCurrentUser } from "@/modules/coaching/server/eligibility";
 
 export default async function CoachingPage() {
-  const realCalls = await getCallsForCurrentUser();
-  return <CoachingPageClient realCalls={realCalls} />;
+  // Les trois lectures Notion sont indépendantes — on parallélise pour gagner
+  // ~400-600ms sur le premier render (1 seule round-trip au lieu de 3).
+  const [realCalls, nextCall, eligibility] = await Promise.all([
+    getCallsForCurrentUser(),
+    getNextUpcomingCallForCurrentUser(),
+    getCoachingEligibilityForCurrentUser(),
+  ]);
+  return (
+    <CoachingPageClient
+      realCalls={realCalls}
+      nextCall={nextCall}
+      eligibility={eligibility}
+    />
+  );
 }

@@ -24,6 +24,8 @@ import {
 } from "@/shared/lib/mock/coaching";
 import { FILLOUT_URLS } from "@/shared/lib/mock/fillout";
 import { ensureNotionMemberPage } from "@/modules/coaching/server/ensureNotionMemberPage";
+import { type NextCallPillData } from "@/shared/components/coaching/NextCallPill";
+import { type CoachingEligibility } from "@/modules/coaching/server/eligibility";
 
 // Forme utilisée à la fois par les mocks (DevStateSwitcher) et les vraies
 // données Notion. CallCardData a `host: string` (élargi vs MockCall qui
@@ -38,6 +40,13 @@ interface RealCallsPayload {
 
 interface CoachingPageClientProps {
   realCalls: RealCallsPayload;
+  // Prochain appel à venir lu depuis Notion (status non renseigné + date ≥ now).
+  // `null` quand il n'y a pas d'appel planifié — la pill du header est masquée.
+  nextCall: NextCallPillData | null;
+  // Éligibilité hebdo + message contextuel — lus depuis les formules Notion
+  // "Éligible au Call" et "Alerte Calls". `null` si pas de page Membre Notion
+  // matchée → l'UI retombe sur le comportement statique des mocks.
+  eligibility: CoachingEligibility | null;
 }
 
 const STORAGE_KEY = "nc_coaching_dev_state";
@@ -60,6 +69,7 @@ interface HeaderConfig {
   title: string;
   subtitle: string;
   includedPill?: string;
+  // Mock legacy — utilisé pour les états dev sans data live (DevStateSwitcher).
   nextCallPill?: string;
 }
 
@@ -258,6 +268,8 @@ const EMPTY_USER_INFO: PrefillUserInfo = {
 
 export default function CoachingPageClient({
   realCalls,
+  nextCall,
+  eligibility,
 }: CoachingPageClientProps) {
   const [userState, setUserState] =
     useState<UserState>("accompagnement_eligible");
@@ -312,8 +324,63 @@ export default function CoachingPageClient({
   }
 
   const headerConfig = getHeaderConfig(userState);
-  const ctaConfig = getCTAConfig(userState, openModal, preparing);
+  const ctaConfigBase = getCTAConfig(userState, openModal, preparing);
   const rightConfig = getRightColumnConfig(userState, realCalls);
+
+  // Override CTA avec la formule Notion "Éligible au Call" pour les états
+  // formation_0_calls / accompagnement_eligible / accompagnement_not_eligible.
+  //
+  // Quand eligibility est dispo et que la formule Notion dit "pas éligible",
+  // on grise le bouton et on remplace le label par "Quota hebdo atteint".
+  // Le message "Alerte Calls" (week-end / fin de suivi / quota restant) est
+  // affiché en tooltip — c'est Théo qui le rédige côté Notion, on ne fait que
+  // l'afficher.
+  //
+  // États où on N'override PAS :
+  //  - free / formation_1_call / accompagnement_expired : CTA orienté commerce
+  //    (réserver découverte, passer à l'Accompagnement, renouveler), pas
+  //    soumis au quota hebdo.
+  const isBookingState =
+    userState === "formation_0_calls" ||
+    userState === "accompagnement_eligible" ||
+    userState === "accompagnement_not_eligible";
+
+  const ctaConfig =
+    isBookingState && eligibility
+      ? {
+          ...ctaConfigBase,
+          // Si pas éligible → grisé. Sinon on garde le state du base (qui peut
+          // être disabled pendant preparing).
+          disabled: !eligibility.isEligible || ctaConfigBase.disabled,
+          iconOpacity: !eligibility.isEligible ? 0.5 : ctaConfigBase.iconOpacity,
+          icon: !eligibility.isEligible ? CalendarX : ctaConfigBase.icon,
+          buttonText: !eligibility.isEligible
+            ? "Quota hebdo atteint"
+            : ctaConfigBase.buttonText,
+          secondaryText: !eligibility.isEligible
+            ? "Tu as atteint ta limite hebdomadaire"
+            : ctaConfigBase.secondaryText,
+          disabledTooltip: !eligibility.isEligible
+            ? eligibility.alertMessage ||
+              "Tu peux réserver à nouveau lundi prochain.\nTu peux planifier sans limite le weekend."
+            : undefined,
+        }
+      : ctaConfigBase;
+
+  // Pill prochain coaching :
+  //  - États accompagnement avec data Notion → vrai objet (modale détail live).
+  //  - Autres états (free / formation / mocks DevStateSwitcher) → libellé mock.
+  //
+  // Quand l'user est sur un état accompagnement mais que Notion n'a rien à
+  // venir, on laisse la pill mock (DevStateSwitcher) pour ne pas casser le
+  // démo de Théo sur ces états — sinon l'aperçu visuel disparaît pendant les
+  // tests UI.
+  const headerNextCall: NextCallPillData | undefined =
+    (userState === "accompagnement_eligible" ||
+      userState === "accompagnement_not_eligible") &&
+    nextCall
+      ? nextCall
+      : undefined;
   const isExpired = userState === "accompagnement_expired";
   const allCallsEmpty =
     rightConfig.upcomingCalls.length === 0 && rightConfig.pastCalls.length === 0;
@@ -339,7 +406,7 @@ export default function CoachingPageClient({
             style={{ maxWidth: 1100, margin: "0 auto" }}
           >
             <div className="nc-mode-in">
-              <CoachingHeader {...headerConfig} />
+              <CoachingHeader {...headerConfig} nextCall={headerNextCall} />
             </div>
 
             {/* Single-column layout */}

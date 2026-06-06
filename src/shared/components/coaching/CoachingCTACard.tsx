@@ -122,7 +122,9 @@ export function CoachingCTACard({
                   padding: "8px 12px",
                   borderRadius: 8,
                   whiteSpace: "pre-line",
-                  maxWidth: 240,
+                  // 320 pour rester confortable sur les messages "Alerte Calls"
+                  // longs (date de fin de suivi + temps restant en mots).
+                  maxWidth: 320,
                   textAlign: "center",
                   zIndex: 10,
                   boxShadow: "0 4px 16px rgba(0,0,0,0.2)",

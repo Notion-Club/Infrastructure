@@ -154,29 +154,31 @@ export async function getCallsForCurrentUser(): Promise<{
   const past: CoachingCallView[] = [];
 
   for (const c of calls) {
-    // Date-based split :
-    //  - sans statut (= "upcoming" par normalisation) ET date future → upcoming
-    //  - tous les autres cas (statut Accepté/No-show/Refusé OU date passée)
-    //    → past
-    // La DB Notion n'a pas d'option "À venir", donc un call est upcoming
-    // uniquement quand l'admin n'a pas encore renseigné de statut ET que
-    // la date est devant nous.
+    // Date-based split — la date prime sur le statut Notion :
+    //  - date future ET status ≠ no_show/cancelled → upcoming
+    //  - tous les autres cas → past
+    //
+    // Note importante : côté Notion, "Accepté" est le statut par défaut à
+    // la création de l'appel (signifiant "accepté dans le système"), pas
+    // "déjà eu lieu". On ne peut donc pas baser le split sur le status seul
+    // — on regarde la date pour décider, puis le status pour exclure les
+    // terminaux explicites (no_show / cancelled).
     const scheduledTs = c.scheduledAt
       ? new Date(c.scheduledAt).getTime()
       : NaN;
-    const isFutureUpcoming =
-      c.status === "upcoming" &&
-      !Number.isNaN(scheduledTs) &&
-      scheduledTs >= now;
+    const hasValidDate = !Number.isNaN(scheduledTs);
+    const isTerminal = c.status === "no_show" || c.status === "cancelled";
+    const isFutureUpcoming = hasValidDate && scheduledTs >= now && !isTerminal;
 
     const view: CoachingCallView = {
       id: c.notionPageId,
       date: c.scheduledAt,
       host: c.host || "Théo", // fallback gracieux si host vide
       subject: c.subject,
-      // Si l'admin n'a pas mis de statut mais que la date est passée, on
-      // l'affiche comme "no_show" plutôt que de laisser le pill "à venir"
-      // (qui n'a pas de sens sur un call passé).
+      // Pill affichée sur la card :
+      //  - upcoming si la date est future et pas terminal
+      //  - sinon on garde le status Notion (accepted/no_show/cancelled)
+      //  - status "upcoming" (= vide Notion) sur un call passé devient no_show
       status: isFutureUpcoming
         ? "upcoming"
         : c.status === "upcoming"
@@ -222,6 +224,73 @@ export async function getCallsForCurrentUser(): Promise<{
   // past est déjà en DESC vu le sort Notion → rien à faire.
 
   return { upcoming, past };
+}
+
+// ── Prochain appel à venir (pour la pill "Ton prochain coaching est…") ──
+//
+// Lit la DB Notion Appels de suivi et retourne le PROCHAIN appel à venir
+// (status sans valeur OU "À venir") dont la date est ≥ maintenant. Si
+// plusieurs candidats, on prend le plus proche dans le temps.
+//
+// Retourne `null` si :
+//  - pas de profil Notion lié (ensureNotionMemberPage KO)
+//  - aucun appel à venir
+//  - notion KO (best-effort)
+//
+// Champs exposés à l'UI :
+//  - scheduledAt : ISO (utilisé pour le formatage "aujourd'hui / demain / dans X j")
+//  - host : nom du Host Notion (people)
+//  - hostAvatarUrl : avatar Notion (people) du Host
+//  - objectRequest : texte de "Objet de la Demande" (rich_text)
+//  - rescheduleUrl : URL "Reschedule URL" (bouton replanifier/annuler)
+export interface NextUpcomingCallView {
+  notionPageId: string;
+  scheduledAt: string;
+  host: string;
+  hostAvatarUrl: string | null;
+  objectRequest: string | null;
+  rescheduleUrl: string | null;
+}
+
+export async function getNextUpcomingCallForCurrentUser(): Promise<NextUpcomingCallView | null> {
+  const member = await ensureNotionMemberPage();
+  if (!member.ok || !member.notionPageId) return null;
+
+  const calls = await fetchCallsForMember(member.notionPageId);
+  const now = Date.now();
+
+  // Critère "à venir" basé UNIQUEMENT sur la date — pas sur le status. Côté
+  // Notion, les appels sont créés par défaut avec status "Accepté" (signifiant
+  // "accepté dans le système", pas "déjà eu lieu"). Si on filtrait sur status
+  // vide, on perdrait 100% des appels à venir réels.
+  //
+  // Seuls les statuts terminaux explicites doivent exclure un appel à venir :
+  //   - "no_show" → le membre n'est pas venu (acté par l'admin)
+  //   - "cancelled" → annulé (acté par l'admin)
+  // "accepted" reste candidat car c'est le default Notion.
+  const upcoming = calls
+    .filter((c) => c.status !== "no_show" && c.status !== "cancelled")
+    .filter((c) => {
+      if (!c.scheduledAt) return false;
+      const ts = new Date(c.scheduledAt).getTime();
+      return !Number.isNaN(ts) && ts >= now;
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
+    );
+
+  const next = upcoming[0];
+  if (!next) return null;
+
+  return {
+    notionPageId: next.notionPageId,
+    scheduledAt: next.scheduledAt,
+    host: next.host || "Théo",
+    hostAvatarUrl: next.hostAvatarUrl,
+    objectRequest: next.objectRequest,
+    rescheduleUrl: next.rescheduleUrl,
+  };
 }
 
 // Compte le nombre d'appels coachés (accepted) de l'user. Utile pour la
