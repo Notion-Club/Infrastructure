@@ -13,10 +13,19 @@
 // Claude n'a pas besoin de ce flow — son bouton ouvre directement claude.ai
 // avec l'URL dans le prompt (son outil web fetch correctement).
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { Check, Copy, ExternalLink, X } from "lucide-react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
+
+// Subscribe no-op : on n'a besoin de re-render qu'au mount initial — le store
+// ne change jamais après. useSyncExternalStore appelle getServerSnapshot
+// côté SSR (false) et getSnapshot côté client (true), évitant l'écueil
+// du setState-in-effect sans déclencher de hydration mismatch.
+function subscribeToMount(): () => void {
+  return () => {};
+}
 
 const CHATGPT_LOGO =
   "https://res.cloudinary.com/dceobxyts/image/upload/v1776436270/ChatGPT-Logo.svg_rip8m0.png";
@@ -43,6 +52,15 @@ export function ChatGPTGuideModal({
   host,
 }: ChatGPTGuideModalProps) {
   const [copyState, setCopyState] = useState<CopyState>("idle");
+  // Portal vers document.body pour échapper au stacking context créé par
+  // .nc-page-halo (isolation: isolate) — sinon les cards voisines passent
+  // par-dessus la modale. SSR-safe : false côté server (pas de document),
+  // true au mount client.
+  const mounted = useSyncExternalStore(
+    subscribeToMount,
+    () => true,
+    () => false,
+  );
 
   // Reset état au close pour que la prochaine ouverture reparte propre.
   const handleClose = useCallback(() => {
@@ -85,7 +103,7 @@ export function ChatGPTGuideModal({
     }
   }
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   // L'étape 2 est désactivée tant que l'user n'a pas copié — on guide
   // séquentiellement pour éviter qu'il ouvre ChatGPT sans rien à coller.
@@ -96,14 +114,14 @@ export function ChatGPTGuideModal({
     if (e.target === e.currentTarget) handleClose();
   }
 
-  return (
+  return createPortal(
     <div
       onClick={handleOverlayClick}
       data-fb-label="Modale guide ChatGPT · Carte appel"
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 100,
+        zIndex: 9999,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -358,6 +376,7 @@ export function ChatGPTGuideModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
