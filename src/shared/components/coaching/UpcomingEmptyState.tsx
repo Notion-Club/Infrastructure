@@ -59,7 +59,7 @@ export function UpcomingEmptyState({ eligible }: UpcomingEmptyStateProps) {
       >
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {SKELETON_CARDS.map((i) => (
-            <SkeletonCallCard key={i} index={i} />
+            <SkeletonCallCard key={i} />
           ))}
         </div>
       </div>
@@ -67,16 +67,10 @@ export function UpcomingEmptyState({ eligible }: UpcomingEmptyStateProps) {
   );
 }
 
-function SkeletonCallCard({ index }: { index: number }) {
-  const base = index * 120;
-  const bar = (w: string, h: number, delay: number) => ({
-    height: h,
-    width: w,
-    borderRadius: 6,
-    background: "var(--color-surface-raised)",
-    animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
-    animationDelay: `${delay}ms`,
-  });
+// Carte d'appel en skeleton — STATIQUE (pas de pulse : c'est un aperçu, pas un
+// chargement). Affiche une ligne entière + une ligne demie (date + coach).
+function SkeletonCallCard() {
+  const barBg = "var(--color-surface-raised)";
   return (
     <div
       style={{
@@ -86,9 +80,11 @@ function SkeletonCallCard({ index }: { index: number }) {
         padding: "16px 18px",
       }}
     >
-      {/* Sujet */}
-      <div style={bar("70%", 13, base)} />
-      {/* Date + avatar coach */}
+      {/* Ligne entière */}
+      <div
+        style={{ height: 13, width: "100%", borderRadius: 6, background: barBg }}
+      />
+      {/* Ligne demie + avatar coach */}
       <div
         style={{
           display: "flex",
@@ -102,13 +98,13 @@ function SkeletonCallCard({ index }: { index: number }) {
             width: 22,
             height: 22,
             borderRadius: "50%",
-            background: "var(--color-surface-raised)",
-            animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
-            animationDelay: `${base + 80}ms`,
+            background: barBg,
             flexShrink: 0,
           }}
         />
-        <div style={bar("42%", 11, base + 120)} />
+        <div
+          style={{ height: 11, width: "50%", borderRadius: 6, background: barBg }}
+        />
       </div>
     </div>
   );

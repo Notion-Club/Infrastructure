@@ -631,9 +631,10 @@ html {
   --shimmer-dur: 2000ms;
   --shimmer-band: 400%;
   --shimmer-base: var(--color-text-muted);
-  /* Highlight blanc discret : les glyphes s'éclaircissent doucement au
-     passage du band (premium), pas de teinte de marque. */
-  --shimmer-highlight: #ffffff;
+  /* Highlight gris (plus prononcé que le base) : le band se voit sur le fond
+     clair de l'encadré. `text-secondary` ressort dans les deux thèmes
+     (plus sombre en light, plus clair en dark que le muted). */
+  --shimmer-highlight: var(--color-text-secondary);
   /* Gros titre central pendant le chargement de la transcription. */
   font-size: clamp(20px, 4vw, 26px);
   line-height: 1.3;

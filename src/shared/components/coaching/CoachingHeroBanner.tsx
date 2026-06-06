@@ -57,12 +57,12 @@ export function CoachingHeroBanner({
         background:
           "radial-gradient(120% 140% at 0% 0%, rgba(224,98,90,0.07), transparent 55%), var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
+        // Pas de surélévation : juste le halo de lumière brand aux coins
+        // extérieurs (anneau fin) + le shine du bouton.
         boxShadow: hovered
-          ? "0 0 0 3px rgba(224,98,90,0.16), 0 12px 40px rgba(224,98,90,0.14)"
+          ? "0 0 0 1px rgba(224,98,90,0.18), 0 12px 40px rgba(224,98,90,0.13)"
           : "var(--nc-shadow-2)",
-        transform: hovered ? "translateY(-2px)" : "translateY(0)",
-        transition:
-          "box-shadow 320ms var(--nc-ease), transform 320ms var(--nc-ease)",
+        transition: "box-shadow 320ms var(--nc-ease)",
       }}
       className="md:!px-9 md:!py-8"
     >

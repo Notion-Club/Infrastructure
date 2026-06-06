@@ -21,7 +21,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { X, Goal, FileText, Copy, Check } from "lucide-react";
+import { X, Target, FileText, Copy, Check } from "lucide-react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
 import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
 import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
@@ -400,7 +400,7 @@ export function CallDetailModal({
                   {
                     value: "summary",
                     label: "Plan d'actions",
-                    icon: <Goal size={15} />,
+                    icon: <Target size={15} />,
                   },
                   {
                     value: "transcript",
@@ -607,13 +607,13 @@ export function CallDetailModal({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 4,
-                padding: "6px 12px",
-                background: "transparent",
-                border: "1px solid var(--color-border-default)",
+                padding: "7px 14px",
+                background: "var(--nc-btn-dark-bg)",
+                border: "none",
                 borderRadius: 9999,
                 fontSize: 13,
-                fontWeight: 500,
-                color: "var(--color-text-primary)",
+                fontWeight: 600,
+                color: "var(--nc-btn-dark-text)",
                 cursor: "pointer",
                 flexShrink: 0,
               }}

@@ -91,13 +91,13 @@ export function CallTile({ call, variant, archived = false }: CallTileProps) {
           padding: "16px 18px",
           opacity: archived ? 0.78 : 1,
           cursor: clickable ? "pointer" : "default",
-          transform: hovered && clickable ? "translateY(-2px)" : "translateY(0)",
+          // Pas de surélévation : seulement le halo de lumière brand aux coins.
           boxShadow:
             hovered && clickable
-              ? "0 6px 24px rgba(224,98,90,0.10), 0 1px 3px rgba(0,0,0,0.04)"
+              ? "0 0 0 1px rgba(224,98,90,0.16), 0 8px 28px rgba(224,98,90,0.12)"
               : "none",
           transition:
-            "transform 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease), border-color 200ms var(--nc-ease)",
+            "box-shadow 200ms var(--nc-ease), border-color 200ms var(--nc-ease)",
         }}
       >
         <h3
