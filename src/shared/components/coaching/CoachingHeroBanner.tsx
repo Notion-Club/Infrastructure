@@ -53,11 +53,16 @@ export function CoachingHeroBanner({
         overflow: "hidden",
         padding: "28px 24px",
         borderRadius: 20,
-        // Verre dépoli : halo brand + surface translucide + flou d'arrière-plan.
+        // Verre dépoli : halo brand (coin haut-gauche) + voile blanc neutre
+        // (évite la teinte verte perçue à côté du rouge) + surface translucide.
+        // Pas de `saturate` : il intensifiait le rouge et faisait ressortir sa
+        // complémentaire verte dans la zone neutre.
         background:
-          "radial-gradient(130% 150% at 0% 0%, rgba(224,98,90,0.13), transparent 58%), var(--nc-glass-bg)",
-        backdropFilter: "blur(16px) saturate(1.3)",
-        WebkitBackdropFilter: "blur(16px) saturate(1.3)",
+          "radial-gradient(130% 150% at 0% 0%, rgba(224,98,90,0.10), transparent 56%)," +
+          " linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05))," +
+          " var(--nc-glass-bg)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
         border: "1px solid var(--nc-glass-border)",
         // Reflet interne (glass) + halo de lumière brand aux coins au hover.
         // Pas de surélévation.
