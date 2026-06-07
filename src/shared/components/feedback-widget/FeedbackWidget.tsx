@@ -1,21 +1,27 @@
-// FeedbackWidget — Hub modal flouté avec 2 flows :
-//   • Feedback sur un élément (sélection visuelle)
-//   • Feedback général (page entière, sans sélection)
-// Tickets Notion accessibles en vue grille depuis le hub.
+// FeedbackWidget — pilote des retours, intégré à la toolbox dev.
+//
+// Plus de bouton flottant ni de hub modal : la section « retours » (icônes +
+// brouillons + tickets) est enregistrée dans le dropdown de la toolbox via
+// `useRegisterFeedbackTools`. Ce composant ne rend plus que les overlays :
+//   • le mode sélection d'élément (crosshair + highlight),
+//   • la modale de saisie du retour (form),
+//   • la confirmation de suppression de brouillon,
+//   • les toasts.
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  X, MousePointer, Send, Trash2, RefreshCw, MoreHorizontal, Pencil, ExternalLink,
-  MessageSquarePlus, Globe, LayoutGrid, ArrowLeft,
-} from "lucide-react";
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
+import { X, MousePointer, ExternalLink, MessageSquarePlus } from "lucide-react";
 import styles from "./FeedbackWidget.module.css";
-import { useTheme } from "@/shared/lib/hooks/useTheme";
+import { useRegisterFeedbackTools } from "@/shared/components/dev/DevToolbox";
+import { FeedbackToolboxPanel } from "./FeedbackToolboxPanel";
+import type { Draft, NotionTicket } from "./types";
 
-// Map adaptée aux routes existantes de NotionClub Infra. Sert de "contexte"
-// (2e partie du token de bloc) auto-ajouté à chaque libellé. Les routes
-// dynamiques (ex. /communaute/post/[id]) sont résolues par préfixe dans
-// `getCurrentPage` plus bas, afin de ne plus retomber sur un libellé générique.
 const PAGE_MAP: Record<string, string> = {
   "/": "Accueil",
   "/login": "Connexion",
@@ -30,7 +36,6 @@ const PAGE_MAP: Record<string, string> = {
   "/settings": "Réglages",
 };
 
-// Résolution du contexte page par préfixe — utilisée pour les routes dynamiques.
 const PAGE_PREFIXES: [string, string][] = [
   ["/formation", "Formation"],
   ["/communaute", "Communauté"],
@@ -40,8 +45,6 @@ const PAGE_PREFIXES: [string, string][] = [
   ["/dashboard", "Accueil"],
 ];
 
-// Vocabulaire "Quoi" déduit du tag HTML — garantit que le libellé d'un bloc non
-// tokenisé commence toujours par la nature du bloc plutôt qu'un nom de section.
 const TAG_KIND: Record<string, string> = {
   BUTTON: "Bouton",
   A: "Lien",
@@ -60,9 +63,6 @@ const TAG_KIND: Record<string, string> = {
   OL: "Liste",
 };
 
-// Fallback minimaliste si l'appel `/api/feedback-schema` échoue. Les vraies
-// options sont récupérées dynamiquement depuis la base Notion au montage du
-// widget — voir `loadSchema` plus bas.
 const ACTION_OPTIONS_FALLBACK: string[] = [
   "Modifier du texte",
   "Ajouter du texte",
@@ -77,8 +77,6 @@ const ACTION_OPTIONS_FALLBACK: string[] = [
 
 const END_OPTIONS_FALLBACK: string[] = ["Frontend", "Backend"];
 
-// Placeholders contextuels pour les actions connues. Pour toute action retournée
-// par Notion qui n'est pas listée ici, on retombe sur `default`.
 const PLACEHOLDERS: Record<string, string> = {
   "Modifier du texte": "Quel texte souhaitez-vous modifier ? Quelle formulation préférez-vous à la place ?",
   "Ajouter du texte": "Quel contenu souhaitez-vous ajouter et à quel emplacement précis sur la page ?",
@@ -92,27 +90,15 @@ const PLACEHOLDERS: Record<string, string> = {
   default: "Décrivez précisément votre retour : contexte, attente, exemple si possible.",
 };
 
-type StatusColors = { dot: string; bg: string; textLight: string; textDark: string; cssClass: string };
-const STATUS_COLORS: Record<string, StatusColors> = {
-  "À traiter": { dot: "#f59e0b", bg: "rgba(245,158,11,0.08)", textLight: "#92400e", textDark: "#fbbf24", cssClass: styles.statusPending },
-  "En cours":  { dot: "#3b82f6", bg: "rgba(59,130,246,0.08)", textLight: "#1e40af", textDark: "#60a5fa", cssClass: styles.statusProgress },
-  "Traité":    { dot: "#10b981", bg: "rgba(16,185,129,0.08)", textLight: "#065f46", textDark: "#34d399", cssClass: styles.statusDone },
-  "Résolu":    { dot: "#10b981", bg: "rgba(16,185,129,0.08)", textLight: "#065f46", textDark: "#34d399", cssClass: styles.statusDone },
-  "Refusé":    { dot: "#e0625a", bg: "rgba(224,98,90,0.08)",  textLight: "#9a3a35", textDark: "#e0625a", cssClass: styles.statusRefused },
-};
-
 function getCurrentPage(): string {
   const path = window.location.pathname;
   if (PAGE_MAP[path]) return PAGE_MAP[path];
-  // Routes dynamiques (post détail, leçon, ressource…) → contexte par préfixe.
   for (const [prefix, label] of PAGE_PREFIXES) {
     if (path === prefix || path.startsWith(prefix + "/")) return label;
   }
   return "Accueil";
 }
 
-// Ajoute le contexte page au libellé d'un bloc, sauf s'il le mentionne déjà.
-// Le token final ressemble à « Encadré Formation · Accueil ».
 function appendPageContext(label: string, page: string): string {
   if (!page) return label;
   if (label.toLowerCase().includes(page.toLowerCase())) return label;
@@ -131,10 +117,6 @@ function getElementUrl(el: HTMLElement): string {
 }
 
 function getElementLabel(el: HTMLElement): string {
-  // 1. Libellé explicite (tokenisation) — priorité absolue. On remonte le DOM
-  //    pour récupérer le `data-fb-label` le plus proche du bloc cliqué : un
-  //    libellé posé sur un sous-élément (bouton, avatar…) prime sur celui de
-  //    son conteneur.
   let current: HTMLElement | null = el;
   while (current && current !== document.body) {
     const label = current.getAttribute("data-fb-label");
@@ -142,8 +124,6 @@ function getElementLabel(el: HTMLElement): string {
     current = current.parentElement;
   }
 
-  // 2. Fallback intelligent : on préfixe toujours par la nature du bloc ("Quoi")
-  //    pour qu'un bloc non encore tokenisé reste tout de même identifiable.
   const tag = el.tagName;
   const inferredKind = /^H[1-6]$/.test(tag)
     ? "Titre"
@@ -190,61 +170,15 @@ function getElementLabel(el: HTMLElement): string {
   return ownText || tag.toLowerCase();
 }
 
-interface Draft {
-  id: string;
-  element: string;
-  elementUrl: string;
-  action: string;
-  end: string;
-  page: string;
-  text: string;
-  timestamp: string;
-  isGeneral?: boolean;
-}
-
-interface NotionTicket {
-  notionId: string;
-  element: string;
-  action: string;
-  page: string;
-  text: string;
-  status: string;
-  statusColor: string;
-  timestamp: string;
-}
-
 type ToastType = "success" | "error" | "partial";
-type View = "hub" | "form" | "tickets";
-
-const TEXT_CLAMP = 200;
-
-function ExpandableText({ text }: { text: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const isLong = text.length > TEXT_CLAMP;
-  return (
-    <div>
-      <p className={styles.feedbackText}>
-        {isLong && !expanded ? `${text.slice(0, TEXT_CLAMP)}…` : text}
-      </p>
-      {isLong && (
-        <button className={styles.expandBtn} onClick={() => setExpanded((v) => !v)}>
-          {expanded ? "Voir moins" : `Voir plus (+${text.length - TEXT_CLAMP} car.)`}
-        </button>
-      )}
-    </div>
-  );
-}
 
 export default function FeedbackWidget() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [view, setView] = useState<View>("hub");
-  const [showBubble, setShowBubble] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   // Brouillons feedback
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Tickets Notion
@@ -253,13 +187,11 @@ export default function FeedbackWidget() {
   const [ticketsError, setTicketsError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Schéma Notion — liste réelle des options des selects/multi_selects, fetchée
-  // au montage via `/api/feedback-schema`. Fallback sur les listes locales en
-  // attendant la réponse ou si l'API échoue.
+  // Schéma Notion
   const [actionOptions, setActionOptions] = useState<string[]>(ACTION_OPTIONS_FALLBACK);
   const [endOptions, setEndOptions] = useState<string[]>(END_OPTIONS_FALLBACK);
 
-  // Formulaire feedback (élément ou général)
+  // Formulaire
   const [pendingElement, setPendingElement] = useState<string | null>(null);
   const [pendingElementUrl, setPendingElementUrl] = useState<string>("");
   const [pendingAction, setPendingAction] = useState("");
@@ -275,12 +207,10 @@ export default function FeedbackWidget() {
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLDivElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
 
   // Init
   useEffect(() => {
     sessionId.current = crypto.randomUUID();
-
     if (!document.getElementById("fb-highlight-style")) {
       const style = document.createElement("style");
       style.id = "fb-highlight-style";
@@ -318,29 +248,18 @@ export default function FeedbackWidget() {
     };
   }, []);
 
-  // Bulle d'intro
+  // Body scroll lock quand la modale form est ouverte
   useEffect(() => {
-    const t = setTimeout(() => setShowBubble(true), 1000);
-    return () => clearTimeout(t);
-  }, []);
-  useEffect(() => {
-    if (!showBubble) return;
-    const t = setTimeout(() => setShowBubble(false), 5000);
-    return () => clearTimeout(t);
-  }, [showBubble]);
-
-  // Body scroll lock quand le modal est ouvert
-  useEffect(() => {
-    if (isOpen) {
+    if (formOpen) {
       const prev = document.body.style.overflow;
       document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = prev; };
+      return () => {
+        document.body.style.overflow = prev;
+      };
     }
-  }, [isOpen]);
+  }, [formOpen]);
 
-  // Schéma Notion — un fetch au montage du widget, met à jour les pills si la
-  // base contient plus / d'autres options que le fallback hardcodé. On garde
-  // les fallbacks affichés en attendant pour éviter un état vide.
+  // Schéma Notion — fetch au montage
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -349,32 +268,16 @@ export default function FeedbackWidget() {
         if (!res.ok) return;
         const data = await res.json();
         if (cancelled) return;
-        if (Array.isArray(data.action) && data.action.length > 0) {
-          setActionOptions(data.action);
-        }
-        if (Array.isArray(data.end) && data.end.length > 0) {
-          setEndOptions(data.end);
-        }
+        if (Array.isArray(data.action) && data.action.length > 0) setActionOptions(data.action);
+        if (Array.isArray(data.end) && data.end.length > 0) setEndOptions(data.end);
       } catch {
-        // Silencieux — on reste sur les fallbacks.
+        /* fallback */
       }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
-
-  // Fermer menu trois points si clic en dehors
-  useEffect(() => {
-    if (!menuOpenId) return;
-    function handler(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpenId(null);
-      }
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [menuOpenId]);
 
   // Chargement tickets
   const loadNotionTickets = useCallback(async () => {
@@ -389,22 +292,20 @@ export default function FeedbackWidget() {
       const data = await res.json();
       setNotionTickets(data.tickets ?? []);
     } catch (err) {
-      setTicketsError(err instanceof Error ? err.message : "Impossible de charger les tickets Notion.");
+      setTicketsError(
+        err instanceof Error ? err.message : "Impossible de charger les tickets Notion.",
+      );
     } finally {
       setLoadingTickets(false);
     }
   }, []);
 
-  // Charger à l'ouverture (une fois)
-  const hasLoadedOnce = useRef(false);
+  // Chargement initial une fois (déféré hors du corps synchrone de l'effet).
   useEffect(() => {
-    if (isOpen && !hasLoadedOnce.current) {
-      hasLoadedOnce.current = true;
-      loadNotionTickets();
-    }
-  }, [isOpen, loadNotionTickets]);
+    const id = requestAnimationFrame(() => loadNotionTickets());
+    return () => cancelAnimationFrame(id);
+  }, [loadNotionTickets]);
 
-  // Toast helper
   const showToast = useCallback((message: string, type: ToastType) => {
     setToast({ message, type });
     clearTimeout(toastTimer.current);
@@ -427,7 +328,10 @@ export default function FeedbackWidget() {
     const overlay = highlightRef.current;
 
     function moveOverlay(target: HTMLElement) {
-      if (target.closest("[data-feedback-widget]")) { overlay.classList.remove("fb-visible"); return; }
+      if (target.closest("[data-feedback-widget]")) {
+        overlay.classList.remove("fb-visible");
+        return;
+      }
       const rect = target.getBoundingClientRect();
       overlay.style.top = `${rect.top - 4}px`;
       overlay.style.left = `${rect.left - 4}px`;
@@ -435,7 +339,9 @@ export default function FeedbackWidget() {
       overlay.style.height = `${rect.height + 8}px`;
       overlay.classList.add("fb-visible");
     }
-    function onMouseOver(e: MouseEvent) { moveOverlay(e.target as HTMLElement); }
+    function onMouseOver(e: MouseEvent) {
+      moveOverlay(e.target as HTMLElement);
+    }
     function onMouseOut(e: MouseEvent) {
       if ((e.target as HTMLElement).closest("[data-feedback-widget]")) return;
       overlay.classList.remove("fb-visible");
@@ -450,14 +356,10 @@ export default function FeedbackWidget() {
       setPendingElementUrl(getElementUrl(target));
       setIsGeneralMode(false);
       setIsSelecting(false);
-      setView("form");
-      setIsOpen(true);
+      setFormOpen(true);
     }
     function onEsc(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setIsSelecting(false);
-        setIsOpen(true);
-      }
+      if (e.key === "Escape") setIsSelecting(false);
     }
     document.addEventListener("mouseover", onMouseOver, true);
     document.addEventListener("mouseout", onMouseOut, true);
@@ -474,64 +376,28 @@ export default function FeedbackWidget() {
     };
   }, [isSelecting]);
 
-  // Focus textarea quand on entre dans le form
   useEffect(() => {
-    if (view === "form" && pendingElement) setTimeout(() => textareaRef.current?.focus(), 80);
-  }, [view, pendingElement]);
+    if (formOpen && pendingElement) setTimeout(() => textareaRef.current?.focus(), 80);
+  }, [formOpen, pendingElement]);
 
-  // Actions
-  function startElementFeedback() {
-    setIsOpen(false);
+  // ── Actions (stables pour la mémoïsation du panneau toolbox) ──
+  const startElementFeedback = useCallback(() => {
     setIsSelecting(true);
-  }
+  }, []);
 
-  function startGeneralFeedback() {
+  const startGeneralFeedback = useCallback(() => {
     setPendingElement("Page entière");
     setPendingElementUrl(window.location.origin + window.location.pathname);
     setIsGeneralMode(true);
-    setView("form");
-  }
-
-  function openTickets() {
-    setView("tickets");
-    loadNotionTickets();
-  }
+    setFormOpen(true);
+  }, []);
 
   function selectAction(action: string) {
     setPendingAction(action);
     setActionError(false);
   }
-
   function selectEnd(end: string) {
     setPendingEnd((prev) => (prev === end ? "" : end));
-  }
-
-  function addFeedback() {
-    if (!pendingElement || !pendingText.trim()) return;
-    // Action n'est obligatoire que pour un feedback sur élément ciblé.
-    // En feedback général, on accepte un envoi sans Action (la propriété restera vide dans Notion).
-    if (!isGeneralMode && !pendingAction) { setActionError(true); return; }
-
-    const draft: Draft = {
-      id: editingId ?? crypto.randomUUID(),
-      element: pendingElement,
-      elementUrl: pendingElementUrl,
-      action: pendingAction,
-      end: pendingEnd,
-      page: getCurrentPage(),
-      text: pendingText.trim(),
-      timestamp: new Date().toISOString(),
-      isGeneral: isGeneralMode,
-    };
-
-    if (editingId) {
-      setDrafts((prev) => prev.map((d) => (d.id === editingId ? draft : d)));
-      setEditingId(null);
-    } else {
-      setDrafts((prev) => [...prev, draft]);
-    }
-    resetForm();
-    setView("hub");
   }
 
   function resetForm() {
@@ -544,14 +410,40 @@ export default function FeedbackWidget() {
     setIsGeneralMode(false);
   }
 
+  function addFeedback() {
+    if (!pendingElement || !pendingText.trim()) return;
+    if (!isGeneralMode && !pendingAction) {
+      setActionError(true);
+      return;
+    }
+    const draft: Draft = {
+      id: editingId ?? crypto.randomUUID(),
+      element: pendingElement,
+      elementUrl: pendingElementUrl,
+      action: pendingAction,
+      end: pendingEnd,
+      page: getCurrentPage(),
+      text: pendingText.trim(),
+      timestamp: new Date().toISOString(),
+      isGeneral: isGeneralMode,
+    };
+    if (editingId) {
+      setDrafts((prev) => prev.map((d) => (d.id === editingId ? draft : d)));
+      setEditingId(null);
+    } else {
+      setDrafts((prev) => [...prev, draft]);
+    }
+    resetForm();
+    setFormOpen(false);
+  }
+
   function cancelForm() {
     resetForm();
     setEditingId(null);
-    setView("hub");
+    setFormOpen(false);
   }
 
-  function startEdit(draft: Draft) {
-    setMenuOpenId(null);
+  const startEdit = useCallback((draft: Draft) => {
     setEditingId(draft.id);
     setPendingElement(draft.element);
     setPendingElementUrl(draft.elementUrl);
@@ -559,13 +451,12 @@ export default function FeedbackWidget() {
     setPendingEnd(draft.end);
     setPendingText(draft.text);
     setIsGeneralMode(!!draft.isGeneral);
-    setView("form");
-  }
+    setFormOpen(true);
+  }, []);
 
-  function requestDeleteDraft(id: string) {
-    setMenuOpenId(null);
+  const requestDeleteDraft = useCallback((id: string) => {
     setConfirmDeleteId(id);
-  }
+  }, []);
 
   function confirmDeleteDraft() {
     if (confirmDeleteId) {
@@ -574,26 +465,31 @@ export default function FeedbackWidget() {
     }
   }
 
-  async function deleteNotionTicket(notionId: string) {
-    setDeletingId(notionId);
-    setNotionTickets((prev) => prev.filter((t) => t.notionId !== notionId));
-    try {
-      const res = await fetch(`/api/tickets?id=${encodeURIComponent(notionId)}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
-    } catch {
-      showToast("Suppression échouée, rechargement...", "error");
-      await loadNotionTickets();
-    } finally {
-      setDeletingId(null);
-    }
-  }
+  const deleteNotionTicket = useCallback(
+    async (notionId: string) => {
+      setDeletingId(notionId);
+      setNotionTickets((prev) => prev.filter((t) => t.notionId !== notionId));
+      try {
+        const res = await fetch(`/api/tickets?id=${encodeURIComponent(notionId)}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) throw new Error();
+      } catch {
+        showToast("Suppression échouée, rechargement...", "error");
+        await loadNotionTickets();
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [showToast, loadNotionTickets],
+  );
 
   function handleFormKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) addFeedback();
     if (e.key === "Escape") cancelForm();
   }
 
-  async function sendAll() {
+  const sendAll = useCallback(async () => {
     if (drafts.length === 0 || isSending) return;
     setIsSending(true);
     try {
@@ -603,8 +499,13 @@ export default function FeedbackWidget() {
         body: JSON.stringify({
           sessionId: sessionId.current,
           feedbacks: drafts.map((d) => ({
-            element: d.element, elementUrl: d.elementUrl, action: d.action,
-            end: d.end, page: d.page, text: d.text, timestamp: d.timestamp,
+            element: d.element,
+            elementUrl: d.elementUrl,
+            action: d.action,
+            end: d.end,
+            page: d.page,
+            text: d.text,
+            timestamp: d.timestamp,
           })),
         }),
       });
@@ -616,7 +517,7 @@ export default function FeedbackWidget() {
           res.status === 207
             ? `${data.created} retour(s) envoyé(s), ${data.failed} non transmis`
             : "Retours envoyés avec succès",
-          res.status === 207 ? "partial" : "success"
+          res.status === 207 ? "partial" : "success",
         );
         await loadNotionTickets();
       } else {
@@ -627,350 +528,204 @@ export default function FeedbackWidget() {
     } finally {
       setIsSending(false);
     }
-  }
+  }, [drafts, isSending, showToast, loadNotionTickets]);
 
   const currentPlaceholder = PLACEHOLDERS[pendingAction] ?? PLACEHOLDERS.default;
 
-  const { theme } = useTheme();
-  function StatusBadge({ status }: { status: string }) {
-    const s = STATUS_COLORS[status] ?? { dot: "#9CA3AF", bg: "rgba(156,163,175,0.1)", textLight: "#6B7280", textDark: "#94a3b8", cssClass: styles.statusDefault };
-    return (
-      <span className={`${styles.statusBadge} ${s.cssClass}`} style={{ background: s.bg, color: theme === "dark" ? s.textDark : s.textLight }}>
-        <span className={styles.statusDot} style={{ background: s.dot }} />
-        {status}
-      </span>
-    );
-  }
+  // Enregistre la section retours dans le dropdown de la toolbox.
+  const feedbackPanel = useMemo(
+    () => (
+      <FeedbackToolboxPanel
+        onElement={startElementFeedback}
+        onGeneral={startGeneralFeedback}
+        drafts={drafts}
+        notionTickets={notionTickets}
+        loadingTickets={loadingTickets}
+        ticketsError={ticketsError}
+        deletingId={deletingId}
+        isSending={isSending}
+        onEditDraft={startEdit}
+        onDeleteDraft={requestDeleteDraft}
+        onSend={sendAll}
+        onRefreshTickets={loadNotionTickets}
+        onDeleteTicket={deleteNotionTicket}
+      />
+    ),
+    [
+      startElementFeedback,
+      startGeneralFeedback,
+      drafts,
+      notionTickets,
+      loadingTickets,
+      ticketsError,
+      deletingId,
+      isSending,
+      startEdit,
+      requestDeleteDraft,
+      sendAll,
+      loadNotionTickets,
+      deleteNotionTicket,
+    ],
+  );
+  useRegisterFeedbackTools(feedbackPanel);
 
-  // ── RENDER ────────────────────────────────────────────────────────────────
+  // ── RENDER : overlays uniquement ───────────────────────────────────────────
   return (
     <>
-      {/* Trigger */}
-      {!isOpen && !isSelecting && (
-        <div className={styles.triggerWrap} data-feedback-widget="true">
-          {showBubble && <div className={styles.bubble}>Tu as des retours ?</div>}
-          <button
-            className={styles.trigger}
-            onClick={() => { setIsOpen(true); setView("hub"); setShowBubble(false); }}
-            aria-label="Ouvrir l&apos;outil de retours"
-          >
-            <MessageSquarePlus size={24} strokeWidth={2} className={styles.triggerIcon} />
-          </button>
-        </div>
-      )}
-
-      {/* Modal */}
-      {isOpen && (
+      {/* Modale de saisie du retour */}
+      {formOpen && pendingElement && (
         <div
           data-feedback-widget="true"
           className={styles.backdrop}
-          onClick={(e) => { if (e.target === e.currentTarget) setIsOpen(false); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) cancelForm();
+          }}
         >
-          <div className={styles.modal} role="dialog" aria-label="Outil de retours">
-            {/* Header */}
+          <div className={styles.modal} role="dialog" aria-label="Saisie du retour">
             <div className={styles.modalHeader}>
-              {view !== "hub" && (
-                <button
-                  className={styles.backBtn}
-                  onClick={() => { resetForm(); setView("hub"); }}
-                  aria-label="Retour"
-                >
-                  <ArrowLeft size={16} />
-                </button>
-              )}
               <div className={styles.modalHeaderLeft}>
                 <div className={styles.avatarSmall} aria-hidden="true">
                   <MessageSquarePlus size={18} strokeWidth={2} />
                 </div>
                 <div>
                   <p className={styles.modalTitle}>
-                    {view === "hub" && "Outil de retours"}
-                    {view === "form" && (isGeneralMode ? "Feedback général" : (editingId ? "Modifier le retour" : "Nouveau retour"))}
-                    {view === "tickets" && "Retours envoyés"}
+                    {isGeneralMode
+                      ? "Feedback général"
+                      : editingId
+                        ? "Modifier le retour"
+                        : "Nouveau retour"}
                   </p>
                   <p className={styles.modalSub}>
-                    {view === "hub" && "Que veux-tu faire aujourd'hui ?"}
-                    {view !== "hub" && (typeof window !== "undefined" ? getCurrentPage() : "")}
+                    {typeof window !== "undefined" ? getCurrentPage() : ""}
                   </p>
                 </div>
               </div>
-              <button className={styles.closeBtn} onClick={() => setIsOpen(false)} aria-label="Fermer">
+              <button className={styles.closeBtn} onClick={cancelForm} aria-label="Fermer">
                 <X size={18} />
               </button>
             </div>
 
-            {/* Body */}
             <div className={styles.modalBody}>
-              {/* ──── HUB ──── */}
-              {view === "hub" && (
-                <div className={styles.hub}>
-                  <div className={styles.actionCards}>
-                    <button className={styles.actionCard} onClick={startElementFeedback}>
-                      <div className={`${styles.actionCardIcon} ${styles.iconBordeaux}`}>
-                        <MousePointer size={22} strokeWidth={1.5} />
-                      </div>
-                      <h3 className={styles.actionCardTitle}>Retour sur un élément</h3>
-                      <p className={styles.actionCardText}>
-                        Sélectionner précisément un bloc de la page et décrire ce qu&apos;il faut changer dessus.
-                      </p>
-                      <span className={styles.actionCardCta}>Sélectionner</span>
-                    </button>
+              <div className={styles.pendingForm}>
+                <div className={styles.pendingCover}>
+                  <span className={styles.pendingCoverEyebrow}>
+                    {isGeneralMode
+                      ? "Feedback général sur la page"
+                      : editingId
+                        ? "Modification"
+                        : "Bloc sélectionné"}
+                  </span>
+                  <p className={styles.pendingCoverName}>{pendingElement}</p>
+                  {pendingElementUrl && !isGeneralMode && (
+                    <a
+                      href={pendingElementUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.elementLink}
+                    >
+                      <ExternalLink size={11} />
+                      {pendingElementUrl.replace(window.location.origin, "")}
+                    </a>
+                  )}
+                </div>
 
-                    <button className={styles.actionCard} onClick={startGeneralFeedback}>
-                      <div className={`${styles.actionCardIcon} ${styles.iconBlue}`}>
-                        <Globe size={22} strokeWidth={1.5} />
-                      </div>
-                      <h3 className={styles.actionCardTitle}>Feedback général</h3>
-                      <p className={styles.actionCardText}>
-                        Remarque globale sur la page entière, sans cibler un élément précis (ex. favicon, ressenti global).
-                      </p>
-                      <span className={styles.actionCardCta}>Écrire</span>
-                    </button>
-                  </div>
-
-                  {/* Brouillons */}
-                  {drafts.length > 0 && (
-                    <div className={styles.listSection}>
-                      <p className={styles.listHeading}>
-                        Brouillons en attente <span className={styles.listCount}>{drafts.length}</span>
-                      </p>
-                      <ul className={styles.list}>
-                        {drafts.map((draft) => (
-                          <li key={draft.id} className={styles.feedbackItem}>
-                            <div className={styles.feedbackItemRow}>
-                              <span className={styles.actionTag}>
-                                {draft.isGeneral ? "Général" : draft.action}
-                              </span>
-                              {draft.end && <span className={styles.actionTag}>{draft.end}</span>}
-                              <div className={styles.draftMenu} ref={menuOpenId === draft.id ? menuRef : null}>
-                                <button
-                                  className={styles.menuTrigger}
-                                  onClick={() => setMenuOpenId(menuOpenId === draft.id ? null : draft.id)}
-                                  aria-label="Options"
-                                >
-                                  <MoreHorizontal size={14} />
-                                </button>
-                                {menuOpenId === draft.id && (
-                                  <div className={styles.menuDropdown}>
-                                    <button className={styles.menuItem} onClick={() => startEdit(draft)}>
-                                      <Pencil size={13} /> Modifier
-                                    </button>
-                                    <button
-                                      className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                                      onClick={() => requestDeleteDraft(draft.id)}
-                                    >
-                                      <Trash2 size={13} /> Supprimer
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <p className={styles.feedbackElement}>{draft.element}</p>
-                            {draft.elementUrl && !draft.isGeneral && (
-                              <a
-                                href={draft.elementUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={styles.elementLink}
-                              >
-                                <ExternalLink size={11} />
-                                {draft.elementUrl.replace(typeof window !== "undefined" ? window.location.origin : "", "")}
-                              </a>
-                            )}
-                            <ExpandableText text={draft.text} />
-                          </li>
-                        ))}
-                      </ul>
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>
+                    Type de modification {!isGeneralMode && <span aria-hidden="true">*</span>}
+                    {isGeneralMode && <span className={styles.fieldOptional}>(optionnel)</span>}
+                  </label>
+                  <div className={`${styles.actionPills} ${actionError ? styles.actionPillsError : ""}`}>
+                    {actionOptions.map((opt) => (
                       <button
-                        className={styles.sendBtn}
-                        onClick={sendAll}
-                        disabled={isSending}
-                        aria-busy={isSending}
+                        key={opt}
+                        type="button"
+                        className={`${styles.actionPill} ${pendingAction === opt ? styles.actionPillActive : ""}`}
+                        onClick={() => selectAction(opt)}
                       >
-                        {isSending ? "Envoi en cours..." : <><Send size={14} />Envoyer {drafts.length} retour{drafts.length > 1 ? "s" : ""}</>}
+                        {opt}
                       </button>
-                    </div>
-                  )}
-
-                  <button className={styles.viewTicketsBtn} onClick={openTickets}>
-                    <LayoutGrid size={14} />
-                    Voir mes retours envoyés
-                    {notionTickets.length > 0 && (
-                      <span className={`${styles.listCount} ${styles.listCountNotion}`}>{notionTickets.length}</span>
-                    )}
-                  </button>
-                </div>
-              )}
-
-              {/* ──── FORM ──── */}
-              {view === "form" && pendingElement && (
-                <div className={styles.pendingForm}>
-                  <div className={styles.pendingCover}>
-                    <span className={styles.pendingCoverEyebrow}>
-                      {isGeneralMode ? "Feedback général sur la page" : editingId ? "Modification" : "Bloc sélectionné"}
-                    </span>
-                    <p className={styles.pendingCoverName}>{pendingElement}</p>
-                    {pendingElementUrl && !isGeneralMode && (
-                      <a
-                        href={pendingElementUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={styles.elementLink}
-                      >
-                        <ExternalLink size={11} />
-                        {pendingElementUrl.replace(window.location.origin, "")}
-                      </a>
-                    )}
+                    ))}
                   </div>
-
-                  <div className={styles.field}>
-                    <label className={styles.fieldLabel}>
-                      Type de modification {!isGeneralMode && <span aria-hidden="true">*</span>}
-                      {isGeneralMode && <span className={styles.fieldOptional}>(optionnel)</span>}
-                    </label>
-                    <div className={`${styles.actionPills} ${actionError ? styles.actionPillsError : ""}`}>
-                      {actionOptions.map((opt) => (
-                        <button
-                          key={opt}
-                          type="button"
-                          className={`${styles.actionPill} ${pendingAction === opt ? styles.actionPillActive : ""}`}
-                          onClick={() => selectAction(opt)}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                    {actionError && !isGeneralMode && (
-                      <p className={styles.fieldError}>Sélectionnez un type de modification avant de continuer.</p>
-                    )}
-                  </div>
-
-                  <div className={styles.field}>
-                    <label className={styles.fieldLabel}>
-                      Côté concerné <span className={styles.fieldOptional}>(optionnel)</span>
-                    </label>
-                    <div className={styles.actionPills}>
-                      {endOptions.map((opt) => (
-                        <button
-                          key={opt}
-                          type="button"
-                          className={`${styles.actionPill} ${pendingEnd === opt ? styles.actionPillActive : ""}`}
-                          onClick={() => selectEnd(opt)}
-                          aria-pressed={pendingEnd === opt}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className={styles.field}>
-                    <label className={styles.fieldLabel}>
-                      Détail du retour <span aria-hidden="true">*</span>
-                    </label>
-                    <textarea
-                      ref={textareaRef}
-                      className={styles.textarea}
-                      placeholder={currentPlaceholder}
-                      value={pendingText}
-                      onChange={(e) => setPendingText(e.target.value)}
-                      onKeyDown={handleFormKeyDown}
-                      rows={6}
-                    />
-                    <span className={styles.fieldHint}>Cmd+Entrée pour ajouter au brouillon</span>
-                  </div>
-
-                  <div className={styles.pendingActions}>
-                    <button className={styles.cancelBtn} onClick={cancelForm}>Annuler</button>
-                    <button
-                      className={styles.addBtn}
-                      onClick={addFeedback}
-                      disabled={!pendingText.trim()}
-                    >
-                      {editingId ? "Mettre à jour" : "Ajouter au brouillon"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* ──── TICKETS ──── */}
-              {view === "tickets" && (
-                <div className={styles.ticketsView}>
-                  <div className={styles.listHeadingRow}>
-                    <p className={styles.listHeading}>
-                      Mes retours envoyés
-                      {!loadingTickets && notionTickets.length > 0 && (
-                        <span className={`${styles.listCount} ${styles.listCountNotion}`}>{notionTickets.length}</span>
-                      )}
+                  {actionError && !isGeneralMode && (
+                    <p className={styles.fieldError}>
+                      Sélectionnez un type de modification avant de continuer.
                     </p>
-                    <button
-                      className={styles.refreshBtn}
-                      onClick={loadNotionTickets}
-                      disabled={loadingTickets}
-                      aria-label="Rafraîchir"
-                      title="Rafraîchir"
-                    >
-                      <RefreshCw size={13} className={loadingTickets ? styles.spinning : ""} />
-                    </button>
-                  </div>
-
-                  {loadingTickets && notionTickets.length === 0 && (
-                    <p className={styles.loadingText}>Chargement des tickets...</p>
-                  )}
-                  {!loadingTickets && ticketsError && (
-                    <p className={styles.errorSmall}>{ticketsError}</p>
-                  )}
-                  {!loadingTickets && !ticketsError && notionTickets.length === 0 && (
-                    <p className={styles.emptySmall}>Aucun ticket dans Notion pour l&apos;instant.</p>
-                  )}
-
-                  {notionTickets.length > 0 && (
-                    <div className={styles.ticketsGrid}>
-                      {notionTickets.map((ticket) => (
-                        <div key={ticket.notionId} className={`${styles.feedbackItem} ${styles.notionItem}`}>
-                          <div className={styles.notionItemHeader}>
-                            <p className={styles.feedbackElement}>{ticket.element || "Sans titre"}</p>
-                            <button
-                              className={`${styles.menuTrigger} ${styles.menuTriggerDanger}`}
-                              onClick={() => deleteNotionTicket(ticket.notionId)}
-                              disabled={deletingId === ticket.notionId}
-                              aria-label="Supprimer ce ticket"
-                              title="Supprimer de Notion"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                          {ticket.text && <ExpandableText text={ticket.text} />}
-                          <div className={styles.notionItemFooter}>
-                            {ticket.action && <span className={styles.actionTag}>{ticket.action}</span>}
-                            <StatusBadge status={ticket.status} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* Confirmation suppression brouillon */}
-          {confirmDeleteId && (
-            <div className={styles.confirmOverlay} data-feedback-widget="true">
-              <div className={styles.confirmBox}>
-                <p className={styles.confirmTitle}>Supprimer ce brouillon ?</p>
-                <p className={styles.confirmText}>
-                  Ce retour sera supprimé définitivement et ne sera pas envoyé à Notion.
-                </p>
-                <div className={styles.confirmActions}>
-                  <button className={styles.cancelBtn} onClick={() => setConfirmDeleteId(null)}>Annuler</button>
-                  <button className={`${styles.addBtn} ${styles.confirmDeleteBtn}`} onClick={confirmDeleteDraft}>
-                    Supprimer
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>
+                    Côté concerné <span className={styles.fieldOptional}>(optionnel)</span>
+                  </label>
+                  <div className={styles.actionPills}>
+                    {endOptions.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        className={`${styles.actionPill} ${pendingEnd === opt ? styles.actionPillActive : ""}`}
+                        onClick={() => selectEnd(opt)}
+                        aria-pressed={pendingEnd === opt}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>
+                    Détail du retour <span aria-hidden="true">*</span>
+                  </label>
+                  <textarea
+                    ref={textareaRef}
+                    className={styles.textarea}
+                    placeholder={currentPlaceholder}
+                    value={pendingText}
+                    onChange={(e) => setPendingText(e.target.value)}
+                    onKeyDown={handleFormKeyDown}
+                    rows={6}
+                  />
+                  <span className={styles.fieldHint}>Cmd+Entrée pour ajouter au brouillon</span>
+                </div>
+
+                <div className={styles.pendingActions}>
+                  <button className={styles.cancelBtn} onClick={cancelForm}>
+                    Annuler
+                  </button>
+                  <button
+                    className={styles.addBtn}
+                    onClick={addFeedback}
+                    disabled={!pendingText.trim()}
+                  >
+                    {editingId ? "Mettre à jour" : "Ajouter au brouillon"}
                   </button>
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation suppression brouillon (déclenchée depuis la toolbox) */}
+      {confirmDeleteId && (
+        <div className={styles.confirmOverlay} data-feedback-widget="true">
+          <div className={styles.confirmBox}>
+            <p className={styles.confirmTitle}>Supprimer ce brouillon ?</p>
+            <p className={styles.confirmText}>
+              Ce retour sera supprimé définitivement et ne sera pas envoyé à Notion.
+            </p>
+            <div className={styles.confirmActions}>
+              <button className={styles.cancelBtn} onClick={() => setConfirmDeleteId(null)}>
+                Annuler
+              </button>
+              <button
+                className={`${styles.addBtn} ${styles.confirmDeleteBtn}`}
+                onClick={confirmDeleteDraft}
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -979,13 +734,17 @@ export default function FeedbackWidget() {
         <div data-feedback-widget="true" className={styles.selectionHint}>
           <MousePointer size={13} />
           Cliquez sur un élément pour l&apos;annoter
-          <button onClick={() => { setIsSelecting(false); setIsOpen(true); }}>Annuler</button>
+          <button onClick={() => setIsSelecting(false)}>Annuler</button>
         </div>
       )}
 
       {/* Toast */}
       {toast && (
-        <div data-feedback-widget="true" className={`${styles.toast} ${styles[`toast_${toast.type}`]}`} role="alert">
+        <div
+          data-feedback-widget="true"
+          className={`${styles.toast} ${styles[`toast_${toast.type}`]}`}
+          role="alert"
+        >
           {toast.message}
         </div>
       )}

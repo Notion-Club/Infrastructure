@@ -11,6 +11,7 @@ import {
   useProfileIdentityContext,
 } from "@/shared/components/identity/ProfileIdentityProvider";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
+import { DevToolboxButton } from "@/shared/components/dev/DevToolbox";
 
 const UNREAD_COUNT = 2;
 
@@ -59,6 +60,10 @@ export function MobileTopActions() {
         willChange: "transform",
       }}
     >
+      {/* Toolbox « état dev » — visible seulement si la page a enregistré un
+          panneau d'options dev. */}
+      <DevToolboxButton size={38} floating />
+
       {/* Notifications */}
       <button
         type="button"

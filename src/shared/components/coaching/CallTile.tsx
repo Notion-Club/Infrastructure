@@ -11,8 +11,10 @@
 // `host_avatar_url`) — jamais hardcodés.
 
 import { useState } from "react";
+import { RefreshCw } from "lucide-react";
 import type { CallCardData } from "@/shared/lib/mock/coaching";
 import { CallDetailModal } from "@/shared/components/coaching/CallDetailModal";
+import { HostAvatar } from "@/shared/components/coaching/HostAvatar";
 
 // Couleurs de fallback des initiales quand Notion n'a pas de photo de profil.
 const HOST_FALLBACK: Record<string, { initials: string; bg: string }> = {
@@ -32,6 +34,12 @@ function formatDateLong(iso: string): string {
   return datePart.charAt(0).toUpperCase() + datePart.slice(1);
 }
 
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
 function getUpcomingLabel(iso: string): string {
   const diffDays = Math.ceil(
     (new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
@@ -45,9 +53,16 @@ interface CallTileProps {
   call: CallCardData;
   variant: "past" | "upcoming";
   archived?: boolean;
+  // Ouvre le pop-up Fillout de replanification / annulation (upcoming only).
+  onReschedule?: (url: string) => void;
 }
 
-export function CallTile({ call, variant, archived = false }: CallTileProps) {
+export function CallTile({
+  call,
+  variant,
+  archived = false,
+  onReschedule,
+}: CallTileProps) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [hovered, setHovered] = useState(false);
 
@@ -81,7 +96,7 @@ export function CallTile({ call, variant, archived = false }: CallTileProps) {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
-          background: "var(--color-surface-card)",
+          background: "var(--nc-tile-bg)",
           border: `1px solid ${
             hovered && clickable
               ? "rgba(224,98,90,0.28)"
@@ -91,28 +106,91 @@ export function CallTile({ call, variant, archived = false }: CallTileProps) {
           padding: "16px 18px",
           opacity: archived ? 0.78 : 1,
           cursor: clickable ? "pointer" : "default",
-          transform: hovered && clickable ? "translateY(-2px)" : "translateY(0)",
+          // Pas de surélévation : seulement le halo de lumière brand aux coins.
           boxShadow:
             hovered && clickable
-              ? "0 6px 24px rgba(224,98,90,0.10), 0 1px 3px rgba(0,0,0,0.04)"
+              ? "0 0 0 1px rgba(224,98,90,0.16), 0 8px 28px rgba(224,98,90,0.12)"
               : "none",
           transition:
-            "transform 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease), border-color 200ms var(--nc-ease)",
+            "box-shadow 200ms var(--nc-ease), border-color 200ms var(--nc-ease)",
         }}
       >
-        <h3
-          data-fb-label="Titre · Tuile appel"
+        {/* Ligne titre : sujet + pill « Dans X jours » + bouton replanifier */}
+        <div
           style={{
-            fontSize: 15,
-            fontWeight: 700,
-            color: "var(--color-text-primary)",
-            margin: 0,
-            lineHeight: 1.3,
-            letterSpacing: "-0.01em",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 8,
           }}
         >
-          {call.subject}
-        </h3>
+          <h3
+            data-fb-label="Titre · Tuile appel"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              fontSize: 15,
+              fontWeight: 700,
+              color: "var(--color-text-primary)",
+              margin: 0,
+              lineHeight: 1.3,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {call.subject}
+          </h3>
+
+          {/* Pill date relative — sur la ligne du titre (vue à venir) */}
+          {isUpcoming && (
+            <span
+              data-fb-label="Pill date relative · Tuile appel"
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--color-brand)",
+                background: "rgba(224,98,90,0.08)",
+                borderRadius: 9999,
+                padding: "3px 9px",
+                flexShrink: 0,
+                whiteSpace: "nowrap",
+                marginTop: 1,
+              }}
+            >
+              {getUpcomingLabel(call.date)}
+            </span>
+          )}
+
+          {/* Bouton replanifier / annuler — coin haut droite */}
+          {isUpcoming && call.reschedule_url && onReschedule && (
+            <button
+              type="button"
+              aria-label="Replanifier ou annuler ce rendez-vous"
+              title="Replanifier ou annuler"
+              data-fb-label="Bouton Replanifier · Tuile appel"
+              onClick={(e) => {
+                e.stopPropagation();
+                onReschedule(call.reschedule_url!);
+              }}
+              style={{
+                flexShrink: 0,
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                border: "1px solid var(--color-border-default)",
+                background: "var(--color-surface-card)",
+                color: "var(--color-text-muted)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition:
+                  "background 150ms ease, border-color 150ms ease, color 150ms ease",
+              }}
+              className="hover:border-[rgba(224,98,90,0.35)] hover:bg-[rgba(224,98,90,0.06)] hover:text-[var(--color-brand)]"
+            >
+              <RefreshCw size={15} />
+            </button>
+          )}
+        </div>
 
         <div
           style={{
@@ -130,52 +208,19 @@ export function CallTile({ call, variant, archived = false }: CallTileProps) {
               lineHeight: 1,
             }}
           >
-            {formatDateLong(call.date)} avec
+            {formatDateLong(call.date)}
+            {isUpcoming ? ` à ${formatTime(call.date)}` : ""} avec
           </span>
 
-          {/* Avatar coach — photo Notion si dispo, sinon initiales colorées */}
-          <div
-            data-fb-label="Avatar coach · Tuile appel"
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: "50%",
-              background: fallback.bg,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              overflow: "hidden",
-            }}
-          >
-            {call.host_avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={call.host_avatar_url}
-                alt={call.host}
-                width={22}
-                height={22}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                }}
-              />
-            ) : (
-              <span
-                style={{
-                  fontSize: 8,
-                  fontWeight: 700,
-                  color: "#fff",
-                  letterSpacing: "0.02em",
-                  lineHeight: 1,
-                }}
-              >
-                {fallback.initials}
-              </span>
-            )}
-          </div>
+          {/* Avatar coach — skeleton → reveal pendant le chargement photo */}
+          <HostAvatar
+            url={call.host_avatar_url}
+            initials={fallback.initials}
+            bg={fallback.bg}
+            size={22}
+            alt={call.host}
+            fbLabel="Avatar coach · Tuile appel"
+          />
 
           <span
             style={{
@@ -187,24 +232,6 @@ export function CallTile({ call, variant, archived = false }: CallTileProps) {
           >
             {call.host}
           </span>
-
-          {/* Pill date relative — uniquement vue « à venir » */}
-          {isUpcoming && (
-            <span
-              data-fb-label="Pill date relative · Tuile appel"
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "var(--color-brand)",
-                background: "rgba(224,98,90,0.08)",
-                borderRadius: 9999,
-                padding: "2px 9px",
-                flexShrink: 0,
-              }}
-            >
-              {getUpcomingLabel(call.date)}
-            </span>
-          )}
         </div>
       </div>
 

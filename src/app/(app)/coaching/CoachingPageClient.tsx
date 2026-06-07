@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 
-import { DevStateSwitcher } from "@/shared/components/coaching/DevStateSwitcher";
+import { useRegisterDevTools } from "@/shared/components/dev/DevToolbox";
+import { CoachingDevTools } from "@/shared/components/coaching/CoachingDevTools";
 import {
   CoachingHeroBanner,
   type HeroButtonConfig,
 } from "@/shared/components/coaching/CoachingHeroBanner";
 import { CoachingHistory } from "@/shared/components/coaching/CoachingHistory";
 import { EmptyCallsState } from "@/shared/components/coaching/EmptyCallsState";
-import { FreeTeaserPanel } from "@/shared/components/coaching/FreeTeaserPanel";
+import { UpcomingEmptyState } from "@/shared/components/coaching/UpcomingEmptyState";
 import { FilloutModal } from "@/shared/components/coaching/FilloutModal";
 import { type UserState, type CallCardData } from "@/shared/lib/mock/coaching";
 import { FILLOUT_URLS } from "@/shared/lib/mock/fillout";
@@ -239,6 +241,77 @@ export default function CoachingPageClient({
   const [preparing, setPreparing] = useState(false);
   const [userInfo, setUserInfo] = useState<PrefillUserInfo>(EMPTY_USER_INFO);
 
+  const router = useRouter();
+  // Incrémenté à la confirmation d'une réservation → bascule l'historique sur
+  // l'onglet « à venir ».
+  const [focusUpcomingNonce, setFocusUpcomingNonce] = useState(0);
+  // Vrai pendant la fenêtre de synchro Fillout → Notion → skeleton shimmer.
+  const [bookingPending, setBookingPending] = useState(false);
+  // Vrai quand le pop-up courant est une replanification (confirmation par
+  // redirection → fermeture auto sur navigation iframe).
+  const [modalNavigateClose, setModalNavigateClose] = useState(false);
+  const refreshTimersRef = useRef<number[]>([]);
+  const pendingTimerRef = useRef<number | null>(null);
+
+  // « Crawler » : à la confirmation, on rafraîchit la page (re-fetch Notion)
+  // plusieurs fois espacées pour laisser le temps à Fillout de synchroniser le
+  // changement (nouvel appel, date replanifiée, annulation).
+  const runRefreshCrawler = useCallback(() => {
+    router.refresh();
+    refreshTimersRef.current.forEach((t) => window.clearTimeout(t));
+    // Fenêtre large : la synchro Fillout → Notion peut prendre plusieurs
+    // dizaines de secondes avant que la query ne reflète le changement.
+    refreshTimersRef.current = [3000, 6000, 10000, 15000, 22000, 30000].map((d) =>
+      window.setTimeout(() => router.refresh(), d),
+    );
+  }, [router]);
+
+  const handleBookingConfirmed = useCallback(() => {
+    setFocusUpcomingNonce((n) => n + 1);
+    runRefreshCrawler();
+
+    // Le skeleton d'attente n'a de sens que pour une vraie réservation : on
+    // attend qu'une carte APPARAISSE. Une replanification / annulation
+    // (`modalNavigateClose`) attend au contraire une mise à jour ou un RETRAIT
+    // → pas de skeleton, sinon il masque l'état vide « Aucun appel n'est prévu »
+    // pendant toute la fenêtre de synchro après une annulation.
+    if (modalNavigateClose) return;
+    setBookingPending(true);
+    // Au-delà de la fenêtre, on arrête le skeleton (l'état vide reprend si rien
+    // n'est arrivé). Le skeleton disparaît de toute façon dès qu'un appel
+    // apparaît (la grille prend le dessus).
+    if (pendingTimerRef.current) window.clearTimeout(pendingTimerRef.current);
+    pendingTimerRef.current = window.setTimeout(
+      () => setBookingPending(false),
+      33000,
+    );
+  }, [runRefreshCrawler, modalNavigateClose]);
+
+  // Ouvre le pop-up de replanification / annulation avec l'URL Notion de
+  // l'appel (lien Fillout / TidyCal) — même système de fermeture auto, plus la
+  // fermeture sur navigation (la confirmation de replanif est une redirection).
+  const openRescheduleModal = useCallback((url: string) => {
+    setUserInfo(EMPTY_USER_INFO);
+    setModalUrl(url);
+    setModalNavigateClose(true);
+    setModalOpen(true);
+  }, []);
+
+  // Filet de sécurité : à chaque fermeture du pop-up (auto ou manuelle), on
+  // rafraîchit une fois — si la détection de soumission a échoué mais que
+  // l'utilisateur a bien réservé puis fermé, l'appel apparaîtra quand même.
+  const handleModalClose = useCallback(() => {
+    setModalOpen(false);
+    router.refresh();
+  }, [router]);
+
+  useEffect(() => {
+    return () => {
+      refreshTimersRef.current.forEach((t) => window.clearTimeout(t));
+      if (pendingTimerRef.current) window.clearTimeout(pendingTimerRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     // setState via microtask : sort du corps synchrone de l'effect (eslint
     // react-hooks/set-state-in-effect) tout en restant immédiat à l'usage.
@@ -254,13 +327,23 @@ export default function CoachingPageClient({
     };
   }, []);
 
-  function handleStateChange(state: UserState) {
+  const handleStateChange = useCallback((state: UserState) => {
     setUserState(state);
     localStorage.setItem(STORAGE_KEY, state);
-  }
+  }, []);
+
+  // Enregistre le panneau d'outils dev (toggles des 6 états) dans la toolbox
+  // de la barre de navigation. Mémoïsé pour ne pas ré-enregistrer à chaque
+  // render. DEV ONLY — à retirer au branchement backend.
+  const devPanel = useMemo(
+    () => <CoachingDevTools current={userState} onChange={handleStateChange} />,
+    [userState, handleStateChange],
+  );
+  useRegisterDevTools(devPanel);
 
   async function openModal(url: string) {
     if (preparing) return;
+    setModalNavigateClose(false);
     setPreparing(true);
     try {
       const result = await ensureNotionMemberPage();
@@ -389,14 +472,21 @@ export default function CoachingPageClient({
       ? nextCall
       : undefined;
 
+  // L'utilisateur peut réserver tant que le CTA de la bannière est actif.
+  const canBook = !button.disabled;
+
   const allCallsEmpty =
     historyConfig.upcomingCalls.length === 0 &&
     historyConfig.pastCalls.length === 0;
 
-  // Slot 2 : teaser Free / état vide / historique.
+  // Slot 2 :
+  //  - free / formation_0_calls : liste vide par nature → état « Aucun appel à
+  //    venir » (titre + skeleton, même design que le chargement transcription)
+  //  - aucun appel du tout (accompagnement) → état vide « eyes »
+  //  - sinon → historique (switcher passés / à venir)
   let slot2: React.ReactNode;
-  if (userState === "free") {
-    slot2 = <FreeTeaserPanel />;
+  if (userState === "free" || userState === "formation_0_calls") {
+    slot2 = <UpcomingEmptyState eligible={canBook} />;
   } else if (allCallsEmpty) {
     slot2 = <EmptyCallsState />;
   } else {
@@ -406,33 +496,35 @@ export default function CoachingPageClient({
         upcomingCalls={historyConfig.upcomingCalls}
         showUpcoming={historyConfig.showUpcoming}
         archived={historyConfig.archived}
+        eligible={canBook}
+        focusUpcomingNonce={focusUpcomingNonce}
+        bookingPending={bookingPending}
+        onReschedule={openRescheduleModal}
       />
     );
   }
 
   return (
     <>
-      <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
-        <main style={{ position: "relative", zIndex: 1 }}>
-          {/* DEV ONLY — à retirer au branchement backend */}
-          <div
-            className="pt-[84px] md:pt-[88px]"
-            style={{ position: "sticky", top: 0, zIndex: 39 }}
-          >
-            <DevStateSwitcher
-              currentState={userState}
-              onChange={handleStateChange}
-            />
-          </div>
-
+      {/* Hauteur fixe sur desktop : l'encadré occupe l'espace dispo sous la
+          topbar et le Slot 2 scrolle en interne (la taille de l'encadré ne
+          grandit pas avec le nombre d'appels). Sur mobile : flux naturel. */}
+      <div
+        className="nc-page-halo md:flex md:flex-col"
+        style={{ minHeight: "100dvh" }}
+      >
+        <main
+          className="md:flex md:flex-1 md:min-h-0"
+          style={{ position: "relative", zIndex: 1 }}
+        >
           {/* Contenu principal */}
           <div
-            className="px-4 pt-6 pb-[100px] md:px-10 md:pt-8 md:pb-12"
+            className="px-4 pt-[80px] pb-[88px] md:px-10 md:pt-[104px] md:pb-8 w-full md:flex md:flex-col md:min-h-0"
             style={{ maxWidth: 1100, margin: "0 auto" }}
           >
             {/* Encadré global unique — Slot 1 (bannière) + Slot 2 (historique) */}
             <div
-              className="nc-mode-in"
+              className="nc-mode-in md:flex md:flex-col md:flex-1 md:min-h-0"
               data-fb-label="Encadré global · Coaching"
               style={{
                 background: "var(--color-surface-card)",
@@ -442,17 +534,24 @@ export default function CoachingPageClient({
                 padding: 14,
               }}
             >
-              {/* Slot 1 — Bannière HERO */}
-              <CoachingHeroBanner
-                title={heroStatic.title}
-                description={description}
-                accroche={accroche}
-                button={button}
-                nextCall={heroNextCall}
-              />
+              {/* Slot 1 — Bannière HERO (hauteur fixe) */}
+              <div style={{ flexShrink: 0 }}>
+                <CoachingHeroBanner
+                  title={heroStatic.title}
+                  description={description}
+                  accroche={accroche}
+                  button={button}
+                  nextCall={heroNextCall}
+                />
+              </div>
 
-              {/* Slot 2 — Historique / teaser / état vide */}
-              <div style={{ padding: "20px 10px 8px" }}>{slot2}</div>
+              {/* Slot 2 — Historique / teaser / état vide (scroll interne) */}
+              <div
+                className="md:flex-1 md:min-h-0 md:overflow-y-auto"
+                style={{ padding: "20px 10px 8px" }}
+              >
+                {slot2}
+              </div>
             </div>
           </div>
         </main>
@@ -461,7 +560,9 @@ export default function CoachingPageClient({
       {/* Fillout modal — hors de nc-page-halo */}
       <FilloutModal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={handleModalClose}
+        onSubmitted={handleBookingConfirmed}
+        autoCloseOnNavigate={modalNavigateClose}
         baseUrl={modalUrl}
         id={userInfo.id}
         mail={userInfo.mail}

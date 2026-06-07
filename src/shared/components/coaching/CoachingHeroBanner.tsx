@@ -53,16 +53,23 @@ export function CoachingHeroBanner({
         overflow: "hidden",
         padding: "28px 24px",
         borderRadius: 20,
-        // Fond brand-tinté très léger + glow renforcé au hover.
+        // Verre dépoli : halo brand (coin haut-gauche) + voile blanc neutre
+        // (évite la teinte verte perçue à côté du rouge) + surface translucide.
+        // Pas de `saturate` : il intensifiait le rouge et faisait ressortir sa
+        // complémentaire verte dans la zone neutre.
         background:
-          "radial-gradient(120% 140% at 0% 0%, rgba(224,98,90,0.07), transparent 55%), var(--color-surface-card)",
-        border: "1px solid var(--color-border-default)",
+          "radial-gradient(130% 150% at 0% 0%, rgba(224,98,90,0.10), transparent 56%)," +
+          " linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05))," +
+          " var(--nc-glass-bg)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        border: "1px solid var(--nc-glass-border)",
+        // Reflet interne (glass) + halo de lumière brand aux coins au hover.
+        // Pas de surélévation.
         boxShadow: hovered
-          ? "0 0 0 3px rgba(224,98,90,0.16), 0 12px 40px rgba(224,98,90,0.14)"
-          : "var(--nc-shadow-2)",
-        transform: hovered ? "translateY(-2px)" : "translateY(0)",
-        transition:
-          "box-shadow 320ms var(--nc-ease), transform 320ms var(--nc-ease)",
+          ? "var(--nc-glass-highlight), 0 0 0 1px rgba(224,98,90,0.18), 0 12px 40px rgba(224,98,90,0.16)"
+          : "var(--nc-glass-highlight), var(--nc-shadow-2)",
+        transition: "box-shadow 320ms var(--nc-ease)",
       }}
       className="md:!px-9 md:!py-8"
     >
