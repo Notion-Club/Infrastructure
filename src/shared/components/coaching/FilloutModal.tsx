@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
 import { buildFilloutUrl } from "@/shared/lib/fillout/url";
 
@@ -10,6 +10,11 @@ interface FilloutModalProps {
   // Appelé une fois le formulaire soumis (page de remerciement Fillout
   // détectée) — sert à rafraîchir la liste des appels à venir.
   onSubmitted?: () => void;
+  // Pour les liens de replanification / annulation : la confirmation est
+  // souvent atteinte par REDIRECTION (l'iframe recharge) plutôt que par un
+  // event de soumission. On déclenche alors la fermeture auto sur le 2e `load`
+  // de l'iframe (la page de confirmation).
+  autoCloseOnNavigate?: boolean;
   baseUrl: string;
   id: string | null;
   mail: string | null;
@@ -26,24 +31,37 @@ const AUTO_CLOSE_MS = 2500;
 // l'event de soumission Fillout (à repasser à false une fois calé).
 const FILLOUT_DEBUG = true;
 
-// Recherche en profondeur une valeur de hauteur dans le payload (clé contenant
-// « height »), quel que soit le niveau d'imbrication — le format Fillout varie
-// selon les versions de l'embed.
+// Recherche une valeur de hauteur dans le payload, quel que soit le format de
+// l'embed :
+//   1. en priorité, un nombre sous une clé contenant « height » ;
+//   2. à défaut, si le message porte un indice de taille (type/clé/texte avec
+//      height/resize/size), on prend le plus grand nombre plausible du payload.
 function extractHeight(data: unknown): number | null {
-  let best: number | null = null;
+  let heightKeyed: number | null = null;
+  let sizeHint = false;
+  const numbers: number[] = [];
+
   const visit = (node: unknown, keyHint: string, depth: number) => {
-    if (depth > 4 || node == null) return;
-    const isHeightKey = /height/i.test(keyHint);
+    if (depth > 5 || node == null) return;
     if (typeof node === "number") {
-      if (isHeightKey && Number.isFinite(node) && node > 0) {
-        best = best == null ? node : Math.max(best, node);
+      if (Number.isFinite(node) && node > 0) {
+        numbers.push(node);
+        if (/height/i.test(keyHint)) {
+          heightKeyed = heightKeyed == null ? node : Math.max(heightKeyed, node);
+        }
       }
       return;
     }
     if (typeof node === "string") {
-      if (isHeightKey && /^\d+(\.\d+)?$/.test(node)) {
+      if (/height|resize|size/i.test(keyHint) || /height|resize/i.test(node)) {
+        sizeHint = true;
+      }
+      if (/height/i.test(keyHint) && /^\d+(\.\d+)?$/.test(node)) {
         const n = parseFloat(node);
-        if (n > 0) best = best == null ? n : Math.max(best, n);
+        if (n > 0) {
+          numbers.push(n);
+          heightKeyed = heightKeyed == null ? n : Math.max(heightKeyed, n);
+        }
       }
       return;
     }
@@ -54,7 +72,13 @@ function extractHeight(data: unknown): number | null {
     }
   };
   visit(data, "", 0);
-  return best;
+
+  if (heightKeyed != null) return heightKeyed;
+  if (sizeHint) {
+    const plausible = numbers.filter((n) => n >= 120 && n <= 20000);
+    if (plausible.length) return Math.max(...plausible);
+  }
+  return null;
 }
 
 // Détection défensive de l'événement « formulaire soumis » émis par Fillout.
@@ -74,7 +98,10 @@ function isSubmissionMessage(raw: unknown): boolean {
   }
   if (!s) return false;
 
-  const hasSubmit = /submit|thank\s*-?\s*you|thankyou|finished?|confirmation|success/i.test(s);
+  const hasSubmit =
+    /submit|thank\s*-?\s*you|thankyou|finished?|confirmation|confirmed|success|booked|scheduled|rescheduled|cancell?ed|annul/i.test(
+      s,
+    );
   if (!hasSubmit) return false;
 
   // Si c'est clairement un message de mesure/cycle de vie sans signal de
@@ -88,6 +115,7 @@ export function FilloutModal({
   isOpen,
   onClose,
   onSubmitted,
+  autoCloseOnNavigate = false,
   baseUrl,
   id,
   mail,
@@ -98,6 +126,38 @@ export function FilloutModal({
 
   const submittedRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
+  // Suivi des `load` de l'iframe + instant d'ouverture pour la fermeture sur
+  // navigation (réservation par redirection).
+  const loadCountRef = useRef(0);
+  const openedAtRef = useRef(0);
+
+  // Réinitialise le suivi de navigation à chaque ouverture.
+  useEffect(() => {
+    if (!isOpen) return;
+    loadCountRef.current = 0;
+    openedAtRef.current = Date.now();
+  }, [isOpen, baseUrl]);
+
+  // Confirmation détectée → laisse voir la page de remerciement native puis
+  // ferme automatiquement après le délai. Idempotent (submittedRef).
+  const triggerAutoClose = useCallback(() => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    onSubmitted?.();
+    closeTimerRef.current = window.setTimeout(() => {
+      onClose();
+    }, AUTO_CLOSE_MS);
+  }, [onClose, onSubmitted]);
+
+  // Fermeture sur navigation de l'iframe (2e `load` = page de confirmation)
+  // pour les liens de replanification atteints par redirection.
+  const handleIframeLoad = useCallback(() => {
+    loadCountRef.current += 1;
+    if (!autoCloseOnNavigate) return;
+    if (loadCountRef.current <= 1) return; // 1er load = la page initiale
+    if (Date.now() - openedAtRef.current < 1200) return; // ignore double-load initial
+    triggerAutoClose();
+  }, [autoCloseOnNavigate, triggerAutoClose]);
 
   // Close on Escape
   useEffect(() => {
@@ -135,21 +195,18 @@ export function FilloutModal({
       if (FILLOUT_DEBUG) {
         console.info("[FilloutModal] postMessage", e.origin, e.data);
       }
-      if (
-        typeof e.origin === "string" &&
-        !e.origin.toLowerCase().includes("fillout")
-      ) {
-        return;
-      }
+      // Pas de filtre d'origine strict : le pop-up sert aussi des liens de
+      // replanification non-Fillout (TidyCal, etc.) qui postent depuis d'autres
+      // domaines. On se fie au CONTENU du message (hauteur numérique / mots-clés
+      // de soumission) comme garde-fou — la modale n'est ouverte que pendant une
+      // réservation active, fenêtre où un message parasite est improbable.
       let data: unknown = e.data;
       if (typeof data === "string") {
         try {
           data = JSON.parse(data);
         } catch {
           // Message string non-JSON — peut quand même signaler une soumission.
-          if (!submittedRef.current && isSubmissionMessage(e.data)) {
-            handleSubmitted();
-          }
+          if (isSubmissionMessage(e.data)) triggerAutoClose();
           return;
         }
       }
@@ -157,19 +214,7 @@ export function FilloutModal({
       const h = extractHeight(data);
       if (h) setContentHeight(Math.ceil(h));
 
-      if (!submittedRef.current && isSubmissionMessage(data)) {
-        handleSubmitted();
-      }
-    }
-
-    function handleSubmitted() {
-      submittedRef.current = true;
-      // On laisse la page de remerciement native de Fillout visible, puis on
-      // ferme automatiquement après le délai.
-      onSubmitted?.();
-      closeTimerRef.current = window.setTimeout(() => {
-        onClose();
-      }, AUTO_CLOSE_MS);
+      if (isSubmissionMessage(data)) triggerAutoClose();
     }
 
     window.addEventListener("message", onMessage);
@@ -181,7 +226,7 @@ export function FilloutModal({
         closeTimerRef.current = null;
       }
     };
-  }, [isOpen, baseUrl, id, mail, prenom, nom, onClose, onSubmitted]);
+  }, [isOpen, baseUrl, id, mail, prenom, nom, triggerAutoClose]);
 
   if (!isOpen) return null;
 
@@ -215,7 +260,7 @@ export function FilloutModal({
           position: "relative",
           width: "100%",
           maxWidth: 700,
-          maxHeight: "90vh",
+          maxHeight: "94vh",
           background: "var(--color-surface-card)",
           borderRadius: 12,
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
@@ -233,6 +278,7 @@ export function FilloutModal({
           <iframe
             src={iframeUrl}
             frameBorder={0}
+            onLoad={handleIframeLoad}
             style={{
               display: "block",
               width: "100%",

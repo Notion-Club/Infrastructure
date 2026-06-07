@@ -247,6 +247,9 @@ export default function CoachingPageClient({
   const [focusUpcomingNonce, setFocusUpcomingNonce] = useState(0);
   // Vrai pendant la fenêtre de synchro Fillout → Notion → skeleton shimmer.
   const [bookingPending, setBookingPending] = useState(false);
+  // Vrai quand le pop-up courant est une replanification (confirmation par
+  // redirection → fermeture auto sur navigation iframe).
+  const [modalNavigateClose, setModalNavigateClose] = useState(false);
   const refreshTimersRef = useRef<number[]>([]);
   const pendingTimerRef = useRef<number | null>(null);
 
@@ -274,10 +277,12 @@ export default function CoachingPageClient({
   }, [router]);
 
   // Ouvre le pop-up de replanification / annulation avec l'URL Notion de
-  // l'appel (lien Fillout / TidyCal) — même système de fermeture auto.
+  // l'appel (lien Fillout / TidyCal) — même système de fermeture auto, plus la
+  // fermeture sur navigation (la confirmation de replanif est une redirection).
   const openRescheduleModal = useCallback((url: string) => {
     setUserInfo(EMPTY_USER_INFO);
     setModalUrl(url);
+    setModalNavigateClose(true);
     setModalOpen(true);
   }, []);
 
@@ -327,6 +332,7 @@ export default function CoachingPageClient({
 
   async function openModal(url: string) {
     if (preparing) return;
+    setModalNavigateClose(false);
     setPreparing(true);
     try {
       const result = await ensureNotionMemberPage();
@@ -545,6 +551,7 @@ export default function CoachingPageClient({
         isOpen={modalOpen}
         onClose={handleModalClose}
         onSubmitted={handleBookingConfirmed}
+        autoCloseOnNavigate={modalNavigateClose}
         baseUrl={modalUrl}
         id={userInfo.id}
         mail={userInfo.mail}
