@@ -4,13 +4,15 @@
 // jointe) et en dérive deux view-models compacts :
 //   - DashboardFormationData : pour FormationWidget (dernier cours accédé,
 //     progression du programme courant)
-//   - DashboardProfilData : pour ProfilWidget (niveau global dérivé du %
-//     agrégé sur toutes les formations accessibles)
+//   - DashboardProfilData : pour ProfilWidget (niveau global basé sur le
+//     nombre de modules entièrement complétés, agrégé sur toutes les
+//     formations accessibles)
 //
 // Décision : pas de table user_progression V1. Le "niveau" est calculé à la
-// volée depuis le % global. Si Théo veut un système de gamification plus
-// élaboré (badges, paliers persistés), on créera la table à ce moment.
+// volée. Système de niveau aligné sur la formule Notion historique de Théo :
+// 9 niveaux nommés indexés sur le nombre de modules entièrement terminés.
 
+import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 import { getAccessiblePrograms } from "./queries";
 import type { ProgramSummary } from "../types";
 
@@ -28,61 +30,60 @@ export interface DashboardFormationData {
   nextCourseLabel: string | null;
 }
 
+// Système de niveau aligné sur la formule Notion de Théo (octobre 2025) —
+// 9 niveaux nommés indexés sur le nombre de modules entièrement terminés
+// (= modules dont TOUS les cours sont en status "completed").
+//
+// Mapping modules terminés → niveau :
+//   0 ou 1 → Niveau 1 Débutant
+//   2 → Niveau 2 Explorateur
+//   3 → Niveau 3 Stratège
+//   4 → Niveau 4 Conquérant
+//   5 ou 6 → Niveau 5 Architecte
+//   7 → Niveau 6 Créateur de solutions
+//   8 → Niveau 7 Magicien de productivité
+//   9 → Niveau 8 Partenaire de confiance
+//   > 9 → Niveau 9 Expert Notion
+export type LevelLabel =
+  | "Débutant"
+  | "Explorateur"
+  | "Stratège"
+  | "Conquérant"
+  | "Architecte"
+  | "Créateur de solutions"
+  | "Magicien de productivité"
+  | "Partenaire de confiance"
+  | "Expert Notion";
+
 export interface DashboardProfilData {
-  // Niveau dérivé du % global agrégé.
-  level: number;
-  levelLabel: "Débutant" | "Intermédiaire" | "Expert";
-  nextLevelLabel: "Intermédiaire" | "Expert" | null;
-  // % de progression vers le prochain palier (0..100).
-  progressToNextLevel: number;
-  // Cours restants pour atteindre le prochain palier.
-  coursesRemaining: number;
-  totalCoursesAcrossAllPrograms: number;
-  completedCoursesAcrossAllPrograms: number;
-  // 'in_progress' si au moins un cours en cours, 'completed' si tout fini,
-  // 'not_started' si aucun cours touché.
+  level: number; // 1..9
+  levelLabel: LevelLabel;
+  // 'completed' si tous les modules terminés, 'not_started' si 0,
+  // 'in_progress' sinon.
   status: "not_started" | "in_progress" | "completed";
+  // Compteurs bruts pour la copie dynamique du widget.
+  modulesCompleted: number;
+  modulesTotal: number;
 }
 
-// Seuils niveau (à ajuster avec Théo si besoin) :
-//   - Niveau 1-5 = Débutant (0..50% du total accessible)
-//   - Niveau 6-9 = Intermédiaire (50..90%)
-//   - Niveau 10 = Expert (90..100%)
-function computeLevel(percent: number, completed: number) {
-  if (percent < 50) {
-    const level = Math.max(1, Math.ceil(percent / 10)); // 1..5
-    const nextThresholdPercent = level * 10;
-    return {
-      level,
-      levelLabel: "Débutant" as const,
-      nextLevelLabel: "Intermédiaire" as const,
-      progressToNextLevel: Math.round(
-        ((percent % 10) / 10) * 100,
-      ),
-      remainingPctToNextLevel: Math.max(0, nextThresholdPercent - percent),
-    };
-  }
-  if (percent < 90) {
-    const level = 5 + Math.max(1, Math.ceil((percent - 50) / 10)); // 6..9
-    const nextThresholdPercent = (level - 5) * 10 + 50;
-    return {
-      level,
-      levelLabel: "Intermédiaire" as const,
-      nextLevelLabel: "Expert" as const,
-      progressToNextLevel: Math.round(
-        (((percent - 50) % 10) / 10) * 100,
-      ),
-      remainingPctToNextLevel: Math.max(0, nextThresholdPercent - percent),
-    };
-  }
-  return {
-    level: 10,
-    levelLabel: "Expert" as const,
-    nextLevelLabel: null,
-    progressToNextLevel: 100,
-    remainingPctToNextLevel: 0,
-  };
-  void completed;
+// Mapping modules terminés → (niveau, label).
+// Reproduit fidèlement la formule Notion historique de Théo.
+function computeLevel(modulesCompleted: number): {
+  level: number;
+  levelLabel: LevelLabel;
+} {
+  if (modulesCompleted <= 1) return { level: 1, levelLabel: "Débutant" };
+  if (modulesCompleted === 2) return { level: 2, levelLabel: "Explorateur" };
+  if (modulesCompleted === 3) return { level: 3, levelLabel: "Stratège" };
+  if (modulesCompleted === 4) return { level: 4, levelLabel: "Conquérant" };
+  if (modulesCompleted <= 6) return { level: 5, levelLabel: "Architecte" };
+  if (modulesCompleted === 7)
+    return { level: 6, levelLabel: "Créateur de solutions" };
+  if (modulesCompleted === 8)
+    return { level: 7, levelLabel: "Magicien de productivité" };
+  if (modulesCompleted === 9)
+    return { level: 8, levelLabel: "Partenaire de confiance" };
+  return { level: 9, levelLabel: "Expert Notion" };
 }
 
 // Renvoie les données du FormationWidget. null si l'user n'a aucune formation
@@ -109,35 +110,92 @@ export async function getDashboardFormationData(): Promise<DashboardFormationDat
 
 // Renvoie les données du ProfilWidget agrégées sur TOUTES les formations
 // accessibles à l'user. null si l'user n'a aucune formation accessible.
+//
+// Un module est "terminé" quand TOUS ses cours sont en status "completed".
+// On compte les modules entièrement terminés sur l'ensemble des formations
+// accessibles à l'user (filtre via formation_access + capabilities), puis on
+// dérive le niveau via computeLevel().
 export async function getDashboardProfilData(): Promise<DashboardProfilData | null> {
   const programs = await getAccessiblePrograms();
   if (programs.length === 0) return null;
 
-  const total = programs.reduce((acc, p) => acc + p.totalCourses, 0);
-  const completed = programs.reduce((acc, p) => acc + p.completedCourses, 0);
-  const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const lvl = computeLevel(percent, completed);
+  // Récupère les ids des formations accessibles à l'user (via la même logique
+  // que getAccessiblePrograms — déjà filtré par capabilities + access mode).
+  const formationSlugs = programs.map((p) => p.slug);
+  const { data: formations } = await supabase
+    .from("formations")
+    .select("id")
+    .in("slug", formationSlugs);
+  const formationIds = (formations as { id: string }[] | null)?.map((f) => f.id) ?? [];
+
+  if (formationIds.length === 0) {
+    return {
+      level: 1,
+      levelLabel: "Débutant",
+      status: "not_started",
+      modulesCompleted: 0,
+      modulesTotal: 0,
+    };
+  }
+
+  // Charge tous les modules + cours des formations accessibles, ainsi que la
+  // progression complétée de l'user en une seule passe.
+  const [modulesRes, coursesRes, progressRes] = await Promise.all([
+    supabase
+      .from("formation_modules")
+      .select("id")
+      .in("formation_id", formationIds),
+    supabase
+      .from("formation_courses")
+      .select("id, module_id")
+      .in("formation_id", formationIds),
+    user
+      ? supabase
+          .from("formation_course_progress")
+          .select("course_id")
+          .eq("profile_id", user.id)
+          .eq("status", "completed")
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const moduleIds = (modulesRes.data as { id: string }[] | null)?.map((m) => m.id) ?? [];
+  const courses = (coursesRes.data as { id: string; module_id: string }[] | null) ?? [];
+  const completedCourseIds = new Set(
+    ((progressRes.data as { course_id: string }[] | null) ?? []).map(
+      (p) => p.course_id,
+    ),
+  );
+
+  // Pour chaque module, vérifie si TOUS ses cours sont complétés.
+  // Modules sans cours sont ignorés (ne comptent ni comme "terminé" ni dans
+  // le total — sinon un module vide serait toujours marqué terminé).
+  let modulesCompleted = 0;
+  let modulesTotal = 0;
+  for (const moduleId of moduleIds) {
+    const moduleCourses = courses.filter((c) => c.module_id === moduleId);
+    if (moduleCourses.length === 0) continue;
+    modulesTotal += 1;
+    const allDone = moduleCourses.every((c) => completedCourseIds.has(c.id));
+    if (allDone) modulesCompleted += 1;
+  }
+
+  const lvl = computeLevel(modulesCompleted);
 
   let status: DashboardProfilData["status"];
-  if (completed === 0) status = "not_started";
-  else if (completed >= total) status = "completed";
+  if (modulesCompleted === 0) status = "not_started";
+  else if (modulesCompleted >= modulesTotal) status = "completed";
   else status = "in_progress";
-
-  // Cours restants ≈ % restant vers le prochain palier × total / 100.
-  // Arrondi entier pour affichage "7 modules restants".
-  const coursesRemaining = Math.ceil(
-    (lvl.remainingPctToNextLevel * total) / 100,
-  );
 
   return {
     level: lvl.level,
     levelLabel: lvl.levelLabel,
-    nextLevelLabel: lvl.nextLevelLabel,
-    progressToNextLevel: lvl.progressToNextLevel,
-    coursesRemaining,
-    totalCoursesAcrossAllPrograms: total,
-    completedCoursesAcrossAllPrograms: completed,
     status,
+    modulesCompleted,
+    modulesTotal,
   };
 }
