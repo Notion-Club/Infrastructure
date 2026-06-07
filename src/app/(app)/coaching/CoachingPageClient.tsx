@@ -255,17 +255,28 @@ export default function CoachingPageClient({
 
   // « Crawler » : à la confirmation, on rafraîchit la page (re-fetch Notion)
   // plusieurs fois espacées pour laisser le temps à Fillout de synchroniser le
-  // nouvel appel, puis on montre l'onglet « à venir » où la carte apparaîtra.
-  const handleBookingConfirmed = useCallback(() => {
-    setFocusUpcomingNonce((n) => n + 1);
-    setBookingPending(true);
+  // changement (nouvel appel, date replanifiée, annulation).
+  const runRefreshCrawler = useCallback(() => {
     router.refresh();
     refreshTimersRef.current.forEach((t) => window.clearTimeout(t));
     // Fenêtre large : la synchro Fillout → Notion peut prendre plusieurs
-    // dizaines de secondes avant que l'appel n'apparaisse dans la query.
+    // dizaines de secondes avant que la query ne reflète le changement.
     refreshTimersRef.current = [3000, 6000, 10000, 15000, 22000, 30000].map((d) =>
       window.setTimeout(() => router.refresh(), d),
     );
+  }, [router]);
+
+  const handleBookingConfirmed = useCallback(() => {
+    setFocusUpcomingNonce((n) => n + 1);
+    runRefreshCrawler();
+
+    // Le skeleton d'attente n'a de sens que pour une vraie réservation : on
+    // attend qu'une carte APPARAISSE. Une replanification / annulation
+    // (`modalNavigateClose`) attend au contraire une mise à jour ou un RETRAIT
+    // → pas de skeleton, sinon il masque l'état vide « Aucun appel n'est prévu »
+    // pendant toute la fenêtre de synchro après une annulation.
+    if (modalNavigateClose) return;
+    setBookingPending(true);
     // Au-delà de la fenêtre, on arrête le skeleton (l'état vide reprend si rien
     // n'est arrivé). Le skeleton disparaît de toute façon dès qu'un appel
     // apparaît (la grille prend le dessus).
@@ -274,7 +285,7 @@ export default function CoachingPageClient({
       () => setBookingPending(false),
       33000,
     );
-  }, [router]);
+  }, [runRefreshCrawler, modalNavigateClose]);
 
   // Ouvre le pop-up de replanification / annulation avec l'URL Notion de
   // l'appel (lien Fillout / TidyCal) — même système de fermeture auto, plus la

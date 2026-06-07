@@ -99,7 +99,7 @@ function isSubmissionMessage(raw: unknown): boolean {
   if (!s) return false;
 
   const hasSubmit =
-    /submit|thank\s*-?\s*you|thankyou|finished?|confirmation|confirmed|success|booked|scheduled|rescheduled|cancell?ed|annul/i.test(
+    /submit|thank\s*-?\s*you|thankyou|finished?|confirmation|confirmed|success|booked|scheduled|rescheduled|cancell?ed|annul|meeting\s*(re)?scheduled|rendez[\s-]?vous|r[ée]serv|merci|termin[ée]/i.test(
       s,
     );
   if (!hasSubmit) return false;

@@ -18,7 +18,7 @@ interface UpcomingEmptyStateProps {
 
 export function UpcomingEmptyState({ eligible }: UpcomingEmptyStateProps) {
   return (
-    <div data-fb-label="Aucun appel à venir · Coaching">
+    <div className="nc-mode-in" data-fb-label="Aucun appel à venir · Coaching">
       {/* Titre + description centrés (gros titre focal, comme le chargement
           de transcription) */}
       <div style={{ textAlign: "center", padding: "16px 8px 0" }}>
