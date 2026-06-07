@@ -11,7 +11,7 @@ export default function CoachingLoading() {
     <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
       <main style={{ position: "relative", zIndex: 1 }}>
         <div
-          className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-12"
+          className="px-4 pt-[80px] pb-[88px] md:px-10 md:pt-[104px] md:pb-8"
           style={{ maxWidth: 1100, margin: "0 auto" }}
         >
           {/* Encadré global */}

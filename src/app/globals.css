@@ -126,6 +126,14 @@ html {
   --nc-nav-hover-bg: rgba(0, 0, 0, 0.04);
   --nc-segmented-active-bg: #ffffff;
   --nc-segmented-active-text: #000000;
+  /* Fond des tuiles posées sur une surface-card (tuiles d'appels, skeletons
+     d'aperçu) = fond de page. Via cette indirection, la valeur suit
+     automatiquement le thème (light/dark) sans override dédié. */
+  --nc-tile-bg: var(--color-surface-page);
+  /* Verre dépoli (bannière hero) — translucide + bord clair + reflet interne. */
+  --nc-glass-bg: rgba(255, 255, 255, 0.55);
+  --nc-glass-border: rgba(255, 255, 255, 0.65);
+  --nc-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
   /* Boutons CTA sombres — s'inversent en dark mode */
   --nc-btn-dark-bg: #1a1a1a;
   --nc-btn-dark-text: #ffffff;
@@ -526,6 +534,386 @@ html {
   animation: nc-mode-in var(--nc-duration-normal) var(--nc-ease) both;
 }
 
+/* ── Dropdown (transitions.dev) — toolbox dev & menus ────────────────────── */
+:root {
+  --dropdown-open-dur: 250ms;
+  --dropdown-close-dur: 150ms;
+  --dropdown-pre-scale: 0.97;
+  --dropdown-closing-scale: 0.99;
+  --dropdown-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.t-dropdown {
+  transform-origin: top left;
+  transform: scale(var(--dropdown-pre-scale));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--dropdown-open-dur) var(--dropdown-ease),
+    opacity var(--dropdown-open-dur) var(--dropdown-ease);
+  will-change: transform, opacity;
+}
+.t-dropdown[data-origin="top-right"] {
+  transform-origin: top right;
+}
+.t-dropdown[data-origin="top-center"] {
+  transform-origin: top center;
+}
+.t-dropdown[data-origin="bottom-left"] {
+  transform-origin: bottom left;
+}
+.t-dropdown[data-origin="bottom-center"] {
+  transform-origin: bottom center;
+}
+.t-dropdown[data-origin="bottom-right"] {
+  transform-origin: bottom right;
+}
+.t-dropdown.is-open {
+  transform: scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+.t-dropdown.is-closing {
+  transform: scale(var(--dropdown-closing-scale));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--dropdown-close-dur) var(--dropdown-ease),
+    opacity var(--dropdown-close-dur) var(--dropdown-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-dropdown {
+    transition: none !important;
+  }
+}
+
+/* ── Page side-by-side (transitions.dev) — navigation interne du dropdown ── */
+:root {
+  --page-slide-dur: 200ms;
+  --page-fade-dur: 200ms;
+  --page-slide-distance: 8px;
+  --page-blur: 3px;
+  --page-stagger: 0ms;
+  --page-exit-enabled: 1;
+  --page-slide-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --page-fade-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.t-page-slide {
+  position: relative;
+}
+.t-page-slide .t-page[data-page-id="1"] {
+  --t-page-from-x: calc(var(--page-slide-distance) * -1);
+}
+.t-page-slide .t-page[data-page-id="2"] {
+  --t-page-from-x: var(--page-slide-distance);
+}
+.t-page-slide .t-page {
+  /* top/left/right seulement (pas `inset`) → hauteur naturelle mesurable. */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(
+    calc(var(--t-page-from-x, 0px) * var(--page-exit-enabled))
+  );
+  filter: blur(calc(var(--page-blur) * var(--page-exit-enabled)));
+  transition:
+    opacity var(--page-fade-dur) var(--page-fade-ease),
+    transform var(--page-slide-dur) var(--page-slide-ease),
+    filter var(--page-slide-dur) var(--page-slide-ease);
+  will-change: opacity, transform, filter;
+}
+.t-page-slide[data-page="1"] .t-page[data-page-id="1"],
+.t-page-slide[data-page="2"] .t-page[data-page-id="2"] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+  filter: blur(0);
+  transition-delay: var(--page-stagger);
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-page-slide .t-page {
+    transition: none !important;
+  }
+}
+
+/* Entrée en fondu flou — transition douce vers un bloc skeleton (états vides
+   « aucun appel à venir »). */
+@keyframes nc-blur-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+.nc-blur-in {
+  animation: nc-blur-in 520ms var(--nc-ease) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-blur-in {
+    animation: none !important;
+  }
+}
+
+/* ── Open / close (transitions.dev) — sortie animée d'éléments de liste ──── */
+:root {
+  --modal-open-dur: 250ms;
+  --modal-close-dur: 150ms;
+  --modal-scale: 0.96;
+  --modal-scale-close: 0.96;
+  --modal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.t-modal {
+  transform-origin: center;
+  transform: scale(var(--modal-scale));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--modal-open-dur) var(--modal-ease),
+    opacity var(--modal-open-dur) var(--modal-ease);
+  will-change: transform, opacity;
+}
+.t-modal.is-open {
+  transform: scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+.t-modal.is-closing {
+  transform: scale(var(--modal-scale-close));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--modal-close-dur) var(--modal-ease),
+    opacity var(--modal-close-dur) var(--modal-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-modal {
+    transition: none !important;
+  }
+}
+
+/* ── Skeleton + reveal (transitions.dev) — avatar host pendant le chargement
+ * de la photo. Scopé sous .nc-avatar-skel (les classes t-skel-* sont aussi
+ * employées, autrement scopées, par le reveal de transcription). */
+.nc-avatar-skel {
+  --pulse-dur: 1000ms;
+  --pulse-count: infinite; /* pulse jusqu'au chargement de la photo */
+  --pulse-min: 0.5;
+  --reveal-dur: 400ms;
+  --reveal-blur: 2px;
+  --reveal-ease: ease-in-out;
+  position: relative;
+}
+.nc-avatar-skel .t-skel-skeleton,
+.nc-avatar-skel .t-skel-content {
+  position: absolute;
+  inset: 0;
+}
+.nc-avatar-skel .t-skel-skeleton {
+  z-index: 1;
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    opacity var(--reveal-dur) var(--reveal-ease),
+    filter var(--reveal-dur) var(--reveal-ease);
+}
+.nc-avatar-skel .t-skel-content {
+  z-index: 2;
+  opacity: 0;
+  filter: blur(var(--reveal-blur));
+  transition:
+    opacity var(--reveal-dur) var(--reveal-ease),
+    filter var(--reveal-dur) var(--reveal-ease);
+}
+.nc-avatar-skel.is-revealed .t-skel-skeleton {
+  opacity: 0;
+  filter: blur(var(--reveal-blur));
+}
+.nc-avatar-skel.is-revealed .t-skel-content {
+  opacity: 1;
+  filter: blur(0);
+}
+.nc-avatar-skel .t-skel-skeleton.is-pulsing > * {
+  animation: t-skel-pulse var(--pulse-dur) ease-in-out var(--pulse-count);
+}
+@keyframes t-skel-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: var(--pulse-min);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-avatar-skel .t-skel-skeleton,
+  .nc-avatar-skel .t-skel-content {
+    transition: none !important;
+  }
+  .nc-avatar-skel .t-skel-skeleton.is-pulsing > * {
+    animation: none !important;
+  }
+}
+
+/* ── Texte de chargement animé (transcript) ──────────────────────────────
+ * Deux couches combinées sur le même <span> :
+ *   1. .t-text-swap — swap JS en 3 phases (sortie vers le haut + blur/fade,
+ *      changement de texte, entrée depuis le bas). Piloté par
+ *      TranscriptLoadingText (toggle de classes + reflow forcé).
+ *   2. .t-shimmer  — band rouge signature qui balaie les glyphes via
+ *      ::before + background-clip: text (CSS pur). data-text dupliqué par le
+ *      JS pour rester synchro avec le texte visible.
+ * Pattern repris de transitions.dev, recoloré sur les tokens NotionClub. */
+.t-text-swap {
+  display: inline-block;
+  transform: translateY(0);
+  filter: blur(0);
+  opacity: 1;
+  transition:
+    transform var(--text-swap-dur, 150ms) var(--text-swap-ease, ease-in-out),
+    filter var(--text-swap-dur, 150ms) var(--text-swap-ease, ease-in-out),
+    opacity var(--text-swap-dur, 150ms) var(--text-swap-ease, ease-in-out);
+  will-change: transform, filter, opacity;
+}
+.t-text-swap.is-exit {
+  transform: translateY(calc(var(--text-swap-translate-y, 4px) * -1));
+  filter: blur(var(--text-swap-blur, 2px));
+  opacity: 0;
+}
+.t-text-swap.is-enter-start {
+  transform: translateY(var(--text-swap-translate-y, 4px));
+  filter: blur(var(--text-swap-blur, 2px));
+  opacity: 0;
+  transition: none;
+}
+
+.t-shimmer {
+  position: relative;
+  display: inline-block;
+  color: var(--shimmer-base);
+}
+.t-shimmer::before {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 40%,
+    var(--shimmer-highlight) 50%,
+    transparent 60%,
+    transparent 100%
+  );
+  background-size: var(--shimmer-band, 400%) 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: t-shimmer var(--shimmer-dur, 2000ms) linear infinite;
+}
+@keyframes t-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+/* Shimmer gris réutilisable (sans typo imposée) — ex. libellé « Copie… ». */
+.nc-shimmer-text {
+  --shimmer-base: var(--color-text-muted);
+  --shimmer-highlight: var(--color-text-secondary);
+  --shimmer-dur: 1400ms;
+  --shimmer-band: 320%;
+}
+
+/* Instance concrète : variables + typo du texte de chargement transcript.
+ * Base = texte muet du DS, highlight = rouge signature. Light + dark via
+ * les tokens, rien en dur. */
+.nc-transcript-loading {
+  --text-swap-dur: 150ms;
+  --text-swap-translate-y: 5px;
+  --text-swap-blur: 2px;
+  --text-swap-ease: ease-in-out;
+  --shimmer-dur: 2000ms;
+  --shimmer-band: 400%;
+  --shimmer-base: var(--color-text-muted);
+  /* Highlight gris (plus prononcé que le base) : le band se voit sur le fond
+     clair de l'encadré. `text-secondary` ressort dans les deux thèmes
+     (plus sombre en light, plus clair en dark que le muted). */
+  --shimmer-highlight: var(--color-text-secondary);
+  /* Gros titre central pendant le chargement de la transcription. */
+  font-size: clamp(20px, 4vw, 26px);
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-text-swap {
+    transition: none !important;
+  }
+  .t-shimmer::before {
+    animation: none !important;
+  }
+}
+
+/* ── Skeleton + reveal de la transcription (transitions.dev) ──────────────
+ * Cross-fade skeleton → contenu réel quand la transcription arrive : le
+ * skeleton fond + se floute, le contenu apparaît + se dé-floute, sur la même
+ * durée pour lire comme un seul mouvement.
+ * Adaptation : contenu en flux (transcription de hauteur variable,
+ * scrollable). Le skeleton donne la hauteur pendant le chargement, puis
+ * bascule en overlay absolu au reveal pour laisser NotionBlocks piloter la
+ * hauteur. Classes transitions.dev conservées (`is-revealing`/`is-revealed`). */
+.nc-transcript-skel {
+  --reveal-dur: 420ms;
+  --reveal-blur: 3px;
+  --reveal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+.nc-transcript-skel .t-skel-skeleton {
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    opacity var(--reveal-dur) var(--reveal-ease),
+    filter var(--reveal-dur) var(--reveal-ease);
+}
+.nc-transcript-skel.is-revealing .t-skel-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.nc-transcript-skel .t-skel-content {
+  opacity: 0;
+  filter: blur(var(--reveal-blur));
+  transition:
+    opacity var(--reveal-dur) var(--reveal-ease),
+    filter var(--reveal-dur) var(--reveal-ease);
+}
+.nc-transcript-skel.is-revealed .t-skel-skeleton {
+  opacity: 0;
+  filter: blur(var(--reveal-blur));
+}
+.nc-transcript-skel.is-revealed .t-skel-content {
+  opacity: 1;
+  filter: blur(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-transcript-skel .t-skel-skeleton,
+  .nc-transcript-skel .t-skel-content {
+    transition: none !important;
+  }
+}
+
 /*
  * Grid responsive pour la matrix NotificationsSection.
  * Mobile (< md = 768 px) : colonnes channels compactes 56 px, gap 4 px
@@ -740,6 +1128,9 @@ html.dark {
   --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
   --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
   --nc-card-dot-color: rgba(255, 255, 255, 0.18);
+  --nc-glass-bg: rgba(42, 39, 37, 0.55);
+  --nc-glass-border: rgba(255, 255, 255, 0.12);
+  --nc-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --nc-lock-overlay-bg: rgba(20, 18, 17, 0.87);
   --nc-switch-off-bg: rgba(255, 255, 255, 0.14);
   --nc-btn-disabled-bg: rgba(255, 255, 255, 0.08);

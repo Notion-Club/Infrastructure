@@ -21,6 +21,7 @@ import {
   useProfileIdentityContext,
 } from "@/shared/components/identity/ProfileIdentityProvider";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
+import { DevToolboxButton } from "@/shared/components/dev/DevToolbox";
 
 type NavItem = { label: string; icon: LucideIcon; href: string };
 
@@ -227,8 +228,12 @@ export function Topbar() {
           </nav>
         </div>
 
-        {/* ── Droite : cloche + avatar ── */}
+        {/* ── Droite : toolbox dev + cloche + avatar ── */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Toolbox « état dev » — visible seulement si la page a enregistré
+              un panneau (cf. DevToolboxProvider / useRegisterDevTools). */}
+          <DevToolboxButton size={40} />
+
           {/* Cloche */}
           <button
             type="button"
