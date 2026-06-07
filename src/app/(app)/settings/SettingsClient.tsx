@@ -4,9 +4,6 @@ import { useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
-import { Topbar } from "@/shared/components/dashboard/Topbar";
-import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
-import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { ProfileHero } from "@/shared/components/settings/ProfileHero";
 import { ProfileSection } from "@/shared/components/settings/ProfileSection";
 import { SecuritySection } from "@/shared/components/settings/SecuritySection";
@@ -160,12 +157,6 @@ export function SettingsClient({
 
   return (
     <>
-      <Topbar />
-      <div className="md:hidden">
-        <MobileTopActions />
-        <BottomNav />
-      </div>
-
       <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
         <main style={{ position: "relative", zIndex: 1 }}>
           <div
@@ -207,6 +198,7 @@ export function SettingsClient({
                 {state.isMocked && (
                   <div
                     role="status"
+                    data-fb-label="Badge mode démo · Réglages"
                     style={{
                       padding: "10px 14px",
                       borderRadius: 12,

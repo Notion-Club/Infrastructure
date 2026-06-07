@@ -21,8 +21,9 @@ export function FormationWidget() {
   return (
     <article
       onClick={() => router.push(MOCK_FORMATION.formationUrl)}
+      data-fb-label="Encadré Formation · Tableau de bord"
       style={{
-        background: "white",
+        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         borderRadius: 16,
         padding: 20,
@@ -48,7 +49,7 @@ export function FormationWidget() {
           height: 180,
           pointerEvents: "none",
           backgroundImage:
-            "radial-gradient(circle, rgba(224,98,90,0.28) 1px, transparent 1.4px)",
+            "radial-gradient(circle, var(--nc-card-dot-color) 1px, transparent 1.4px)",
           backgroundSize: "11px 11px",
           maskImage:
             "radial-gradient(circle at top right, black 0%, transparent 70%)",
@@ -102,6 +103,7 @@ export function FormationWidget() {
             e.stopPropagation();
             router.push(MOCK_FORMATION.resumeUrl);
           }}
+          data-fb-label="Bouton Reprendre · Widget Formation"
           style={{
             background: "var(--color-brand)",
             color: "white",

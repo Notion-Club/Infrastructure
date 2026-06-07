@@ -19,6 +19,7 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
     <div
       role="button"
       tabIndex={0}
+      data-fb-label={`Carte ressource « ${resource.titre} » · Grille des ressources`}
       onClick={() => router.push('/ressources/ressource/' + resource.slug)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -28,7 +29,7 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
       }}
       className="group hover:border-[rgba(224,98,90,0.32)]"
       style={{
-        background: '#ffffff',
+        background: 'var(--color-surface-card)',
         border: '1px solid var(--color-border-default)',
         boxShadow: 'var(--nc-shadow-3)',
         borderRadius: 16,
@@ -54,7 +55,7 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
           height: 160,
           pointerEvents: 'none',
           backgroundImage:
-            'radial-gradient(circle, rgba(224,98,90,0.28) 1px, transparent 1.4px)',
+            'radial-gradient(circle, var(--nc-card-dot-color) 1px, transparent 1.4px)',
           backgroundSize: '11px 11px',
           maskImage:
             'radial-gradient(circle at top right, black 0%, transparent 70%)',
@@ -66,7 +67,9 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <ResourceBadge variant="ressource" label="Ressource" />
         {isLocked && (
-          <ResourceBadge variant="neutral" label={resource.visibilite} icon={<Lock size={10} />} />
+          <span data-fb-label="Cadenas accès · Carte ressource">
+            <ResourceBadge variant="neutral" label={resource.visibilite} icon={<Lock size={10} />} />
+          </span>
         )}
       </div>
 

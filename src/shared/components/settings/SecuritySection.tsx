@@ -31,6 +31,7 @@ export function SecuritySection({ user, isMocked }: SecuritySectionProps) {
     <SettingsCard
       title="Sécurité"
       description="Gérez votre mot de passe et vos méthodes de connexion."
+      fbLabel="Section sécurité · Réglages"
     >
       {emailIdentity && (
         <>
@@ -76,14 +77,14 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
         borderRadius: 12,
         border: "1px solid var(--color-border-default)",
         overflow: "hidden",
-        background: open ? "var(--color-surface-raised)" : "white",
-        transition: "background 150ms ease",
+        background: "var(--color-surface-raised)",
       }}
     >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        data-fb-label="Bouton changer mot de passe · Section sécurité"
         style={{
           display: "flex",
           alignItems: "center",
@@ -161,7 +162,7 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
             "max-height 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease",
           maxHeight: open ? innerHeight + 8 : 0,
           opacity: open ? 1 : 0,
-          background: "white",
+          background: "var(--color-surface-card)",
         }}
       >
         <div ref={innerRef} style={{ padding: "14px 14px 16px" }}>
@@ -261,7 +262,7 @@ function PasswordChangeForm({
         padding: 14,
         borderRadius: 12,
         border: "1px solid var(--color-border-default)",
-        background: "white",
+        background: "var(--color-surface-card)",
       }}
     >
       <PasswordField
@@ -308,6 +309,7 @@ function PasswordChangeForm({
         <button
           type="submit"
           disabled={!canSubmit}
+          data-fb-label="Bouton Mettre à jour mot de passe · Section sécurité"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -370,6 +372,7 @@ function PasswordField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           autoComplete={autoComplete}
+          data-fb-label={`Champ ${label} · Section sécurité`}
           className="nc-input"
           style={{ paddingRight: 44 }}
         />
@@ -474,7 +477,10 @@ function GoogleIdentityBlock({
 
   if (!googleIdentity) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div
+        data-fb-label="Bloc Google · Section sécurité"
+        style={{ display: "flex", flexDirection: "column", gap: 10 }}
+      >
         <h3
           style={{
             margin: 0,
@@ -497,7 +503,10 @@ function GoogleIdentityBlock({
   const googleEmail = getGoogleEmail(googleIdentity);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div
+      data-fb-label="Bloc Google · Section sécurité"
+      style={{ display: "flex", flexDirection: "column", gap: 10 }}
+    >
       <h3
         style={{
           margin: 0,
@@ -550,11 +559,12 @@ function GoogleIdentityBlock({
           type="button"
           onClick={unlinkGoogle}
           disabled={pending}
+          data-fb-label="Bouton Déconnecter Google · Section sécurité"
           style={{
             padding: "8px 14px",
             borderRadius: 9999,
             border: "1px solid var(--color-border-default)",
-            background: "white",
+            background: "var(--color-surface-card)",
             color: "var(--color-text-primary)",
             fontSize: 13,
             fontWeight: 500,
@@ -588,7 +598,7 @@ function GoogleIdentityBlock({
                 padding: "6px 12px",
                 borderRadius: 8,
                 border: "1px solid var(--color-border-default)",
-                background: "white",
+                background: "var(--color-surface-card)",
                 fontSize: 12,
                 cursor: "pointer",
               }}

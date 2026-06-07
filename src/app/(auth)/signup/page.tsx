@@ -23,8 +23,12 @@ export default function SignupPage() {
             height={48}
             priority
             className="h-12 w-auto"
+            data-fb-label="Logo Notion Club · En-tête auth"
           />
-          <h1 className="text-center text-[clamp(24px,3vw,32px)] font-bold leading-tight tracking-[-0.02em] text-[var(--color-text-primary)]">
+          <h1
+            className="text-center text-[clamp(24px,3vw,32px)] font-bold leading-tight tracking-[-0.02em] text-[var(--color-text-primary)]"
+            data-fb-label="Titre principal · En-tête auth"
+          >
             Accède aux programmes du Notion Club
           </h1>
         </header>

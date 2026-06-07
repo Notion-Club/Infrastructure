@@ -163,7 +163,10 @@ export function UpdatePasswordForm() {
 
   if (loadState === "loading") {
     return (
-      <div className="nc-shine-card w-full max-w-[420px]">
+      <div
+        className="nc-shine-card w-full max-w-[420px]"
+        data-fb-label="Carte auth · Vérification du lien"
+      >
         <div className="nc-shine-card__inner flex flex-col items-center gap-4 py-6">
           <LoaderCircle className="size-6 animate-spin text-[var(--color-text-muted)]" />
           <p className="text-[14px] text-[var(--color-text-secondary)]">
@@ -176,10 +179,16 @@ export function UpdatePasswordForm() {
 
   if (loadState === "expired") {
     return (
-      <div className="nc-shine-card w-full max-w-[420px]">
+      <div
+        className="nc-shine-card w-full max-w-[420px]"
+        data-fb-label="Carte auth · Lien expiré"
+      >
         <div className="nc-shine-card__inner flex flex-col gap-6">
           <header className="flex flex-col gap-2">
-            <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">
+            <h2
+              className="text-[18px] font-semibold text-[var(--color-text-primary)]"
+              data-fb-label="Titre Lien expiré · Carte lien expiré"
+            >
               Lien expiré
             </h2>
             <p className="text-[14px] text-[var(--color-text-secondary)]">
@@ -189,6 +198,7 @@ export function UpdatePasswordForm() {
           </header>
           <Link
             href="/reset-password"
+            data-fb-label="Bouton Demander un nouveau lien · Carte lien expiré"
             className="nc-btn-shine group flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-5 py-3.5 text-[15px] font-semibold text-white no-underline shadow-[0_8px_24px_-8px_rgba(224,98,90,0.55)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_14px_32px_-10px_rgba(224,98,90,0.65)]"
           >
             Demander un nouveau lien
@@ -199,10 +209,16 @@ export function UpdatePasswordForm() {
   }
 
   return (
-    <div className="nc-shine-card w-full max-w-[420px]">
+    <div
+      className="nc-shine-card w-full max-w-[420px]"
+      data-fb-label="Carte auth · Nouveau mot de passe"
+    >
       <div className="nc-shine-card__inner flex flex-col gap-6">
         <header className="flex flex-col gap-2">
-          <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">
+          <h2
+            className="text-[18px] font-semibold text-[var(--color-text-primary)]"
+            data-fb-label="Titre Nouveau mot de passe · Formulaire nouveau mot de passe"
+          >
             Nouveau mot de passe
           </h2>
           <p className="text-[14px] text-[var(--color-text-secondary)]">
@@ -210,7 +226,12 @@ export function UpdatePasswordForm() {
           </p>
         </header>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-5"
+          noValidate
+          data-fb-label="Formulaire · Formulaire nouveau mot de passe"
+        >
           <PasswordField
             id="password"
             label="Nouveau mot de passe"
@@ -220,6 +241,7 @@ export function UpdatePasswordForm() {
             disabled={isPending}
             error={fieldErrors.password}
             hint="8 caractères minimum"
+            context="Formulaire nouveau mot de passe"
           />
           <PasswordField
             id="confirmPassword"
@@ -229,11 +251,13 @@ export function UpdatePasswordForm() {
             onToggle={() => setShowPassword((v) => !v)}
             disabled={isPending}
             error={fieldErrors.confirmPassword}
+            context="Formulaire nouveau mot de passe"
           />
 
           <button
             type="submit"
             disabled={isPending}
+            data-fb-label="Bouton Mettre à jour · Formulaire nouveau mot de passe"
             className="nc-btn-shine group flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-5 py-3.5 text-[15px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(224,98,90,0.55)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_14px_32px_-10px_rgba(224,98,90,0.65)] active:translate-y-0 active:shadow-[0_6px_16px_-6px_rgba(224,98,90,0.55)] disabled:cursor-not-allowed disabled:opacity-80"
           >
             <span className="relative z-10 flex items-center gap-2">
@@ -256,6 +280,7 @@ function PasswordField({
   hint,
   disabled,
   error,
+  context,
 }: {
   id: string;
   label: string;
@@ -265,6 +290,7 @@ function PasswordField({
   hint?: string;
   disabled?: boolean;
   error?: string;
+  context: string;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -283,6 +309,7 @@ function PasswordField({
           required
           disabled={disabled}
           aria-invalid={error ? true : undefined}
+          data-fb-label={`Champ ${label} · ${context}`}
           className="nc-input pr-12 disabled:cursor-not-allowed disabled:opacity-60"
           placeholder="••••••••"
         />
@@ -291,6 +318,7 @@ function PasswordField({
           onClick={onToggle}
           disabled={disabled}
           aria-label={show ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+          data-fb-label={`Bouton Afficher le mot de passe · ${context}`}
           className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}

@@ -53,13 +53,14 @@ export function EmailField({
 
   return (
     <div
+      data-fb-label="Encadré email · Section profil"
       style={{
         display: "flex",
         flexDirection: "column",
         borderRadius: 14,
         border: "1px solid var(--color-border-default)",
         overflow: "hidden",
-        background: "white",
+        background: "var(--color-surface-card)",
       }}
     >
       {/* Top half — platform email */}
@@ -69,7 +70,7 @@ export function EmailField({
           display: "flex",
           flexDirection: "column",
           gap: 6,
-          background: "white",
+          background: "var(--color-surface-card)",
         }}
       >
         <label
@@ -86,6 +87,7 @@ export function EmailField({
           id="platform-email"
           name="platform-email"
           type="email"
+          data-fb-label="Champ Email Notion Club · Section profil"
           value={platformEmail}
           onChange={(e) => onPlatformEmailChange(e.target.value)}
           onBlur={onPlatformEmailBlur}
@@ -94,7 +96,6 @@ export function EmailField({
           className="nc-input"
           placeholder="vous@exemple.com"
           style={{
-            background: "white",
             borderColor: platformEmailError ? "var(--color-brand)" : undefined,
           }}
         />
@@ -190,6 +191,7 @@ export function EmailField({
               id="notion-email"
               name="notion-email"
               type="email"
+              data-fb-label="Champ Email Notion · Section profil"
               value={notionEmail}
               onChange={(e) => onNotionEmailChange(e.target.value)}
               onBlur={onNotionEmailBlur}
@@ -199,7 +201,6 @@ export function EmailField({
               placeholder="vous@notion.com"
               disabled={!useSeparateNotionEmail}
               style={{
-                background: "white",
                 borderColor: notionEmailError
                   ? "var(--color-brand)"
                   : undefined,
@@ -237,6 +238,7 @@ function Checkbox({
 }) {
   return (
     <label
+      data-fb-label="Interrupteur Email Notion séparé · Section profil"
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -256,7 +258,7 @@ function Checkbox({
           border: checked
             ? "1.5px solid var(--color-brand)"
             : "1.5px solid var(--color-border-default)",
-          background: checked ? "var(--color-brand)" : "white",
+          background: checked ? "var(--color-brand)" : "var(--color-surface-card)",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",

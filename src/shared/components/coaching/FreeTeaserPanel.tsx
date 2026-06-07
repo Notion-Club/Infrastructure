@@ -3,11 +3,12 @@ import { Lock } from "lucide-react";
 export function FreeTeaserPanel() {
   return (
     <div
+      data-fb-label="Encadré teaser coaching · CTA coaching"
       style={{
         position: "relative",
         borderRadius: 16,
         overflow: "hidden",
-        background: "#fff",
+        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         minHeight: 320,
       }}
@@ -36,10 +37,10 @@ export function FreeTeaserPanel() {
           <div
             key={i}
             style={{
-              background: "#f5f5f5",
+              background: "var(--color-surface-raised)",
               borderRadius: 12,
               padding: "16px 20px",
-              border: "1px solid #e5e7eb",
+              border: "1px solid var(--color-border-default)",
             }}
           >
             <div
@@ -55,7 +56,7 @@ export function FreeTeaserPanel() {
               style={{
                 height: 10,
                 width: "40%",
-                background: "#e5e7eb",
+                background: "var(--color-border-default)",
                 borderRadius: 6,
                 marginBottom: 12,
               }}
@@ -64,7 +65,7 @@ export function FreeTeaserPanel() {
               style={{
                 height: 10,
                 width: "90%",
-                background: "#e5e7eb",
+                background: "var(--color-border-default)",
                 borderRadius: 6,
                 marginBottom: 6,
               }}
@@ -73,7 +74,7 @@ export function FreeTeaserPanel() {
               style={{
                 height: 10,
                 width: "75%",
-                background: "#e5e7eb",
+                background: "var(--color-border-default)",
                 borderRadius: 6,
               }}
             />
@@ -86,7 +87,7 @@ export function FreeTeaserPanel() {
         style={{
           position: "absolute",
           inset: 0,
-          background: "rgba(255,255,255,0.7)",
+          background: "var(--nc-lock-overlay-bg)",
           backdropFilter: "blur(2px)",
           display: "flex",
           flexDirection: "column",
@@ -112,15 +113,18 @@ export function FreeTeaserPanel() {
         </div>
 
         <h3
+          data-fb-label="Titre · Encadré teaser coaching"
           style={{
             fontSize: 18,
             fontWeight: 700,
             color: "var(--color-text-primary)",
             margin: "0 0 10px",
             letterSpacing: "-0.02em",
+            maxWidth: 420,
           }}
         >
-          Coaching individuel
+          Passe à la vitesse supérieure pour atteindre les 5 000€ / mois avec
+          Notion grâce à l&apos;accompagnement.
         </h3>
 
         <p
@@ -129,16 +133,16 @@ export function FreeTeaserPanel() {
             color: "var(--color-text-secondary)",
             lineHeight: 1.6,
             margin: "0 0 20px",
-            maxWidth: 340,
+            maxWidth: 380,
           }}
         >
-          Avec l&apos;Accompagnement, tu peux réserver jusqu&apos;à 3 coachings
-          par semaine avec Théo ou Noah pour avancer plus vite sur ton projet
-          Notion.
+          On t&apos;accompagne personnellement à réussir avec un plan d&apos;action
+          sur-mesure, des méthodes, et des appels de suivi avec les coach.
         </p>
 
         <a
           href="#"
+          data-fb-label="Lien Découvrir l'accompagnement · Encadré teaser coaching"
           style={{
             fontSize: 14,
             fontWeight: 600,
@@ -146,7 +150,7 @@ export function FreeTeaserPanel() {
             textDecoration: "none",
           }}
         >
-          Découvrir l&apos;Accompagnement →
+          Découvrir l&apos;accompagnement →
         </a>
       </div>
     </div>

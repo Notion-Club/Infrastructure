@@ -10,21 +10,54 @@ import {
   MessageSquarePlus, Globe, LayoutGrid, ArrowLeft,
 } from "lucide-react";
 import styles from "./FeedbackWidget.module.css";
+import { useTheme } from "@/shared/lib/hooks/useTheme";
 
-// Map adaptée aux routes existantes de NotionClub Infra. Toute route non listée
-// (ex. routes dynamiques /communaute/post/[id]) retombe sur "Home" — comportement
-// du code source d'origine, à confirmer si on veut un libellé plus précis.
+// Map adaptée aux routes existantes de NotionClub Infra. Sert de "contexte"
+// (2e partie du token de bloc) auto-ajouté à chaque libellé. Les routes
+// dynamiques (ex. /communaute/post/[id]) sont résolues par préfixe dans
+// `getCurrentPage` plus bas, afin de ne plus retomber sur un libellé générique.
 const PAGE_MAP: Record<string, string> = {
-  "/": "Home",
-  "/login": "Login",
-  "/signup": "Signup",
-  "/reset-password": "Reset password",
-  "/update-password": "Update password",
-  "/dashboard": "Dashboard",
+  "/": "Accueil",
+  "/login": "Connexion",
+  "/signup": "Inscription",
+  "/reset-password": "Mot de passe oublié",
+  "/update-password": "Nouveau mot de passe",
+  "/dashboard": "Accueil",
+  "/formation": "Formation",
   "/communaute": "Communauté",
   "/coaching": "Coaching",
   "/ressources": "Ressources",
   "/settings": "Réglages",
+};
+
+// Résolution du contexte page par préfixe — utilisée pour les routes dynamiques.
+const PAGE_PREFIXES: [string, string][] = [
+  ["/formation", "Formation"],
+  ["/communaute", "Communauté"],
+  ["/coaching", "Coaching"],
+  ["/ressources", "Ressources"],
+  ["/settings", "Réglages"],
+  ["/dashboard", "Accueil"],
+];
+
+// Vocabulaire "Quoi" déduit du tag HTML — garantit que le libellé d'un bloc non
+// tokenisé commence toujours par la nature du bloc plutôt qu'un nom de section.
+const TAG_KIND: Record<string, string> = {
+  BUTTON: "Bouton",
+  A: "Lien",
+  IMG: "Image",
+  INPUT: "Champ",
+  TEXTAREA: "Champ",
+  SELECT: "Menu déroulant",
+  NAV: "Barre de navigation",
+  HEADER: "En-tête",
+  FOOTER: "Pied de page",
+  FORM: "Formulaire",
+  ASIDE: "Panneau latéral",
+  SECTION: "Section",
+  ARTICLE: "Carte",
+  UL: "Liste",
+  OL: "Liste",
 };
 
 // Fallback minimaliste si l'appel `/api/feedback-schema` échoue. Les vraies
@@ -59,16 +92,31 @@ const PLACEHOLDERS: Record<string, string> = {
   default: "Décrivez précisément votre retour : contexte, attente, exemple si possible.",
 };
 
-const STATUS_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
-  "À traiter": { dot: "#f59e0b", bg: "rgba(245,158,11,0.08)", text: "#92400e" },
-  "En cours":  { dot: "#3b82f6", bg: "rgba(59,130,246,0.08)", text: "#1e40af" },
-  "Traité":    { dot: "#10b981", bg: "rgba(16,185,129,0.08)", text: "#065f46" },
-  "Résolu":    { dot: "#10b981", bg: "rgba(16,185,129,0.08)", text: "#065f46" },
-  "Refusé":    { dot: "#e0625a", bg: "rgba(224,98,90,0.08)",  text: "#9a3a35" },
+type StatusColors = { dot: string; bg: string; textLight: string; textDark: string; cssClass: string };
+const STATUS_COLORS: Record<string, StatusColors> = {
+  "À traiter": { dot: "#f59e0b", bg: "rgba(245,158,11,0.08)", textLight: "#92400e", textDark: "#fbbf24", cssClass: styles.statusPending },
+  "En cours":  { dot: "#3b82f6", bg: "rgba(59,130,246,0.08)", textLight: "#1e40af", textDark: "#60a5fa", cssClass: styles.statusProgress },
+  "Traité":    { dot: "#10b981", bg: "rgba(16,185,129,0.08)", textLight: "#065f46", textDark: "#34d399", cssClass: styles.statusDone },
+  "Résolu":    { dot: "#10b981", bg: "rgba(16,185,129,0.08)", textLight: "#065f46", textDark: "#34d399", cssClass: styles.statusDone },
+  "Refusé":    { dot: "#e0625a", bg: "rgba(224,98,90,0.08)",  textLight: "#9a3a35", textDark: "#e0625a", cssClass: styles.statusRefused },
 };
 
 function getCurrentPage(): string {
-  return PAGE_MAP[window.location.pathname] ?? "Home";
+  const path = window.location.pathname;
+  if (PAGE_MAP[path]) return PAGE_MAP[path];
+  // Routes dynamiques (post détail, leçon, ressource…) → contexte par préfixe.
+  for (const [prefix, label] of PAGE_PREFIXES) {
+    if (path === prefix || path.startsWith(prefix + "/")) return label;
+  }
+  return "Accueil";
+}
+
+// Ajoute le contexte page au libellé d'un bloc, sauf s'il le mentionne déjà.
+// Le token final ressemble à « Encadré Formation · Accueil ».
+function appendPageContext(label: string, page: string): string {
+  if (!page) return label;
+  if (label.toLowerCase().includes(page.toLowerCase())) return label;
+  return `${label} · ${page}`;
 }
 
 function getElementUrl(el: HTMLElement): string {
@@ -83,38 +131,63 @@ function getElementUrl(el: HTMLElement): string {
 }
 
 function getElementLabel(el: HTMLElement): string {
+  // 1. Libellé explicite (tokenisation) — priorité absolue. On remonte le DOM
+  //    pour récupérer le `data-fb-label` le plus proche du bloc cliqué : un
+  //    libellé posé sur un sous-élément (bouton, avatar…) prime sur celui de
+  //    son conteneur.
   let current: HTMLElement | null = el;
   while (current && current !== document.body) {
     const label = current.getAttribute("data-fb-label");
     if (label) return label;
     current = current.parentElement;
   }
-  const interactive = el.closest("a, button");
+
+  // 2. Fallback intelligent : on préfixe toujours par la nature du bloc ("Quoi")
+  //    pour qu'un bloc non encore tokenisé reste tout de même identifiable.
+  const tag = el.tagName;
+  const inferredKind = /^H[1-6]$/.test(tag)
+    ? "Titre"
+    : tag === "svg" || tag === "path" || tag === "use"
+      ? "Icône"
+      : TAG_KIND[tag] ?? "";
+
+  const interactive = el.closest("a, button, [role='button']") as HTMLElement | null;
   if (interactive) {
-    const linkEl = interactive as HTMLElement;
-    const directText = Array.from(linkEl.childNodes)
+    const kind = inferredKind || (interactive.tagName === "A" ? "Lien" : "Bouton");
+    const directText = Array.from(interactive.childNodes)
       .filter((n) => n.nodeType === Node.TEXT_NODE)
       .map((n) => n.textContent?.trim())
       .filter(Boolean)
       .join(" ");
-    const text = directText || linkEl.innerText?.trim();
-    if (text && text.length < 60 && !text.includes("\n")) return text;
+    const text =
+      directText ||
+      interactive.innerText?.trim() ||
+      interactive.getAttribute("aria-label") ||
+      "";
+    if (text && text.length < 60 && !text.includes("\n")) return `${kind} « ${text} »`;
+    return kind;
   }
-  if (/^H[1-6]$/.test(el.tagName)) return el.innerText.trim().slice(0, 60);
+
+  if (/^H[1-6]$/.test(tag)) {
+    const t = el.innerText.trim().slice(0, 60);
+    return t ? `Titre « ${t} »` : "Titre";
+  }
+
   const block = el.closest("section, article, header, footer, nav, main, aside, form");
   if (block) {
     const ariaLabel = block.getAttribute("aria-label");
     if (ariaLabel && ariaLabel.length < 60) return ariaLabel;
+    const blockKind = TAG_KIND[block.tagName] ?? "Section";
     const heading = block.querySelector("h1, h2, h3, h4");
-    if (heading) return heading.textContent?.trim().slice(0, 60) || "";
-    const tagLabels: Record<string, string> = {
-      HEADER: "En-tête de page", FOOTER: "Pied de page",
-      NAV: "Navigation", MAIN: "Contenu principal",
-      FORM: "Formulaire", ASIDE: "Barre latérale",
-    };
-    return tagLabels[block.tagName] || "Section";
+    const headingTxt = heading?.textContent?.trim().slice(0, 60);
+    if (headingTxt) return `${blockKind} « ${headingTxt} »`;
+    return blockKind;
   }
-  return el.innerText?.trim().slice(0, 50) || el.tagName.toLowerCase();
+
+  const ownText = el.innerText?.trim().slice(0, 50);
+  if (inferredKind && ownText) return `${inferredKind} « ${ownText} »`;
+  if (inferredKind) return inferredKind;
+  return ownText || tag.toLowerCase();
 }
 
 interface Draft {
@@ -373,7 +446,7 @@ export default function FeedbackWidget() {
       e.preventDefault();
       e.stopPropagation();
       overlay.classList.remove("fb-visible");
-      setPendingElement(getElementLabel(target));
+      setPendingElement(appendPageContext(getElementLabel(target), getCurrentPage()));
       setPendingElementUrl(getElementUrl(target));
       setIsGeneralMode(false);
       setIsSelecting(false);
@@ -558,10 +631,11 @@ export default function FeedbackWidget() {
 
   const currentPlaceholder = PLACEHOLDERS[pendingAction] ?? PLACEHOLDERS.default;
 
+  const { theme } = useTheme();
   function StatusBadge({ status }: { status: string }) {
-    const s = STATUS_COLORS[status] ?? { dot: "#9CA3AF", bg: "rgba(156,163,175,0.1)", text: "#6B7280" };
+    const s = STATUS_COLORS[status] ?? { dot: "#9CA3AF", bg: "rgba(156,163,175,0.1)", textLight: "#6B7280", textDark: "#94a3b8", cssClass: styles.statusDefault };
     return (
-      <span className={styles.statusBadge} style={{ background: s.bg, color: s.text }}>
+      <span className={`${styles.statusBadge} ${s.cssClass}`} style={{ background: s.bg, color: theme === "dark" ? s.textDark : s.textLight }}>
         <span className={styles.statusDot} style={{ background: s.dot }} />
         {status}
       </span>

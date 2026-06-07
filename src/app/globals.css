@@ -48,6 +48,27 @@ html {
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+
+  /* ── NC design tokens — dark mode ──────────────────────── */
+  /* near-black warm backgrounds — éviter le noir pur */
+  --color-brand: #e0625a;
+  --color-text-primary: #f2edeb;     /* ~15:1 sur fond page */
+  --color-text-secondary: #a89e9b;   /* ~7:1  sur fond page */
+  --color-text-muted: #857a77;       /* ~4.5:1 — placeholders, hints */
+  --color-surface-page: #141211;     /* page bg — near-black chaud */
+  --color-surface-raised: #201d1b;   /* nav pills, inputs */
+  --color-surface-card: #2a2725;     /* dropdowns, modals, cards */
+  --color-border-default: #332e2b;   /* bordures subtiles */
+  --nc-nav-active-bg: rgba(255, 255, 255, 0.09);
+  --nc-nav-hover-bg: rgba(255, 255, 255, 0.05);
+  --nc-segmented-active-bg: rgba(255, 255, 255, 0.92);
+  --nc-segmented-active-text: #141211;
+  /* Boutons CTA sombres inversés en dark */
+  --nc-btn-dark-bg: #ede9e6;
+  --nc-btn-dark-text: #141211;
+  /* BottomNav pill — fond sombre translucide */
+  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
+  --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
 }
 
 @theme inline {
@@ -84,6 +105,7 @@ html {
   --color-surface-page: #f5f2f2;
   --color-surface-raised: #f5f5f5;
   --color-border-default: #e5e7eb;
+  --color-surface-card: #ffffff;     /* elevated surfaces (modals, dropdowns, cards) */
 }
 
 :root {
@@ -100,6 +122,197 @@ html {
   --nc-duration-fast: 200ms;
   --nc-duration-normal: 250ms;
   --nc-duration-slow: 300ms;
+  --nc-nav-active-bg: rgba(0, 0, 0, 0.07);
+  --nc-nav-hover-bg: rgba(0, 0, 0, 0.04);
+  --nc-segmented-active-bg: #ffffff;
+  --nc-segmented-active-text: #000000;
+  /* Boutons CTA sombres — s'inversent en dark mode */
+  --nc-btn-dark-bg: #1a1a1a;
+  --nc-btn-dark-text: #ffffff;
+  /* BottomNav pill */
+  --nc-bottom-nav-bg: rgba(255, 255, 255, 0.92);
+  --nc-bottom-nav-border: rgba(229, 231, 235, 0.9);
+  /* Dots pattern hover sur resource/template cards */
+  --nc-card-dot-color: rgba(224, 98, 90, 0.28);
+  /* Overlay de contenu verrouillé (FreeTeaserPanel) */
+  --nc-lock-overlay-bg: rgba(255, 255, 255, 0.72);
+  /* SwitchToggle — fond OFF */
+  --nc-switch-off-bg: rgba(0, 0, 0, 0.12);
+  /* Boutons désactivés */
+  --nc-btn-disabled-bg: #e5e7eb;
+  --nc-btn-disabled-text: #9ca3af;
+  /* Transitions de page */
+  --nc-duration-page: 240ms;
+  --nc-duration-page-exit: 160ms;
+  --nc-duration-morph: 370ms;
+  --nc-ease-out: cubic-bezier(0.4, 0, 1, 1);
+  --nc-ease-morph: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  /* Tags communauté */
+  --nc-tag-general-bg: rgba(0, 0, 0, 0.06);
+  --nc-tag-general-text: var(--color-text-secondary);
+  --nc-tag-question-bg: rgba(59, 130, 246, 0.10);
+  --nc-tag-question-text: #1d4ed8;
+  --nc-tag-presentation-bg: rgba(34, 197, 94, 0.10);
+  --nc-tag-presentation-text: #15803d;
+  --nc-tag-annonce-bg: rgba(224, 98, 90, 0.12);
+  --nc-tag-annonce-text: #c0392b;
+  /* Badges de statut coaching */
+  --nc-status-upcoming-bg: #fef3f2;
+  --nc-status-upcoming-text: #e0625a;
+  --nc-status-accepted-bg: #dcfce7;
+  --nc-status-accepted-text: #166534;
+  --nc-status-noshown-bg: #fee2e2;
+  --nc-status-noshown-text: #991b1b;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Dark mode — overrides des classes utilitaires NC
+   ══════════════════════════════════════════════════════════ */
+
+/* Halo de page — supprimé en dark mode (fond uni warm near-black #141211) */
+.dark .nc-page-halo::before {
+  background: none;
+}
+
+/* Carte auth — fond sombre en dark mode */
+.dark .nc-shine-card__inner {
+  background: var(--color-surface-card);
+}
+
+/* Input NC en dark mode */
+.dark .nc-input {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
+}
+.dark .nc-input::placeholder {
+  color: var(--color-text-muted);
+}
+.dark .nc-input:focus {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(224, 98, 90, 0.15);
+}
+
+/* ── Boutons flottants mobile (Bell, etc.) ── */
+.nc-mobile-action-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 0.5px solid rgba(229, 231, 235, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+.dark .nc-mobile-action-btn {
+  background: rgba(28, 25, 23, 0.88);
+  border-color: rgba(55, 50, 47, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+
+/* ── Pill glissante nav (Topbar desktop + BottomNav mobile) ──
+   La transition est définie ici (CSS class) pour que le pattern "snap"
+   fonctionne : moveTo(false) sauvegarde pill.style.transition (""),
+   force transition:none, snaps, puis restaure "" → la class reprend.
+   moveTo(true) écrit juste transform+width et la class anime. */
+.nc-nav-pill {
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    width     220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-nav-pill { transition: none !important; }
+}
+
+/* ── Pill Topbar ── */
+.nc-topbar-pill {
+  background: var(--color-surface-card);
+  border: 0.5px solid var(--color-border-default);
+  border-radius: 9999px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.dark .nc-topbar-pill {
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.4),
+    0 1px 4px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.04);
+}
+
+/* ── Dropdown/popover panel ── */
+.nc-dropdown-panel {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-default);
+  box-shadow:
+    rgba(0, 0, 0, 0.03) 0px -2px 16px -4px,
+    rgba(0, 0, 0, 0.08) 0px 16px 40px -8px,
+    rgba(0, 0, 0, 0.04) 0px 1px 3px 0px;
+}
+.dark .nc-dropdown-panel {
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.5),
+    0 4px 12px rgba(0, 0, 0, 0.32),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+}
+
+/* ── FAB "Nouveau post" mobile (feed communauté) ── */
+.nc-feed-fab {
+  position: fixed;
+  right: 20px;
+  /* au-dessus de la BottomNav (bottom:10 + height:56) + marge confort */
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+  z-index: 45;
+  width: 56px;
+  height: 56px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-brand);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow:
+    0 8px 24px -6px rgba(224, 98, 90, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.12);
+  transition: transform 180ms var(--nc-ease), box-shadow 180ms var(--nc-ease);
+}
+.nc-feed-fab:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 28px -6px rgba(224, 98, 90, 0.6),
+    0 3px 8px rgba(0, 0, 0, 0.14);
+}
+.nc-feed-fab:active {
+  transform: scale(0.94);
+}
+
+/* ── Compteur de ressources (chip lisible, intégré au design system) ── */
+.nc-resource-count {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: 9999px;
+  padding: 6px 12px;
+}
+/* Desktop : poussé à droite de la barre de filtres. Mobile : reste dans le
+   flux, inline après le bouton Filtres (plus de ligne orpheline en dessous). */
+@media (min-width: 768px) {
+  .nc-resource-count {
+    margin-left: auto;
+  }
 }
 
 @layer base {
@@ -313,6 +526,26 @@ html {
   animation: nc-mode-in var(--nc-duration-normal) var(--nc-ease) both;
 }
 
+/*
+ * Grid responsive pour la matrix NotificationsSection.
+ * Mobile (< md = 768 px) : colonnes channels compactes 56 px, gap 4 px
+ *   → la matrix tient inline sur les viewports ≥ 320 px.
+ * Desktop (≥ 768 px) : colonnes channels élargies à 96 px et gap 10 px
+ *   → le titre du type respire et les 3 boutons canaux sont mieux
+ *   distribués sur la ligne (plus de grand vide central).
+ */
+.nc-notif-grid {
+  grid-template-columns: minmax(0, 1fr) repeat(3, 56px);
+  gap: 4px;
+}
+
+@media (min-width: 768px) {
+  .nc-notif-grid {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 96px);
+    gap: 10px;
+  }
+}
+
 @keyframes nc-sheet-in {
   from {
     transform: translateY(100%);
@@ -361,18 +594,88 @@ html {
    View transitions (Next.js experimental.viewTransition)
    ────────────────────────────────────────────────────────────── */
 
-/* Toutes les morphs card → header durent 350ms avec un léger blur */
+/* Scénario C — morph shared element (cartes ressources/templates).
+   S'applique à tous les éléments nommés via view-transition-name. */
 ::view-transition-group(*) {
-  animation-duration: 350ms;
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  animation-duration: var(--nc-duration-morph);
+  animation-timing-function: var(--nc-ease-morph);
 }
 
 ::view-transition-old(*),
 ::view-transition-new(*) {
-  animation-duration: 350ms;
+  animation-duration: var(--nc-duration-morph);
 }
 
-/* Reduce motion : on désactive l'animation */
+/* Scénario A — cross-fade root (navigation entre sections).
+   Override du * ci-dessus grâce à la source order. */
+::view-transition-group(root) {
+  animation-duration: var(--nc-duration-page);
+  animation-timing-function: var(--nc-ease);
+}
+
+/* Root exit : fade accéléré (la page sortante part vite) */
+::view-transition-old(root) {
+  animation-duration: var(--nc-duration-page-exit);
+  animation-timing-function: var(--nc-ease-out);
+}
+
+/* Root enter : fade + scale léger (la page entrante s'installe) */
+::view-transition-new(root) {
+  animation-name: nc-page-enter;
+  animation-duration: var(--nc-duration-page);
+  animation-timing-function: var(--nc-ease);
+}
+
+@keyframes nc-page-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Skeleton pulse — utilisé dans loading.tsx */
+@keyframes nc-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+@keyframes nc-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Empilement de cartes — navigation entre leçons (lesson-card).
+   La carte sortante s'enfonce dans le bas du "deck" pendant que la
+   nouvelle glisse par-dessus depuis le haut. */
+::view-transition-old(lesson-card) {
+  animation-name: nc-lesson-stack-exit;
+  animation-duration: 220ms;
+  animation-timing-function: var(--nc-ease-out);
+  transform-origin: center bottom;
+}
+
+::view-transition-new(lesson-card) {
+  animation-name: nc-lesson-stack-enter;
+  animation-duration: 340ms;
+  animation-timing-function: var(--nc-ease);
+  transform-origin: center top;
+}
+
+@keyframes nc-lesson-stack-exit {
+  from { opacity: 1; transform: scale(1)    translateY(0);    }
+  to   { opacity: 0; transform: scale(0.93) translateY(24px); }
+}
+
+@keyframes nc-lesson-stack-enter {
+  from { opacity: 0; transform: scale(0.97) translateY(-40px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);     }
+}
+
+
+/* Reduce motion : transitions instantanées */
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(*),
   ::view-transition-new(*),
@@ -410,5 +713,240 @@ html {
   [contenteditable="true"] {
     -webkit-user-select: text;
     user-select: text;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   html.dark — specificity [0,1,1] reinforcement block
+   Garantit que les tokens NC dark gagnent sur toute règle :root
+   issue de @theme inline (Tailwind v4) ou d'autres imports.
+   Cette règle doit rester en DERNIER dans le fichier.
+   ══════════════════════════════════════════════════════════════ */
+html.dark {
+  --color-brand: #e0625a;
+  --color-text-primary: #f2edeb;
+  --color-text-secondary: #a89e9b;
+  --color-text-muted: #857a77;
+  --color-surface-page: #141211;
+  --color-surface-raised: #201d1b;
+  --color-surface-card: #2a2725;
+  --color-border-default: #332e2b;
+  --nc-nav-active-bg: rgba(255, 255, 255, 0.09);
+  --nc-nav-hover-bg: rgba(255, 255, 255, 0.05);
+  --nc-segmented-active-bg: rgba(255, 255, 255, 0.92);
+  --nc-segmented-active-text: #141211;
+  --nc-btn-dark-bg: #ede9e6;
+  --nc-btn-dark-text: #141211;
+  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
+  --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
+  --nc-card-dot-color: rgba(255, 255, 255, 0.18);
+  --nc-lock-overlay-bg: rgba(20, 18, 17, 0.87);
+  --nc-switch-off-bg: rgba(255, 255, 255, 0.14);
+  --nc-btn-disabled-bg: rgba(255, 255, 255, 0.08);
+  --nc-btn-disabled-text: rgba(255, 255, 255, 0.28);
+  --nc-tag-general-bg: rgba(255, 255, 255, 0.07);
+  --nc-tag-general-text: var(--color-text-secondary);
+  --nc-tag-question-bg: rgba(59, 130, 246, 0.12);
+  --nc-tag-question-text: #60a5fa;
+  --nc-tag-presentation-bg: rgba(34, 197, 94, 0.09);
+  --nc-tag-presentation-text: #4ade80;
+  --nc-tag-annonce-bg: rgba(224, 98, 90, 0.12);
+  --nc-tag-annonce-text: var(--color-brand);
+  --nc-status-upcoming-bg: rgba(224, 98, 90, 0.15);
+  --nc-status-upcoming-text: var(--color-brand);
+  --nc-status-accepted-bg: rgba(34, 197, 94, 0.12);
+  --nc-status-accepted-text: #4ade80;
+  --nc-status-noshown-bg: rgba(229, 62, 62, 0.12);
+  --nc-status-noshown-text: #f87171;
+}
+
+/* ---------- Formation — éditeur de notes (rich text contentEditable) ---------- */
+.nc-notes-editor a {
+  color: var(--color-brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.nc-notes-editor ul {
+  margin: 6px 0;
+  padding-left: 22px;
+  list-style: disc;
+}
+.nc-notes-editor img,
+.nc-notes-editor iframe {
+  max-width: 100%;
+  border-radius: 10px;
+  margin: 8px 0;
+}
+.nc-notes-editor:focus {
+  outline: none;
+}
+
+/* ---------- Formation — feedback popup : barre de fermeture auto (5s) ---------- */
+@keyframes nc-feedback-countdown {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+.nc-feedback-countdown {
+  animation: nc-feedback-countdown 2s linear forwards;
+}
+
+/* ---------- Formation — popup feedback : ouverture / fermeture premium ---------- */
+@keyframes nc-pop-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes nc-pop-overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes nc-pop-card-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes nc-pop-card-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(8px) scale(0.97); }
+}
+.nc-pop-overlay {
+  animation: nc-pop-overlay-in 240ms var(--nc-ease) both;
+}
+.nc-pop-overlay[data-closing="true"] {
+  animation: nc-pop-overlay-out 200ms var(--nc-ease) both;
+}
+.nc-pop-card {
+  animation: nc-pop-card-in 300ms var(--nc-ease) both;
+}
+.nc-pop-card[data-closing="true"] {
+  animation: nc-pop-card-out 200ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-pop-overlay, .nc-pop-overlay[data-closing="true"],
+  .nc-pop-card, .nc-pop-card[data-closing="true"] {
+    animation-duration: 1ms;
+  }
+}
+
+/* ---------- Formation — transition leçon → leçon (carte intégrée) ---------- */
+/* La carte de transition prend la place du contenu (player-card) dans la
+   colonne, sans fond plein écran. Elle apparaît, héberge progression +
+   feedback, puis se dissout au-dessus du nouveau cours pour le révéler. */
+@keyframes nc-lt-card-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.nc-lt-card {
+  animation: nc-lt-card-in 300ms var(--nc-ease) both;
+}
+.nc-lt-layer[data-revealing="true"] .nc-lt-card {
+  animation: nc-lt-card-in 240ms var(--nc-ease) reverse both;
+}
+
+/* Scrim de contraste : assombrit + floute légèrement le skeleton derrière le
+   form pour le détacher (sinon ton sur ton). */
+.nc-lt-scrim {
+  background: rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(4px) saturate(0.9);
+  -webkit-backdrop-filter: blur(4px) saturate(0.9);
+}
+html.dark .nc-lt-scrim {
+  background: rgba(0, 0, 0, 0.34);
+}
+
+/* Form de feedback en surimpression : fine bordure shimmer (conic-gradient
+   animé, 1 arc discret, lent) sur les coins extérieurs pour attirer l'œil sans
+   concurrencer la barre de progression. Réutilise --nc-shine-angle / nc-shine-rotate. */
+.nc-lt-form {
+  --nc-shine-angle: 0deg;
+  position: relative;
+  border-radius: 20px;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--nc-shine-angle),
+    rgba(224, 98, 90, 0) 0%,
+    rgba(224, 98, 90, 0.4) 12%,
+    rgba(224, 98, 90, 0) 30%,
+    rgba(224, 98, 90, 0) 100%
+  );
+  animation: nc-shine-rotate 5s linear infinite;
+  box-shadow: var(--nc-shadow-3);
+}
+.nc-lt-form__inner {
+  border-radius: 19px;
+  overflow: hidden;
+  background: var(--color-surface-card);
+}
+
+/* Apparition douce (croix de fermeture, etc.) */
+.nc-fade-in {
+  animation: nc-pop-overlay-in 260ms var(--nc-ease) both;
+}
+
+/* ---------- Fil d'Ariane file-tree — accordion (slide) + dropdown (fade) ---------- */
+/* Dépliage/repliage vertical fluide d'un module (Radix Accordion). */
+@keyframes nc-accordion-down {
+  from { height: 0; opacity: 0.4; }
+  to { height: var(--radix-accordion-content-height); opacity: 1; }
+}
+@keyframes nc-accordion-up {
+  from { height: var(--radix-accordion-content-height); opacity: 1; }
+  to { height: 0; opacity: 0.4; }
+}
+.nc-accordion-content[data-state="open"] {
+  animation: nc-accordion-down 240ms var(--nc-ease);
+}
+.nc-accordion-content[data-state="closed"] {
+  animation: nc-accordion-up 200ms var(--nc-ease);
+}
+
+/* Ouverture/fermeture du menu en fondu + léger glissement. */
+@keyframes nc-dropdown-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes nc-dropdown-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-6px) scale(0.98); }
+}
+.nc-dropdown {
+  transform-origin: top left;
+  animation: nc-dropdown-in 180ms var(--nc-ease) both;
+}
+.nc-dropdown[data-closing="true"] {
+  animation: nc-dropdown-out 140ms var(--nc-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nc-accordion-content[data-state="open"],
+  .nc-accordion-content[data-state="closed"],
+  .nc-dropdown,
+  .nc-dropdown[data-closing="true"] {
+    animation-duration: 1ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nc-lt-card,
+  .nc-lt-layer[data-revealing="true"] .nc-lt-card,
+  .nc-fade-in {
+    animation-duration: 1ms;
+  }
+  .nc-lt-form {
+    animation: none;
+  }
+}
+
+/* ---------- Formation — flèche ressource (sortie diagonale au hover) ---------- */
+.nc-resource-arrow {
+  opacity: 0;
+  transform: translate(-3px, 3px);
+  transition: opacity 220ms var(--nc-ease), transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.group:hover .nc-resource-arrow {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-resource-arrow {
+    transition-duration: 1ms;
   }
 }

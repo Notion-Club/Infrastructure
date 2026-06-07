@@ -22,6 +22,7 @@ export default function UpdatePasswordPage() {
             height={48}
             priority
             className="h-12 w-auto"
+            data-fb-label="Logo Notion Club · En-tête auth"
           />
         </header>
 

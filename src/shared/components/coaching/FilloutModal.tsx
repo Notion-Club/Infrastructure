@@ -2,21 +2,26 @@
 
 import { useEffect } from "react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
+import { buildFilloutUrl } from "@/shared/lib/fillout/url";
 
 interface FilloutModalProps {
   isOpen: boolean;
   onClose: () => void;
-  url: string;
-  userEmail: string;
-  memberId: string;
+  baseUrl: string;
+  id: string | null;
+  mail: string | null;
+  prenom: string | null;
+  nom: string | null;
 }
 
 export function FilloutModal({
   isOpen,
   onClose,
-  url,
-  userEmail,
-  memberId,
+  baseUrl,
+  id,
+  mail,
+  prenom,
+  nom,
 }: FilloutModalProps) {
   // Close on Escape
   useEffect(() => {
@@ -39,7 +44,7 @@ export function FilloutModal({
 
   if (!isOpen) return null;
 
-  const iframeUrl = `${url}?email=${encodeURIComponent(userEmail)}&member_id=${encodeURIComponent(memberId)}`;
+  const iframeUrl = buildFilloutUrl(baseUrl, { id, mail, prenom, nom });
 
   function handleOverlayClick(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target === e.currentTarget) onClose();
@@ -48,6 +53,7 @@ export function FilloutModal({
   return (
     <div
       onClick={handleOverlayClick}
+      data-fb-label="Modale réservation · Coaching"
       style={{
         position: "fixed",
         inset: 0,
@@ -63,11 +69,12 @@ export function FilloutModal({
     >
       {/* Modal window */}
       <div
+        data-fb-label="Fenêtre formulaire · Modale réservation"
         style={{
           width: "100%",
           maxWidth: 700,
           maxHeight: "85vh",
-          background: "#ffffff",
+          background: "var(--color-surface-card)",
           borderRadius: 12,
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
           overflow: "hidden",

@@ -9,6 +9,28 @@ export interface MockCall {
   ai_summary?: string; // absent si upcoming
 }
 
+// Type accepté par CallCard / UpcomingCallsSection / PastCallsSection. C'est
+// le sur-ensemble qui couvre à la fois les mocks Théo (DevStateSwitcher) et
+// les vraies données Notion. Les champs Notion sont optionnels — non présents
+// sur les mocks, et déclenchent l'affichage du bouton transcription dans
+// CallCard lorsqu'ils existent.
+export interface CallCardData {
+  id: string;
+  date: string;
+  host: string; // élargi (string au lieu de "Théo"|"Noah") pour accepter Notion brut
+  host_avatar_url?: string; // photo de profil Notion du Host (people)
+  subject: string;
+  status: CallStatus;
+  ai_summary?: string;
+  notion_page_id?: string; // = id de la page Notion, sert au fetch transcription
+  fathom_url?: string; // = lien Fathom externe
+  // URL signée vers /api/coaching/transcript/<token> (24h de validité).
+  // Embarquée dans les boutons "Demander à ChatGPT/Claude" — l'IA suit le
+  // lien et lit la transcription brute. Présente uniquement pour les past
+  // calls liés à Notion ; absente sur les mocks et upcoming.
+  transcript_url?: string;
+}
+
 export const MOCK_UPCOMING_CALLS: MockCall[] = [
   {
     id: "1",

@@ -10,6 +10,7 @@ interface CapabilityLockProps {
 export function CapabilityLock({ title, description, ctaLabel, ctaHref }: CapabilityLockProps) {
   return (
     <div
+      data-fb-label="Encadré Accès verrouillé · Page ressource"
       style={{
         background: 'rgba(224,98,90,0.04)',
         border: '1px solid rgba(224,98,90,0.15)',
@@ -59,6 +60,7 @@ export function CapabilityLock({ title, description, ctaLabel, ctaHref }: Capabi
       </p>
       <a
         href={ctaHref}
+        data-fb-label="Bouton Découvrir les offres · Encadré Accès verrouillé"
         style={{
           display: 'inline-flex',
           alignItems: 'center',

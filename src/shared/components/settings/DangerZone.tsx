@@ -39,12 +39,14 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
       title="Zone de danger"
       description="Déconnecte-toi de cet appareil, ou supprime définitivement ton compte. Toutes les données identifiantes seront anonymisées et tes accès révoqués."
       tone="danger"
+      fbLabel="Zone de danger · Réglages"
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <button
           type="button"
           onClick={handleSignOut}
           disabled={signingOut}
+          data-fb-label="Bouton Se déconnecter · Zone de danger"
           style={{
             alignSelf: "flex-start",
             display: "inline-flex",
@@ -53,7 +55,7 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
             padding: "10px 18px",
             borderRadius: 9999,
             border: "1px solid var(--color-border-default)",
-            background: "white",
+            background: "var(--color-surface-raised)",
             color: "var(--color-text-primary)",
             fontSize: 13,
             fontWeight: 600,
@@ -61,7 +63,7 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
             opacity: signingOut ? 0.6 : 1,
             transition: "background 150ms ease",
           }}
-          className="hover:bg-[var(--color-surface-raised)]"
+          className="hover:bg-[var(--color-surface-card)]"
         >
           {signingOut ? (
             <LoaderCircle size={14} className="animate-spin" />
@@ -73,6 +75,7 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
         <button
           type="button"
           onClick={() => setModalOpen(true)}
+          data-fb-label="Bouton Supprimer mon compte · Zone de danger"
           style={{
             alignSelf: "flex-start",
             display: "inline-flex",
@@ -81,7 +84,7 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
             padding: "10px 18px",
             borderRadius: 9999,
             border: "1px solid rgba(224,98,90,0.4)",
-            background: "white",
+            background: "var(--color-surface-card)",
             color: "var(--color-brand)",
             fontSize: 13,
             fontWeight: 600,
@@ -179,6 +182,7 @@ function DeleteAccountModal({
       role="dialog"
       aria-modal="true"
       aria-label="Confirmer la suppression du compte"
+      data-fb-label="Modale suppression compte · Zone de danger"
       onClick={(e) => {
         if (e.target === e.currentTarget && !submitting) onClose();
       }}
@@ -199,7 +203,7 @@ function DeleteAccountModal({
         style={{
           width: "100%",
           maxWidth: 460,
-          background: "white",
+          background: "var(--color-surface-card)",
           borderRadius: 20,
           overflow: "hidden",
           boxShadow: "0 24px 48px -12px rgba(0,0,0,0.35)",
@@ -265,6 +269,7 @@ function DeleteAccountModal({
               <input
                 id="delete-account-password"
                 type={showPassword ? "text" : "password"}
+                data-fb-label="Champ Mot de passe · Modale suppression compte"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
@@ -328,6 +333,7 @@ function DeleteAccountModal({
             <input
               id="delete-account-confirmation"
               type="text"
+              data-fb-label="Champ Confirmation · Modale suppression compte"
               value={confirmation}
               onChange={(e) => setConfirmation(e.target.value)}
               autoComplete="off"
@@ -355,11 +361,12 @@ function DeleteAccountModal({
             type="button"
             onClick={onClose}
             disabled={submitting}
+            data-fb-label="Bouton Annuler · Modale suppression compte"
             style={{
               padding: "9px 18px",
               borderRadius: 9999,
               border: "1px solid var(--color-border-default)",
-              background: "white",
+              background: "var(--color-surface-card)",
               color: "var(--color-text-secondary)",
               fontSize: 13,
               fontWeight: 500,
@@ -372,6 +379,7 @@ function DeleteAccountModal({
           <button
             type="submit"
             disabled={!canSubmit}
+            data-fb-label="Bouton Supprimer définitivement · Modale suppression compte"
             style={{
               display: "inline-flex",
               alignItems: "center",

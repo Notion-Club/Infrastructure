@@ -194,6 +194,7 @@ export function PhoneField({
           name={id}
           type="tel"
           inputMode="tel"
+          data-fb-label="Champ Téléphone · Section profil"
           value={value.national}
           onChange={handleNationalChange}
           onBlur={handleNationalBlur}
@@ -311,6 +312,7 @@ function CountryPicker({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
+        data-fb-label="Sélecteur pays · Section profil"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -319,7 +321,7 @@ function CountryPicker({
           height: 44,
           borderRadius: 12,
           border: "1px solid var(--color-border-default)",
-          background: "white",
+          background: "var(--color-surface-raised)",
           color: "var(--color-text-primary)",
           fontSize: 14,
           cursor: "pointer",
@@ -347,7 +349,7 @@ function CountryPicker({
             left: 0,
             width: 320,
             maxWidth: "calc(100vw - 32px)",
-            background: "white",
+            background: "var(--color-surface-card)",
             border: "1px solid var(--color-border-default)",
             borderRadius: 14,
             boxShadow: "var(--nc-shadow-2)",

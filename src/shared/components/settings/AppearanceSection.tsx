@@ -8,8 +8,10 @@ export function AppearanceSection() {
     <SettingsCard
       title="Apparence"
       description="Choisissez le thème de l'application — clair, sombre, ou aligné sur votre système."
+      fbLabel="Section apparence · Réglages"
     >
       <div
+        data-fb-label="Switcher de thème · Section apparence"
         style={{
           display: "flex",
           justifyContent: "center",

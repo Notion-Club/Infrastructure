@@ -134,6 +134,7 @@ export function ProfileHero({
           type="button"
           onClick={openPicker}
           aria-label="Modifier ma photo de profil"
+          data-fb-label="Avatar profil · Section profil"
           style={{
             position: "relative",
             width: "100%",
@@ -211,6 +212,7 @@ export function ProfileHero({
           type="button"
           onClick={openPicker}
           aria-label="Modifier ma photo de profil"
+          data-fb-label="Bouton changer photo · Section profil"
           className="transition-transform duration-200 hover:scale-110 focus-visible:scale-110"
           style={{
             position: "absolute",
@@ -497,6 +499,7 @@ function EditableDisplayName({
             maxLength={60}
             placeholder={PLACEHOLDERS[0]}
             aria-label="Nom d'affichage"
+            data-fb-label="Champ Nom d'affichage · Section profil"
             style={{
               width: "100%",
               height: "100%",
@@ -504,7 +507,7 @@ function EditableDisplayName({
               fontWeight: 600,
               letterSpacing: "-0.01em",
               color: "var(--color-text-primary)",
-              background: "white",
+              background: "var(--color-surface-card)",
               border: "1px solid var(--color-brand)",
               borderRadius: 9999,
               padding: `0 ${PILL_PADDING_RIGHT}px 0 ${PILL_PADDING_LEFT}px`,
@@ -562,6 +565,7 @@ function EditableDisplayName({
         aria-label={
           isEmpty ? "Ajouter un nom d'affichage" : "Modifier le nom d'affichage"
         }
+        data-fb-label="Nom d'affichage · Section profil"
         className={`hover:bg-[var(--color-surface-raised)] focus-visible:bg-[var(--color-surface-raised)] ${
           isEmpty ? "nc-pill-width-cycle" : ""
         }`}
@@ -569,7 +573,7 @@ function EditableDisplayName({
           ...wrapperBase,
           ...pillVars,
           ...widthStyle,
-          background: "white",
+          background: "var(--color-surface-card)",
           border: "1px solid var(--color-border-default)",
           borderRadius: 9999,
           cursor: "pointer",

@@ -68,12 +68,13 @@ export function UserHoverCard({ user, devRole, children }: UserHoverCardProps) {
           ref={cardRef}
           onMouseEnter={show}
           onMouseLeave={hide}
+          data-fb-label="Carte profil survol · Communauté"
           style={{
             position: "absolute",
             [coords.above ? "bottom" : "top"]: "calc(100% + 6px)",
             left: 0,
             zIndex: 200,
-            background: "white",
+            background: "var(--color-surface-card)",
             border: "1px solid var(--color-border-default)",
             borderRadius: 16,
             boxShadow: "var(--nc-shadow-2)",
@@ -115,6 +116,7 @@ export function UserHoverCard({ user, devRole, children }: UserHoverCardProps) {
               <button
                 type="button"
                 onClick={handleDM}
+                data-fb-label="Bouton Envoyer un message · Carte profil survol"
                 style={{
                   width: "100%",
                   display: "flex",
@@ -122,7 +124,7 @@ export function UserHoverCard({ user, devRole, children }: UserHoverCardProps) {
                   justifyContent: "center",
                   gap: 7,
                   padding: "9px 16px",
-                  background: "#f0f0f0",
+                  background: "var(--color-surface-raised)",
                   color: "var(--color-text-primary)",
                   border: "none",
                   borderRadius: 9999,

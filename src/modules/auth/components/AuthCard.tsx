@@ -158,8 +158,14 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
     });
   }
 
+  const formContext =
+    mode === "login" ? "Formulaire de connexion" : "Formulaire d'inscription";
+
   return (
-    <div className="nc-shine-card w-full max-w-[420px]">
+    <div
+      className="nc-shine-card w-full max-w-[420px]"
+      data-fb-label={mode === "login" ? "Carte auth · Connexion" : "Carte auth · Inscription"}
+    >
       <div className="nc-shine-card__inner flex flex-col gap-6">
         <ModeToggle mode={mode} onChange={setMode} disabled={isPending} />
 
@@ -168,6 +174,7 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
           onSubmit={handleSubmit}
           className="nc-mode-in flex flex-col gap-5"
           noValidate
+          data-fb-label={`Formulaire · ${formContext}`}
         >
           <GoogleButton
             label={
@@ -177,6 +184,7 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
             }
             loading={isLoading}
             onClick={handleGoogle}
+            data-fb-label={`Bouton Google · ${formContext}`}
           />
 
           <Divider />
@@ -189,6 +197,7 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
               showPassword={showPassword}
               onTogglePassword={() => setShowPassword((v) => !v)}
               fieldErrors={fieldErrors}
+              context={formContext}
             />
           ) : (
             <SignupFields
@@ -196,10 +205,11 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
               showPassword={showPassword}
               onTogglePassword={() => setShowPassword((v) => !v)}
               fieldErrors={fieldErrors}
+              context={formContext}
             />
           )}
 
-          <SubmitButton mode={mode} loading={isLoading} />
+          <SubmitButton mode={mode} loading={isLoading} context={formContext} />
         </form>
       </div>
     </div>
@@ -245,7 +255,7 @@ function ModeToggle({
             className={cn(
               "relative z-10 rounded-full px-4 py-2 text-[14px] font-semibold transition-all duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60",
               active
-                ? "bg-white text-[var(--color-text-primary)] shadow-[var(--nc-shadow-3)]"
+                ? "bg-[var(--nc-segmented-active-bg)] text-[var(--nc-segmented-active-text)] shadow-[var(--nc-shadow-3)]"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
             )}
           >
@@ -281,11 +291,13 @@ function LoginFields({
   showPassword,
   onTogglePassword,
   fieldErrors,
+  context,
 }: {
   disabled: boolean;
   showPassword: boolean;
   onTogglePassword: () => void;
   fieldErrors: FieldErrors;
+  context: string;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -298,6 +310,7 @@ function LoginFields({
         required
         disabled={disabled}
         error={fieldErrors.email}
+        context={context}
       />
       <PasswordField
         id="password"
@@ -307,10 +320,12 @@ function LoginFields({
         onToggle={onTogglePassword}
         disabled={disabled}
         error={fieldErrors.password}
+        context={context}
         rightAction={
           <Link
             href="/reset-password"
             className="text-[14px] font-medium text-[var(--color-brand)] hover:underline"
+            data-fb-label={`Lien Mot de passe oublié · ${context}`}
           >
             Mot de passe oublié ?
           </Link>
@@ -325,11 +340,13 @@ function SignupFields({
   showPassword,
   onTogglePassword,
   fieldErrors,
+  context,
 }: {
   disabled: boolean;
   showPassword: boolean;
   onTogglePassword: () => void;
   fieldErrors: FieldErrors;
+  context: string;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -343,6 +360,7 @@ function SignupFields({
           required
           disabled={disabled}
           error={fieldErrors.firstName}
+          context={context}
         />
         <Field
           id="lastName"
@@ -353,6 +371,7 @@ function SignupFields({
           required
           disabled={disabled}
           error={fieldErrors.lastName}
+          context={context}
         />
       </div>
       <Field
@@ -364,6 +383,7 @@ function SignupFields({
         required
         disabled={disabled}
         error={fieldErrors.email}
+        context={context}
       />
       <PasswordField
         id="password"
@@ -374,6 +394,7 @@ function SignupFields({
         disabled={disabled}
         error={fieldErrors.password}
         hint="8 caractères minimum"
+        context={context}
       />
     </div>
   );
@@ -388,6 +409,7 @@ function Field({
   required,
   disabled,
   error,
+  context,
 }: {
   id: string;
   label: string;
@@ -397,6 +419,7 @@ function Field({
   required?: boolean;
   disabled?: boolean;
   error?: string;
+  context: string;
 }) {
   return (
     <label htmlFor={id} className="flex flex-col gap-2">
@@ -412,6 +435,7 @@ function Field({
         required={required}
         disabled={disabled}
         aria-invalid={error ? true : undefined}
+        data-fb-label={`Champ ${label} · ${context}`}
         className="nc-input disabled:cursor-not-allowed disabled:opacity-60"
       />
       {error && (
@@ -431,6 +455,7 @@ function PasswordField({
   rightAction,
   disabled,
   error,
+  context,
 }: {
   id: string;
   label: string;
@@ -441,6 +466,7 @@ function PasswordField({
   rightAction?: React.ReactNode;
   disabled?: boolean;
   error?: string;
+  context: string;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -463,6 +489,7 @@ function PasswordField({
           disabled={disabled}
           minLength={1}
           aria-invalid={error ? true : undefined}
+          data-fb-label={`Champ ${label} · ${context}`}
           className="nc-input pr-12 disabled:cursor-not-allowed disabled:opacity-60"
           placeholder="••••••••"
         />
@@ -471,6 +498,7 @@ function PasswordField({
           onClick={onToggle}
           disabled={disabled}
           aria-label={show ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+          data-fb-label={`Bouton Afficher le mot de passe · ${context}`}
           className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -488,9 +516,11 @@ function PasswordField({
 function SubmitButton({
   mode,
   loading,
+  context,
 }: {
   mode: AuthMode;
   loading: boolean;
+  context: string;
 }) {
   const idleLabel = mode === "login" ? "Se connecter" : "Créer mon compte";
   const loadingLabel = mode === "login" ? "Connexion…" : "Création en cours…";
@@ -498,6 +528,7 @@ function SubmitButton({
     <button
       type="submit"
       disabled={loading}
+      data-fb-label={`Bouton ${idleLabel} · ${context}`}
       className="nc-btn-shine group flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-5 py-3.5 text-[15px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(224,98,90,0.55)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_14px_32px_-10px_rgba(224,98,90,0.65)] active:translate-y-0 active:shadow-[0_6px_16px_-6px_rgba(224,98,90,0.55)] disabled:cursor-not-allowed disabled:opacity-80"
     >
       <span className="relative z-10 flex items-center gap-2">

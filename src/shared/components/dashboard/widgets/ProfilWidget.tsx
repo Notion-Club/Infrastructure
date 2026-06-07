@@ -18,8 +18,9 @@ export function ProfilWidget() {
 
   return (
     <article
+      data-fb-label="Encadré Profil · Tableau de bord"
       style={{
-        background: "white",
+        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         borderRadius: 16,
         padding: 20,
@@ -43,6 +44,7 @@ export function ProfilWidget() {
 
       <div>
         <span
+          data-fb-label="Badge Niveau · Widget Profil"
           style={{
             display: "inline-flex",
             alignItems: "center",

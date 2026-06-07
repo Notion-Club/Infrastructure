@@ -73,8 +73,6 @@ export function PostComposerTagSelect({
   }
 
   // Repositionne au resize / scroll fenêtre tant que le dropdown est ouvert
-  // (le modal interne scrolle indépendamment ; si le button bouge, la
-  // dropdown doit suivre — sinon elle reste figée à l'ancienne position).
   useEffect(() => {
     if (!open) return;
     const onLayoutChange = () => computePos();
@@ -86,9 +84,7 @@ export function PostComposerTagSelect({
     };
   }, [open, computePos]);
 
-  // Close outside — on capture en `mousedown` (avant le `click`) pour
-  // fermer si l'utilisateur clique ailleurs. Le button et la dropdown
-  // sont exclus de la fermeture.
+  // Close outside
   useEffect(() => {
     if (!open) return;
     function close(e: MouseEvent) {
@@ -101,7 +97,7 @@ export function PostComposerTagSelect({
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
 
-  // Close on Escape — pratique sur clavier.
+  // Close on Escape
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -117,9 +113,6 @@ export function PostComposerTagSelect({
           <div
             ref={dropdownRef}
             role="listbox"
-            // Stop propagation : sans ça, un click sur la dropdown remonte
-            // jusqu'au PostComposerModal overlay qui ferme parfois le modal
-            // si e.target === e.currentTarget mal interprété.
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
             style={{
@@ -127,7 +120,7 @@ export function PostComposerTagSelect({
               top: dropdownPos.top,
               left: dropdownPos.left,
               minWidth: dropdownPos.width,
-              background: "white",
+              background: "var(--color-surface-card)",
               border: "1px solid var(--color-border-default)",
               borderRadius: 12,
               boxShadow: "var(--nc-shadow-3)",
@@ -166,7 +159,7 @@ export function PostComposerTagSelect({
                   transition: "background 100ms ease",
                 }}
                 className={
-                  t.value !== value ? "hover:bg-[#f5f5f5]" : ""
+                  t.value !== value ? "hover:bg-[var(--nc-nav-hover-bg)]" : ""
                 }
               >
                 {t.label}
@@ -196,6 +189,7 @@ export function PostComposerTagSelect({
         onClick={handleToggle}
         aria-haspopup="listbox"
         aria-expanded={open}
+        data-fb-label="Sélecteur de tag · Composer de post"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -203,13 +197,14 @@ export function PostComposerTagSelect({
           padding: "7px 12px",
           border: "1px solid var(--color-border-default)",
           borderRadius: 9999,
-          background: "white",
+          background: "var(--color-surface-card)",
           fontSize: 13,
           color: "var(--color-text-primary)",
           cursor: "pointer",
           fontWeight: 500,
           transition: "border-color 150ms ease",
         }}
+        className="hover:border-[rgba(0,0,0,0.20)]"
       >
         {selected.label}
         <ChevronDown

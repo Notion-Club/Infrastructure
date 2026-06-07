@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
@@ -9,33 +10,28 @@ import {
   computeIdentityInitials,
   useProfileIdentityContext,
 } from "@/shared/components/identity/ProfileIdentityProvider";
+import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 
 const UNREAD_COUNT = 2;
 
-const CIRCLE: React.CSSProperties = {
-  width: 38,
-  height: 38,
-  borderRadius: "50%",
-  background: "rgba(255,255,255,0.92)",
-  backdropFilter: "blur(16px)",
-  WebkitBackdropFilter: "blur(16px)",
-  border: "0.5px solid rgba(229,231,235,0.9)",
-  boxShadow: "0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  flexShrink: 0,
-  position: "relative",
-};
-
 export function MobileTopActions() {
+  const router = useRouter();
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [signingOut, startSignOut] = useTransition();
   const avatarRef = useRef<HTMLDivElement>(null);
   const { identity } = useProfileIdentityContext();
   const initials = computeIdentityInitials(identity);
   const avatarUrl = identity?.avatarUrl ?? null;
   const avatarColor = identity?.avatarColor ?? "#e0625a";
+
+  function handleSignOut() {
+    startSignOut(async () => {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.auth.signOut();
+      router.push("/login");
+      router.refresh();
+    });
+  }
 
   useEffect(() => {
     if (!avatarOpen) return;
@@ -67,7 +63,9 @@ export function MobileTopActions() {
       <button
         type="button"
         aria-label={`${UNREAD_COUNT} notifications`}
-        style={{ ...CIRCLE, color: "var(--color-text-secondary)", border: "0.5px solid rgba(229,231,235,0.9)" }}
+        data-fb-label="Bouton Notifications · Barre de navigation"
+        className="nc-mobile-action-btn"
+        style={{ color: "var(--color-text-secondary)" }}
       >
         <Bell size={16} />
         {UNREAD_COUNT > 0 && (
@@ -102,6 +100,7 @@ export function MobileTopActions() {
           type="button"
           aria-label="Menu compte"
           onClick={() => setAvatarOpen((o) => !o)}
+          data-fb-label="Avatar compte · Barre de navigation"
           style={{
             width: 38,
             height: 38,
@@ -141,16 +140,14 @@ export function MobileTopActions() {
         {avatarOpen && (
           <div
             role="menu"
+            data-fb-label="Menu compte · Barre de navigation"
+            className="nc-dropdown-panel"
             style={{
               position: "absolute",
               top: "calc(100% + 8px)",
               right: 0,
               minWidth: 220,
               borderRadius: 16,
-              boxShadow:
-                "rgba(0,0,0,0.03) 0px -2px 16px -4px, rgba(0,0,0,0.08) 0px 16px 40px -8px, rgba(0,0,0,0.04) 0px 1px 3px 0px",
-              background: "white",
-              border: "1px solid var(--color-border-default)",
               overflow: "hidden",
               zIndex: 60,
               padding: 6,
@@ -181,6 +178,7 @@ export function MobileTopActions() {
               href="/settings"
               role="menuitem"
               onClick={() => setAvatarOpen(false)}
+              data-fb-label="Lien « Réglages » · Menu compte"
               style={{
                 display: "block",
                 padding: "10px 10px",
@@ -194,6 +192,31 @@ export function MobileTopActions() {
             >
               Réglages
             </Link>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={handleSignOut}
+              disabled={signingOut}
+              data-fb-label="Bouton « Se déconnecter » · Menu compte"
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: "10px 10px",
+                fontSize: 14,
+                fontWeight: 500,
+                color: "var(--color-brand)",
+                background: "transparent",
+                border: "none",
+                cursor: signingOut ? "wait" : "pointer",
+                opacity: signingOut ? 0.6 : 1,
+                borderRadius: 10,
+                transition: "background 150ms ease",
+              }}
+              className="hover:bg-[var(--color-surface-raised)]"
+            >
+              {signingOut ? "Déconnexion…" : "Se déconnecter"}
+            </button>
           </div>
         )}
       </div>

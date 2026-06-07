@@ -1,72 +1,96 @@
-// Types publics du module `formation` (Brique 2 — Modèle des contenus formation).
+// Types publics du module `formation` (Brique 2 — branché sur Notion + Supabase).
 //
-// Ces types décrivent le contrat visuel que la maquette statique attend
-// des futures données Supabase. Ils sont consommés par les mocks, les
-// composants UI et les utilitaires. Quand Nathan branche Supabase, il
-// devra produire ces mêmes shapes côté serveur.
+// Ces view-models sont produits par la couche server/queries.ts (lecture
+// Supabase, RLS appliquée) et consommés par les composants des 3 écrans.
 
-export type AccessMode = "strict" | "hybrid" | "open";
+export type FormationAccessMode = "strict" | "open" | "hybrid";
 
-export type Capability =
-  | "can_access_challenge_program"
-  | "can_access_paid_programs";
-
-export type ModuleSection = "architecte" | "business" | null;
-
-export type LessonResource = {
-  id: string;
-  cachedTitle: string;
-  cachedDescription: string;
-  cachedType: string;
-  cachedFormation: "Notion Architecte" | "Notion Business" | null;
-  cachedUrl: string | null;
-};
-
-export type Lesson = {
-  id: string;
-  slug: string;
-  title: string;
-  description: string;
-  videoUrl: string | null;
-  videoDurationSeconds: number | null;
-  isSalesLesson: boolean;
-  position: number;
-  resources: LessonResource[];
-};
-
-export type FormationModule = {
+// Index — une card par formation accessible.
+export type ProgramSummary = {
   id: string;
   slug: string;
   name: string;
-  description: string;
-  section: ModuleSection;
-  accessMode: AccessMode | null;
-  position: number;
-  lessons: Lesson[];
+  description: string | null;
+  accessMode: FormationAccessMode;
+  totalCourses: number;
+  completedCourses: number;
+  percent: number;
+  resumeHref: string | null;
+  nextCourseLabel: string | null;
 };
 
-export type Program = {
+// Page programme — une ligne par cours dans un module.
+export type CourseRow = {
   id: string;
   slug: string;
   name: string;
-  description: string;
-  requiredCapability: Capability;
-  accessMode: AccessMode;
-  modules: FormationModule[];
+  description: string | null;
+  position: number;
+  completed: boolean;
+  locked: boolean;
+  isNext: boolean;
 };
 
-export type UserProgress = {
-  completedLessonIds: string[];
-  lessonNotes: Record<string, string>;
-  lastAccessedLessonId: string | null;
+export type ModuleWithCourses = {
+  id: string;
+  slug: string;
+  name: string;
+  position: number;
+  coverUrl: string | null;
+  courses: CourseRow[];
+  completedCount: number;
+  totalCount: number;
 };
 
-export type DevSpecialState = "normal" | "lesson_locked" | "resource_deleted";
+export type ProgramDetail = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  accessMode: FormationAccessMode;
+  modules: ModuleWithCourses[];
+  totalCourses: number;
+  completedCourses: number;
+  percent: number;
+};
 
-export type DevCapability =
-  | "none"
-  | "challenge_only"
-  | "paid_only"
-  | "paid_and_challenge";
+// Page leçon.
+export type LessonNeighbour = {
+  moduleSlug: string;
+  courseSlug: string;
+  name: string;
+};
 
-export type DevProgressLevel = 0 | 30 | 70 | 100;
+// Arbre de la formation (file-tree du fil d'Ariane) : modules → cours.
+export type LessonTreeCourse = {
+  id: string;
+  slug: string;
+  name: string;
+  completed: boolean;
+  locked: boolean;
+};
+
+export type LessonTreeModule = {
+  id: string;
+  slug: string;
+  name: string;
+  courses: LessonTreeCourse[];
+};
+
+export type LessonView = {
+  formation: { slug: string; name: string };
+  module: { slug: string; name: string };
+  course: {
+    id: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    notionId: string;
+  };
+  noteContent: string;
+  completed: boolean;
+  prev: LessonNeighbour | null;
+  next: LessonNeighbour | null;
+  accessMode: FormationAccessMode;
+  tree: LessonTreeModule[];
+};

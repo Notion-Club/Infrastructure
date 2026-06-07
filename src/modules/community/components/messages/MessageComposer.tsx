@@ -2,18 +2,52 @@
 
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Paperclip, Send, X, FileText } from "lucide-react";
+import { Paperclip, Send, X, FileText, Loader2, Reply as ReplyIcon } from "lucide-react";
+import { toast } from "sonner";
+import { uploadDmFileAction } from "../../server/actions";
 
 interface PendingFile {
   name: string;
+  // Blob URL local pour la preview avant envoi (lightbox + thumbnail).
+  // Distinct de fileUrl qui est l'URL publique Supabase persistée.
   previewUrl: string | null;
+  // URL publique Supabase, retournée par uploadPostMediaAction. null tant
+  // que l'upload n'est pas terminé.
+  fileUrl: string | null;
   type: "image" | "pdf";
+  uploading: boolean;
+}
+
+// Quote-reply : info minimale nécessaire pour afficher la preview au-dessus
+// du textarea ET la propager dans sendMessageAction (reply_to_message_id +
+// snippet + author_name dénormalisés, cf. mig. 027).
+export interface ReplyContext {
+  messageId: string;
+  authorName: string;
+  snippet: string;
 }
 
 interface MessageComposerProps {
-  onSend: (body: string, type?: "text" | "pdf" | "image", fileName?: string) => void;
+  // Signature étendue : on remonte aussi fileUrl pour que la chaîne
+  // d'envoi puisse persister l'URL publique Supabase dans messages.file_url
+  // (avant : on n'envoyait que fileName, l'URL réelle était perdue).
+  onSend: (
+    body: string,
+    type?: "text" | "pdf" | "image",
+    fileUrl?: string,
+    fileName?: string,
+  ) => void;
+  // Appelé à chaque frappe (throttle géré par le hook caller). Sert à
+  // broadcast un ping "je suis en train d'écrire" sur le channel Realtime.
+  onTyping?: () => void;
   disabled?: boolean;
   disabledMessage?: string;
+  // Si fourni, affiche un quote-block au-dessus du textarea avec l'auteur +
+  // le snippet du message cité, et une croix pour annuler. Le parent
+  // (ConversationThread) résout cet état et l'utilise pour enrichir la
+  // payload sendMessageAction.
+  replyContext?: ReplyContext;
+  onCancelReply?: () => void;
 }
 
 // Détection navigateur Mac — sur Mac on remplace le mot "Entrée" par
@@ -26,7 +60,14 @@ function detectMac(): boolean {
   return /Mac|iPhone|iPod|iPad/i.test(platform) || /Macintosh/i.test(ua);
 }
 
-export function MessageComposer({ onSend, disabled, disabledMessage }: MessageComposerProps) {
+export function MessageComposer({
+  onSend,
+  onTyping,
+  disabled,
+  disabledMessage,
+  replyContext,
+  onCancelReply,
+}: MessageComposerProps) {
   const [value, setValue] = useState("");
   const [dragging, setDragging] = useState(false);
   const [pendingFile, setPendingFile] = useState<PendingFile | null>(null);
@@ -48,10 +89,29 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
   function handleSend() {
     if (disabled) return;
     if (pendingFile) {
-      onSend(pendingFile.name, pendingFile.type, pendingFile.name);
+      // Blocage si l'upload Supabase n'est pas encore terminé — sinon on
+      // enverrait un message avec fileUrl null, donc rien à afficher chez
+      // le destinataire.
+      if (pendingFile.uploading || !pendingFile.fileUrl) {
+        toast.info("Attends la fin de l'upload…");
+        return;
+      }
+      // Body = texte tapé (optionnel) + on passe fileUrl/fileName à part.
+      // Avant : body = pendingFile.name (le nom du fichier comme texte).
+      const trimmedText = value.trim();
+      onSend(
+        trimmedText, // body texte facultatif accompagnant le fichier
+        pendingFile.type,
+        pendingFile.fileUrl,
+        pendingFile.name,
+      );
       if (pendingFile.previewUrl) URL.revokeObjectURL(pendingFile.previewUrl);
       setPendingFile(null);
       setViewing(null);
+      setValue("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
       return;
     }
     if (!value.trim()) return;
@@ -75,14 +135,56 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }
 
-  function attachFile(file: File) {
+  async function attachFile(file: File) {
     const isImage = file.type.startsWith("image/");
+    // On utilise le type DB existant : "image" pour les vraies images
+    // (rendu inline), "pdf" comme bucket générique pour TOUS les autres
+    // types de fichier (rendu icône + nom + lien download). On ne crée
+    // pas un type DB "file" dédié pour éviter la migration et garder
+    // le rendu déjà en place.
     const type: "image" | "pdf" = isImage ? "image" : "pdf";
-    // OPS-44 — on génère désormais un blob URL pour les images ET les PDF
-    // (avant, PDF était previewUrl=null). Nécessaire pour que la lightbox
-    // puisse afficher le PDF via <iframe src={url}>.
-    const previewUrl = URL.createObjectURL(file);
-    setPendingFile({ name: file.name, previewUrl, type });
+
+    // Blob URL local pour la preview/lightbox AVANT l'upload — le user voit
+    // déjà sa miniature pendant qu'on push vers Supabase. Pas de preview
+    // visuelle pour les non-images (PDF, docx, etc.), on affiche juste le
+    // nom + icône.
+    const previewUrl = isImage ? URL.createObjectURL(file) : null;
+    setPendingFile({
+      name: file.name,
+      previewUrl,
+      fileUrl: null,
+      type,
+      uploading: true,
+    });
+
+    // uploadDmFileAction = whitelist large (PDF, Office, archives, audio,
+    // vidéo, etc.) + 25 MB max. Distinct d'uploadPostMediaAction qui reste
+    // strictement images-seulement pour les posts. RLS community_insert_own
+    // identique (mig. 018, scope uploads/<auth.uid>/).
+    //
+    // Bucket public — voir mig. 018 pour la note sécu (les fichiers DM
+    // partagés sont techniquement accessibles via l'URL si copiée).
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await uploadDmFileAction(formData);
+      if (!result.ok) {
+        toast.error(result.message);
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setPendingFile(null);
+        return;
+      }
+      setPendingFile((prev) =>
+        prev
+          ? { ...prev, fileUrl: result.publicUrl, uploading: false }
+          : null,
+      );
+    } catch (err) {
+      console.error("[MessageComposer.attachFile] upload failed:", err);
+      toast.error("Échec de l'upload, réessaie.");
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPendingFile(null);
+    }
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -122,13 +224,17 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
     );
   }
 
-  const canSend = !!pendingFile || value.trim().length > 0;
+  // Désactivé tant que l'upload est en cours — évite l'envoi avant que
+  // fileUrl soit disponible. Le bouton bascule en spinner discret.
+  const fileReady = pendingFile ? !pendingFile.uploading && !!pendingFile.fileUrl : true;
+  const canSend = (!!pendingFile || value.trim().length > 0) && fileReady;
 
   return (
     <div
+      data-fb-label="Composer de message · Communauté"
       style={{
         borderTop: "1px solid var(--color-border-default)",
-        background: "white",
+        background: "var(--color-surface-card)",
       }}
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
       onDragLeave={() => setDragging(false)}
@@ -151,6 +257,80 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
           }}
         >
           Déposez votre fichier ici
+        </div>
+      )}
+
+      {/* Quote-reply preview — la prop replyContext pilote l'affichage. La
+          payload reply_to_message_id sera passée côté parent dans onSend(). */}
+      {replyContext && (
+        <div
+          style={{
+            padding: "10px 16px 0",
+            display: "flex",
+            alignItems: "stretch",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 3,
+              borderRadius: 9999,
+              background: "var(--color-brand)",
+              flexShrink: 0,
+            }}
+          />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12,
+                color: "var(--color-brand)",
+                fontWeight: 600,
+                marginBottom: 2,
+              }}
+            >
+              <ReplyIcon size={12} />
+              Réponse à {replyContext.authorName}
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: "var(--color-text-secondary)",
+                lineHeight: 1.4,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {replyContext.snippet}
+            </div>
+          </div>
+          {onCancelReply && (
+            <button
+              type="button"
+              onClick={onCancelReply}
+              aria-label="Annuler la réponse"
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--color-text-muted)",
+                flexShrink: 0,
+                alignSelf: "flex-start",
+              }}
+              className="hover:bg-[rgba(0,0,0,0.06)]"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
       )}
 
@@ -178,18 +358,24 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
                 via stopPropagation pour ne pas déclencher l'ouverture. */}
             <button
               type="button"
-              onClick={() => setViewing(pendingFile)}
+              // Lightbox UNIQUEMENT pour les images (la previewUrl est null
+              // pour les non-images, on n'a rien à agrandir avant l'envoi).
+              onClick={() => {
+                if (pendingFile.type === "image" && pendingFile.previewUrl) {
+                  setViewing(pendingFile);
+                }
+              }}
               aria-label={
                 pendingFile.type === "image"
                   ? "Agrandir l'image"
-                  : "Ouvrir le PDF en grand"
+                  : `Fichier ${pendingFile.name}`
               }
               style={{
                 padding: 0,
                 margin: 0,
                 background: "transparent",
                 border: "none",
-                cursor: "zoom-in",
+                cursor: pendingFile.type === "image" ? "zoom-in" : "default",
                 display: "block",
               }}
             >
@@ -210,6 +396,23 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
                 >
                   <FileText size={24} style={{ color: "var(--color-text-secondary)" }} />
                   <span style={{ wordBreak: "break-all", lineHeight: 1.2 }}>{pendingFile.name}</span>
+                </div>
+              )}
+              {/* Overlay loader pendant l'upload Supabase — l'user voit
+                  que le fichier n'est pas encore prêt à être envoyé. */}
+              {pendingFile.uploading && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "rgba(0,0,0,0.45)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    pointerEvents: "none",
+                  }}
+                >
+                  <Loader2 size={20} color="#fff" className="animate-spin" />
                 </div>
               )}
             </button>
@@ -237,7 +440,10 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
         <input
           ref={fileRef}
           type="file"
-          accept="image/*,.pdf"
+          // Whitelist large : images + PDF + Office + texte + archives +
+          // audio + vidéo. Synchro avec DM_FILE_ALLOWED_MIME côté server.
+          // Le server retourne une erreur claire si le MIME n'est pas autorisé.
+          accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.zip,.rar,.7z,.tar,.gz,audio/*,video/*"
           style={{ display: "none" }}
           onChange={handleFileChange}
         />
@@ -245,15 +451,16 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
+          data-fb-label="Bouton Joindre un fichier · Composer de message"
           style={{
             width: 36, height: 36, borderRadius: "50%",
             border: "1px solid var(--color-border-default)",
-            background: "white", cursor: "pointer",
+            background: "var(--color-surface-raised)", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
             color: "var(--color-text-muted)", flexShrink: 0,
             transition: "background 150ms ease",
           }}
-          className="hover:bg-[rgba(0,0,0,0.04)]"
+          className="hover:bg-[var(--nc-nav-hover-bg)]"
           aria-label="Joindre un fichier"
         >
           <Paperclip size={16} />
@@ -262,9 +469,16 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
         <textarea
           ref={textareaRef}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            // Ping typing channel — le hook gère le throttle (1 ping / 2s).
+            // On émet seulement quand il y a vraiment du texte ajouté pour
+            // éviter de signaler "écrit…" sur un backspace en boucle.
+            if (e.target.value.length > 0) onTyping?.();
+          }}
           onInput={handleTextareaInput}
           onKeyDown={handleKeyDown}
+          data-fb-label="Champ de saisie · Composer de message"
           placeholder={`Tapez un message… (${isMac ? "⌘" : "Entrée"} pour envoyer)`}
           rows={1}
           style={{
@@ -290,12 +504,13 @@ export function MessageComposer({ onSend, disabled, disabledMessage }: MessageCo
           type="button"
           onClick={handleSend}
           disabled={!canSend}
+          data-fb-label="Bouton Envoyer · Composer de message"
           style={{
             width: 36, height: 36, borderRadius: "50%",
-            background: canSend ? "var(--color-brand)" : "#e5e7eb",
+            background: canSend ? "var(--color-brand)" : "var(--nc-btn-disabled-bg)",
             border: "none", cursor: canSend ? "pointer" : "not-allowed",
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: canSend ? "#fff" : "#9ca3af",
+            color: canSend ? "#fff" : "var(--nc-btn-disabled-text)",
             flexShrink: 0,
             transition: "all 150ms ease",
           }}
@@ -434,7 +649,7 @@ function FileLightbox({
             height: "90vh",
             border: "none",
             borderRadius: 12,
-            background: "white",
+            background: "var(--color-surface-card)",
             boxShadow: "0 24px 48px -12px rgba(0, 0, 0, 0.5)",
             display: "block",
           }}

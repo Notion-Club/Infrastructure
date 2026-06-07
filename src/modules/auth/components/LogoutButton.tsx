@@ -25,7 +25,13 @@ export function LogoutButton({
         });
       }}
     >
-      <Button type="submit" variant={variant} size={size} disabled={isPending}>
+      <Button
+        type="submit"
+        variant={variant}
+        size={size}
+        disabled={isPending}
+        data-fb-label="Bouton Se déconnecter · Compte"
+      >
         {isPending ? "Déconnexion..." : label}
       </Button>
     </form>

@@ -7,6 +7,9 @@ import {
   type ProfileIdentity,
 } from "@/shared/components/identity/ProfileIdentityProvider";
 import FeedbackWidgetLoader from "@/shared/components/feedback-widget/FeedbackWidgetLoader";
+import { Topbar } from "@/shared/components/dashboard/Topbar";
+import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
+import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 
 // Layout commun à toutes les pages connectées (dashboard, settings, communaute,
 // coaching, ressources). Server Component : on pré-fetch l'identity de l'user
@@ -26,22 +29,38 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(
-      "first_name, last_name, display_name, username, avatar_url, avatar_color",
-    )
-    .eq("id", user.id)
-    .maybeSingle<{
-      first_name: string | null;
-      last_name: string | null;
-      display_name: string | null;
-      username: string | null;
-      avatar_url: string | null;
-      avatar_color: string | null;
-    }>();
+  // Pré-fetch en parallèle : profile + capability can_view_paid_content
+  // (dérive l'offer affichée dans le module community).
+  const [profileRes, paidRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(
+        "first_name, last_name, display_name, username, avatar_url, avatar_color, role",
+      )
+      .eq("id", user.id)
+      .maybeSingle<{
+        first_name: string | null;
+        last_name: string | null;
+        display_name: string | null;
+        username: string | null;
+        avatar_url: string | null;
+        avatar_color: string | null;
+        role: string | null;
+      }>(),
+    supabase.rpc("user_has_capability", {
+      p_profile_id: user.id,
+      p_capability: "can_view_paid_content",
+    }),
+  ]);
+
+  const profile = profileRes.data;
+  const hasPaidAccess = paidRes.data === true;
+  const rawRole = profile?.role ?? "member";
+  const role: ProfileIdentity["role"] =
+    rawRole === "admin" || rawRole === "mentor" ? rawRole : "member";
 
   const identity: ProfileIdentity = {
+    id: user.id,
     firstName: profile?.first_name ?? null,
     lastName: profile?.last_name ?? null,
     displayName: profile?.display_name ?? null,
@@ -49,10 +68,17 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     email: user.email ?? null,
     avatarUrl: profile?.avatar_url ?? null,
     avatarColor: profile?.avatar_color ?? null,
+    role,
+    offer: hasPaidAccess ? "paid" : "free",
   };
 
   return (
     <ProfileIdentityProvider initialIdentity={identity}>
+      <Topbar />
+      <div className="md:hidden">
+        <MobileTopActions />
+        <BottomNav />
+      </div>
       {children}
       <FeedbackWidgetLoader />
     </ProfileIdentityProvider>

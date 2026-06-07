@@ -14,6 +14,7 @@ export function TellaEmbed({ url }: TellaEmbedProps) {
       }}
     >
       <iframe
+        data-fb-label="Lecteur vidéo Tella · Embed vidéo Tella"
         src={url}
         width="100%"
         height="100%"

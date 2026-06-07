@@ -1,14 +1,18 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
 
 interface PostKebabMenuProps {
   onEdit?: () => void;
   onDelete?: () => void;
+  // Optionnel — uniquement passé par les admins/mentors. Si fourni, affiche
+  // un item "Épingler" / "Désépingler" en fonction du flag `pinned`.
+  onTogglePin?: () => void;
+  pinned?: boolean;
 }
 
-export function PostKebabMenu({ onEdit, onDelete }: PostKebabMenuProps) {
+export function PostKebabMenu({ onEdit, onDelete, onTogglePin, pinned }: PostKebabMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -26,6 +30,7 @@ export function PostKebabMenu({ onEdit, onDelete }: PostKebabMenuProps) {
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        data-fb-label="Menu options · Communauté"
         style={{
           width: 32,
           height: 32,
@@ -52,7 +57,7 @@ export function PostKebabMenu({ onEdit, onDelete }: PostKebabMenuProps) {
             top: "calc(100% + 4px)",
             right: 0,
             minWidth: 160,
-            background: "white",
+            background: "var(--color-surface-card)",
             border: "1px solid var(--color-border-default)",
             borderRadius: 12,
             boxShadow: "var(--nc-shadow-3)",
@@ -79,9 +84,34 @@ export function PostKebabMenu({ onEdit, onDelete }: PostKebabMenuProps) {
                 textAlign: "left",
                 transition: "background 150ms ease",
               }}
-              className="hover:bg-[#f5f5f5]"
+              className="hover:bg-[#f5f5f5] dark:hover:bg-[rgba(255,255,255,0.08)]"
             >
               <Pencil size={14} /> Modifier
+            </button>
+          )}
+          {onTogglePin && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onTogglePin(); setOpen(false); }}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 10px",
+                fontSize: 14,
+                color: "var(--color-text-primary)",
+                background: "transparent",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "background 150ms ease",
+              }}
+              className="hover:bg-[#f5f5f5] dark:hover:bg-[rgba(255,255,255,0.08)]"
+            >
+              {pinned ? <PinOff size={14} /> : <Pin size={14} />}
+              {pinned ? "Désépingler" : "Épingler"}
             </button>
           )}
           {onDelete && (
@@ -103,7 +133,7 @@ export function PostKebabMenu({ onEdit, onDelete }: PostKebabMenuProps) {
                 textAlign: "left",
                 transition: "background 150ms ease",
               }}
-              className="hover:bg-[rgba(224,98,90,0.06)]"
+              className="hover:bg-[rgba(224,98,90,0.06)] dark:hover:bg-[rgba(224,98,90,0.14)]"
             >
               <Trash2 size={14} /> Supprimer
             </button>

@@ -18,6 +18,7 @@ import {
 // pour que la Topbar reflète le changement sans full reload.
 
 export type ProfileIdentity = {
+  id: string | null;
   firstName: string | null;
   lastName: string | null;
   displayName: string | null;
@@ -25,6 +26,12 @@ export type ProfileIdentity = {
   email: string | null;
   avatarUrl: string | null;
   avatarColor: string | null;
+  // Rôle plateforme (cf. migration 013). NULL si pas auth.
+  role: "member" | "mentor" | "admin" | null;
+  // Offer dérivée via user_has_capability('can_view_paid_content').
+  // Utilisée par module community (visibility-rules, dm-rules, restrictions
+  // d'écriture pour free users).
+  offer: "free" | "paid" | null;
 };
 
 type ProfileIdentityContextValue = {

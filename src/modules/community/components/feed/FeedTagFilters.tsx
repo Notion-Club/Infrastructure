@@ -23,6 +23,7 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
 
   return (
     <div
+      data-fb-label="Filtres tags · Feed"
       style={{
         display: "flex",
         alignItems: "center",
@@ -39,13 +40,14 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
               key={f.value}
               type="button"
               onClick={() => onChange(f.value)}
+              data-fb-label={`Filtre tag « ${f.label} » · Feed`}
               style={{
                 /* Fixed min-width prevents layout shift when font-weight changes */
                 minWidth: 90,
                 padding: "7px 14px",
                 borderRadius: 9999,
                 border: isActive ? "1.5px solid var(--color-brand)" : "1px solid var(--color-border-default)",
-                background: isActive ? "rgba(224,98,90,0.08)" : "white",
+                background: isActive ? "rgba(224,98,90,0.08)" : "var(--color-surface-card)",
                 color: isActive ? "var(--color-brand)" : "var(--color-text-secondary)",
                 fontSize: 13,
                 fontWeight: 600,
@@ -54,7 +56,7 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
                 whiteSpace: "nowrap",
                 textAlign: "center",
               }}
-              className={!isActive ? "hover:bg-[rgba(0,0,0,0.04)]" : ""}
+              className={!isActive ? "hover:bg-[var(--nc-nav-hover-bg)]" : ""}
             >
               {f.label}
             </button>
@@ -62,12 +64,14 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
         })}
       </div>
 
+      {/* Desktop : bouton inline. Mobile : remplacé par un FAB flottant
+          (cf. nc-feed-fab dans CommunityPage) → masqué ici en < md. */}
       <button
         type="button"
         onClick={onNewPost}
-        className="nc-btn-shine"
+        data-fb-label="Bouton Nouveau post · Feed"
+        className="nc-btn-shine hidden md:inline-flex"
         style={{
-          display: "inline-flex",
           alignItems: "center",
           gap: 6,
           padding: "8px 16px",

@@ -27,9 +27,10 @@ export function ResourcePageFooter({ relatedResources, currentCapability }: Reso
 
   return (
     <div
+      data-fb-label="Pied de page ressource · Page ressource"
       style={{
         marginTop: 48,
-        background: '#ffffff',
+        background: 'var(--color-surface-card)',
         border: '1px solid var(--color-border-default)',
         borderRadius: 20,
         boxShadow: 'var(--nc-shadow-3)',
@@ -39,6 +40,7 @@ export function ResourcePageFooter({ relatedResources, currentCapability }: Reso
       {/* Bouton pleine largeur */}
       <button
         type="button"
+        data-fb-label="Bouton Marquer comme vue · Pied de page ressource"
         onClick={() => setSeenAt(new Date())}
         disabled={seen}
         className={!seen ? 'nc-btn-shine' : ''}
@@ -81,6 +83,7 @@ export function ResourcePageFooter({ relatedResources, currentCapability }: Reso
             Ces ressources peuvent aussi t&apos;intéresser
           </h2>
           <div
+            data-fb-label="Grille ressources liées · Pied de page ressource"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',

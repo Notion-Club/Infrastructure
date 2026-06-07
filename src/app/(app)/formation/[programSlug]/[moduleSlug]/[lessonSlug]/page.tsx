@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { LessonPageClient } from "@/modules/formation";
+import {
+  LessonView,
+  getLessonView,
+  touchCourseAccess,
+  fetchLessonContent,
+} from "@/modules/formation";
 
 export const metadata: Metadata = {
   title: "Leçon — Formation — Notion Club",
 };
 
-// Next 16 : les params dynamiques sont des Promises côté Server Component.
 type Params = Promise<{
   programSlug: string;
   moduleSlug: string;
@@ -15,11 +20,19 @@ type Params = Promise<{
 
 export default async function LessonPage({ params }: { params: Params }) {
   const { programSlug, moduleSlug, lessonSlug } = await params;
-  return (
-    <LessonPageClient
-      programSlug={programSlug}
-      moduleSlug={moduleSlug}
-      lessonSlug={lessonSlug}
-    />
-  );
+
+  const res = await getLessonView(programSlug, moduleSlug, lessonSlug);
+  if (!res.ok) {
+    const code = res.reason === "no_capability" ? "denied" : res.reason;
+    redirect(`${res.redirectTo}?notice=${code}`);
+  }
+
+  // Lazy : vidéo + Synthèse + ressources liées récupérés à l'ouverture.
+  // Marque la leçon comme « vue » (Reprendre) en parallèle.
+  const [content] = await Promise.all([
+    fetchLessonContent(res.view.course.notionId),
+    touchCourseAccess(res.view.course.id),
+  ]);
+
+  return <LessonView view={res.view} content={content} />;
 }

@@ -13,6 +13,10 @@ interface ConversationListProps {
   activeId: string | null;
   currentUser: User;
   onSelect: (id: string) => void;
+  // Préchauffage : appelé au mouseEnter d'un item pour lancer le fetch
+  // des messages en background. Optionnel — l'item reste fonctionnel
+  // sans (perte de réactivité au clic mais pas de bug).
+  onPrefetch?: (id: string) => void;
   onNewConversation: (userId: string) => void;
 }
 
@@ -21,6 +25,7 @@ export function ConversationList({
   activeId,
   currentUser,
   onSelect,
+  onPrefetch,
   onNewConversation,
 }: ConversationListProps) {
   const [query, setQuery] = useState("");
@@ -38,6 +43,7 @@ export function ConversationList({
 
   return (
     <div
+      data-fb-label="Liste conversations · Communauté"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -60,6 +66,7 @@ export function ConversationList({
           <button
             type="button"
             onClick={() => setShowModal(true)}
+            data-fb-label="Bouton Nouvelle conversation · Liste conversations"
             style={{
               width: 30, height: 30, borderRadius: "50%",
               background: "var(--color-brand)", color: "#fff",
@@ -73,7 +80,9 @@ export function ConversationList({
             <Plus size={16} />
           </button>
         </div>
-        <div style={{
+        <div
+          data-fb-label="Barre de recherche · Liste conversations"
+          style={{
           display: "flex", alignItems: "center", gap: 6,
           background: "var(--color-surface-raised)", borderRadius: 9999,
           padding: "7px 12px", border: "1px solid var(--color-border-default)",
@@ -84,6 +93,7 @@ export function ConversationList({
             placeholder="Rechercher…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            data-fb-label="Champ de recherche · Liste conversations"
             style={{ flex: 1, border: "none", background: "transparent", fontSize: 13, outline: "none", color: "var(--color-text-primary)" }}
           />
         </div>
@@ -100,6 +110,7 @@ export function ConversationList({
               conversation={conv}
               active={conv.id === activeId}
               onClick={() => onSelect(conv.id)}
+              onPrefetch={onPrefetch ? () => onPrefetch(conv.id) : undefined}
             />
           ))
         )}

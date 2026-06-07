@@ -91,8 +91,8 @@
 }
 
 .bubble {
-  background: #000;
-  color: #fff;
+  background: var(--nc-btn-dark-bg);
+  color: var(--nc-btn-dark-text);
   font-family: var(--font-sf-pro-display, system-ui, sans-serif);
   font-size: 13px;
   font-weight: 500;
@@ -137,7 +137,7 @@
   width: 100%;
   max-width: 920px;
   max-height: calc(100vh - 48px);
-  background: #ffffff;
+  background: var(--color-surface-card);
   border: 1px solid var(--color-border-default);
   border-radius: 20px;
   box-shadow:
@@ -164,7 +164,7 @@
   padding: 16px 20px;
   border-bottom: 1px solid var(--color-border-default);
   flex-shrink: 0;
-  background: #ffffff;
+  background: var(--color-surface-card);
 }
 
 .backBtn,
@@ -173,7 +173,7 @@
   height: 34px;
   border-radius: 10px;
   border: 1px solid var(--color-border-default);
-  background: #ffffff;
+  background: var(--color-surface-card);
   color: var(--color-text-muted);
   cursor: pointer;
   display: flex;
@@ -256,7 +256,7 @@
   flex-direction: column;
   gap: 20px;
   scroll-behavior: smooth;
-  background: #ffffff;
+  background: var(--color-surface-card);
 }
 
 /* Scrollbar discrète */
@@ -303,7 +303,7 @@
   padding: 20px;
   border-radius: 16px;
   border: 1px solid var(--color-border-default);
-  background: #ffffff;
+  background: var(--color-surface-card);
   box-shadow: var(--nc-shadow-3);
   font-family: var(--font-sf-pro-display, system-ui, sans-serif);
   text-align: left;
@@ -451,7 +451,7 @@
   padding: 10px 20px;
   border-radius: 9999px;
   border: 1px solid var(--color-border-default);
-  background: #ffffff;
+  background: var(--color-surface-card);
   font-family: var(--font-sf-pro-display, system-ui, sans-serif);
   font-size: 13px;
   font-weight: 500;
@@ -628,7 +628,7 @@
   font-family: var(--font-sf-pro-display, system-ui, sans-serif);
   cursor: pointer;
   border: 1px solid var(--color-border-default);
-  background: #ffffff;
+  background: var(--color-surface-card);
   color: var(--color-text-secondary);
   transition:
     border-color var(--nc-duration-fast) var(--nc-ease),
@@ -652,13 +652,13 @@
 .actionPillActive {
   background: var(--color-text-primary);
   border-color: var(--color-text-primary);
-  color: #ffffff;
+  color: var(--nc-btn-dark-text);
 }
 
 .actionPillActive:hover {
-  background: #1a1a1a;
-  border-color: #1a1a1a;
-  color: #ffffff;
+  background: var(--nc-btn-dark-bg);
+  border-color: var(--nc-btn-dark-bg);
+  color: var(--nc-btn-dark-text);
 }
 
 /* Inputs */
@@ -673,7 +673,7 @@
   font-size: 14px;
   line-height: 1.55;
   color: var(--color-text-primary);
-  background: #ffffff;
+  background: var(--color-surface-card);
   outline: none;
   transition:
     border-color var(--nc-duration-fast) var(--nc-ease),
@@ -726,7 +726,7 @@
   padding: 10px 20px;
   border-radius: 9999px;
   border: 1px solid var(--color-border-default);
-  background: #ffffff;
+  background: var(--color-surface-card);
   font-family: var(--font-sf-pro-display, system-ui, sans-serif);
   font-size: 13px;
   font-weight: 500;
@@ -761,7 +761,7 @@
   font-family: var(--font-sf-pro-display, system-ui, sans-serif);
   font-size: 13px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--nc-btn-dark-text);
   cursor: pointer;
   transition:
     background var(--nc-duration-fast) var(--nc-ease),
@@ -770,7 +770,7 @@
 }
 
 .addBtn:hover:not(:disabled) {
-  background: #1a1a1a;
+  background: var(--nc-btn-dark-bg);
   transform: translateY(-1px);
   box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.32);
 }
@@ -822,7 +822,7 @@
   padding: 0 6px;
   border-radius: 9999px;
   background: var(--color-text-primary);
-  color: #ffffff;
+  color: var(--nc-btn-dark-text);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0;
@@ -838,7 +838,7 @@
   height: 30px;
   border-radius: 8px;
   border: 1px solid var(--color-border-default);
-  background: #ffffff;
+  background: var(--color-surface-card);
   color: var(--color-text-muted);
   cursor: pointer;
   display: flex;
@@ -917,7 +917,7 @@
   padding: 14px 16px;
   border-radius: 14px;
   border: 1px solid var(--color-border-default);
-  background: #ffffff;
+  background: var(--color-surface-card);
   box-shadow: var(--nc-shadow-3);
   transition:
     border-color var(--nc-duration-fast) var(--nc-ease),
@@ -935,7 +935,7 @@
 
 .notionItem {
   background:
-    linear-gradient(180deg, #ffffff 0%, rgba(224, 98, 90, 0.02) 100%);
+    linear-gradient(180deg, var(--color-surface-card) 0%, rgba(224, 98, 90, 0.02) 100%);
 }
 
 .notionItemHeader {
@@ -1070,7 +1070,7 @@
   right: 0;
   top: calc(100% + 6px);
   z-index: 100;
-  background: #ffffff;
+  background: var(--color-surface-card);
   border: 1px solid var(--color-border-default);
   border-radius: 12px;
   padding: 4px;
@@ -1128,7 +1128,7 @@
   font-family: var(--font-sf-pro-display, system-ui, sans-serif);
   font-size: 14px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--nc-btn-dark-text);
   cursor: pointer;
   box-shadow:
     0 6px 16px -6px rgba(224, 98, 90, 0.5),
@@ -1178,7 +1178,7 @@
 }
 
 .confirmBox {
-  background: #ffffff;
+  background: var(--color-surface-card);
   border: 1px solid var(--color-border-default);
   border-radius: 18px;
   padding: 22px;
@@ -1238,7 +1238,7 @@
   align-items: center;
   gap: 10px;
   background: var(--color-text-primary);
-  color: #ffffff;
+  color: var(--nc-btn-dark-text);
   font-family: var(--font-sf-pro-display, system-ui, sans-serif);
   font-size: 13px;
   font-weight: 500;
@@ -1260,7 +1260,7 @@
 .selectionHint button {
   background: rgba(255, 255, 255, 0.14);
   border: none;
-  color: #ffffff;
+  color: var(--nc-btn-dark-text);
   padding: 5px 13px;
   border-radius: 9999px;
   font-family: var(--font-sf-pro-display, system-ui, sans-serif);
@@ -1288,7 +1288,7 @@
   font-family: var(--font-sf-pro-display, system-ui, sans-serif);
   font-size: 14px;
   font-weight: 500;
-  color: #ffffff;
+  color: var(--nc-btn-dark-text);
   box-shadow:
     0 16px 40px -8px rgba(0, 0, 0, 0.32),
     0 4px 12px -4px rgba(0, 0, 0, 0.12),
@@ -1305,3 +1305,39 @@
 .toast_success { background: #10b981; }
 .toast_error   { background: var(--color-brand); }
 .toast_partial { background: #f59e0b; }
+
+/* ============================================================
+   Dark mode overrides
+   :global(.dark) needed because CSS Modules scope class names
+   ============================================================ */
+
+/* Modal — inner white ring atténuée */
+:global(.dark) .modal {
+  box-shadow:
+    0 32px 80px -16px rgba(0, 0, 0, 0.56),
+    0 8px 24px -8px rgba(0, 0, 0, 0.32),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Icônes hub — rgba noir invisible sur fond sombre */
+:global(.dark) .iconBlue {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+:global(.dark) .iconTaupe {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+/* Select — chevron SVG adapté couleur text-secondary dark */
+:global(.dark) .select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a89e9b' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+}
+
+/* Status badges — texte clair sur fond sombre */
+:global(.dark) .statusPending { color: #fbbf24; }
+:global(.dark) .statusProgress { color: #60a5fa; }
+:global(.dark) .statusDone     { color: #34d399; }
+:global(.dark) .statusRefused  { color: var(--color-brand); }
+:global(.dark) .statusDefault  { color: #94a3b8; }

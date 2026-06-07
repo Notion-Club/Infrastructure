@@ -13,6 +13,15 @@ export interface Message {
   createdAt: string;
   editedAt?: string;
   deleted?: boolean;
+  // Quote-reply (mig. 027). Trois colonnes dénormalisées qui survivent à
+  // la suppression du message original.
+  replyToMessageId?: string | null;
+  replySnippet?: string | null;
+  replyAuthorName?: string | null;
+  // Forward (mig. 028). Snapshot du nom de l'auteur original pour le
+  // badge "Transféré de [Nom]" — survit à la suppression du profil source.
+  forwardedFromMessageId?: string | null;
+  forwardedFromAuthorName?: string | null;
 }
 
 export interface Conversation {
@@ -21,4 +30,15 @@ export interface Conversation {
   messages: Message[];
   unreadCount: number;
   lastMessageAt: string;
+  // Aperçu du dernier message (tronqué côté serveur à ~140 chars) + flag
+  // "envoyé par moi" pour préfixer "Vous : …" dans la liste. Calculé dans
+  // listConversations à partir de lightMessages — évite un fetch supplémentaire.
+  lastMessagePreview?: string;
+  lastMessageFromMe?: boolean;
+  lastMessageType?: MessageType;
+  // Pagination cursor-based (PR pagination). hasMore = true tant qu'il
+  // existe des messages plus anciens que messages[0] côté DB. Le client
+  // appelle loadOlderMessagesAction(conversationId, beforeMessageId) pour
+  // récupérer le batch précédent. Absent = pas paginé (conv vierge ou court).
+  hasMore?: boolean;
 }

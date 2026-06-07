@@ -141,13 +141,14 @@ export function SubscriptionSection() {
     <SettingsCard
       title="Échéances de paiement"
       description="Consultez l'historique de vos paiements en temps réel."
+      fbLabel="Section abonnement · Réglages"
     >
       <div
         style={{
           border: "1px solid var(--color-border-default)",
           borderRadius: 12,
           overflow: "hidden",
-          background: "white",
+          background: "var(--color-surface-card)",
         }}
       >
         {loading && (
@@ -202,6 +203,7 @@ export function SubscriptionSection() {
               return (
                 <li
                   key={p.notionId}
+                  data-fb-label="Ligne paiement · Section abonnement"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -322,6 +324,7 @@ export function SubscriptionSection() {
                       rel="noopener noreferrer"
                       title="Voir le paiement sur Notion"
                       aria-label="Voir le paiement sur Notion"
+                      data-fb-label="Lien Notion paiement · Section abonnement"
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
