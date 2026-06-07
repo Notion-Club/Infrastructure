@@ -6,6 +6,10 @@ import { ProfilWidget } from "@/shared/components/dashboard/widgets/ProfilWidget
 import { EmailVerifiedToast, LogoutButton } from "@/modules/auth";
 import { EmailConfirmBanner } from "@/shared/components/dashboard/EmailConfirmBanner";
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import {
+  getDashboardFormationData,
+  getDashboardProfilData,
+} from "@/modules/formation/server/dashboard";
 
 export const metadata: Metadata = {
   title: "Accueil — Notion Club",
@@ -37,7 +41,14 @@ async function getGreetingFirstName(): Promise<string> {
 }
 
 export default async function DashboardPage() {
-  const firstName = await getGreetingFirstName();
+  // 3 lectures indépendantes — on parallélise pour minimiser le TTFB.
+  // Les 2 dashboard queries renvoient null quand l'user n'a aucune formation
+  // accessible → le widget retourne null et le slot disparaît proprement.
+  const [firstName, formationData, profilData] = await Promise.all([
+    getGreetingFirstName(),
+    getDashboardFormationData(),
+    getDashboardProfilData(),
+  ]);
   return (
     <>
       <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
@@ -173,8 +184,8 @@ export default async function DashboardPage() {
             className="grid grid-cols-1 md:grid-cols-2 gap-4"
           >
             <EmailConfirmBanner />
-            <FormationWidget />
-            <ProfilWidget />
+            <FormationWidget data={formationData} />
+            <ProfilWidget data={profilData} />
 
             {/* Placeholder zone future */}
             <div

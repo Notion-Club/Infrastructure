@@ -1,20 +1,49 @@
 import { Trophy } from "lucide-react";
 import { ProgressBar } from "./ProgressBar";
 
-const MOCK_PROFIL = {
-  prenom: "Théo",
-  niveau: 6,
-  niveauLabel: "Intermédiaire",
-  niveauSuivant: "Expert",
-  progressPercent: 58,
-  modulesRestants: 7,
-  status: "in_progress" as "in_progress" | "completed",
+// Données live injectées par le dashboard server (getDashboardProfilData).
+// Le widget reste 100% présentationnel — le niveau, le palier suivant et le
+// nombre de modules restants sont calculés côté server à partir du % agrégé
+// sur toutes les formations accessibles à l'user.
+//
+// Quand data est null → l'user n'a aucune formation accessible. On retourne
+// null pour ne pas afficher un encadré vide.
+export interface ProfilWidgetData {
+  level: number;
+  levelLabel: "Débutant" | "Intermédiaire" | "Expert";
+  nextLevelLabel: "Intermédiaire" | "Expert" | null;
+  progressToNextLevel: number;
+  coursesRemaining: number;
+  status: "not_started" | "in_progress" | "completed";
+}
+
+interface ProfilWidgetProps {
+  data?: ProfilWidgetData | null;
+}
+
+// Fallback mock — conservé pour les aperçus dev sans Supabase. En production
+// le dashboard passe toujours `data`.
+const FALLBACK: ProfilWidgetData = {
+  level: 6,
+  levelLabel: "Intermédiaire",
+  nextLevelLabel: "Expert",
+  progressToNextLevel: 58,
+  coursesRemaining: 7,
+  status: "in_progress",
 };
 
-export function ProfilWidget() {
-  const { niveau, niveauLabel, niveauSuivant, progressPercent, modulesRestants, status } =
-    MOCK_PROFIL;
+export function ProfilWidget({ data }: ProfilWidgetProps = {}) {
+  if (data === null) return null;
+  const {
+    level,
+    levelLabel,
+    nextLevelLabel,
+    progressToNextLevel,
+    coursesRemaining,
+    status,
+  } = data ?? FALLBACK;
   const isCompleted = status === "completed";
+  const isNotStarted = status === "not_started";
 
   return (
     <article
@@ -59,9 +88,9 @@ export function ProfilWidget() {
           }}
         >
           <Trophy size={14} style={{ flexShrink: 0 }} />
-          Niveau {niveau}
+          Niveau {level}
           <span style={{ opacity: 0.4, margin: "0 1px" }}>|</span>
-          {niveauLabel}
+          {levelLabel}
         </span>
       </div>
 
@@ -77,6 +106,21 @@ export function ProfilWidget() {
         >
           Tu as tout terminé, félicitations&nbsp;! 🎉
         </p>
+      ) : isNotStarted ? (
+        <p
+          style={{
+            fontSize: 14,
+            color: "var(--color-text-secondary)",
+            margin: 0,
+            lineHeight: 1.6,
+          }}
+        >
+          Lance ta formation pour progresser vers{" "}
+          <strong style={{ color: "var(--color-text-primary)" }}>
+            {nextLevelLabel ?? "Expert"}
+          </strong>
+          .
+        </p>
       ) : (
         <p
           style={{
@@ -86,14 +130,22 @@ export function ProfilWidget() {
             lineHeight: 1.6,
           }}
         >
-          Il te reste <strong style={{ color: "var(--color-text-primary)" }}>{modulesRestants} modules</strong> pour atteindre <strong style={{ color: "var(--color-text-primary)" }}>{niveauSuivant}</strong>.
+          Il te reste{" "}
+          <strong style={{ color: "var(--color-text-primary)" }}>
+            {coursesRemaining} {coursesRemaining > 1 ? "cours" : "cours"}
+          </strong>{" "}
+          pour atteindre{" "}
+          <strong style={{ color: "var(--color-text-primary)" }}>
+            {nextLevelLabel ?? "le niveau suivant"}
+          </strong>
+          .
         </p>
       )}
 
       <ProgressBar
-        percent={isCompleted ? 100 : progressPercent}
-        from={`Niveau ${niveau}`}
-        to={`Niveau ${niveau + 1}`}
+        percent={isCompleted ? 100 : progressToNextLevel}
+        from={`Niveau ${level}`}
+        to={`Niveau ${Math.min(10, level + 1)}`}
       />
     </article>
   );
