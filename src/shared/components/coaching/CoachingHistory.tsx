@@ -171,15 +171,13 @@ export function CoachingHistory({
     return () => cancelAnimationFrame(id);
   }, [focusUpcomingNonce, showUpcoming]);
 
-  // Passés AVEC contenu réel uniquement : on ne montre JAMAIS les « pages »
-  // vides (entrées Notion sans résumé IA — no-show, appels sans compte rendu).
-  // `notion_page_id` est toujours présent sur les vraies données Notion : le
-  // seul discriminant fiable de « contenu » est donc `ai_summary`. Triés par
-  // date décroissante.
+  // Tous les appels passés, y compris ceux sans transcription / résumé (on les
+  // affiche). Les appels ANNULÉS sont déjà exclus en amont (côté query Notion),
+  // donc rien à filtrer ici. Triés par date décroissante.
   const contentPastCalls = useMemo(() => {
-    return pastCalls
-      .filter((c) => !!c.ai_summary && c.ai_summary.trim().length > 0)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return [...pastCalls].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
   }, [pastCalls]);
 
   // Sans vue « à venir » : grille des passés seule.

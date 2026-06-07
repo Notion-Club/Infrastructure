@@ -157,6 +157,11 @@ export async function getCallsForCurrentUser(): Promise<{
   const past: CoachingCallView[] = [];
 
   for (const c of calls) {
+    // Appels ANNULÉS : jamais affichés (ni à venir, ni passés). On les écarte
+    // en amont. Les appels sans contenu (no-show / sans résumé) restent eux
+    // affichés — seuls les "cancelled" explicites sont masqués.
+    if (c.status === "cancelled") continue;
+
     // Date-based split — la date prime sur le statut Notion :
     //  - date future ET status ≠ no_show/cancelled → upcoming
     //  - tous les autres cas → past
@@ -170,7 +175,9 @@ export async function getCallsForCurrentUser(): Promise<{
       ? new Date(c.scheduledAt).getTime()
       : NaN;
     const hasValidDate = !Number.isNaN(scheduledTs);
-    const isTerminal = c.status === "no_show" || c.status === "cancelled";
+    // "cancelled" est déjà écarté plus haut (continue) — reste "no_show" comme
+    // seul statut terminal explicite.
+    const isTerminal = c.status === "no_show";
     const isFutureUpcoming = hasValidDate && scheduledTs >= now && !isTerminal;
 
     const view: CoachingCallView = {
