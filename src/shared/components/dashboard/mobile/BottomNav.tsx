@@ -72,6 +72,12 @@ export function BottomNav() {
       data-fb-label="Barre de navigation"
       style={{
         position: "fixed",
+        // En PWA standalone, `env(safe-area-inset-bottom)` vaut ~34px sur
+        // iPhone (home indicator). On le combine au bottom de base pour
+        // remonter la pill au-dessus de la zone système ; appliquer un
+        // padding-bottom dilaterait la pill sans déplacer les icônes (la
+        // height fixe ne contient pas le padding) — visuellement, on
+        // verrait l'encadré décalé sous les boutons.
         bottom: "calc(10px + env(safe-area-inset-bottom))",
         left: 12,
         right: 12,

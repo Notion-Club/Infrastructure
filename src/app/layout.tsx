@@ -49,10 +49,18 @@ export const metadata: Metadata = {
 // l'encoche iPhone — combiné aux `env(safe-area-inset-*)` déjà utilisés
 // dans MobileHeader / BottomNav. `themeColor` aligne la status bar iOS et
 // la barre Chrome Android sur la couleur de fond de page (#f5f2f2).
+//
+// `maximumScale: 1` + `userScalable: false` désactivent l'auto-zoom iOS
+// quand l'utilisateur focus un `<input>` ou `<textarea>` dont le
+// `font-size` est < 16px — le layout reste figé, on a un comportement
+// d'app native. Safari (mode navigateur) ignore `user-scalable=no` pour
+// l'accessibilité (pinch zoom toujours possible) mais honore
+// `maximumScale=1` pour le zoom au focus, qui est ce qu'on veut bloquer.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 5,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
   themeColor: "#f5f2f2",
 };
