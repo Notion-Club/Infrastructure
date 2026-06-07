@@ -11,7 +11,7 @@
 // `host_avatar_url`) — jamais hardcodés.
 
 import { useState } from "react";
-import { CalendarSync } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import type { CallCardData } from "@/shared/lib/mock/coaching";
 import { CallDetailModal } from "@/shared/components/coaching/CallDetailModal";
 import { HostAvatar } from "@/shared/components/coaching/HostAvatar";
@@ -32,6 +32,12 @@ function formatDateLong(iso: string): string {
     year: "numeric",
   });
   return datePart.charAt(0).toUpperCase() + datePart.slice(1);
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
 function getUpcomingLabel(iso: string): string {
@@ -181,7 +187,7 @@ export function CallTile({
               }}
               className="hover:border-[rgba(224,98,90,0.35)] hover:bg-[rgba(224,98,90,0.06)] hover:text-[var(--color-brand)]"
             >
-              <CalendarSync size={15} />
+              <RefreshCw size={15} />
             </button>
           )}
         </div>
@@ -202,7 +208,8 @@ export function CallTile({
               lineHeight: 1,
             }}
           >
-            {formatDateLong(call.date)} avec
+            {formatDateLong(call.date)}
+            {isUpcoming ? ` à ${formatTime(call.date)}` : ""} avec
           </span>
 
           {/* Avatar coach — skeleton → reveal pendant le chargement photo */}

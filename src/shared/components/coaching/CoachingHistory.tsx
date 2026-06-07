@@ -18,6 +18,7 @@ import type { CallCardData } from "@/shared/lib/mock/coaching";
 import { CallTile } from "@/shared/components/coaching/CallTile";
 import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
 import { UpcomingEmptyState } from "@/shared/components/coaching/UpcomingEmptyState";
+import { AnimatedUpcomingGrid } from "@/shared/components/coaching/AnimatedUpcomingGrid";
 
 type HistoryView = "past" | "upcoming";
 
@@ -220,16 +221,10 @@ export function CoachingHistory({
           <UpcomingEmptyState eligible={eligible} />
         )
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2" data-fb-label="Grille appels à venir · Coaching">
-          {upcomingCalls.map((call) => (
-            <CallTile
-              key={call.id}
-              call={call}
-              variant="upcoming"
-              onReschedule={onReschedule}
-            />
-          ))}
-        </div>
+        <AnimatedUpcomingGrid
+          calls={upcomingCalls}
+          onReschedule={onReschedule}
+        />
       )}
     </div>
   );
