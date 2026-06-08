@@ -86,3 +86,37 @@ Liste `[ ]` de scénarios concrets à dérouler pour valider la PR à la main.
 - À chaque push qui prépare implicitement une PR sur une branche de feature.
 
 Si la PR ne respecte pas cette structure, la corriger AVANT d'annoncer la fin du travail à l'utilisateur.
+
+---
+
+# Règle absolue — enrichissement systématique du README à chaque PR
+
+Le `README.md` est la vitrine et la carte mentale du projet (cf. la version de référence rédigée le 2026-06-08). Il doit **rester vivant** : à partir de maintenant, toute PR qui introduit une **modification structurelle** DOIT mettre à jour le README **dans la même PR**, avant le merge. Le README ne doit jamais prendre du retard sur le code.
+
+## Ce qui déclenche une mise à jour du README
+
+Mettre à jour le README **dès** que la PR contient l'un de ces changements (liste non exhaustive — au moindre doute, mettre à jour) :
+
+- 🧩 **Nouveau module** ou suppression/renommage d'un module dans `src/modules/` → maj de l'arbre « Organisation du code » et du tableau des briques.
+- 🗄️ **Nouvelle migration structurelle** (`supabase/migrations/`) : nouvelle table, nouveau bucket storage, changement de modèle RLS → maj de la section « Base de données » (familles de tables + nombre de migrations).
+- 🔑 **Nouvelle capability** ou changement du modèle d'accès → maj du tableau « capabilities & accès » (à garder aligné sur `src/shared/types/capabilities.ts`).
+- 🔄 **Nouvelle route API**, nouvelle synchro Notion, nouvelle intégration tierce (Resend, Fathom, Fillout, etc.) → maj des sections « Synchro Notion ↔ Supabase » et/ou « Stack technique ».
+- 🔐 **Nouvelle variable d'environnement** requise → maj du tableau « Variables d'environnement clés ».
+- 🏗️ **Décision d'architecture** ou changement de stack (version majeure, lib remplacée) → maj des sections concernées.
+- 📚 **Nouveau document** dans `docs/` → ajout dans le tableau « Documentation interne ».
+
+## Ce qui NE déclenche PAS de mise à jour
+
+Pour éviter le bruit, **ne pas** toucher au README pour : un fix de bug local, un ajustement CSS/copywriting, un refacto interne sans impact sur l'API publique d'un module, l'ajout d'un composant mineur. Le README documente la **structure et le contexte global**, pas chaque commit.
+
+## Comment procéder
+
+1. Mettre à jour **uniquement** les parties réellement impactées — enrichir, pas réécrire. Garder le ton existant (alternance copywriting / technique, texte aéré, emojis en tête de sous-section).
+2. Vérifier la cohérence : tout chiffre cité (nombre de migrations, de modules), tout lien interne et tout nom de table/capability/variable doit refléter l'état réel du repo après la PR.
+3. Ajouter dans le corps de la PR, sous **« Qu'est-ce qui a été fait »**, une ligne explicite type : `📖 README mis à jour — section(s) X, Y`.
+4. Ajouter dans la **« Checklist de test manuel »** de la PR la case : `[ ] README enrichi des changements structurels de cette PR (ou : aucun changement structurel)`.
+
+## Quand cette règle s'applique
+
+- À chaque création/mise à jour de PR contenant un changement structurel listé ci-dessus.
+- Avant tout merge : si la PR touche à la structure mais pas au README, **compléter le README AVANT d'annoncer la fin du travail** à l'utilisateur.
