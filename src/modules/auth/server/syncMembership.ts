@@ -24,9 +24,13 @@ import { createSupabaseAdminClient } from "@/shared/lib/supabase/admin";
 // Pourquoi ne pas mettre ça côté DB ? Parce que c'est un mapping "contrat
 // frontend" qui peut changer au gré de Théo dans Notion (ajout d'une nouvelle
 // formule, renommage). Mieux vaut le garder en code typé qu'en table éditable.
+//
+// Slugs vérifiés côté Supabase (table offers) :
+//   - "formation"       → Formation
+//   - "accompagnement"  → Accompagnement
 const NOTION_OFFER_TO_SLUG: Record<string, string> = {
-  "Formation uniquement": "formation-uniquement",
-  Accompagnement: "accompagnement-120-jours",
+  "Formation uniquement": "formation",
+  Accompagnement: "accompagnement",
 };
 
 // Mapping vers le duration_type Supabase. Aligné sur les valeurs autorisées
