@@ -9,6 +9,8 @@ import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceCard } from './ResourceCard';
 import { TemplateCard } from './TemplateCard';
 import { SuggestTemplateCard } from './SuggestTemplateCard';
+import { BorderBeam } from 'border-beam';
+import { useTheme } from '@/shared/lib/hooks/useTheme';
 
 type PrimaryFilter = 'Tout' | 'Ressources' | 'Templates';
 
@@ -60,6 +62,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const [searchActive, setSearchActive] = useState(false);
   const [leavingItems, setLeavingItems] = useState<ResourceItem[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
   // Aligne le dropdown à droite quand l'ancrage gauche le ferait déborder
   // hors du viewport (cas mobile : bouton trop à droite de l'écran).
@@ -73,17 +76,18 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const kbdsRef = useRef<HTMLSpanElement>(null);
 
   const currentCapability: UserCapability = mockCurrentUser.capability;
+  const { theme } = useTheme();
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         if (!searchActive) activateSearch();
         else searchInputRef.current?.focus();
       }
     }
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchActive]);
 
@@ -162,7 +166,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
         // Phase 3 — after enter animation completes, reveal input layer
         setTimeout(() => {
           setSearchActive(true);
-          requestAnimationFrame(() => searchInputRef.current?.focus());
+          setTimeout(() => searchInputRef.current?.focus(), 160);
         }, dur + 60);
       }, dur);
     } else {
@@ -462,9 +466,15 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               zIndex: searchActive ? 0 : 1,
             }}
           >
+            <BorderBeam
+              size="pulse-inner"
+              colorVariant="mono"
+              strength={0.94}
+              theme={theme}
+              style={{ width: '100%', height: 36, borderRadius: 9999 }}
+            >
             <button
               type="button"
-              className="nc-search-idle"
               data-fb-label="Bouton recherche · Grille des ressources"
               onClick={activateSearch}
               style={{
@@ -496,10 +506,11 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 </span>
               </span>
               <span ref={kbdsRef} style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0.5 }}>
-                <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>⌘</kbd>
-                <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>K</kbd>
+                <kbd className="nc-kbd-badge">⌘</kbd>
+                <kbd className="nc-kbd-badge">K</kbd>
               </span>
             </button>
+            </BorderBeam>
           </div>
 
           {/* Layer B — active input with shimmer placeholder */}
@@ -543,15 +554,17 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 width: '100%',
                 padding: '0 32px 0 14px',
                 borderRadius: 9999,
-                border: '1px solid var(--color-brand)',
+                border: `1px solid ${inputFocused ? 'var(--color-brand)' : 'var(--color-border-default)'}`,
                 background: 'var(--color-surface-card)',
-                boxShadow: '0 0 0 3px rgba(224,98,90,0.12)',
+                boxShadow: inputFocused ? '0 0 0 3px rgba(224,98,90,0.12)' : 'none',
+                transition: 'border-color 120ms ease, box-shadow 120ms ease',
                 fontSize: 13,
                 color: 'var(--color-text-primary)',
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
-              onBlur={() => { if (!searchQuery) deactivateSearch(); }}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => { setInputFocused(false); if (!searchQuery) deactivateSearch(); }}
               onKeyDown={(e) => { if (e.key === 'Escape') deactivateSearch(); }}
             />
             <button
