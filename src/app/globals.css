@@ -379,6 +379,25 @@ html {
   }
 }
 
+/* Stagger card reveal — inspired by transitions.dev #18 (texts-reveal).
+   translateY + blur rise with spring ease. Pair with animation-delay per index. */
+@keyframes nc-card-stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [style*="nc-card-stagger-in"] { animation: none !important; }
+}
+
 /*
  * Slot-machine vertical scroll animation pour les placeholders cyclants
  * (cf. PlaceholderCycle dans ProfileHero.tsx). On translate une pile de 4

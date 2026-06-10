@@ -137,74 +137,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Search bar */}
-      <div style={{ position: 'relative' }}>
-        <Search
-          size={15}
-          style={{
-            position: 'absolute',
-            left: 14,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: 'var(--color-text-muted)',
-            pointerEvents: 'none',
-          }}
-        />
-        <input
-          type="search"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Rechercher par titre, description ou contenu…"
-          style={{
-            width: '100%',
-            padding: '10px 40px 10px 38px',
-            borderRadius: 12,
-            border: '1px solid var(--color-border-default)',
-            background: '#ffffff',
-            fontSize: 14,
-            color: 'var(--color-text-primary)',
-            outline: 'none',
-            boxSizing: 'border-box',
-            transition: 'border-color 150ms ease, box-shadow 150ms ease',
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-brand)';
-            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,98,90,0.12)';
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-border-default)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={() => setSearchQuery('')}
-            aria-label="Effacer la recherche"
-            style={{
-              position: 'absolute',
-              right: 10,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              background: 'var(--color-surface-raised)',
-              border: 'none',
-              borderRadius: '50%',
-              width: 20,
-              height: 20,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--color-text-muted)',
-              padding: 0,
-            }}
-          >
-            <X size={11} />
-          </button>
-        )}
-      </div>
-
-      {/* Filter bar */}
+      {/* Filter bar + search on same row */}
       <div
         data-fb-label="Filtre barre · Grille des ressources"
         style={{
@@ -420,6 +353,74 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           </div>
         )}
 
+        {/* Search — right-aligned, fixed width, same row as filters */}
+        <div style={{ marginLeft: 'auto', position: 'relative', width: 240, flexShrink: 0 }}>
+          <Search
+            size={14}
+            style={{
+              position: 'absolute',
+              left: 12,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--color-text-muted)',
+              pointerEvents: 'none',
+            }}
+          />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Rechercher…"
+            style={{
+              width: '100%',
+              padding: '8px 32px 8px 34px',
+              borderRadius: 9999,
+              border: '1px solid var(--color-border-default)',
+              background: 'var(--color-surface-raised)',
+              fontSize: 13,
+              color: 'var(--color-text-primary)',
+              outline: 'none',
+              boxSizing: 'border-box',
+              transition: 'border-color 150ms ease, box-shadow 150ms ease, background 150ms ease',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-brand)';
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,98,90,0.12)';
+              e.currentTarget.style.background = '#ffffff';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border-default)';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.background = 'var(--color-surface-raised)';
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              aria-label="Effacer la recherche"
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                borderRadius: '50%',
+                width: 18,
+                height: 18,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--color-text-muted)',
+                padding: 0,
+              }}
+            >
+              <X size={10} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Grid */}
@@ -427,8 +428,15 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
         <>
           {visibleItems.length > 0 ? (
             <div data-fb-label="Grille des ressources" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {visibleItems.map((item) => (
-                <div key={item.slug} style={{ animation: 'nc-mode-in 200ms ease both' }}>
+              {visibleItems.map((item, idx) => (
+                <div
+                  key={item.slug}
+                  style={{
+                    height: '100%',
+                    animation: 'nc-card-stagger-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both',
+                    animationDelay: `${Math.min(idx * 35, 180)}ms`,
+                  }}
+                >
                   {item.category === 'resource' ? (
                     <ResourceCard resource={item} currentCapability={currentCapability} />
                   ) : (
@@ -441,9 +449,11 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 <div
                   key={`out-${item.slug}`}
                   style={{
+                    height: '100%',
                     opacity: 0,
-                    transform: 'scale(0.96)',
-                    transition: 'opacity 220ms ease, transform 220ms ease',
+                    transform: 'translateY(0)',
+                    filter: 'blur(0)',
+                    transition: 'opacity 180ms ease',
                     pointerEvents: 'none',
                   }}
                 >

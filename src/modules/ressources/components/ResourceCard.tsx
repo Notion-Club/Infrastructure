@@ -37,6 +37,7 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
+        height: '100%',
         cursor: 'pointer',
         transition: 'border-color 350ms cubic-bezier(0.22, 1, 0.36, 1)',
         position: 'relative',
