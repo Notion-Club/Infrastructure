@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { SmilePlus } from "lucide-react";
+import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
 
 const EMOJIS = ["❤️", "🔥", "🎉", "🙌", "💡", "😍", "👏", "🤯"];
 
@@ -16,23 +17,23 @@ export function ReactionPicker({
   onSelect,
   label = "+ Réagir",
 }: ReactionPickerProps) {
-  const [open, setOpen] = useState(false);
+  const { isOpen, isMounted, stateClass, close, toggle } = useDropdownTransition();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) return;
-    function close(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    if (!isOpen) return;
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [open]);
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [isOpen, close]);
 
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => toggle()}
         data-fb-label="Bouton Réagir · Communauté"
         style={{
           display: "inline-flex",
@@ -53,8 +54,10 @@ export function ReactionPicker({
         {label}
       </button>
 
-      {open && (
+      {isMounted && (
         <div
+          className={`t-dropdown ${stateClass}`}
+          data-origin="bottom-left"
           style={{
             position: "absolute",
             bottom: "calc(100% + 6px)",
@@ -74,7 +77,7 @@ export function ReactionPicker({
             <button
               key={emoji}
               type="button"
-              onClick={() => { onSelect(emoji); setOpen(false); }}
+              onClick={() => { onSelect(emoji); close(); }}
               style={{
                 width: 36,
                 height: 36,

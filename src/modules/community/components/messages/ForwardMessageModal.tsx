@@ -10,6 +10,7 @@ import type { CommunityMember } from "../../server/queries";
 import { FORWARD_MAX_TARGETS } from "../../lib/validation";
 import { useMembersList } from "../../hooks/useMembersList";
 import { UserAvatar } from "../shared/UserAvatar";
+import { useModalTransition } from "@/shared/lib/hooks/useModalTransition";
 
 interface ForwardMessageModalProps {
   currentUser: User;
@@ -43,6 +44,7 @@ export function ForwardMessageModal({
   onClose,
   onDone,
 }: ForwardMessageModalProps) {
+  const { stateClass, overlayOpen, requestClose } = useModalTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [sending, setSending] = useState(false);
@@ -74,14 +76,14 @@ export function ForwardMessageModal({
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestClose(onClose);
     }
     document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, [onClose, requestClose]);
 
   function toggleMember(id: string) {
     setSelected((prev) => {
@@ -112,7 +114,7 @@ export function ForwardMessageModal({
     toast.success(
       `Message transféré à ${result.deliveredCount} destinataire${result.deliveredCount > 1 ? "s" : ""}`,
     );
-    onDone();
+    requestClose(onDone);
   }
 
   if (!mounted) return null;
@@ -127,7 +129,7 @@ export function ForwardMessageModal({
       aria-modal="true"
       aria-label="Transférer le message"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) requestClose(onClose);
       }}
       style={{
         position: "fixed",
@@ -140,11 +142,13 @@ export function ForwardMessageModal({
         alignItems: "center",
         justifyContent: "center",
         padding: 20,
-        animation: "nc-mode-in 180ms var(--nc-ease) both",
+        opacity: overlayOpen ? 1 : 0,
+        transition: "opacity var(--modal-open-dur) var(--modal-ease)",
       }}
     >
       <div
         data-fb-label="Modale Transférer le message · Communauté"
+        className={`t-modal ${stateClass}`}
         style={{
           background: "var(--color-surface-card)",
           borderRadius: 16,
@@ -174,7 +178,7 @@ export function ForwardMessageModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => requestClose(onClose)}
             aria-label="Fermer"
             data-fb-label="Bouton Fermer · Modale Transférer le message"
             style={{
@@ -444,7 +448,7 @@ export function ForwardMessageModal({
         >
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => requestClose(onClose)}
             disabled={sending}
             style={{
               padding: "8px 16px",

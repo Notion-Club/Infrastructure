@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
 import { Bell } from "lucide-react";
 import { MOCK_NOTIFICATIONS } from "../../mocks/notifications.mock";
 import type { Notification } from "../../types/notification.types";
@@ -24,20 +25,20 @@ interface NotificationPopoverProps {
 
 export function NotificationPopover({ buttonClassName }: NotificationPopoverProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const { isOpen, isMounted, stateClass, close, toggle } = useDropdownTransition();
   const [notifs, setNotifs] = useState(MOCK_NOTIFICATIONS);
   const ref = useRef<HTMLDivElement>(null);
 
   const unread = notifs.filter((n) => !n.read).length;
 
   useEffect(() => {
-    if (!open) return;
-    function close(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    if (!isOpen) return;
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [open]);
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [isOpen, close]);
 
   function handleNotifClick(n: Notification) {
     setNotifs((prev) => prev.map((x) => x.id === n.id ? { ...x, read: true } : x));
@@ -46,7 +47,7 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
     } else if (n.postId) {
       router.push(`/communaute/post/${n.postId}`);
     }
-    setOpen(false);
+    close();
   }
 
   function markAllRead() {
@@ -58,7 +59,7 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
       <button
         type="button"
         aria-label="Notifications"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => toggle()}
         data-fb-label="Bouton Notifications · Communauté"
         className={buttonClassName}
         style={{
@@ -104,9 +105,11 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
         )}
       </button>
 
-      {open && (
+      {isMounted && (
         <div
           data-fb-label="Popover notifications · Communauté"
+          className={`t-dropdown ${stateClass}`}
+          data-origin="top-right"
           style={{
             position: "absolute",
             top: "calc(100% + 10px)",
@@ -119,7 +122,6 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
             borderRadius: 16,
             boxShadow: "var(--nc-shadow-2)",
             zIndex: 200,
-            animation: "nc-mode-in var(--nc-duration-fast) var(--nc-ease) both",
           }}
         >
           {/* Header */}

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Bell } from "lucide-react";
+import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
 
 type Notification = {
   id: number;
@@ -44,22 +45,22 @@ const INITIAL_NOTIFICATIONS: Notification[] = [
 ];
 
 export function NotificationPopover() {
-  const [open, setOpen] = useState(false);
+  const { isOpen, isMounted, stateClass, close, toggle } = useDropdownTransition();
   const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
-    if (!open) return;
+    if (!isOpen) return;
     function handleClickOutside(e: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
+        close();
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
+  }, [isOpen, close]);
 
   function markAllRead() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -70,7 +71,7 @@ export function NotificationPopover() {
       <button
         type="button"
         aria-label="Notifications"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => toggle()}
         data-fb-label="Bouton Notifications · Barre de navigation"
         style={{
           position: "relative",
@@ -117,11 +118,13 @@ export function NotificationPopover() {
         )}
       </button>
 
-      {open && (
+      {isMounted && (
         <div
           role="dialog"
           aria-label="Notifications"
           data-fb-label="Menu Notifications · Barre de navigation"
+          className={`t-dropdown ${stateClass}`}
+          data-origin="top-left"
           style={{
             position: "absolute",
             top: "calc(100% + 8px)",
