@@ -477,17 +477,32 @@ html {
   .t-shimmer::before { animation: none !important; }
 }
 
-/* Search button idle pulse — brand-tinted breathing outline */
-@keyframes nc-search-pulse {
-  0%, 100% { box-shadow: 0 0 0 0px rgba(224,98,90,0); }
-  50%       { box-shadow: 0 0 0 2px rgba(224,98,90,0.24), 0 0 10px rgba(224,98,90,0.07); }
+/* Shimmer: white highlight in dark mode for visibility over gray text */
+.dark {
+  --shimmer-base: #a89e9b;   /* same as --color-text-secondary dark */
+  --shimmer-highlight: #ffffff;
 }
-.nc-search-idle {
-  animation: nc-search-pulse 2.4s ease-in-out infinite;
+
+/* kbd badges inside the search button */
+.nc-kbd-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-family: inherit;
+  padding: 1px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  line-height: 1.4;
 }
-@media (prefers-reduced-motion: reduce) {
-  .nc-search-idle { animation: none !important; }
+.dark .nc-kbd-badge {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.65);
 }
+
 
 /*
  * Slot-machine vertical scroll animation pour les placeholders cyclants
