@@ -200,6 +200,38 @@ function renderBlock(block: ContentBlock, idx: number) {
         </pre>
       );
 
+    case 'table':
+      return (
+        <div
+          key={idx}
+          data-fb-label="Tableau · Corps Notion"
+          style={{ overflowX: 'auto', margin: '0 0 16px' }}
+        >
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+            <tbody>
+              {block.rows.map((row, ri) => (
+                <tr key={ri}>
+                  {row.map((cell, ci) => (
+                    <td
+                      key={ci}
+                      style={{
+                        border: '1px solid var(--color-border-default)',
+                        padding: '8px 12px',
+                        color: 'var(--color-text-secondary)',
+                        lineHeight: 1.5,
+                        verticalAlign: 'top',
+                      }}
+                    >
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+
     case 'tella_embed':
       return (
         <div key={idx} data-fb-label="Embed vidéo Tella · Corps Notion" style={{ margin: '24px 0' }}>
