@@ -135,43 +135,45 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
   function activateSearch() {
     const el = ctaTextRef.current;
-    if (!el) {
-      setSearchActive(true);
-      setTimeout(() => searchInputRef.current?.focus(), 0);
-      return;
-    }
-    const dur = parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue('--text-swap-dur')
-    ) || 150;
+    const dur = 150; // --text-swap-dur
 
-    el.classList.add('is-exit');
-    setTimeout(() => {
-      el.textContent = 'Que cherches-tu ?';
-      el.setAttribute('data-text', 'Que cherches-tu ?');
-      el.classList.add('t-shimmer');
-      el.classList.remove('is-exit');
-      el.classList.add('is-enter-start');
-      void el.offsetHeight;
-      el.classList.remove('is-enter-start');
+    if (el) {
+      // Phase 1 — exit old CTA text (slides up + blurs)
+      el.classList.add('is-exit');
 
       setTimeout(() => {
-        setSearchActive(true);
-        requestAnimationFrame(() => searchInputRef.current?.focus());
-      }, dur + 80);
-    }, dur);
+        // Phase 2 — swap to shimmer text, teleport below, no transition
+        el.textContent = 'Que cherches-tu ?';
+        el.setAttribute('data-text', 'Que cherches-tu ?');
+        el.classList.add('t-shimmer');
+        el.classList.remove('is-exit');
+        el.classList.add('is-enter-start');
+        void el.offsetHeight; // force reflow
+        el.classList.remove('is-enter-start');
+
+        // Phase 3 — after enter animation completes, reveal input layer
+        setTimeout(() => {
+          setSearchActive(true);
+          requestAnimationFrame(() => searchInputRef.current?.focus());
+        }, dur + 60);
+      }, dur);
+    } else {
+      setSearchActive(true);
+      setTimeout(() => searchInputRef.current?.focus(), 0);
+    }
   }
 
   function deactivateSearch() {
     setSearchQuery('');
     setSearchActive(false);
-    // Reset CTA text for next open
+    // Reset CTA span after opacity fade so it’s ready for next open
     setTimeout(() => {
       const el = ctaTextRef.current;
       if (!el) return;
       el.classList.remove('t-shimmer', 'is-exit', 'is-enter-start');
       el.removeAttribute('data-text');
       el.textContent = '🔍 Cherche une ressource…';
-    }, 0);
+    }, 200);
   }
 
   function toggleType(type: ResourceMetierType) {
@@ -412,9 +414,21 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
         )}
 
         {/* Search — right-aligned, fixed width, same row as filters */}
-        <div style={{ marginLeft: 'auto', position: 'relative', width: 240, flexShrink: 0 }}>
-          {!searchActive ? (
-            /* ── Idle state: CTA button with BorderBeam ── */
+        {/* Two layers always in DOM; opacity-toggled so text-swap animation
+            completes before the button layer fades out and input fades in. */}
+        <div style={{ marginLeft: 'auto', position: 'relative', width: 240, flexShrink: 0, height: 36 }}>
+
+          {/* Layer A — idle CTA button with BorderBeam */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              opacity: searchActive ? 0 : 1,
+              pointerEvents: searchActive ? 'none' : 'auto',
+              transition: 'opacity 150ms ease',
+              zIndex: searchActive ? 0 : 1,
+            }}
+          >
             <BorderBeam size="pulse-inner" colorVariant="mono" strength={0.48} theme="light">
               <button
                 type="button"
@@ -422,11 +436,12 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 onClick={activateSearch}
                 style={{
                   width: '100%',
+                  height: 36,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: 6,
-                  padding: '8px 12px',
+                  padding: '0 12px',
                   borderRadius: 9999,
                   border: '1px solid var(--color-border-default)',
                   background: 'var(--color-surface-raised)',
@@ -438,7 +453,11 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                   whiteSpace: 'nowrap',
                 }}
               >
-                <span ref={ctaTextRef} className="t-text-swap" style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span
+                  ref={ctaTextRef}
+                  className="t-text-swap"
+                  style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                >
                   🔍 Cherche une ressource…
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0.5 }}>
@@ -447,60 +466,87 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 </span>
               </button>
             </BorderBeam>
-          ) : (
-            /* ── Active state: real search input ── */
-            <div style={{ position: 'relative' }}>
-              <input
-                ref={searchInputRef}
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Rechercher…"
-                style={{
-                  width: '100%',
-                  padding: '8px 32px 8px 14px',
-                  borderRadius: 9999,
-                  border: '1px solid var(--color-brand)',
-                  background: '#ffffff',
-                  boxShadow: '0 0 0 3px rgba(224,98,90,0.12)',
-                  fontSize: 13,
-                  color: 'var(--color-text-primary)',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-                onBlur={() => {
-                  if (!searchQuery) deactivateSearch();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') deactivateSearch();
-                }}
-              />
-              <button
-                type="button"
-                onClick={deactivateSearch}
-                aria-label="Fermer la recherche"
+          </div>
+
+          {/* Layer B — active input with shimmer placeholder */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              opacity: searchActive ? 1 : 0,
+              pointerEvents: searchActive ? 'auto' : 'none',
+              transition: 'opacity 150ms ease',
+              zIndex: searchActive ? 1 : 0,
+            }}
+          >
+            {/* Shimmer placeholder — visible when input is empty */}
+            {!searchQuery && (
+              <span
+                className="t-shimmer"
+                data-text="Que cherches-tu ?"
                 style={{
                   position: 'absolute',
-                  right: 8,
+                  left: 14,
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: 18,
-                  height: 18,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: 'var(--color-text-muted)',
-                  padding: 0,
+                  fontSize: 13,
+                  pointerEvents: 'none',
+                  zIndex: 2,
+                  whiteSpace: 'nowrap',
                 }}
               >
-                <X size={10} />
-              </button>
-            </div>
-          )}
+                Que cherches-tu ?
+              </span>
+            )}
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                padding: '0 32px 0 14px',
+                borderRadius: 9999,
+                border: '1px solid var(--color-brand)',
+                background: searchQuery ? '#ffffff' : 'transparent',
+                boxShadow: '0 0 0 3px rgba(224,98,90,0.12)',
+                fontSize: 13,
+                color: 'var(--color-text-primary)',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+              onBlur={() => { if (!searchQuery) deactivateSearch(); }}
+              onKeyDown={(e) => { if (e.key === 'Escape') deactivateSearch(); }}
+            />
+            <button
+              type="button"
+              onClick={deactivateSearch}
+              aria-label="Fermer la recherche"
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                borderRadius: '50%',
+                width: 18,
+                height: 18,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--color-text-muted)',
+                padding: 0,
+                zIndex: 3,
+              }}
+            >
+              <X size={10} />
+            </button>
+          </div>
+
         </div>
       </div>
 
