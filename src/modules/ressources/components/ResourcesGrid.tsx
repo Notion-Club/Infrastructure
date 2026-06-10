@@ -39,18 +39,6 @@ function extractSearchText(item: ResourceItem): string {
   return `${base} ${contentText}`.toLowerCase();
 }
 
-function pluralizeCount(count: number, primaryFilter: PrimaryFilter): string {
-  if (primaryFilter === 'Ressources') {
-    return count <= 1 ? `${count} ressource` : `${count} ressources`;
-  }
-  if (primaryFilter === 'Templates') {
-    return count <= 1 ? `${count} template` : `${count} templates`;
-  }
-  // Tout — mix
-  if (count <= 1) return `${count} élément`;
-  return `${count} éléments`;
-}
-
 export function ResourcesGrid({ items }: ResourcesGridProps) {
   const searchParams = useSearchParams();
   const catParam = searchParams.get('cat');
@@ -68,6 +56,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     return new Set();
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [leavingItems, setLeavingItems] = useState<ResourceItem[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
   // Aligne le dropdown à droite quand l'ancrage gauche le ferait déborder
@@ -75,6 +64,8 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const [alignRight, setAlignRight] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const filterBtnRef = useRef<HTMLButtonElement>(null);
+  const prevVisibleRef = useRef<ResourceItem[]>([]);
+  const leavingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentCapability: UserCapability = mockCurrentUser.capability;
 
@@ -105,13 +96,25 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   });
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const searchMatchSet = normalizedQuery
-    ? new Set(filteredItems.filter((item) => extractSearchText(item).includes(normalizedQuery)).map((i) => i.slug))
-    : null;
-
-  const visibleCount = searchMatchSet ? searchMatchSet.size : filteredItems.length;
+  const visibleItems = normalizedQuery
+    ? filteredItems.filter((item) => extractSearchText(item).includes(normalizedQuery))
+    : filteredItems;
 
   const hasActiveFilters = selectedTypes.size > 0;
+
+  // Track items leaving the grid to animate them out
+  useEffect(() => {
+    const prev = prevVisibleRef.current;
+    const currentSlugs = new Set(visibleItems.map((i) => i.slug));
+    const removed = prev.filter((item) => !currentSlugs.has(item.slug));
+    prevVisibleRef.current = visibleItems;
+
+    if (removed.length === 0) return;
+
+    setLeavingItems(removed);
+    if (leavingTimerRef.current) clearTimeout(leavingTimerRef.current);
+    leavingTimerRef.current = setTimeout(() => setLeavingItems([]), 220);
+  }, [visibleItems]);
 
   function toggleType(type: ResourceMetierType) {
     setSelectedTypes((prev) => {
@@ -417,26 +420,31 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           </div>
         )}
 
-        {/* Count */}
-        <span className="nc-resource-count">
-          {pluralizeCount(visibleCount, primaryFilter)}
-        </span>
       </div>
 
       {/* Grid */}
       {filteredItems.length > 0 ? (
         <>
-          <div data-fb-label="Grille des ressources" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredItems.map((item) => {
-              const isVisible = searchMatchSet === null || searchMatchSet.has(item.slug);
-              return (
+          {visibleItems.length > 0 ? (
+            <div data-fb-label="Grille des ressources" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {visibleItems.map((item) => (
+                <div key={item.slug} style={{ animation: 'nc-mode-in 200ms ease both' }}>
+                  {item.category === 'resource' ? (
+                    <ResourceCard resource={item} currentCapability={currentCapability} />
+                  ) : (
+                    <TemplateCard template={item} currentCapability={currentCapability} />
+                  )}
+                </div>
+              ))}
+              {/* Items fading out — appended at end so the grid reflows above */}
+              {leavingItems.map((item) => (
                 <div
-                  key={item.slug}
+                  key={`out-${item.slug}`}
                   style={{
+                    opacity: 0,
+                    transform: 'scale(0.96)',
                     transition: 'opacity 220ms ease, transform 220ms ease',
-                    opacity: isVisible ? 1 : 0,
-                    transform: isVisible ? 'scale(1)' : 'scale(0.96)',
-                    pointerEvents: isVisible ? 'auto' : 'none',
+                    pointerEvents: 'none',
                   }}
                 >
                   {item.category === 'resource' ? (
@@ -445,11 +453,10 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                     <TemplateCard template={item} currentCapability={currentCapability} />
                   )}
                 </div>
-              );
-            })}
-            {visibleCount > 0 && <SuggestTemplateCard variant={primaryFilter} />}
-          </div>
-          {searchMatchSet !== null && visibleCount === 0 && (
+              ))}
+              <SuggestTemplateCard variant={primaryFilter} />
+            </div>
+          ) : (
             <div
               style={{
                 display: 'flex',
