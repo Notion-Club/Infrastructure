@@ -70,6 +70,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const leavingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ctaTextRef = useRef<HTMLSpanElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const kbdsRef = useRef<HTMLSpanElement>(null);
 
   const currentCapability: UserCapability = mockCurrentUser.capability;
 
@@ -135,9 +136,16 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
   function activateSearch() {
     const el = ctaTextRef.current;
-    const dur = 150; // --text-swap-dur
+    const kbds = kbdsRef.current;
+    const dur = 150;
 
     if (el) {
+      // Immediately fade kbds out in sync with the CTA text exit
+      if (kbds) {
+        kbds.style.transition = 'opacity 120ms ease';
+        kbds.style.opacity = '0';
+      }
+
       // Phase 1 — exit old CTA text (slides up + blurs)
       el.classList.add('is-exit');
 
@@ -148,7 +156,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
         el.classList.add('t-shimmer');
         el.classList.remove('is-exit');
         el.classList.add('is-enter-start');
-        void el.offsetHeight; // force reflow
+        void el.offsetHeight;
         el.classList.remove('is-enter-start');
 
         // Phase 3 — after enter animation completes, reveal input layer
@@ -164,16 +172,40 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   }
 
   function deactivateSearch() {
+    const el = ctaTextRef.current;
+    const kbds = kbdsRef.current;
+    const dur = 150;
+
     setSearchQuery('');
-    setSearchActive(false);
-    // Reset CTA span after opacity fade so it’s ready for next open
-    setTimeout(() => {
-      const el = ctaTextRef.current;
-      if (!el) return;
-      el.classList.remove('t-shimmer', 'is-exit', 'is-enter-start');
-      el.removeAttribute('data-text');
-      el.textContent = '🔍 Cherche une ressource…';
-    }, 200);
+
+    if (el) {
+      // Reverse text swap on button layer (still invisible at this point).
+      // Phase 1 — exit shimmer text
+      el.classList.add('is-exit');
+
+      setTimeout(() => {
+        // Phase 2 — enter original CTA text from below
+        el.textContent = '🔍 Cherche une ressource…';
+        el.removeAttribute('data-text');
+        el.classList.remove('t-shimmer', 'is-exit');
+        el.classList.add('is-enter-start');
+        void el.offsetHeight;
+        el.classList.remove('is-enter-start');
+
+        // Phase 3 — now fade in the button layer with CTA entering
+        setSearchActive(false);
+
+        // Restore kbds after CTA text has fully entered
+        setTimeout(() => {
+          if (kbds) {
+            kbds.style.transition = 'opacity 150ms ease';
+            kbds.style.opacity = '0.5';
+          }
+        }, dur);
+      }, dur);
+    } else {
+      setSearchActive(false);
+    }
   }
 
   function toggleType(type: ResourceMetierType) {
@@ -444,10 +476,10 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                   padding: '0 12px',
                   borderRadius: 9999,
                   border: '1px solid var(--color-border-default)',
-                  background: 'var(--color-surface-raised)',
+                  background: '#ffffff',
                   cursor: 'pointer',
                   fontSize: 13,
-                  color: 'var(--color-text-secondary)',
+                  color: 'var(--color-text-muted)',
                   boxSizing: 'border-box',
                   overflow: 'hidden',
                   whiteSpace: 'nowrap',
@@ -460,9 +492,9 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 >
                   🔍 Cherche une ressource…
                 </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0.5 }}>
-                  <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-card)', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>⌘</kbd>
-                  <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-card)', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>K</kbd>
+                <span ref={kbdsRef} style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0.5 }}>
+                  <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid #d1d5db', background: '#f3f4f6', color: '#6b7280', lineHeight: 1.4 }}>⌘</kbd>
+                  <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid #d1d5db', background: '#f3f4f6', color: '#6b7280', lineHeight: 1.4 }}>K</kbd>
                 </span>
               </button>
             </BorderBeam>
@@ -479,25 +511,25 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               zIndex: searchActive ? 1 : 0,
             }}
           >
-            {/* Shimmer placeholder — visible when input is empty */}
-            {!searchQuery && (
-              <span
-                className="t-shimmer"
-                data-text="Que cherches-tu ?"
-                style={{
-                  position: 'absolute',
-                  left: 14,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  fontSize: 13,
-                  pointerEvents: 'none',
-                  zIndex: 2,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Que cherches-tu ?
-              </span>
-            )}
+            {/* Shimmer placeholder — always in DOM, opacity-driven for smooth entrance */}
+            <span
+              className={searchActive ? 't-shimmer' : ''}
+              data-text={searchActive ? 'Que cherches-tu ?' : ''}
+              style={{
+                position: 'absolute',
+                left: 14,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                fontSize: 13,
+                pointerEvents: 'none',
+                zIndex: 2,
+                whiteSpace: 'nowrap',
+                opacity: searchActive && !searchQuery ? 1 : 0,
+                transition: 'opacity 180ms ease 60ms',
+              }}
+            >
+              {searchActive ? 'Que cherches-tu ?' : ''}
+            </span>
             <input
               ref={searchInputRef}
               type="text"
