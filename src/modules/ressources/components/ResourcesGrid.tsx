@@ -82,6 +82,10 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const [searchActive, setSearchActive] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
+  // Raccourci clavier affiché : ⌘ sur Mac, sinon « Ctrl ». Défaut Mac pour que
+  // le 1er rendu client corresponde au SSR (pas de hydration mismatch) ; corrigé
+  // au montage selon la plateforme réelle.
+  const [isMac, setIsMac] = useState(true);
   // Aligne le dropdown à droite quand l'ancrage gauche le ferait déborder
   // hors du viewport (cas mobile : bouton trop à droite de l'écran).
   const [alignRight, setAlignRight] = useState(false);
@@ -117,6 +121,15 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     },
     [items],
   );
+
+  useEffect(() => {
+    // Détection client-only après montage (volontaire) : éviter de lire navigator
+    // au rendu casserait l'hydratation. C'est l'exception légitime à la règle.
+    const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
+    const platform = nav.userAgentData?.platform || navigator.platform || navigator.userAgent || '';
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsMac(/mac/i.test(platform));
+  }, []);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -512,14 +525,14 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
         </div>
         {/* /Tags group */}
 
-        {/* Search — LEFT (order:-1), largeur FIXE (≈ 1.2× une carte) : aucun
-            couplage avec les filtres, ne se redimensionne pas quand le bouton
-            Filtres disparaît. */}
+        {/* Search — LEFT (order:-1), largeur FIXE et verrouillée : barre longue
+            (élément central) qui NE se redimensionne PAS quand le bouton Filtres
+            disparaît (flexShrink:0, aucune relation flex avec les filtres). */}
         {/* Two layers always in DOM; opacity-toggled so text-swap animation
             completes before the button layer fades out and input fades in. */}
         <div
           className="nc-search-shimmer"
-          style={{ order: -1, width: 400, maxWidth: '100%', flexShrink: 0, position: 'relative', height: 44 }}
+          style={{ order: -1, width: 600, maxWidth: '100%', flexShrink: 0, position: 'relative', height: 44 }}
         >
 
           {/* Layer A — idle CTA button (breathe mono via BorderBeam, zéro rouge) */}
@@ -562,18 +575,20 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 whiteSpace: 'nowrap',
               }}
             >
-              <span
-                ref={ctaTextRef}
-                className="t-text-swap"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, overflow: 'hidden', minWidth: 0 }}
-              >
-                <Search size={13} style={{ flexShrink: 0 }} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, overflow: 'hidden', minWidth: 0 }}>
+                {/* Icône hors du span qui swap → elle persiste pendant le text swap */}
+                <Search size={15} style={{ flexShrink: 0 }} />
+                <span
+                  ref={ctaTextRef}
+                  className="t-text-swap"
+                  style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
                   Cherche une ressource…
                 </span>
               </span>
-              <span ref={kbdsRef} style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0.5 }}>
-                <kbd className="nc-kbd-badge">⌘</kbd>
+              {/* Raccourci : masqué sur mobile (nc-kbd-hint), ⌘ sur Mac sinon Ctrl */}
+              <span ref={kbdsRef} className="nc-kbd-hint" style={{ alignItems: 'center', gap: 3, flexShrink: 0, opacity: 0.5 }}>
+                <kbd className="nc-kbd-badge">{isMac ? '⌘' : 'Ctrl'}</kbd>
                 <kbd className="nc-kbd-badge">K</kbd>
               </span>
             </button>
@@ -594,13 +609,26 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
             {/* Anneau rouge signature recréé en CSS (cf. .nc-search-beam) —
                 couleur maîtrisée, contrairement aux palettes figées de BorderBeam. */}
             <div className="nc-search-beam" style={{ position: 'relative', width: '100%', height: 44, borderRadius: 9999 }}>
+              {/* Icône persistante (alignée sur celle du Layer A) → continuité visuelle */}
+              <Search
+                size={15}
+                style={{
+                  position: 'absolute',
+                  left: 18,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--color-text-muted)',
+                  pointerEvents: 'none',
+                  zIndex: 3,
+                }}
+              />
               {/* Shimmer placeholder — always in DOM, opacity-driven for smooth entrance */}
               <span
                 className={searchActive ? 't-shimmer' : ''}
                 data-text={searchActive ? 'Que cherches-tu ?' : ''}
                 style={{
                   position: 'absolute',
-                  left: 18,
+                  left: 44,
                   top: '50%',
                   transform: 'translateY(-50%)',
                   fontSize: 14,
@@ -622,7 +650,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                   position: 'absolute',
                   inset: 0,
                   width: '100%',
-                  padding: '0 40px 0 18px',
+                  padding: '0 40px 0 44px',
                   borderRadius: 9999,
                   border: '1px solid transparent',
                   background: 'var(--color-surface-card)',

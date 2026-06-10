@@ -1442,6 +1442,16 @@ html.dark .nc-lt-scrim {
 }
 
 /* ── kbd badges inside the search button ───────────────────────────────── */
+/* Indice raccourci clavier (⌘/Ctrl + K) — inutile au tactile : masqué < md. */
+.nc-kbd-hint {
+  display: none;
+}
+@media (min-width: 768px) {
+  .nc-kbd-hint {
+    display: inline-flex;
+  }
+}
+
 .nc-kbd-badge {
   display: inline-flex;
   align-items: center;
