@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, Search, X } from 'lucide-react';
 import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceCard } from './ResourceCard';
@@ -24,6 +24,19 @@ const METIER_TYPES: ResourceMetierType[] = [
 
 interface ResourcesGridProps {
   items: ResourceItem[];
+}
+
+function extractSearchText(item: ResourceItem): string {
+  const base = `${item.titre} ${item.description}`;
+  if (item.category !== 'resource') return base.toLowerCase();
+  const contentText = item.content
+    .map((block) => {
+      if (block.type === 'paragraph' || block.type === 'heading') return block.text;
+      if (block.type === 'list') return block.items.join(' ');
+      return '';
+    })
+    .join(' ');
+  return `${base} ${contentText}`.toLowerCase();
 }
 
 function pluralizeCount(count: number, primaryFilter: PrimaryFilter): string {
@@ -54,6 +67,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     }
     return new Set();
   });
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
   // Aligne le dropdown à droite quand l'ancrage gauche le ferait déborder
@@ -90,6 +104,13 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     return true;
   });
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const searchMatchSet = normalizedQuery
+    ? new Set(filteredItems.filter((item) => extractSearchText(item).includes(normalizedQuery)).map((i) => i.slug))
+    : null;
+
+  const visibleCount = searchMatchSet ? searchMatchSet.size : filteredItems.length;
+
   const hasActiveFilters = selectedTypes.size > 0;
 
   function toggleType(type: ResourceMetierType) {
@@ -106,12 +127,80 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
   function resetFilters() {
     setSelectedTypes(new Set());
+    setSearchQuery('');
   }
 
   const showTypeFilter = primaryFilter === 'Tout' || primaryFilter === 'Ressources';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Search bar */}
+      <div style={{ position: 'relative' }}>
+        <Search
+          size={15}
+          style={{
+            position: 'absolute',
+            left: 14,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'var(--color-text-muted)',
+            pointerEvents: 'none',
+          }}
+        />
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Rechercher par titre, description ou contenu…"
+          style={{
+            width: '100%',
+            padding: '10px 40px 10px 38px',
+            borderRadius: 12,
+            border: '1px solid var(--color-border-default)',
+            background: '#ffffff',
+            fontSize: 14,
+            color: 'var(--color-text-primary)',
+            outline: 'none',
+            boxSizing: 'border-box',
+            transition: 'border-color 150ms ease, box-shadow 150ms ease',
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = 'var(--color-brand)';
+            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,98,90,0.12)';
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = 'var(--color-border-default)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            aria-label="Effacer la recherche"
+            style={{
+              position: 'absolute',
+              right: 10,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'var(--color-surface-raised)',
+              border: 'none',
+              borderRadius: '50%',
+              width: 20,
+              height: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--color-text-muted)',
+              padding: 0,
+            }}
+          >
+            <X size={11} />
+          </button>
+        )}
+      </div>
+
       {/* Filter bar */}
       <div
         data-fb-label="Filtre barre · Grille des ressources"
@@ -330,30 +419,69 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
         {/* Count */}
         <span className="nc-resource-count">
-          {pluralizeCount(filteredItems.length, primaryFilter)}
+          {pluralizeCount(visibleCount, primaryFilter)}
         </span>
       </div>
 
       {/* Grid */}
       {filteredItems.length > 0 ? (
-        <div data-fb-label="Grille des ressources" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredItems.map((item) =>
-            item.category === 'resource' ? (
-              <ResourceCard
-                key={item.slug}
-                resource={item}
-                currentCapability={currentCapability}
-              />
-            ) : (
-              <TemplateCard
-                key={item.slug}
-                template={item}
-                currentCapability={currentCapability}
-              />
-            )
+        <>
+          <div data-fb-label="Grille des ressources" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filteredItems.map((item) => {
+              const isVisible = searchMatchSet === null || searchMatchSet.has(item.slug);
+              return (
+                <div
+                  key={item.slug}
+                  style={{
+                    transition: 'opacity 220ms ease, transform 220ms ease',
+                    opacity: isVisible ? 1 : 0,
+                    transform: isVisible ? 'scale(1)' : 'scale(0.96)',
+                    pointerEvents: isVisible ? 'auto' : 'none',
+                  }}
+                >
+                  {item.category === 'resource' ? (
+                    <ResourceCard resource={item} currentCapability={currentCapability} />
+                  ) : (
+                    <TemplateCard template={item} currentCapability={currentCapability} />
+                  )}
+                </div>
+              );
+            })}
+            {visibleCount > 0 && <SuggestTemplateCard variant={primaryFilter} />}
+          </div>
+          {searchMatchSet !== null && visibleCount === 0 && (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '48px 24px',
+                gap: 10,
+                color: 'var(--color-text-muted)',
+              }}
+            >
+              <p style={{ fontSize: 14, margin: 0 }}>
+                Aucun résultat pour &ldquo;{searchQuery}&rdquo;
+              </p>
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: 'var(--color-brand)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                Effacer la recherche
+              </button>
+            </div>
           )}
-          <SuggestTemplateCard variant={primaryFilter} />
-        </div>
+        </>
       ) : (
         <div
           style={{
