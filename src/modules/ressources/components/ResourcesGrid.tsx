@@ -9,6 +9,7 @@ import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceCard } from './ResourceCard';
 import { TemplateCard } from './TemplateCard';
 import { SuggestTemplateCard } from './SuggestTemplateCard';
+import { NoResultsState } from './NoResultsState';
 import { BorderBeam } from 'border-beam';
 import { useTheme } from '@/shared/lib/hooks/useTheme';
 import { useGridChoreography } from '@/shared/hooks/useGridChoreography';
@@ -751,36 +752,9 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
             </button>
           </div>
         ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '48px 24px',
-              gap: 10,
-              color: 'var(--color-text-muted)',
-            }}
-          >
-            <p style={{ fontSize: 14, margin: 0 }}>
-              Aucun résultat pour &ldquo;{searchQuery}&rdquo;
-            </p>
-            <button
-              type="button"
-              onClick={() => onSearch('')}
-              style={{
-                fontSize: 13,
-                fontWeight: 500,
-                color: 'var(--color-brand)',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 0,
-              }}
-            >
-              Effacer la recherche
-            </button>
-          </div>
+          <NoResultsState
+            filloutType={primaryFilter === 'Templates' ? 'Template Notion' : 'Ressource'}
+          />
         ))}
     </div>
   );
