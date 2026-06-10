@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
@@ -11,6 +11,10 @@ import { TemplateCard } from './TemplateCard';
 import { SuggestTemplateCard } from './SuggestTemplateCard';
 import { BorderBeam } from 'border-beam';
 import { useTheme } from '@/shared/lib/hooks/useTheme';
+import { useGridChoreography } from '@/shared/hooks/useGridChoreography';
+
+/** Id de la carte « Suggérer » — toujours montée, masquée seulement si la grille est vide. */
+const SUGGEST_ID = '__suggest__';
 
 type PrimaryFilter = 'Tout' | 'Ressources' | 'Templates';
 
@@ -27,6 +31,22 @@ const METIER_TYPES: ResourceMetierType[] = [
 
 interface ResourcesGridProps {
   items: ResourceItem[];
+}
+
+/** Filtre catégorie + type métier (hors recherche texte). Logique pure, partagée
+ *  par le rendu déclaratif (compteurs / états vides) et le calcul de l'ensemble
+ *  visible passé à la chorégraphie. */
+function matchesFilters(
+  item: ResourceItem,
+  primary: PrimaryFilter,
+  types: Set<ResourceMetierType>,
+): boolean {
+  if (primary === 'Ressources' && item.category !== 'resource') return false;
+  if (primary === 'Templates' && item.category !== 'template') return false;
+  if (types.size > 0 && item.category === 'resource') {
+    if (!item.type.some((t) => types.has(t))) return false;
+  }
+  return true;
 }
 
 function extractSearchText(item: ResourceItem): string {
@@ -60,7 +80,6 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchActive, setSearchActive] = useState(false);
-  const [leavingItems, setLeavingItems] = useState<ResourceItem[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
   // Aligne le dropdown à droite quand l'ancrage gauche le ferait déborder
@@ -68,14 +87,32 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const [alignRight, setAlignRight] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const filterBtnRef = useRef<HTMLButtonElement>(null);
-  const prevVisibleRef = useRef<ResourceItem[]>([]);
-  const leavingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const ctaTextRef = useRef<HTMLSpanElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const kbdsRef = useRef<HTMLSpanElement>(null);
 
+  const { animateTo, reveal } = useGridChoreography(gridRef);
+
   const currentCapability: UserCapability = mockCurrentUser.capability;
   const { theme } = useTheme();
+
+  /** Ensemble des slugs visibles pour un état (recherche + filtres) donné.
+   *  Inclut la carte « Suggérer » tant qu'au moins une carte réelle est visible. */
+  const buildVisibleIds = useCallback(
+    (query: string, primary: PrimaryFilter, types: Set<ResourceMetierType>): Set<string> => {
+      const needle = query.trim().toLowerCase();
+      const ids = new Set<string>();
+      for (const item of items) {
+        if (!matchesFilters(item, primary, types)) continue;
+        if (needle && !extractSearchText(item).includes(needle)) continue;
+        ids.add(item.slug);
+      }
+      if (ids.size > 0) ids.add(SUGGEST_ID);
+      return ids;
+    },
+    [items],
+  );
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -87,7 +124,6 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     }
     document.addEventListener('keydown', onKeyDown, true);
     return () => document.removeEventListener('keydown', onKeyDown, true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchActive]);
 
   useEffect(() => {
@@ -106,15 +142,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, [filterOpen]);
 
-  const filteredItems = items.filter((item) => {
-    if (primaryFilter === 'Ressources' && item.category !== 'resource') return false;
-    if (primaryFilter === 'Templates' && item.category !== 'template') return false;
-    if (selectedTypes.size > 0 && item.category === 'resource') {
-      const hasMatchingType = item.type.some((t) => selectedTypes.has(t));
-      if (!hasMatchingType) return false;
-    }
-    return true;
-  });
+  const filteredItems = items.filter((item) => matchesFilters(item, primaryFilter, selectedTypes));
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const visibleItems = normalizedQuery
@@ -123,19 +151,24 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
   const hasActiveFilters = selectedTypes.size > 0;
 
-  // Track items leaving the grid to animate them out
-  useEffect(() => {
-    const prev = prevVisibleRef.current;
-    const currentSlugs = new Set(visibleItems.map((i) => i.slug));
-    const removed = prev.filter((item) => !currentSlugs.has(item.slug));
-    prevVisibleRef.current = visibleItems;
-
-    if (removed.length === 0) return;
-
-    setLeavingItems(removed);
-    if (leavingTimerRef.current) clearTimeout(leavingTimerRef.current);
-    leavingTimerRef.current = setTimeout(() => setLeavingItems([]), 220);
-  }, [visibleItems]);
+  // Apparition initiale : applique la visibilité de départ (filtres d'URL) avant
+  // le premier paint pour éviter tout flash, puis joue la cascade `reveal()`.
+  // La classe `.is-hidden` est ensuite gérée exclusivement par le hook — jamais
+  // via le rendu React — pour ne pas écraser ses mutations DOM impératives.
+  // Le garde `didReveal` borne l'effet au montage tout en gardant des deps
+  // exhaustives (l'état initial reflète déjà les paramètres d'URL).
+  const didReveal = useRef(false);
+  useLayoutEffect(() => {
+    if (didReveal.current) return;
+    const container = gridRef.current;
+    if (!container) return;
+    didReveal.current = true;
+    const ids = buildVisibleIds(searchQuery, primaryFilter, selectedTypes);
+    container.querySelectorAll<HTMLElement>('[data-card-id]').forEach((el) => {
+      el.classList.toggle('is-hidden', !ids.has(el.dataset.cardId ?? ''));
+    });
+    reveal();
+  }, [buildVisibleIds, searchQuery, primaryFilter, selectedTypes, reveal]);
 
   function activateSearch() {
     const el = ctaTextRef.current;
@@ -174,12 +207,19 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     }
   }
 
+  // Recherche texte → reflow FLIP de la grille.
+  function onSearch(value: string) {
+    setSearchQuery(value);
+    animateTo(buildVisibleIds(value, primaryFilter, selectedTypes), { mode: 'reflow' });
+  }
+
   function deactivateSearch() {
     const el = ctaTextRef.current;
     const kbds = kbdsRef.current;
     const dur = 150;
 
     setSearchQuery('');
+    animateTo(buildVisibleIds('', primaryFilter, selectedTypes), { mode: 'reflow' });
 
     if (el) {
       // Phase 1 — exit shimmer text (Layer A is invisible, opacity 0)
@@ -209,20 +249,36 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   }
 
   function toggleType(type: ResourceMetierType) {
-    setSelectedTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) {
-        next.delete(type);
-      } else {
-        next.add(type);
-      }
-      return next;
-    });
+    const next = new Set(selectedTypes);
+    if (next.has(type)) {
+      next.delete(type);
+    } else {
+      next.add(type);
+    }
+    setSelectedTypes(next);
+    animateTo(buildVisibleIds(searchQuery, primaryFilter, next), { mode: 'reflow' });
   }
 
   function resetFilters() {
-    setSelectedTypes(new Set());
+    const next = new Set<ResourceMetierType>();
+    setSelectedTypes(next);
     setSearchQuery('');
+    animateTo(buildVisibleIds('', primaryFilter, next), { mode: 'reflow' });
+  }
+
+  // Clic sur un onglet primaire (Tout / Ressources / Templates) → transition
+  // directionnelle « panneau ». Le sens dépend de la position de l'onglet cible
+  // dans la barre par rapport à l'onglet courant.
+  function onPrimaryFilter(filter: PrimaryFilter) {
+    const dir = (Math.sign(PRIMARY_FILTERS.indexOf(filter) - PRIMARY_FILTERS.indexOf(primaryFilter)) ||
+      1) as 1 | -1;
+    const nextTypes = filter === 'Templates' ? new Set<ResourceMetierType>() : selectedTypes;
+    setPrimaryFilter(filter);
+    if (filter === 'Templates') {
+      setSelectedTypes(new Set());
+      setFilterOpen(false);
+    }
+    animateTo(buildVisibleIds(searchQuery, filter, nextTypes), { mode: 'tab', direction: dir });
   }
 
   const showTypeFilter = primaryFilter === 'Tout' || primaryFilter === 'Ressources';
@@ -248,13 +304,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 key={filter}
                 type="button"
                 data-fb-label={`Filtre « ${filter} » · Grille des ressources`}
-                onClick={() => {
-                  setPrimaryFilter(filter);
-                  if (filter === 'Templates') {
-                    setSelectedTypes(new Set());
-                    setFilterOpen(false);
-                  }
-                }}
+                onClick={() => onPrimaryFilter(filter)}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -545,7 +595,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => onSearch(e.target.value)}
                 style={{
                   position: 'absolute',
                   inset: 0,
@@ -594,113 +644,94 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
         </div>
       </div>
 
-      {/* Grid */}
-      {filteredItems.length > 0 ? (
-        <>
-          {visibleItems.length > 0 ? (
-            <div data-fb-label="Grille des ressources" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {visibleItems.map((item, idx) => (
-                <div
-                  key={item.slug}
-                  style={{
-                    height: '100%',
-                    animation: 'nc-card-stagger-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both',
-                    animationDelay: `${Math.min(idx * 35, 180)}ms`,
-                  }}
-                >
-                  {item.category === 'resource' ? (
-                    <ResourceCard resource={item} currentCapability={currentCapability} />
-                  ) : (
-                    <TemplateCard template={item} currentCapability={currentCapability} />
-                  )}
-                </div>
-              ))}
-              {/* Items fading out — appended at end so the grid reflows above */}
-              {leavingItems.map((item) => (
-                <div
-                  key={`out-${item.slug}`}
-                  style={{
-                    height: '100%',
-                    opacity: 0,
-                    transform: 'translateY(0)',
-                    filter: 'blur(0)',
-                    transition: 'opacity 180ms ease',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  {item.category === 'resource' ? (
-                    <ResourceCard resource={item} currentCapability={currentCapability} />
-                  ) : (
-                    <TemplateCard template={item} currentCapability={currentCapability} />
-                  )}
-                </div>
-              ))}
-              <SuggestTemplateCard variant={primaryFilter} />
-            </div>
-          ) : (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '48px 24px',
-                gap: 10,
-                color: 'var(--color-text-muted)',
-              }}
-            >
-              <p style={{ fontSize: 14, margin: 0 }}>
-                Aucun résultat pour &ldquo;{searchQuery}&rdquo;
-              </p>
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: 'var(--color-brand)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              >
-                Effacer la recherche
-              </button>
-            </div>
-          )}
-        </>
-      ) : (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '64px 24px',
-            gap: 12,
-            color: 'var(--color-text-muted)',
-          }}
-        >
-          <p style={{ fontSize: 14, margin: 0 }}>Aucun élément ne correspond à ces filtres.</p>
-          <button
-            type="button"
-            data-fb-label="Bouton Réinitialiser filtres · Grille des ressources"
-            onClick={resetFilters}
+      {/* Grille — toutes les cartes sont montées en permanence (prérequis FLIP).
+          Le hook useGridChoreography gère leur visibilité (.is-hidden) et anime
+          reflow / changement d'onglet ; React ne pilote jamais la visibilité. */}
+      <div
+        ref={gridRef}
+        data-fb-label="Grille des ressources"
+        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+        style={{ position: 'relative' }}
+      >
+        {items.map((item) => (
+          <div key={item.slug} className="nc-grid-card" data-card-id={item.slug} data-cat={item.category}>
+            {item.category === 'resource' ? (
+              <ResourceCard resource={item} currentCapability={currentCapability} />
+            ) : (
+              <TemplateCard template={item} currentCapability={currentCapability} />
+            )}
+          </div>
+        ))}
+        <div className="nc-grid-card" data-card-id={SUGGEST_ID}>
+          <SuggestTemplateCard variant={primaryFilter} />
+        </div>
+      </div>
+
+      {/* États vides — la grille reste montée (refs/animation), seul ce bloc
+          informatif s'affiche par-dessus quand plus aucune carte n'est visible. */}
+      {visibleItems.length === 0 &&
+        (filteredItems.length === 0 ? (
+          <div
             style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: 'var(--color-brand)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '64px 24px',
+              gap: 12,
+              color: 'var(--color-text-muted)',
             }}
           >
-            Réinitialiser les filtres
-          </button>
-        </div>
-      )}
+            <p style={{ fontSize: 14, margin: 0 }}>Aucun élément ne correspond à ces filtres.</p>
+            <button
+              type="button"
+              data-fb-label="Bouton Réinitialiser filtres · Grille des ressources"
+              onClick={resetFilters}
+              style={{
+                fontSize: 13,
+                fontWeight: 500,
+                color: 'var(--color-brand)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              Réinitialiser les filtres
+            </button>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '48px 24px',
+              gap: 10,
+              color: 'var(--color-text-muted)',
+            }}
+          >
+            <p style={{ fontSize: 14, margin: 0 }}>
+              Aucun résultat pour &ldquo;{searchQuery}&rdquo;
+            </p>
+            <button
+              type="button"
+              onClick={() => onSearch('')}
+              style={{
+                fontSize: 13,
+                fontWeight: 500,
+                color: 'var(--color-brand)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              Effacer la recherche
+            </button>
+          </div>
+        ))}
     </div>
   );
 }
