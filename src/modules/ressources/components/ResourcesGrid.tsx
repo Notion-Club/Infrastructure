@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { flushSync } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
@@ -142,36 +141,17 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     const kbds = kbdsRef.current;
     const dur = 150;
 
-    if (el) {
-      // Immediately fade kbds out in sync with the CTA text exit
-      if (kbds) {
-        kbds.style.transition = 'opacity 120ms ease';
-        kbds.style.opacity = '0';
-      }
-
-      // Phase 1 — exit old CTA text (slides up + blurs)
-      el.classList.add('is-exit');
-
-      setTimeout(() => {
-        // Phase 2 — swap to shimmer text, teleport below, no transition
-        el.textContent = 'Que cherches-tu ?';
-        el.setAttribute('data-text', 'Que cherches-tu ?');
-        el.classList.add('t-shimmer');
-        el.classList.remove('is-exit');
-        el.classList.add('is-enter-start');
-        void el.offsetHeight;
-        el.classList.remove('is-enter-start');
-
-        // Phase 3 — after enter animation completes, reveal input layer
-        setTimeout(() => {
-          setSearchActive(true);
-          setTimeout(() => searchInputRef.current?.focus(), 160);
-        }, dur + 60);
-      }, dur);
-    } else {
-      setSearchActive(true);
-      setTimeout(() => searchInputRef.current?.focus(), 0);
+    if (kbds) {
+      kbds.style.transition = 'opacity 120ms ease';
+      kbds.style.opacity = '0';
     }
+    // CTA text exits; shimmer lives only in Layer B (no mid-animation overlap)
+    if (el) el.classList.add('is-exit');
+
+    setTimeout(() => {
+      setSearchActive(true);
+      setTimeout(() => searchInputRef.current?.focus(), dur);
+    }, dur);
   }
 
   function deactivateSearch() {
@@ -180,35 +160,22 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     const dur = 150;
 
     setSearchQuery('');
+    setSearchActive(false); // Layer A fades in, Layer B fades out
 
     if (el) {
-      // Reverse text swap on button layer (still invisible).
-      // Phase 1 — exit shimmer text
-      el.classList.add('is-exit');
+      // CTA text was in is-exit state; jump to enter-start (no transition),
+      // reflow, then animate in from below as Layer A fades in.
+      el.classList.remove('is-exit');
+      el.classList.add('is-enter-start');
+      void el.offsetHeight;
+      el.classList.remove('is-enter-start');
 
       setTimeout(() => {
-        // Remove shimmer classes so original JSX renders clean
-        el.classList.remove('t-shimmer', 'is-exit');
-        el.removeAttribute('data-text');
-
-        // flushSync: restore original JSX content (Search icon + label) synchronously
-        flushSync(() => setSearchActive(false));
-
-        // Phase 2 — animate restored CTA text in from below
-        el.classList.add('is-enter-start');
-        void el.offsetHeight;
-        el.classList.remove('is-enter-start');
-
-        // Restore kbds after CTA has fully entered
-        setTimeout(() => {
-          if (kbds) {
-            kbds.style.transition = 'opacity 150ms ease';
-            kbds.style.opacity = '0.5';
-          }
-        }, dur);
+        if (kbds) {
+          kbds.style.transition = 'opacity 150ms ease';
+          kbds.style.opacity = '0.5';
+        }
       }, dur);
-    } else {
-      setSearchActive(false);
     }
   }
 
@@ -465,15 +432,9 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               zIndex: searchActive ? 0 : 1,
             }}
           >
-            <BorderBeam
-              size="pulse-inner"
-              colorVariant={theme === 'light' ? 'sunset' : 'mono'}
-              strength={0.94}
-              theme={theme}
-              style={{ width: '100%', height: 36, borderRadius: 9999 }}
-            >
             <button
               type="button"
+              className="nc-search-pulse"
               data-fb-label="Bouton recherche · Grille des ressources"
               onClick={activateSearch}
               style={{
@@ -509,7 +470,6 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 <kbd className="nc-kbd-badge">K</kbd>
               </span>
             </button>
-            </BorderBeam>
           </div>
 
           {/* Layer B — active input with shimmer placeholder */}
@@ -523,7 +483,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               zIndex: searchActive ? 1 : 0,
             }}
           >
-            <BorderBeam size="md" colorVariant="mono" strength={0.74} style={{ width: '100%', height: 36 }}>
+            <BorderBeam size="md" colorVariant="mono" strength={0.74} theme={theme} style={{ width: '100%', height: 36 }}>
               <div style={{ position: 'relative', width: '100%', height: 36, borderRadius: 9999 }}>
               {/* Shimmer placeholder — always in DOM, opacity-driven for smooth entrance */}
               <span
