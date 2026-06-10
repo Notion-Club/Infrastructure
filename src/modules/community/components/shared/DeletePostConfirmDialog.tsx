@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { Trash2 } from "lucide-react";
+import { useModalTransition } from "@/shared/lib/hooks/useModalTransition";
 
 interface DeletePostConfirmDialogProps {
   onConfirm: () => void;
@@ -9,6 +10,8 @@ interface DeletePostConfirmDialogProps {
 }
 
 export function DeletePostConfirmDialog({ onConfirm, onCancel }: DeletePostConfirmDialogProps) {
+  const { stateClass, overlayOpen, requestClose } = useModalTransition();
+
   return createPortal(
     <div
       style={{
@@ -20,12 +23,16 @@ export function DeletePostConfirmDialog({ onConfirm, onCancel }: DeletePostConfi
         alignItems: "center",
         justifyContent: "center",
         padding: 16,
-        animation: "nc-mode-in 150ms var(--nc-ease) both",
+        opacity: overlayOpen ? 1 : 0,
+        transition: "opacity var(--modal-open-dur) var(--modal-ease)",
       }}
-      onClick={onCancel}
+      onClick={() => requestClose(onCancel)}
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className={`t-modal ${stateClass} dark:bg-[#1e1e1e]`}
+        role="dialog"
+        aria-modal="true"
         style={{
           background: "white",
           borderRadius: 20,
@@ -36,9 +43,7 @@ export function DeletePostConfirmDialog({ onConfirm, onCancel }: DeletePostConfi
           flexDirection: "column",
           gap: 16,
           boxShadow: "var(--nc-shadow-2)",
-          animation: "nc-mode-in 200ms var(--nc-ease) both",
         }}
-        className="dark:bg-[#1e1e1e]"
       >
         {/* Icon */}
         <div
@@ -70,7 +75,7 @@ export function DeletePostConfirmDialog({ onConfirm, onCancel }: DeletePostConfi
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
           <button
             type="button"
-            onClick={onConfirm}
+            onClick={() => requestClose(onConfirm)}
             style={{
               padding: "11px 20px",
               background: "var(--color-brand)",
@@ -88,7 +93,7 @@ export function DeletePostConfirmDialog({ onConfirm, onCancel }: DeletePostConfi
           </button>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={() => requestClose(onCancel)}
             style={{
               padding: "11px 20px",
               background: "transparent",

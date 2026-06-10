@@ -10,6 +10,7 @@ import { PostComposerTagSelect } from "./PostComposerTagSelect";
 import { PostComposerAdminFields } from "./PostComposerAdminFields";
 import { ImageLightbox } from "../shared/ImageLightbox";
 import { uploadPostMediaAction, deletePostMediaAction } from "../../server/actions";
+import { useModalTransition } from "@/shared/lib/hooks/useModalTransition";
 import {
   POST_MEDIA_ALLOWED_MIME,
   POST_MEDIA_MAX_BYTES,
@@ -95,6 +96,7 @@ interface PostComposerModalProps {
 }
 
 export function PostComposerModal({ currentUser, onClose, onPublish, initialPost, publishing = false }: PostComposerModalProps) {
+  const { stateClass, overlayOpen, requestClose } = useModalTransition();
   const isAdmin = currentUser.role === "admin" || currentUser.role === "mentor";
   const isEditMode = !!initialPost;
 
@@ -179,7 +181,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
   // Esc to close, Cmd/Ctrl+Enter to publish
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") { onClose(); return; }
+      if (e.key === "Escape") { requestClose(onClose); return; }
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
         // handlePublish gère lui-même la validation : il déclenchera
         // setSubmitAttempted si invalide, sinon publiera.
@@ -334,8 +336,10 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
         justifyContent: "center",
         zIndex: 9999,
         padding: 16,
+        opacity: overlayOpen ? 1 : 0,
+        transition: "opacity var(--modal-open-dur) var(--modal-ease)",
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget) requestClose(onClose); }}
     >
       {/* URL floating input */}
       {urlMenuVisible && (
@@ -410,6 +414,9 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
 
       <div
         data-fb-label="Composer de post · Communauté"
+        role="dialog"
+        aria-modal="true"
+        className={`t-modal ${stateClass} md:max-h-[80dvh]`}
         style={{
           background: "var(--color-surface-card)",
           borderRadius: 20,
@@ -417,11 +424,9 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
           maxWidth: 580,
           maxHeight: "90dvh",
           overflowY: "auto",
-          animation: "nc-mode-in var(--nc-duration-fast) var(--nc-ease) both",
           display: "flex",
           flexDirection: "column",
         }}
-        className="md:max-h-[80dvh]"
       >
         {/* Header */}
         <div style={{
@@ -433,7 +438,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--color-text-primary)" }}>
             {isEditMode ? "Modifier le post" : "Que souhaites-tu partager ?"}
           </h2>
-          <button type="button" onClick={onClose}
+          <button type="button" onClick={() => requestClose(onClose)}
             data-fb-label="Bouton Fermer · Composer de post"
             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex", borderRadius: "50%", padding: 4 }}
             className="hover:bg-[rgba(0,0,0,0.06)]"
@@ -744,7 +749,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
           flexShrink: 0,
           background: "var(--color-surface-card)",
         }}>
-          <button type="button" onClick={onClose}
+          <button type="button" onClick={() => requestClose(onClose)}
             style={{
               padding: "9px 20px", border: "1px solid var(--color-border-default)",
               background: "transparent", borderRadius: 9999, fontSize: 14, fontWeight: 500,
