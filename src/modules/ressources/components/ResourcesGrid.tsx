@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
-import { flushSync } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
@@ -93,13 +92,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const filterRef = useRef<HTMLDivElement>(null);
   const filterBtnRef = useRef<HTMLButtonElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
-  const ctaTextRef = useRef<HTMLSpanElement>(null);
-  // Markup d'origine du libellé CTA (icône + texte). Capturé avant la 1re
-  // mutation impérative, restauré à la fermeture : React ne re-rend pas ce
-  // span statique, donc c'est à nous de remettre le contenu d'origine.
-  const ctaHtmlRef = useRef<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const kbdsRef = useRef<HTMLSpanElement>(null);
 
   const { animateTo, reveal } = useGridChoreography(gridRef);
 
@@ -136,13 +129,14 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        if (!searchActive) activateSearch();
-        else searchInputRef.current?.focus();
+        // Focus direct : déclenché par un vrai événement clavier (activation
+        // utilisateur valide). `onFocus` de l'input bascule `searchActive`.
+        searchInputRef.current?.focus();
       }
     }
     document.addEventListener('keydown', onKeyDown, true);
     return () => document.removeEventListener('keydown', onKeyDown, true);
-  }, [searchActive]);
+  }, []);
 
   useEffect(() => {
     if (!filterOpen) return;
@@ -188,86 +182,17 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     reveal();
   }, [buildVisibleIds, searchQuery, primaryFilter, selectedTypes, reveal]);
 
-  function activateSearch() {
-    const el = ctaTextRef.current;
-    const kbds = kbdsRef.current;
-    const dur = 150;
-
-    if (kbds) {
-      kbds.style.transition = 'opacity 120ms ease';
-      kbds.style.opacity = '0';
-    }
-
-    if (el) {
-      // Phase 1 — exit CTA text (blur + slide up)
-      el.classList.add('is-exit');
-
-      setTimeout(() => {
-        // Phase 2 — swap to shimmer text, teleport below, animate in
-        // Mémorise le markup d'origine (icône + libellé) avant de l'écraser.
-        if (ctaHtmlRef.current === null) ctaHtmlRef.current = el.innerHTML;
-        el.textContent = 'Que cherches-tu ?';
-        el.setAttribute('data-text', 'Que cherches-tu ?');
-        el.classList.add('t-shimmer');
-        el.classList.remove('is-exit');
-        el.classList.add('is-enter-start');
-        void el.offsetHeight;
-        el.classList.remove('is-enter-start');
-
-        // Phase 3 — wait for full enter animation (dur ms) before crossfade
-        // This prevents the shimmer mid-animation overlap that caused flickering
-        setTimeout(() => {
-          setSearchActive(true);
-          setTimeout(() => searchInputRef.current?.focus(), dur);
-        }, dur);
-      }, dur);
-    } else {
-      setSearchActive(true);
-      setTimeout(() => searchInputRef.current?.focus(), 0);
-    }
-  }
-
   // Recherche texte → reflow FLIP de la grille.
   function onSearch(value: string) {
     setSearchQuery(value);
     animateTo(buildVisibleIds(value, primaryFilter, selectedTypes), { mode: 'reflow' });
   }
 
-  function deactivateSearch() {
-    const el = ctaTextRef.current;
-    const kbds = kbdsRef.current;
-    const dur = 150;
-
-    setSearchQuery('');
-    animateTo(buildVisibleIds('', primaryFilter, selectedTypes), { mode: 'reflow' });
-
-    if (el) {
-      // Phase 1 — exit shimmer text (Layer A is invisible, opacity 0)
-      el.classList.add('is-exit');
-
-      setTimeout(() => {
-        // Remove shimmer + restore the original markup (Search icon + label).
-        // React ne re-rend pas ce span statique → on remet le contenu nous-mêmes.
-        el.classList.remove('t-shimmer', 'is-exit');
-        el.removeAttribute('data-text');
-        if (ctaHtmlRef.current !== null) el.innerHTML = ctaHtmlRef.current;
-        flushSync(() => setSearchActive(false));
-
-        // Phase 2 — CTA enters from below as Layer A fades in
-        el.classList.add('is-enter-start');
-        void el.offsetHeight;
-        el.classList.remove('is-enter-start');
-
-        setTimeout(() => {
-          if (kbds) {
-            kbds.style.transition = 'opacity 150ms ease';
-            kbds.style.opacity = '0.5';
-          }
-        }, dur);
-      }, dur);
-    } else {
-      setSearchActive(false);
-    }
+  // Fermeture : vide le champ et retire le focus → `onBlur` repasse en inactif.
+  function clearAndCloseSearch() {
+    onSearch('');
+    setSearchActive(false);
+    searchInputRef.current?.blur();
   }
 
   function toggleType(type: ResourceMetierType) {
@@ -535,16 +460,51 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           className="nc-search-shimmer"
           style={{ order: -1, width: 600, maxWidth: '100%', flexShrink: 0, position: 'relative', height: 44 }}
         >
+          {/* BASE — input réel, TOUJOURS monté/visible/interactif. Le tap atterrit
+              directement dessus → focus natif → clavier mobile, sans focus différé.
+              searchActive n'est plus qu'une conséquence cosmétique du focus. */}
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearch(e.target.value)}
+            onFocus={() => setSearchActive(true)}
+            onBlur={() => { if (!searchQuery) setSearchActive(false); }}
+            onKeyDown={(e) => { if (e.key === 'Escape') searchInputRef.current?.blur(); }}
+            aria-label="Cherche une ressource"
+            data-fb-label="Champ recherche · Grille des ressources"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: 44,
+              padding: '0 40px 0 44px',
+              borderRadius: 9999,
+              border: '1px solid',
+              borderColor: searchActive ? 'transparent' : 'var(--color-border-default)',
+              background: 'var(--color-surface-card)',
+              fontSize: 14,
+              color: 'var(--color-text-primary)',
+              outline: 'none',
+              boxSizing: 'border-box',
+              transition: 'border-color 200ms ease',
+              zIndex: 1,
+            }}
+          />
 
-          {/* Layer A — idle CTA button (breathe mono via BorderBeam, zéro rouge) */}
+          {/* ── Habillage décoratif (pointer-events:none) : n'intercepte JAMAIS le
+              geste, le tap traverse jusqu'à l'input. ───────────────────────────── */}
+
+          {/* Anneau breathe mono — état inactif */}
           <div
+            aria-hidden
             style={{
               position: 'absolute',
               inset: 0,
               opacity: searchActive ? 0 : 1,
-              pointerEvents: searchActive ? 'none' : 'auto',
-              transition: 'opacity 150ms ease',
-              zIndex: searchActive ? 0 : 1,
+              pointerEvents: 'none',
+              transition: 'opacity 200ms ease',
+              zIndex: 2,
             }}
           >
             <BorderBeam
@@ -554,144 +514,117 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               theme={theme}
               style={{ width: '100%', height: 44, borderRadius: 9999 }}
             >
-            <button
-              type="button"
-              data-fb-label="Bouton recherche · Grille des ressources"
-              onClick={activateSearch}
-              style={{
-                width: '100%',
-                height: 44,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 6,
-                padding: '0 18px',
-                borderRadius: 9999,
-                border: '1px solid var(--color-border-default)',
-                background: 'var(--color-surface-card)',
-                cursor: 'pointer',
-                fontSize: 14,
-                color: 'var(--color-text-muted)',
-                boxSizing: 'border-box',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, overflow: 'hidden', minWidth: 0 }}>
-                {/* Icône hors du span qui swap → elle persiste pendant le text swap */}
-                <Search size={15} style={{ flexShrink: 0 }} />
-                <span
-                  ref={ctaTextRef}
-                  className="t-text-swap"
-                  style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                >
-                  Cherche une ressource…
-                </span>
-              </span>
-              {/* Raccourci : masqué sur mobile (nc-kbd-hint), ⌘ sur Mac sinon Ctrl */}
-              <span ref={kbdsRef} className="nc-kbd-hint" style={{ alignItems: 'center', gap: 3, flexShrink: 0, opacity: 0.5 }}>
-                <kbd className="nc-kbd-badge">{isMac ? '⌘' : 'Ctrl'}</kbd>
-                <kbd className="nc-kbd-badge">K</kbd>
-              </span>
-            </button>
+              <div style={{ width: '100%', height: 44, borderRadius: 9999 }} />
             </BorderBeam>
           </div>
 
-          {/* Layer B — active input with shimmer placeholder */}
+          {/* Anneau rouge signature — état actif */}
           <div
+            aria-hidden
+            className="nc-search-beam"
             style={{
               position: 'absolute',
               inset: 0,
+              borderRadius: 9999,
+              opacity: searchActive ? 1 : 0,
+              pointerEvents: 'none',
+              transition: 'opacity 200ms ease',
+              zIndex: 2,
+            }}
+          />
+
+          {/* Icône loupe persistante (alignée sur le texte de l'input) */}
+          <Search
+            size={15}
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: 18,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--color-text-muted)',
+              pointerEvents: 'none',
+              zIndex: 3,
+            }}
+          />
+
+          {/* Libellé inactif + raccourci ⌘/Ctrl K — fondu via searchActive */}
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0 18px 0 44px',
+              pointerEvents: 'none',
+              opacity: searchActive ? 0 : 1,
+              transition: 'opacity 200ms ease',
+              zIndex: 3,
+            }}
+          >
+            <span style={{ fontSize: 14, color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Cherche une ressource…
+            </span>
+            <span className="nc-kbd-hint" style={{ alignItems: 'center', gap: 3, flexShrink: 0, opacity: 0.5 }}>
+              <kbd className="nc-kbd-badge">{isMac ? '\u2318' : 'Ctrl'}</kbd>
+              <kbd className="nc-kbd-badge">K</kbd>
+            </span>
+          </div>
+
+          {/* Placeholder shimmer actif « Que cherches-tu ? » — fondu, non interactif */}
+          <span
+            aria-hidden
+            className={searchActive ? 't-shimmer' : undefined}
+            data-text="Que cherches-tu ?"
+            style={{
+              position: 'absolute',
+              left: 44,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              fontSize: 14,
+              pointerEvents: 'none',
+              zIndex: 3,
+              whiteSpace: 'nowrap',
+              opacity: searchActive && !searchQuery ? 1 : 0,
+              transition: 'opacity 180ms ease 60ms',
+            }}
+          >
+            Que cherches-tu ?
+          </span>
+
+          {/* Bouton fermer — seul habillage interactif, visible quand actif */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={clearAndCloseSearch}
+            aria-label="Fermer la recherche"
+            tabIndex={searchActive ? 0 : -1}
+            style={{
+              position: 'absolute',
+              right: 10,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'none',
+              border: 'none',
+              borderRadius: '50%',
+              width: 18,
+              height: 18,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--color-text-muted)',
+              padding: 0,
               opacity: searchActive ? 1 : 0,
               pointerEvents: searchActive ? 'auto' : 'none',
               transition: 'opacity 150ms ease',
-              zIndex: searchActive ? 1 : 0,
+              zIndex: 4,
             }}
           >
-            {/* Anneau rouge signature recréé en CSS (cf. .nc-search-beam) —
-                couleur maîtrisée, contrairement aux palettes figées de BorderBeam. */}
-            <div className="nc-search-beam" style={{ position: 'relative', width: '100%', height: 44, borderRadius: 9999 }}>
-              {/* Icône persistante (alignée sur celle du Layer A) → continuité visuelle */}
-              <Search
-                size={15}
-                style={{
-                  position: 'absolute',
-                  left: 18,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--color-text-muted)',
-                  pointerEvents: 'none',
-                  zIndex: 3,
-                }}
-              />
-              {/* Shimmer placeholder — always in DOM, opacity-driven for smooth entrance */}
-              <span
-                className={searchActive ? 't-shimmer' : ''}
-                data-text={searchActive ? 'Que cherches-tu ?' : ''}
-                style={{
-                  position: 'absolute',
-                  left: 44,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  fontSize: 14,
-                  pointerEvents: 'none',
-                  zIndex: 3,
-                  whiteSpace: 'nowrap',
-                  opacity: searchActive && !searchQuery ? 1 : 0,
-                  transition: 'opacity 180ms ease 60ms',
-                }}
-              >
-                {searchActive ? 'Que cherches-tu ?' : ''}
-              </span>
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => onSearch(e.target.value)}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  padding: '0 40px 0 44px',
-                  borderRadius: 9999,
-                  border: '1px solid transparent',
-                  background: 'var(--color-surface-card)',
-                  fontSize: 14,
-                  color: 'var(--color-text-primary)',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  zIndex: 1,
-                }}
-                onBlur={() => { if (!searchQuery) deactivateSearch(); }}
-                onKeyDown={(e) => { if (e.key === 'Escape') deactivateSearch(); }}
-              />
-            <button
-              type="button"
-              onClick={deactivateSearch}
-              aria-label="Fermer la recherche"
-              style={{
-                position: 'absolute',
-                right: 10,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                borderRadius: '50%',
-                width: 18,
-                height: 18,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: 'var(--color-text-muted)',
-                padding: 0,
-                zIndex: 4,
-              }}
-            >
-              <X size={10} />
-              </button>
-            </div>
-          </div>
-
+            <X size={10} />
+          </button>
         </div>
       </div>
 
