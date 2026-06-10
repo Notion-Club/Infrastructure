@@ -62,7 +62,6 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const [searchActive, setSearchActive] = useState(false);
   const [leavingItems, setLeavingItems] = useState<ResourceItem[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [inputFocused, setInputFocused] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
   // Aligne le dropdown à droite quand l'ancrage gauche le ferait déborder
   // hors du viewport (cas mobile : bouton trop à droite de l'écran).
@@ -468,7 +467,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           >
             <BorderBeam
               size="pulse-inner"
-              colorVariant="mono"
+              colorVariant={theme === 'light' ? 'sunset' : 'mono'}
               strength={0.94}
               theme={theme}
               style={{ width: '100%', height: 36, borderRadius: 9999 }}
@@ -524,49 +523,48 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               zIndex: searchActive ? 1 : 0,
             }}
           >
-            {/* Shimmer placeholder — always in DOM, opacity-driven for smooth entrance */}
-            <span
-              className={searchActive ? 't-shimmer' : ''}
-              data-text={searchActive ? 'Que cherches-tu ?' : ''}
-              style={{
-                position: 'absolute',
-                left: 14,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                fontSize: 13,
-                pointerEvents: 'none',
-                zIndex: 2,
-                whiteSpace: 'nowrap',
-                opacity: searchActive && !searchQuery ? 1 : 0,
-                transition: 'opacity 180ms ease 60ms',
-              }}
-            >
-              {searchActive ? 'Que cherches-tu ?' : ''}
-            </span>
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                padding: '0 32px 0 14px',
-                borderRadius: 9999,
-                border: `1px solid ${inputFocused ? 'var(--color-brand)' : 'var(--color-border-default)'}`,
-                background: 'var(--color-surface-card)',
-                boxShadow: inputFocused ? '0 0 0 3px rgba(224,98,90,0.12)' : 'none',
-                transition: 'border-color 120ms ease, box-shadow 120ms ease',
-                fontSize: 13,
-                color: 'var(--color-text-primary)',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-              onFocus={() => setInputFocused(true)}
-              onBlur={() => { setInputFocused(false); if (!searchQuery) deactivateSearch(); }}
-              onKeyDown={(e) => { if (e.key === 'Escape') deactivateSearch(); }}
-            />
+            <BorderBeam size="md" colorVariant="mono" strength={0.74} style={{ width: '100%', height: 36 }}>
+              <div style={{ position: 'relative', width: '100%', height: 36, borderRadius: 9999 }}>
+              {/* Shimmer placeholder — always in DOM, opacity-driven for smooth entrance */}
+              <span
+                className={searchActive ? 't-shimmer' : ''}
+                data-text={searchActive ? 'Que cherches-tu ?' : ''}
+                style={{
+                  position: 'absolute',
+                  left: 14,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontSize: 13,
+                  pointerEvents: 'none',
+                  zIndex: 2,
+                  whiteSpace: 'nowrap',
+                  opacity: searchActive && !searchQuery ? 1 : 0,
+                  transition: 'opacity 180ms ease 60ms',
+                }}
+              >
+                {searchActive ? 'Que cherches-tu ?' : ''}
+              </span>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  padding: '0 32px 0 14px',
+                  borderRadius: 9999,
+                  border: '1px solid var(--color-border-default)',
+                  background: 'var(--color-surface-card)',
+                  fontSize: 13,
+                  color: 'var(--color-text-primary)',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+                onBlur={() => { if (!searchQuery) deactivateSearch(); }}
+                onKeyDown={(e) => { if (e.key === 'Escape') deactivateSearch(); }}
+              />
             <button
               type="button"
               onClick={deactivateSearch}
@@ -591,7 +589,9 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               }}
             >
               <X size={10} />
-            </button>
+              </button>
+              </div>
+            </BorderBeam>
           </div>
 
         </div>
