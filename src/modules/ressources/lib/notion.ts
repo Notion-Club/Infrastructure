@@ -268,7 +268,7 @@ function richTextToString(rt: any[] | undefined): string {
 
 function blocksToContent(blocks: any[]): ContentBlock[] {
   const out: ContentBlock[] = [];
-  let currentList: string[] | null = null;
+  let currentList: Array<{ text: string; children?: ContentBlock[] }> | null = null;
 
   const flushList = () => {
     if (currentList && currentList.length > 0) {
@@ -279,10 +279,14 @@ function blocksToContent(blocks: any[]): ContentBlock[] {
 
   for (const block of blocks) {
     const type = block.type;
+
     if (type === "bulleted_list_item" || type === "numbered_list_item") {
       const text = richTextToString(block[type]?.rich_text);
+      const itemChildren: ContentBlock[] | undefined = block._children?.length
+        ? blocksToContent(block._children)
+        : undefined;
       if (!currentList) currentList = [];
-      if (text) currentList.push(text);
+      currentList.push({ text, children: itemChildren });
       continue;
     }
     flushList();
@@ -310,8 +314,41 @@ function blocksToContent(blocks: any[]): ContentBlock[] {
       if (url.includes("tella.tv") || url.includes("tella.video")) {
         out.push({ type: "tella_embed", url });
       }
+    } else if (type === "callout") {
+      const icon =
+        (block.callout?.icon?.type === "emoji"
+          ? (block.callout.icon.emoji as string)
+          : null) ?? null;
+      const text = richTextToString(block.callout?.rich_text);
+      const children = block._children?.length
+        ? blocksToContent(block._children)
+        : [];
+      out.push({ type: "callout", icon, text, children });
+    } else if (type === "quote") {
+      const text = richTextToString(block.quote?.rich_text);
+      const children = block._children?.length
+        ? blocksToContent(block._children)
+        : [];
+      out.push({ type: "quote", text, children });
+    } else if (type === "code") {
+      const text = richTextToString(block.code?.rich_text);
+      const language = (block.code?.language as string) ?? "plain text";
+      if (text) out.push({ type: "code", language, text });
+    } else if (
+      type === "divider" ||
+      type === "table" ||
+      type === "table_row" ||
+      type === "child_page"
+    ) {
+      // Intentionnellement ignorés : divider est cosmétique, table est un
+      // ticket séparé, child_page n'a pas de contenu inline.
+    } else {
+      // Type Notion non géré — signal visible dans les logs pour détecter
+      // tout type présent dans d'autres ressources mais pas encore mappé.
+      console.warn(
+        `[ressources/blocksToContent] type Notion non géré : "${type}" (bloc ${block.id ?? "???"})`,
+      );
     }
-    // Skip: divider, callout, quote, code, table, child_page, etc.
   }
   flushList();
   return out;

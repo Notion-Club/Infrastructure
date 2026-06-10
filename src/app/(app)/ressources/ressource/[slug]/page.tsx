@@ -94,10 +94,110 @@ function renderBlock(block: ContentBlock, idx: number) {
                 lineHeight: 1.6,
               }}
             >
-              {item}
+              {item.text}
+              {item.children && item.children.length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  {item.children.map((child, j) => renderBlock(child, j))}
+                </div>
+              )}
             </li>
           ))}
         </ul>
+      );
+
+    case 'callout':
+      return (
+        <div
+          key={idx}
+          data-fb-label="Callout · Corps Notion"
+          style={{
+            background: 'var(--color-surface-raised)',
+            border: '1px solid var(--color-border-default)',
+            borderRadius: 12,
+            padding: '14px 16px',
+            margin: '0 0 12px',
+            display: 'flex',
+            gap: 10,
+          }}
+        >
+          {block.icon && (
+            <span style={{ flexShrink: 0, fontSize: 16, lineHeight: '24px' }}>
+              {block.icon}
+            </span>
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {block.text && (
+              <p
+                style={{
+                  fontSize: 15,
+                  color: 'var(--color-text-secondary)',
+                  margin: '0 0 8px',
+                  lineHeight: 1.7,
+                }}
+              >
+                {block.text}
+              </p>
+            )}
+            {block.children.map((child, i) => renderBlock(child, i))}
+          </div>
+        </div>
+      );
+
+    case 'quote':
+      return (
+        <blockquote
+          key={idx}
+          data-fb-label="Citation · Corps Notion"
+          style={{
+            borderLeft: '3px solid var(--color-border-default)',
+            paddingLeft: 16,
+            margin: '0 0 16px',
+          }}
+        >
+          {block.text && (
+            <p
+              style={{
+                fontSize: 15,
+                color: 'var(--color-text-muted)',
+                margin: 0,
+                lineHeight: 1.7,
+                fontStyle: 'italic',
+              }}
+            >
+              {block.text}
+            </p>
+          )}
+          {block.children.length > 0 && (
+            <div>{block.children.map((child, i) => renderBlock(child, i))}</div>
+          )}
+        </blockquote>
+      );
+
+    case 'code':
+      return (
+        <pre
+          key={idx}
+          data-fb-label="Bloc code · Corps Notion"
+          style={{
+            background: 'var(--color-surface-raised)',
+            border: '1px solid var(--color-border-default)',
+            borderRadius: 8,
+            padding: '12px 16px',
+            margin: '0 0 16px',
+            overflowX: 'auto',
+          }}
+        >
+          <code
+            style={{
+              fontSize: 13,
+              color: 'var(--color-text-secondary)',
+              fontFamily: 'monospace',
+              lineHeight: 1.6,
+            }}
+          >
+            {block.text}
+          </code>
+        </pre>
       );
 
     case 'tella_embed':
@@ -123,8 +223,13 @@ function renderBlock(block: ContentBlock, idx: number) {
         />
       );
 
-    default:
+    default: {
+      const b = block as { type: string };
+      console.warn(
+        `[ressources/renderBlock] type ContentBlock non rendu : "${b.type}"`,
+      );
       return null;
+    }
   }
 }
 
