@@ -1383,22 +1383,55 @@ html.dark .nc-lt-scrim {
   --shimmer-highlight: #ffffff;
 }
 
-/* ── Idle search button — brand-red breathing pulse ────────────────────── */
-@keyframes nc-search-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(224,98,90,0);
-    border-color: var(--color-border-default);
-  }
-  50% {
-    box-shadow: 0 0 0 4px rgba(224,98,90,0.14);
-    border-color: rgba(224,98,90,0.48);
-  }
+/* ── Search box — border treatments (couleur sous contrôle, sans lib) ──────
+   Idle : le breathe mono est fourni par <BorderBeam size="pulse-inner"
+   colorVariant="mono">. Aucun effet rouge sur l'état inactif.
+   Actif : faisceau « signature » rouge brand recréé en CSS (conic-gradient
+   rotatif via @property --nc-shine-angle), pour maîtriser la couleur que la
+   lib BorderBeam (palettes figées) ne permet pas. */
+.nc-search-beam {
+  position: relative;
 }
-.nc-search-pulse {
-  animation: nc-search-pulse 2.6s ease-in-out infinite;
+/* Anneau rouge qui tourne — masque composite pour ne peindre que la bordure. */
+.nc-search-beam::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--nc-shine-angle),
+    rgba(224, 98, 90, 0.06),
+    rgba(224, 98, 90, 0.95) 22%,
+    rgba(224, 98, 90, 0.06) 48%,
+    rgba(224, 98, 90, 0.06) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: nc-shine-rotate 3s linear infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+/* Halo rouge diffus — appuie la signature couleur. */
+.nc-search-beam::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  box-shadow: 0 0 12px 0 rgba(224, 98, 90, 0.28);
+  pointer-events: none;
+  z-index: 0;
 }
 @media (prefers-reduced-motion: reduce) {
-  .nc-search-pulse { animation: none !important; }
+  .nc-search-beam::before {
+    animation: none;
+  }
 }
 
 /* ── kbd badges inside the search button ───────────────────────────────── */

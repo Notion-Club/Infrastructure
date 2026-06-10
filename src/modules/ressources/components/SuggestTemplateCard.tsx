@@ -64,6 +64,8 @@ export function SuggestTemplateCard({ variant }: SuggestCardProps) {
           alignItems: 'flex-start',
           justifyContent: 'center',
           minHeight: 180,
+          // Remplit la cellule de grille étirée → hauteur alignée sur la ligne.
+          height: '100%',
           boxShadow: 'var(--nc-shadow-3)',
           cursor: 'pointer',
         }}

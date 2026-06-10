@@ -285,13 +285,16 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Filter bar + search on same row */}
+      {/* Filter bar + search on same row.
+          La recherche (order:-1) passe à gauche et grandit pour devenir
+          l'élément central long ; les tags (pills + filtres) sont poussés à
+          droite par le flex-grow de la recherche. */}
       <div
         data-fb-label="Filtre barre · Grille des ressources"
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
+          gap: 12,
           flexWrap: 'wrap',
         }}
       >
@@ -495,12 +498,12 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           </div>
         )}
 
-        {/* Search — right-aligned, fixed width, same row as filters */}
+        {/* Search — LEFT (order:-1), grows to be the central long element */}
         {/* Two layers always in DOM; opacity-toggled so text-swap animation
             completes before the button layer fades out and input fades in. */}
-        <div style={{ marginLeft: 'auto', position: 'relative', width: 240, flexShrink: 0, height: 36 }}>
+        <div style={{ order: -1, flex: '1 1 280px', minWidth: 240, position: 'relative', height: 44 }}>
 
-          {/* Layer A — idle CTA button with pulsing border animation */}
+          {/* Layer A — idle CTA button (breathe mono via BorderBeam, zéro rouge) */}
           <div
             style={{
               position: 'absolute',
@@ -514,18 +517,17 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
             <BorderBeam
               size="pulse-inner"
               colorVariant="mono"
-              strength={0.94}
+              strength={0.74}
               theme={theme}
-              style={{ width: '100%', height: 36, borderRadius: 9999 }}
+              style={{ width: '100%', height: 44, borderRadius: 9999 }}
             >
             <button
               type="button"
-              className="nc-search-pulse"
               data-fb-label="Bouton recherche · Grille des ressources"
               onClick={activateSearch}
               style={{
                 width: '100%',
-                height: 36,
+                height: 44,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -570,20 +572,21 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               zIndex: searchActive ? 1 : 0,
             }}
           >
-            <BorderBeam size="md" colorVariant="mono" strength={0.74} theme={theme} style={{ width: '100%', height: 36 }}>
-              <div style={{ position: 'relative', width: '100%', height: 36, borderRadius: 9999 }}>
+            {/* Anneau rouge signature recréé en CSS (cf. .nc-search-beam) —
+                couleur maîtrisée, contrairement aux palettes figées de BorderBeam. */}
+            <div className="nc-search-beam" style={{ position: 'relative', width: '100%', height: 44, borderRadius: 9999 }}>
               {/* Shimmer placeholder — always in DOM, opacity-driven for smooth entrance */}
               <span
                 className={searchActive ? 't-shimmer' : ''}
                 data-text={searchActive ? 'Que cherches-tu ?' : ''}
                 style={{
                   position: 'absolute',
-                  left: 14,
+                  left: 16,
                   top: '50%',
                   transform: 'translateY(-50%)',
                   fontSize: 13,
                   pointerEvents: 'none',
-                  zIndex: 2,
+                  zIndex: 3,
                   whiteSpace: 'nowrap',
                   opacity: searchActive && !searchQuery ? 1 : 0,
                   transition: 'opacity 180ms ease 60ms',
@@ -600,14 +603,15 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                   position: 'absolute',
                   inset: 0,
                   width: '100%',
-                  padding: '0 32px 0 14px',
+                  padding: '0 34px 0 16px',
                   borderRadius: 9999,
-                  border: '1px solid var(--color-border-default)',
+                  border: '1px solid transparent',
                   background: 'var(--color-surface-card)',
                   fontSize: 13,
                   color: 'var(--color-text-primary)',
                   outline: 'none',
                   boxSizing: 'border-box',
+                  zIndex: 1,
                 }}
                 onBlur={() => { if (!searchQuery) deactivateSearch(); }}
                 onKeyDown={(e) => { if (e.key === 'Escape') deactivateSearch(); }}
@@ -618,7 +622,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               aria-label="Fermer la recherche"
               style={{
                 position: 'absolute',
-                right: 8,
+                right: 10,
                 top: '50%',
                 transform: 'translateY(-50%)',
                 background: 'none',
@@ -632,13 +636,12 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 cursor: 'pointer',
                 color: 'var(--color-text-muted)',
                 padding: 0,
-                zIndex: 3,
+                zIndex: 4,
               }}
             >
               <X size={10} />
               </button>
-              </div>
-            </BorderBeam>
+            </div>
           </div>
 
         </div>
