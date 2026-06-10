@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { SlidersHorizontal, Search, X } from 'lucide-react';
+import { SlidersHorizontal, X } from 'lucide-react';
+import { BorderBeam } from 'border-beam';
 import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceCard } from './ResourceCard';
@@ -56,6 +57,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     return new Set();
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchActive, setSearchActive] = useState(false);
   const [leavingItems, setLeavingItems] = useState<ResourceItem[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
@@ -66,8 +68,23 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const filterBtnRef = useRef<HTMLButtonElement>(null);
   const prevVisibleRef = useRef<ResourceItem[]>([]);
   const leavingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ctaTextRef = useRef<HTMLSpanElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const currentCapability: UserCapability = mockCurrentUser.capability;
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        if (!searchActive) activateSearch();
+        else searchInputRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchActive]);
 
   useEffect(() => {
     if (!filterOpen) return;
@@ -115,6 +132,47 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     if (leavingTimerRef.current) clearTimeout(leavingTimerRef.current);
     leavingTimerRef.current = setTimeout(() => setLeavingItems([]), 220);
   }, [visibleItems]);
+
+  function activateSearch() {
+    const el = ctaTextRef.current;
+    if (!el) {
+      setSearchActive(true);
+      setTimeout(() => searchInputRef.current?.focus(), 0);
+      return;
+    }
+    const dur = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--text-swap-dur')
+    ) || 150;
+
+    el.classList.add('is-exit');
+    setTimeout(() => {
+      el.textContent = 'Que cherches-tu ?';
+      el.setAttribute('data-text', 'Que cherches-tu ?');
+      el.classList.add('t-shimmer');
+      el.classList.remove('is-exit');
+      el.classList.add('is-enter-start');
+      void el.offsetHeight;
+      el.classList.remove('is-enter-start');
+
+      setTimeout(() => {
+        setSearchActive(true);
+        requestAnimationFrame(() => searchInputRef.current?.focus());
+      }, dur + 80);
+    }, dur);
+  }
+
+  function deactivateSearch() {
+    setSearchQuery('');
+    setSearchActive(false);
+    // Reset CTA text for next open
+    setTimeout(() => {
+      const el = ctaTextRef.current;
+      if (!el) return;
+      el.classList.remove('t-shimmer', 'is-exit', 'is-enter-start');
+      el.removeAttribute('data-text');
+      el.textContent = '🔍 Cherche une ressource…';
+    }, 0);
+  }
 
   function toggleType(type: ResourceMetierType) {
     setSelectedTypes((prev) => {
@@ -355,70 +413,93 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
         {/* Search — right-aligned, fixed width, same row as filters */}
         <div style={{ marginLeft: 'auto', position: 'relative', width: 240, flexShrink: 0 }}>
-          <Search
-            size={14}
-            style={{
-              position: 'absolute',
-              left: 12,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--color-text-muted)',
-              pointerEvents: 'none',
-            }}
-          />
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Rechercher…"
-            style={{
-              width: '100%',
-              padding: '8px 32px 8px 34px',
-              borderRadius: 9999,
-              border: '1px solid var(--color-border-default)',
-              background: 'var(--color-surface-raised)',
-              fontSize: 13,
-              color: 'var(--color-text-primary)',
-              outline: 'none',
-              boxSizing: 'border-box',
-              transition: 'border-color 150ms ease, box-shadow 150ms ease, background 150ms ease',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-brand)';
-              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,98,90,0.12)';
-              e.currentTarget.style.background = '#ffffff';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-border-default)';
-              e.currentTarget.style.boxShadow = 'none';
-              e.currentTarget.style.background = 'var(--color-surface-raised)';
-            }}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              aria-label="Effacer la recherche"
-              style={{
-                position: 'absolute',
-                right: 8,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                borderRadius: '50%',
-                width: 18,
-                height: 18,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: 'var(--color-text-muted)',
-                padding: 0,
-              }}
-            >
-              <X size={10} />
-            </button>
+          {!searchActive ? (
+            /* ── Idle state: CTA button with BorderBeam ── */
+            <BorderBeam size="pulse-inner" colorVariant="mono" strength={0.48} theme="light">
+              <button
+                type="button"
+                data-fb-label="Bouton recherche · Grille des ressources"
+                onClick={activateSearch}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 6,
+                  padding: '8px 12px',
+                  borderRadius: 9999,
+                  border: '1px solid var(--color-border-default)',
+                  background: 'var(--color-surface-raised)',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  color: 'var(--color-text-secondary)',
+                  boxSizing: 'border-box',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span ref={ctaTextRef} className="t-text-swap" style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  🔍 Cherche une ressource…
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0.5 }}>
+                  <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-card)', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>⌘</kbd>
+                  <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-card)', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>K</kbd>
+                </span>
+              </button>
+            </BorderBeam>
+          ) : (
+            /* ── Active state: real search input ── */
+            <div style={{ position: 'relative' }}>
+              <input
+                ref={searchInputRef}
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher…"
+                style={{
+                  width: '100%',
+                  padding: '8px 32px 8px 14px',
+                  borderRadius: 9999,
+                  border: '1px solid var(--color-brand)',
+                  background: '#ffffff',
+                  boxShadow: '0 0 0 3px rgba(224,98,90,0.12)',
+                  fontSize: 13,
+                  color: 'var(--color-text-primary)',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+                onBlur={() => {
+                  if (!searchQuery) deactivateSearch();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') deactivateSearch();
+                }}
+              />
+              <button
+                type="button"
+                onClick={deactivateSearch}
+                aria-label="Fermer la recherche"
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: 18,
+                  height: 18,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'var(--color-text-muted)',
+                  padding: 0,
+                }}
+              >
+                <X size={10} />
+              </button>
+            </div>
           )}
         </div>
       </div>
