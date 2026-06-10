@@ -477,6 +477,18 @@ html {
   .t-shimmer::before { animation: none !important; }
 }
 
+/* Search button idle pulse — brand-tinted breathing outline */
+@keyframes nc-search-pulse {
+  0%, 100% { box-shadow: 0 0 0 0px rgba(224,98,90,0); }
+  50%       { box-shadow: 0 0 0 2px rgba(224,98,90,0.24), 0 0 10px rgba(224,98,90,0.07); }
+}
+.nc-search-idle {
+  animation: nc-search-pulse 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-search-idle { animation: none !important; }
+}
+
 /*
  * Slot-machine vertical scroll animation pour les placeholders cyclants
  * (cf. PlaceholderCycle dans ProfileHero.tsx). On translate une pile de 4

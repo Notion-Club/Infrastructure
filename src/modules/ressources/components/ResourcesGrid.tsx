@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
-import { SlidersHorizontal, X } from 'lucide-react';
-import { BorderBeam } from 'border-beam';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
 import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceCard } from './ResourceCard';
@@ -179,23 +179,24 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     setSearchQuery('');
 
     if (el) {
-      // Reverse text swap on button layer (still invisible at this point).
+      // Reverse text swap on button layer (still invisible).
       // Phase 1 — exit shimmer text
       el.classList.add('is-exit');
 
       setTimeout(() => {
-        // Phase 2 — enter original CTA text from below
-        el.textContent = '🔍 Cherche une ressource…';
-        el.removeAttribute('data-text');
+        // Remove shimmer classes so original JSX renders clean
         el.classList.remove('t-shimmer', 'is-exit');
+        el.removeAttribute('data-text');
+
+        // flushSync: restore original JSX content (Search icon + label) synchronously
+        flushSync(() => setSearchActive(false));
+
+        // Phase 2 — animate restored CTA text in from below
         el.classList.add('is-enter-start');
         void el.offsetHeight;
         el.classList.remove('is-enter-start');
 
-        // Phase 3 — now fade in the button layer with CTA entering
-        setSearchActive(false);
-
-        // Restore kbds after CTA text has fully entered
+        // Restore kbds after CTA has fully entered
         setTimeout(() => {
           if (kbds) {
             kbds.style.transition = 'opacity 150ms ease';
@@ -450,7 +451,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
             completes before the button layer fades out and input fades in. */}
         <div style={{ marginLeft: 'auto', position: 'relative', width: 240, flexShrink: 0, height: 36 }}>
 
-          {/* Layer A — idle CTA button with BorderBeam */}
+          {/* Layer A — idle CTA button with pulsing border animation */}
           <div
             style={{
               position: 'absolute',
@@ -461,43 +462,44 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               zIndex: searchActive ? 0 : 1,
             }}
           >
-            <BorderBeam size="pulse-inner" colorVariant="mono" strength={0.48} theme="light">
-              <button
-                type="button"
-                data-fb-label="Bouton recherche · Grille des ressources"
-                onClick={activateSearch}
-                style={{
-                  width: '100%',
-                  height: 36,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 6,
-                  padding: '0 12px',
-                  borderRadius: 9999,
-                  border: '1px solid var(--color-border-default)',
-                  background: '#ffffff',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                  color: 'var(--color-text-muted)',
-                  boxSizing: 'border-box',
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap',
-                }}
+            <button
+              type="button"
+              className="nc-search-idle"
+              data-fb-label="Bouton recherche · Grille des ressources"
+              onClick={activateSearch}
+              style={{
+                width: '100%',
+                height: 36,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 6,
+                padding: '0 12px',
+                borderRadius: 9999,
+                border: '1px solid var(--color-border-default)',
+                background: 'var(--color-surface-card)',
+                cursor: 'pointer',
+                fontSize: 13,
+                color: 'var(--color-text-muted)',
+                boxSizing: 'border-box',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span
+                ref={ctaTextRef}
+                className="t-text-swap"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, overflow: 'hidden', minWidth: 0 }}
               >
-                <span
-                  ref={ctaTextRef}
-                  className="t-text-swap"
-                  style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                >
-                  🔍 Cherche une ressource…
+                <Search size={13} style={{ flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  Cherche une ressource…
                 </span>
-                <span ref={kbdsRef} style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0.5 }}>
-                  <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid #d1d5db', background: '#f3f4f6', color: '#6b7280', lineHeight: 1.4 }}>⌘</kbd>
-                  <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid #d1d5db', background: '#f3f4f6', color: '#6b7280', lineHeight: 1.4 }}>K</kbd>
-                </span>
-              </button>
-            </BorderBeam>
+              </span>
+              <span ref={kbdsRef} style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0.5 }}>
+                <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>⌘</kbd>
+                <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>K</kbd>
+              </span>
+            </button>
           </div>
 
           {/* Layer B — active input with shimmer placeholder */}
@@ -542,7 +544,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 padding: '0 32px 0 14px',
                 borderRadius: 9999,
                 border: '1px solid var(--color-brand)',
-                background: searchQuery ? '#ffffff' : 'transparent',
+                background: 'var(--color-surface-card)',
                 boxShadow: '0 0 0 3px rgba(224,98,90,0.12)',
                 fontSize: 13,
                 color: 'var(--color-text-primary)',
