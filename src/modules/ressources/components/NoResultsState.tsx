@@ -62,11 +62,11 @@ export function NoResultsState({ filloutType }: NoResultsStateProps) {
             color: 'var(--color-text-secondary)',
             lineHeight: 1.5,
             margin: '10px auto 0',
-            maxWidth: 440,
           }}
         >
-          La ressource que tu cherches n&apos;existe pas encore, mais elle peut
-          être créée pour toi
+          La ressource que tu cherches n&apos;existe pas encore,
+          <br />
+          mais elle peut être créée pour toi
         </span>
         <span className="t-stagger-line t-stagger-line--3" style={{ marginTop: 22 }}>
           <button
