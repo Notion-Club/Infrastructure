@@ -22,7 +22,8 @@ export type ContentBlock =
   | { type: 'list'; items: ListItem[] }
   | { type: 'callout'; icon: string | null; text: string; children: ContentBlock[] }
   | { type: 'quote'; text: string; children: ContentBlock[] }
-  | { type: 'code'; language: string; text: string };
+  | { type: 'code'; language: string; text: string }
+  | { type: 'table'; rows: string[][] };
 
 export interface Resource {
   category: 'resource';

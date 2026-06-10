@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { SlidersHorizontal, Search, X } from 'lucide-react';
+import { SlidersHorizontal, X } from 'lucide-react';
+import { BorderBeam } from 'border-beam';
 import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceCard } from './ResourceCard';
@@ -56,6 +57,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     return new Set();
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchActive, setSearchActive] = useState(false);
   const [leavingItems, setLeavingItems] = useState<ResourceItem[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
@@ -66,8 +68,24 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const filterBtnRef = useRef<HTMLButtonElement>(null);
   const prevVisibleRef = useRef<ResourceItem[]>([]);
   const leavingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ctaTextRef = useRef<HTMLSpanElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const kbdsRef = useRef<HTMLSpanElement>(null);
 
   const currentCapability: UserCapability = mockCurrentUser.capability;
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        if (!searchActive) activateSearch();
+        else searchInputRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchActive]);
 
   useEffect(() => {
     if (!filterOpen) return;
@@ -116,6 +134,80 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     leavingTimerRef.current = setTimeout(() => setLeavingItems([]), 220);
   }, [visibleItems]);
 
+  function activateSearch() {
+    const el = ctaTextRef.current;
+    const kbds = kbdsRef.current;
+    const dur = 150;
+
+    if (el) {
+      // Immediately fade kbds out in sync with the CTA text exit
+      if (kbds) {
+        kbds.style.transition = 'opacity 120ms ease';
+        kbds.style.opacity = '0';
+      }
+
+      // Phase 1 — exit old CTA text (slides up + blurs)
+      el.classList.add('is-exit');
+
+      setTimeout(() => {
+        // Phase 2 — swap to shimmer text, teleport below, no transition
+        el.textContent = 'Que cherches-tu ?';
+        el.setAttribute('data-text', 'Que cherches-tu ?');
+        el.classList.add('t-shimmer');
+        el.classList.remove('is-exit');
+        el.classList.add('is-enter-start');
+        void el.offsetHeight;
+        el.classList.remove('is-enter-start');
+
+        // Phase 3 — after enter animation completes, reveal input layer
+        setTimeout(() => {
+          setSearchActive(true);
+          requestAnimationFrame(() => searchInputRef.current?.focus());
+        }, dur + 60);
+      }, dur);
+    } else {
+      setSearchActive(true);
+      setTimeout(() => searchInputRef.current?.focus(), 0);
+    }
+  }
+
+  function deactivateSearch() {
+    const el = ctaTextRef.current;
+    const kbds = kbdsRef.current;
+    const dur = 150;
+
+    setSearchQuery('');
+
+    if (el) {
+      // Reverse text swap on button layer (still invisible at this point).
+      // Phase 1 — exit shimmer text
+      el.classList.add('is-exit');
+
+      setTimeout(() => {
+        // Phase 2 — enter original CTA text from below
+        el.textContent = '🔍 Cherche une ressource…';
+        el.removeAttribute('data-text');
+        el.classList.remove('t-shimmer', 'is-exit');
+        el.classList.add('is-enter-start');
+        void el.offsetHeight;
+        el.classList.remove('is-enter-start');
+
+        // Phase 3 — now fade in the button layer with CTA entering
+        setSearchActive(false);
+
+        // Restore kbds after CTA text has fully entered
+        setTimeout(() => {
+          if (kbds) {
+            kbds.style.transition = 'opacity 150ms ease';
+            kbds.style.opacity = '0.5';
+          }
+        }, dur);
+      }, dur);
+    } else {
+      setSearchActive(false);
+    }
+  }
+
   function toggleType(type: ResourceMetierType) {
     setSelectedTypes((prev) => {
       const next = new Set(prev);
@@ -137,74 +229,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Search bar */}
-      <div style={{ position: 'relative' }}>
-        <Search
-          size={15}
-          style={{
-            position: 'absolute',
-            left: 14,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: 'var(--color-text-muted)',
-            pointerEvents: 'none',
-          }}
-        />
-        <input
-          type="search"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Rechercher par titre, description ou contenu…"
-          style={{
-            width: '100%',
-            padding: '10px 40px 10px 38px',
-            borderRadius: 12,
-            border: '1px solid var(--color-border-default)',
-            background: '#ffffff',
-            fontSize: 14,
-            color: 'var(--color-text-primary)',
-            outline: 'none',
-            boxSizing: 'border-box',
-            transition: 'border-color 150ms ease, box-shadow 150ms ease',
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-brand)';
-            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,98,90,0.12)';
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-border-default)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={() => setSearchQuery('')}
-            aria-label="Effacer la recherche"
-            style={{
-              position: 'absolute',
-              right: 10,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              background: 'var(--color-surface-raised)',
-              border: 'none',
-              borderRadius: '50%',
-              width: 20,
-              height: 20,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--color-text-muted)',
-              padding: 0,
-            }}
-          >
-            <X size={11} />
-          </button>
-        )}
-      </div>
-
-      {/* Filter bar */}
+      {/* Filter bar + search on same row */}
       <div
         data-fb-label="Filtre barre · Grille des ressources"
         style={{
@@ -420,6 +445,141 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           </div>
         )}
 
+        {/* Search — right-aligned, fixed width, same row as filters */}
+        {/* Two layers always in DOM; opacity-toggled so text-swap animation
+            completes before the button layer fades out and input fades in. */}
+        <div style={{ marginLeft: 'auto', position: 'relative', width: 240, flexShrink: 0, height: 36 }}>
+
+          {/* Layer A — idle CTA button with BorderBeam */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              opacity: searchActive ? 0 : 1,
+              pointerEvents: searchActive ? 'none' : 'auto',
+              transition: 'opacity 150ms ease',
+              zIndex: searchActive ? 0 : 1,
+            }}
+          >
+            <BorderBeam size="pulse-inner" colorVariant="mono" strength={0.48} theme="light">
+              <button
+                type="button"
+                data-fb-label="Bouton recherche · Grille des ressources"
+                onClick={activateSearch}
+                style={{
+                  width: '100%',
+                  height: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 6,
+                  padding: '0 12px',
+                  borderRadius: 9999,
+                  border: '1px solid var(--color-border-default)',
+                  background: '#ffffff',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  color: 'var(--color-text-muted)',
+                  boxSizing: 'border-box',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span
+                  ref={ctaTextRef}
+                  className="t-text-swap"
+                  style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                >
+                  🔍 Cherche une ressource…
+                </span>
+                <span ref={kbdsRef} style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0.5 }}>
+                  <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid #d1d5db', background: '#f3f4f6', color: '#6b7280', lineHeight: 1.4 }}>⌘</kbd>
+                  <kbd style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'inherit', padding: '1px 4px', borderRadius: 4, border: '1px solid #d1d5db', background: '#f3f4f6', color: '#6b7280', lineHeight: 1.4 }}>K</kbd>
+                </span>
+              </button>
+            </BorderBeam>
+          </div>
+
+          {/* Layer B — active input with shimmer placeholder */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              opacity: searchActive ? 1 : 0,
+              pointerEvents: searchActive ? 'auto' : 'none',
+              transition: 'opacity 150ms ease',
+              zIndex: searchActive ? 1 : 0,
+            }}
+          >
+            {/* Shimmer placeholder — always in DOM, opacity-driven for smooth entrance */}
+            <span
+              className={searchActive ? 't-shimmer' : ''}
+              data-text={searchActive ? 'Que cherches-tu ?' : ''}
+              style={{
+                position: 'absolute',
+                left: 14,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                fontSize: 13,
+                pointerEvents: 'none',
+                zIndex: 2,
+                whiteSpace: 'nowrap',
+                opacity: searchActive && !searchQuery ? 1 : 0,
+                transition: 'opacity 180ms ease 60ms',
+              }}
+            >
+              {searchActive ? 'Que cherches-tu ?' : ''}
+            </span>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                padding: '0 32px 0 14px',
+                borderRadius: 9999,
+                border: '1px solid var(--color-brand)',
+                background: searchQuery ? '#ffffff' : 'transparent',
+                boxShadow: '0 0 0 3px rgba(224,98,90,0.12)',
+                fontSize: 13,
+                color: 'var(--color-text-primary)',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+              onBlur={() => { if (!searchQuery) deactivateSearch(); }}
+              onKeyDown={(e) => { if (e.key === 'Escape') deactivateSearch(); }}
+            />
+            <button
+              type="button"
+              onClick={deactivateSearch}
+              aria-label="Fermer la recherche"
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                borderRadius: '50%',
+                width: 18,
+                height: 18,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--color-text-muted)',
+                padding: 0,
+                zIndex: 3,
+              }}
+            >
+              <X size={10} />
+            </button>
+          </div>
+
+        </div>
       </div>
 
       {/* Grid */}
@@ -427,8 +587,15 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
         <>
           {visibleItems.length > 0 ? (
             <div data-fb-label="Grille des ressources" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {visibleItems.map((item) => (
-                <div key={item.slug} style={{ animation: 'nc-mode-in 200ms ease both' }}>
+              {visibleItems.map((item, idx) => (
+                <div
+                  key={item.slug}
+                  style={{
+                    height: '100%',
+                    animation: 'nc-card-stagger-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both',
+                    animationDelay: `${Math.min(idx * 35, 180)}ms`,
+                  }}
+                >
                   {item.category === 'resource' ? (
                     <ResourceCard resource={item} currentCapability={currentCapability} />
                   ) : (
@@ -441,9 +608,11 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 <div
                   key={`out-${item.slug}`}
                   style={{
+                    height: '100%',
                     opacity: 0,
-                    transform: 'scale(0.96)',
-                    transition: 'opacity 220ms ease, transform 220ms ease',
+                    transform: 'translateY(0)',
+                    filter: 'blur(0)',
+                    transition: 'opacity 180ms ease',
                     pointerEvents: 'none',
                   }}
                 >

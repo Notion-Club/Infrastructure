@@ -334,14 +334,23 @@ function blocksToContent(blocks: any[]): ContentBlock[] {
       const text = richTextToString(block.code?.rich_text);
       const language = (block.code?.language as string) ?? "plain text";
       if (text) out.push({ type: "code", language, text });
+    } else if (type === "table") {
+      const rows: string[][] = (block._children ?? [])
+        .filter((r: any) => r.type === "table_row")
+        .map((r: any) =>
+          ((r.table_row?.cells ?? []) as any[][]).map((cell: any[]) =>
+            richTextToString(cell),
+          ),
+        );
+      if (rows.length > 0) out.push({ type: "table", rows });
     } else if (
       type === "divider" ||
-      type === "table" ||
       type === "table_row" ||
       type === "child_page"
     ) {
-      // Intentionnellement ignorés : divider est cosmétique, table est un
-      // ticket séparé, child_page n'a pas de contenu inline.
+      // Intentionnellement ignorés : divider est cosmétique,
+      // table_row est consommé par le handler table ci-dessus,
+      // child_page n'a pas de contenu inline.
     } else {
       // Type Notion non géré — signal visible dans les logs pour détecter
       // tout type présent dans d'autres ressources mais pas encore mappé.
