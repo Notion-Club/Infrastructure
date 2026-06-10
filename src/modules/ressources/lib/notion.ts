@@ -229,9 +229,37 @@ async function fetchBlockChildren(blockId: string): Promise<any[]> {
   return all;
 }
 
+const MAX_DEPTH = 6;
+const CONCURRENCY = 3;
+
+// Descend récursivement dans les blocs ayant has_children, jusqu'à MAX_DEPTH.
+// Limite la concurrence à CONCURRENCY appels /children simultanés pour ne pas
+// dépasser le rate-limit Notion (~3 req/s par intégration).
+async function fetchAllBlocksRecursive(blockId: string, depth: number): Promise<any[]> {
+  const blocks = await fetchBlockChildren(blockId);
+  if (depth >= MAX_DEPTH) return blocks;
+
+  const withChildren = blocks.filter((b: any) => b.has_children);
+  if (withChildren.length === 0) return blocks;
+
+  // Pool de concurrence borné.
+  const childrenMap = new Map<string, any[]>();
+  for (let i = 0; i < withChildren.length; i += CONCURRENCY) {
+    const batch = withChildren.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(
+      batch.map((b: any) => fetchAllBlocksRecursive(b.id, depth + 1)),
+    );
+    batch.forEach((b: any, j: number) => childrenMap.set(b.id, results[j]));
+  }
+
+  return blocks.map((b: any) =>
+    b.has_children ? { ...b, _children: childrenMap.get(b.id) ?? [] } : b,
+  );
+}
+
 // Conservé comme point d'entrée public (appelé par fetchResourceBySlug + sync).
 async function fetchAllBlocks(blockId: string): Promise<any[]> {
-  return fetchBlockChildren(blockId);
+  return fetchAllBlocksRecursive(blockId, 0);
 }
 
 function richTextToString(rt: any[] | undefined): string {
