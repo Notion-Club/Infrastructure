@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, Search, X } from 'lucide-react';
 import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceCard } from './ResourceCard';
@@ -26,16 +26,17 @@ interface ResourcesGridProps {
   items: ResourceItem[];
 }
 
-function pluralizeCount(count: number, primaryFilter: PrimaryFilter): string {
-  if (primaryFilter === 'Ressources') {
-    return count <= 1 ? `${count} ressource` : `${count} ressources`;
-  }
-  if (primaryFilter === 'Templates') {
-    return count <= 1 ? `${count} template` : `${count} templates`;
-  }
-  // Tout — mix
-  if (count <= 1) return `${count} élément`;
-  return `${count} éléments`;
+function extractSearchText(item: ResourceItem): string {
+  const base = `${item.titre} ${item.description}`;
+  if (item.category !== 'resource') return base.toLowerCase();
+  const contentText = item.content
+    .map((block) => {
+      if (block.type === 'paragraph' || block.type === 'heading') return block.text;
+      if (block.type === 'list') return block.items.join(' ');
+      return '';
+    })
+    .join(' ');
+  return `${base} ${contentText}`.toLowerCase();
 }
 
 export function ResourcesGrid({ items }: ResourcesGridProps) {
@@ -54,6 +55,8 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     }
     return new Set();
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [leavingItems, setLeavingItems] = useState<ResourceItem[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
   // Aligne le dropdown à droite quand l'ancrage gauche le ferait déborder
@@ -61,6 +64,8 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const [alignRight, setAlignRight] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const filterBtnRef = useRef<HTMLButtonElement>(null);
+  const prevVisibleRef = useRef<ResourceItem[]>([]);
+  const leavingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentCapability: UserCapability = mockCurrentUser.capability;
 
@@ -90,7 +95,26 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     return true;
   });
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const visibleItems = normalizedQuery
+    ? filteredItems.filter((item) => extractSearchText(item).includes(normalizedQuery))
+    : filteredItems;
+
   const hasActiveFilters = selectedTypes.size > 0;
+
+  // Track items leaving the grid to animate them out
+  useEffect(() => {
+    const prev = prevVisibleRef.current;
+    const currentSlugs = new Set(visibleItems.map((i) => i.slug));
+    const removed = prev.filter((item) => !currentSlugs.has(item.slug));
+    prevVisibleRef.current = visibleItems;
+
+    if (removed.length === 0) return;
+
+    setLeavingItems(removed);
+    if (leavingTimerRef.current) clearTimeout(leavingTimerRef.current);
+    leavingTimerRef.current = setTimeout(() => setLeavingItems([]), 220);
+  }, [visibleItems]);
 
   function toggleType(type: ResourceMetierType) {
     setSelectedTypes((prev) => {
@@ -106,12 +130,80 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
   function resetFilters() {
     setSelectedTypes(new Set());
+    setSearchQuery('');
   }
 
   const showTypeFilter = primaryFilter === 'Tout' || primaryFilter === 'Ressources';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Search bar */}
+      <div style={{ position: 'relative' }}>
+        <Search
+          size={15}
+          style={{
+            position: 'absolute',
+            left: 14,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'var(--color-text-muted)',
+            pointerEvents: 'none',
+          }}
+        />
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Rechercher par titre, description ou contenu…"
+          style={{
+            width: '100%',
+            padding: '10px 40px 10px 38px',
+            borderRadius: 12,
+            border: '1px solid var(--color-border-default)',
+            background: '#ffffff',
+            fontSize: 14,
+            color: 'var(--color-text-primary)',
+            outline: 'none',
+            boxSizing: 'border-box',
+            transition: 'border-color 150ms ease, box-shadow 150ms ease',
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = 'var(--color-brand)';
+            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,98,90,0.12)';
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = 'var(--color-border-default)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            aria-label="Effacer la recherche"
+            style={{
+              position: 'absolute',
+              right: 10,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'var(--color-surface-raised)',
+              border: 'none',
+              borderRadius: '50%',
+              width: 20,
+              height: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--color-text-muted)',
+              padding: 0,
+            }}
+          >
+            <X size={11} />
+          </button>
+        )}
+      </div>
+
       {/* Filter bar */}
       <div
         data-fb-label="Filtre barre · Grille des ressources"
@@ -328,32 +420,75 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           </div>
         )}
 
-        {/* Count */}
-        <span className="nc-resource-count">
-          {pluralizeCount(filteredItems.length, primaryFilter)}
-        </span>
       </div>
 
       {/* Grid */}
       {filteredItems.length > 0 ? (
-        <div data-fb-label="Grille des ressources" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredItems.map((item) =>
-            item.category === 'resource' ? (
-              <ResourceCard
-                key={item.slug}
-                resource={item}
-                currentCapability={currentCapability}
-              />
-            ) : (
-              <TemplateCard
-                key={item.slug}
-                template={item}
-                currentCapability={currentCapability}
-              />
-            )
+        <>
+          {visibleItems.length > 0 ? (
+            <div data-fb-label="Grille des ressources" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {visibleItems.map((item) => (
+                <div key={item.slug} style={{ animation: 'nc-mode-in 200ms ease both' }}>
+                  {item.category === 'resource' ? (
+                    <ResourceCard resource={item} currentCapability={currentCapability} />
+                  ) : (
+                    <TemplateCard template={item} currentCapability={currentCapability} />
+                  )}
+                </div>
+              ))}
+              {/* Items fading out — appended at end so the grid reflows above */}
+              {leavingItems.map((item) => (
+                <div
+                  key={`out-${item.slug}`}
+                  style={{
+                    opacity: 0,
+                    transform: 'scale(0.96)',
+                    transition: 'opacity 220ms ease, transform 220ms ease',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {item.category === 'resource' ? (
+                    <ResourceCard resource={item} currentCapability={currentCapability} />
+                  ) : (
+                    <TemplateCard template={item} currentCapability={currentCapability} />
+                  )}
+                </div>
+              ))}
+              <SuggestTemplateCard variant={primaryFilter} />
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '48px 24px',
+                gap: 10,
+                color: 'var(--color-text-muted)',
+              }}
+            >
+              <p style={{ fontSize: 14, margin: 0 }}>
+                Aucun résultat pour &ldquo;{searchQuery}&rdquo;
+              </p>
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: 'var(--color-brand)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                Effacer la recherche
+              </button>
+            </div>
           )}
-          <SuggestTemplateCard variant={primaryFilter} />
-        </div>
+        </>
       ) : (
         <div
           style={{
