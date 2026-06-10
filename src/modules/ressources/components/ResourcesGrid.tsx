@@ -89,6 +89,10 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const filterBtnRef = useRef<HTMLButtonElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const ctaTextRef = useRef<HTMLSpanElement>(null);
+  // Markup d'origine du libellé CTA (icône + texte). Capturé avant la 1re
+  // mutation impérative, restauré à la fermeture : React ne re-rend pas ce
+  // span statique, donc c'est à nous de remettre le contenu d'origine.
+  const ctaHtmlRef = useRef<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const kbdsRef = useRef<HTMLSpanElement>(null);
 
@@ -186,6 +190,8 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
       setTimeout(() => {
         // Phase 2 — swap to shimmer text, teleport below, animate in
+        // Mémorise le markup d'origine (icône + libellé) avant de l'écraser.
+        if (ctaHtmlRef.current === null) ctaHtmlRef.current = el.innerHTML;
         el.textContent = 'Que cherches-tu ?';
         el.setAttribute('data-text', 'Que cherches-tu ?');
         el.classList.add('t-shimmer');
@@ -226,9 +232,11 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
       el.classList.add('is-exit');
 
       setTimeout(() => {
-        // Remove shimmer, restore original JSX (Search icon + label) via flushSync
+        // Remove shimmer + restore the original markup (Search icon + label).
+        // React ne re-rend pas ce span statique → on remet le contenu nous-mêmes.
         el.classList.remove('t-shimmer', 'is-exit');
         el.removeAttribute('data-text');
+        if (ctaHtmlRef.current !== null) el.innerHTML = ctaHtmlRef.current;
         flushSync(() => setSearchActive(false));
 
         // Phase 2 — CTA enters from below as Layer A fades in
@@ -286,20 +294,22 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Filter bar + search on same row.
-          La recherche (order:-1) passe à gauche et grandit pour devenir
-          l'élément central long ; les tags (pills + filtres) sont poussés à
-          droite par le flex-grow de la recherche. */}
+          La recherche (order:-1) passe à gauche et grandit ; les tags sont
+          regroupés à droite avec un net espacement (gap conteneur). Dans le
+          groupe, le bouton Filtres est placé à gauche des pills. */}
       <div
         data-fb-label="Filtre barre · Grille des ressources"
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
+          gap: 24,
           flexWrap: 'wrap',
         }}
       >
+        {/* Tags group (droite) — bouton Filtres à gauche, pills à droite */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         {/* Primary filter pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+        <div style={{ order: 1, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
           {PRIMARY_FILTERS.map((filter) => {
             const isActive = primaryFilter === filter;
             return (
@@ -497,6 +507,8 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
             )}
           </div>
         )}
+        </div>
+        {/* /Tags group */}
 
         {/* Search — LEFT (order:-1), grows to be the central long element */}
         {/* Two layers always in DOM; opacity-toggled so text-swap animation
@@ -532,12 +544,12 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: 6,
-                padding: '0 12px',
+                padding: '0 14px',
                 borderRadius: 9999,
                 border: '1px solid var(--color-border-default)',
                 background: 'var(--color-surface-card)',
                 cursor: 'pointer',
-                fontSize: 13,
+                fontSize: 14,
                 color: 'var(--color-text-muted)',
                 boxSizing: 'border-box',
                 whiteSpace: 'nowrap',
@@ -584,7 +596,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                   left: 16,
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  fontSize: 13,
+                  fontSize: 14,
                   pointerEvents: 'none',
                   zIndex: 3,
                   whiteSpace: 'nowrap',
@@ -607,7 +619,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                   borderRadius: 9999,
                   border: '1px solid transparent',
                   background: 'var(--color-surface-card)',
-                  fontSize: 13,
+                  fontSize: 14,
                   color: 'var(--color-text-primary)',
                   outline: 'none',
                   boxSizing: 'border-box',

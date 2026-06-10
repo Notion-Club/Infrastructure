@@ -1401,10 +1401,10 @@ html.dark .nc-lt-scrim {
   padding: 1.5px;
   background: conic-gradient(
     from var(--nc-shine-angle),
-    rgba(224, 98, 90, 0.06),
-    rgba(224, 98, 90, 0.95) 22%,
-    rgba(224, 98, 90, 0.06) 48%,
-    rgba(224, 98, 90, 0.06) 100%
+    rgba(224, 98, 90, 0.04),
+    rgba(224, 98, 90, 0.5) 22%,
+    rgba(224, 98, 90, 0.04) 48%,
+    rgba(224, 98, 90, 0.04) 100%
   );
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
@@ -1422,9 +1422,9 @@ html.dark .nc-lt-scrim {
 .nc-search-beam::after {
   content: "";
   position: absolute;
-  inset: -2px;
+  inset: -1px;
   border-radius: inherit;
-  box-shadow: 0 0 12px 0 rgba(224, 98, 90, 0.28);
+  box-shadow: 0 0 7px 0 rgba(224, 98, 90, 0.12);
   pointer-events: none;
   z-index: 0;
 }
