@@ -306,8 +306,10 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           flexWrap: 'wrap',
         }}
       >
-        {/* Tags group (droite) — bouton Filtres à gauche, pills à droite */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {/* Tags group (droite) — bouton Filtres à gauche, pills à droite.
+            marginLeft:auto le pousse à droite sans coupler la largeur de la
+            recherche (qui reste fixe). */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
         {/* Primary filter pills */}
         <div style={{ order: 1, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
           {PRIMARY_FILTERS.map((filter) => {
@@ -510,10 +512,15 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
         </div>
         {/* /Tags group */}
 
-        {/* Search — LEFT (order:-1), grows to be the central long element */}
+        {/* Search — LEFT (order:-1), largeur FIXE (≈ 1.2× une carte) : aucun
+            couplage avec les filtres, ne se redimensionne pas quand le bouton
+            Filtres disparaît. */}
         {/* Two layers always in DOM; opacity-toggled so text-swap animation
             completes before the button layer fades out and input fades in. */}
-        <div style={{ order: -1, flex: '1 1 280px', minWidth: 240, position: 'relative', height: 44 }}>
+        <div
+          className="nc-search-shimmer"
+          style={{ order: -1, width: 400, maxWidth: '100%', flexShrink: 0, position: 'relative', height: 44 }}
+        >
 
           {/* Layer A — idle CTA button (breathe mono via BorderBeam, zéro rouge) */}
           <div
@@ -544,7 +551,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: 6,
-                padding: '0 14px',
+                padding: '0 18px',
                 borderRadius: 9999,
                 border: '1px solid var(--color-border-default)',
                 background: 'var(--color-surface-card)',
@@ -593,7 +600,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 data-text={searchActive ? 'Que cherches-tu ?' : ''}
                 style={{
                   position: 'absolute',
-                  left: 16,
+                  left: 18,
                   top: '50%',
                   transform: 'translateY(-50%)',
                   fontSize: 14,
@@ -615,7 +622,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                   position: 'absolute',
                   inset: 0,
                   width: '100%',
-                  padding: '0 34px 0 16px',
+                  padding: '0 40px 0 18px',
                   borderRadius: 9999,
                   border: '1px solid transparent',
                   background: 'var(--color-surface-card)',

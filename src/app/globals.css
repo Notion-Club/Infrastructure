@@ -1383,6 +1383,13 @@ html.dark .nc-lt-scrim {
   --shimmer-highlight: #ffffff;
 }
 
+/* Shimmer du placeholder « Que cherches-tu ? » : band plus large + cycle plus
+   long → balayages plus espacés, effet moins intense. */
+.nc-search-shimmer {
+  --shimmer-dur: 3400ms;
+  --shimmer-band: 800%;
+}
+
 /* ── Search box — border treatments (couleur sous contrôle, sans lib) ──────
    Idle : le breathe mono est fourni par <BorderBeam size="pulse-inner"
    colorVariant="mono">. Aucun effet rouge sur l'état inactif.
@@ -1439,10 +1446,11 @@ html.dark .nc-lt-scrim {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  min-width: 20px;
+  font-size: 12px;
   font-family: inherit;
-  padding: 1px 4px;
-  border-radius: 4px;
+  padding: 3px 6px;
+  border-radius: 5px;
   border: 1px solid rgba(0,0,0,0.18);
   background: rgba(0,0,0,0.09);
   color: var(--color-text-primary);
