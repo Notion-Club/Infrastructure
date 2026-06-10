@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
+import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
 
 interface PostKebabMenuProps {
   onEdit?: () => void;
@@ -13,23 +14,23 @@ interface PostKebabMenuProps {
 }
 
 export function PostKebabMenu({ onEdit, onDelete, onTogglePin, pinned }: PostKebabMenuProps) {
-  const [open, setOpen] = useState(false);
+  const { isOpen, isMounted, stateClass, close, toggle } = useDropdownTransition();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) return;
-    function close(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    if (!isOpen) return;
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [open]);
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [isOpen, close]);
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        onClick={(e) => { e.stopPropagation(); toggle(); }}
         data-fb-label="Menu options · Communauté"
         style={{
           width: 32,
@@ -50,8 +51,10 @@ export function PostKebabMenu({ onEdit, onDelete, onTogglePin, pinned }: PostKeb
         <MoreHorizontal size={16} />
       </button>
 
-      {open && (
+      {isMounted && (
         <div
+          className={`t-dropdown ${stateClass}`}
+          data-origin="top-right"
           style={{
             position: "absolute",
             top: "calc(100% + 4px)",
@@ -68,7 +71,7 @@ export function PostKebabMenu({ onEdit, onDelete, onTogglePin, pinned }: PostKeb
           {onEdit && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onEdit(); setOpen(false); }}
+              onClick={(e) => { e.stopPropagation(); onEdit(); close(); }}
               style={{
                 width: "100%",
                 display: "flex",
@@ -92,7 +95,7 @@ export function PostKebabMenu({ onEdit, onDelete, onTogglePin, pinned }: PostKeb
           {onTogglePin && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onTogglePin(); setOpen(false); }}
+              onClick={(e) => { e.stopPropagation(); onTogglePin(); close(); }}
               style={{
                 width: "100%",
                 display: "flex",
@@ -117,7 +120,7 @@ export function PostKebabMenu({ onEdit, onDelete, onTogglePin, pinned }: PostKeb
           {onDelete && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onDelete(); setOpen(false); }}
+              onClick={(e) => { e.stopPropagation(); onDelete(); close(); }}
               style={{
                 width: "100%",
                 display: "flex",
