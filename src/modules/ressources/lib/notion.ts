@@ -185,22 +185,53 @@ export async function fetchTemplateBySlug(slug: string): Promise<Template | null
 
 // ─── Block fetch + conversion ────────────────────────────────────────
 
-async function fetchAllBlocks(blockId: string): Promise<any[]> {
+const MAX_RETRIES = 4;
+
+// Retourne les blocs enfants d'un blockId en suivant la pagination Notion.
+// Sur 429 : respecte Retry-After avec backoff exponentiel, jusqu'à MAX_RETRIES.
+// Sur tout autre erreur non-2xx : throw (jamais de liste tronquée silencieuse).
+async function fetchBlockChildren(blockId: string): Promise<any[]> {
   const all: any[] = [];
   let cursor: string | undefined;
   do {
     const url = new URL(`${NOTION_API}/blocks/${blockId}/children`);
     if (cursor) url.searchParams.set("start_cursor", cursor);
-    const res = await fetch(url.toString(), {
-      headers: notionHeaders(),
-      next: { revalidate: REVALIDATE_SECONDS },
-    });
-    if (!res.ok) break;
-    const data = await res.json();
+
+    let res: Response | undefined;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      res = await fetch(url.toString(), {
+        headers: notionHeaders(),
+        next: { revalidate: REVALIDATE_SECONDS },
+      });
+      if (res.status !== 429) break;
+      if (attempt === MAX_RETRIES) {
+        throw new Error(
+          `[ressources/notion] Notion rate-limit (429) sur /blocks/${blockId}/children après ${MAX_RETRIES + 1} tentatives`,
+        );
+      }
+      const retryAfter = res.headers.get("Retry-After");
+      const waitMs = retryAfter
+        ? Math.min(parseFloat(retryAfter) * 1000, 30_000)
+        : Math.min(1_000 * 2 ** attempt, 30_000);
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+
+    if (!res!.ok) {
+      throw new Error(
+        `[ressources/notion] Notion a retourné ${res!.status} sur /blocks/${blockId}/children`,
+      );
+    }
+
+    const data = await res!.json();
     all.push(...(data.results ?? []));
     cursor = data.has_more ? data.next_cursor : undefined;
   } while (cursor);
   return all;
+}
+
+// Conservé comme point d'entrée public (appelé par fetchResourceBySlug + sync).
+async function fetchAllBlocks(blockId: string): Promise<any[]> {
+  return fetchBlockChildren(blockId);
 }
 
 function richTextToString(rt: any[] | undefined): string {
