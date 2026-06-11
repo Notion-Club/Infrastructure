@@ -228,11 +228,48 @@ async function normalizeBlock(
   return block;
 }
 
+// Plafond d'appels /children simultanés. La récursion de normalizeBlock
+// déclenche un appel listChildren par bloc à enfants ; sans borne, une page
+// lourde (transcription coaching, cours dense) émet une rafale parallèle qui
+// dépasse le rate limit Notion (~3 req/s) → 429 → 500. Un pool borné lisse la
+// charge tout en gardant un peu de parallélisme.
+const MAX_CHILDREN_CONCURRENCY = 3;
+
+// Mappe `items` via `fn` avec au plus `limit` exécutions concurrentes, en
+// préservant l'ordre des résultats (results[i] ↔ items[i]).
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+
+  async function worker(): Promise<void> {
+    while (true) {
+      const index = next++;
+      if (index >= items.length) return;
+      results[index] = await fn(items[index], index);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+  return results;
+}
+
 async function normalizeMany(
   raws: RawBlock[],
   depth: number,
 ): Promise<NotionBlock[]> {
-  const results = await Promise.all(raws.map((r) => normalizeBlock(r, depth)));
+  const results = await mapWithConcurrency(
+    raws,
+    MAX_CHILDREN_CONCURRENCY,
+    (r) => normalizeBlock(r, depth),
+  );
   // Aplatit les fragments (synced blocks résolus) dans le flux parent.
   const flat: NotionBlock[] = [];
   for (const b of results) {

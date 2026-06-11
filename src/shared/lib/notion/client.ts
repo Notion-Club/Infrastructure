@@ -12,6 +12,31 @@
 const NOTION_API = "https://api.notion.com/v1";
 const NOTION_VERSION = "2022-06-28";
 
+// Rate limit Notion : ~3 req/s. Sur 429, l'API renvoie un header Retry-After
+// (en secondes). On respecte ce délai s'il est présent, sinon on retombe sur
+// un backoff exponentiel. Plafond de tentatives volontairement bas : au-delà,
+// mieux vaut propager l'erreur que de bloquer le rendu de la page trop
+// longtemps.
+const MAX_RETRIES_429 = 4;
+const BASE_BACKOFF_MS = 500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Calcule le délai d'attente avant la prochaine tentative après un 429.
+// Priorité au header Retry-After (secondes) ; fallback backoff exponentiel.
+function retryDelayMs(res: Response, attempt: number): number {
+  const header = res.headers.get("Retry-After");
+  if (header) {
+    const seconds = Number(header);
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return seconds * 1000;
+    }
+  }
+  return BASE_BACKOFF_MS * 2 ** attempt;
+}
+
 export class NotionError extends Error {
   constructor(
     message: string,
@@ -67,30 +92,43 @@ async function notionFetch<T>(
   init?: Omit<RequestInit, "body"> & { body?: unknown },
 ): Promise<T> {
   const { body, ...rest } = init ?? {};
-  const res = await fetch(`${NOTION_API}${path}`, {
-    ...rest,
-    headers: {
-      Authorization: `Bearer ${getToken()}`,
-      "Notion-Version": NOTION_VERSION,
-      "Content-Type": "application/json",
-      ...(rest.headers ?? {}),
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
+  const serializedBody =
+    body !== undefined ? JSON.stringify(body) : undefined;
 
-  if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as {
-      code?: string;
-      message?: string;
-    };
-    throw new NotionError(
-      err.message ?? `Notion a retourné ${res.status}`,
-      res.status,
-      err.code,
-    );
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(`${NOTION_API}${path}`, {
+      ...rest,
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json",
+        ...(rest.headers ?? {}),
+      },
+      body: serializedBody,
+      cache: "no-store",
+    });
+
+    // 429 (rate limit) : on attend (Retry-After ou backoff) puis on rejoue,
+    // jusqu'au plafond. Au dernier essai épuisé, on laisse tomber dans la
+    // gestion d'erreur ci-dessous pour propager un NotionError propre.
+    if (res.status === 429 && attempt < MAX_RETRIES_429) {
+      await sleep(retryDelayMs(res, attempt));
+      continue;
+    }
+
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as {
+        code?: string;
+        message?: string;
+      };
+      throw new NotionError(
+        err.message ?? `Notion a retourné ${res.status}`,
+        res.status,
+        err.code,
+      );
+    }
+    return (await res.json()) as T;
   }
-  return (await res.json()) as T;
 }
 
 // ─── Types bruts (sous-ensemble de l'API) ──────────────────────────────

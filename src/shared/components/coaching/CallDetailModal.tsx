@@ -26,6 +26,7 @@ import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
 import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
 import { TranscriptLoadingText } from "@/shared/components/coaching/TranscriptLoadingText";
 import { useTheme } from "@/shared/lib/hooks/useTheme";
+import { useControlledModalTransition } from "@/shared/lib/hooks/useControlledModalTransition";
 import type { NotionBlock } from "@/shared/lib/notion/blocks";
 import { getCallTranscriptionBlocks } from "@/modules/coaching/server/getCallTranscriptionBlocks";
 
@@ -167,6 +168,7 @@ export function CallDetailModal({
     () => true,
     () => false,
   );
+  const { shouldRender, stateClass, overlayOpen } = useControlledModalTransition(isOpen);
   const { theme } = useTheme();
   // Logos blancs (SVG) : blanc tel quel en dark, inversés en noir en light.
   const logoFilter = theme === "dark" ? undefined : "invert(1)";
@@ -261,7 +263,7 @@ export function CallDetailModal({
     };
   }, [isOpen, tab]);
 
-  if (!isOpen || !mounted) return null;
+  if (!shouldRender || !mounted) return null;
 
   const summaryBlocks = parseSummary(summary);
   const hasTranscriptAccess = !!notionPageId;
@@ -292,10 +294,13 @@ export function CallDetailModal({
           backdropFilter: "blur(4px)",
           WebkitBackdropFilter: "blur(4px)",
           padding: "16px",
+          opacity: overlayOpen ? 1 : 0,
+          transition: "opacity var(--modal-open-dur) var(--modal-ease)",
         }}
       >
         <div
           data-fb-label="Fenêtre détail · Modale détail"
+          className={`t-modal ${stateClass}`}
           style={{
             width: "100%",
             maxWidth: 820,
@@ -306,7 +311,6 @@ export function CallDetailModal({
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
-            animation: "nc-modal-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both",
           }}
         >
           <MacOSWindowBar onClose={handleClose} />

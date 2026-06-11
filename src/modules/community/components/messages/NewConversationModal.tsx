@@ -6,6 +6,7 @@ import type { User } from "../../types/user.types";
 import { listMembersAction } from "../../server/actions";
 import type { CommunityMember } from "../../server/queries";
 import { UserAvatar } from "../shared/UserAvatar";
+import { useModalTransition } from "@/shared/lib/hooks/useModalTransition";
 
 interface NewConversationModalProps {
   currentUser: User;
@@ -30,6 +31,7 @@ function memberAsUserShape(m: CommunityMember): User {
 }
 
 export function NewConversationModal({ currentUser, onClose, onSelect }: NewConversationModalProps) {
+  const { stateClass, overlayOpen, requestClose } = useModalTransition();
   const [query, setQuery] = useState("");
   // Liste réelle des membres tirée via Server Action. La RLS two-silo
   // (mig. 024) tranchera côté serveur si l'utilisateur clique sur un
@@ -63,18 +65,22 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
         justifyContent: "center",
         zIndex: 9999,
         padding: 16,
+        opacity: overlayOpen ? 1 : 0,
+        transition: "opacity var(--modal-open-dur) var(--modal-ease)",
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget) requestClose(onClose); }}
     >
       <div
         data-fb-label="Modale Nouvelle conversation · Communauté"
+        className={`t-modal ${stateClass}`}
+        role="dialog"
+        aria-modal="true"
         style={{
           background: "var(--color-surface-card)",
           borderRadius: 20,
           width: "100%",
           maxWidth: 440,
           overflow: "hidden",
-          animation: "nc-mode-in var(--nc-duration-fast) var(--nc-ease) both",
         }}
       >
         {/* Header */}
@@ -83,7 +89,7 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
           padding: "16px 20px", borderBottom: "1px solid var(--color-border-default)",
         }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Nouvelle conversation</h3>
-          <button type="button" onClick={onClose} data-fb-label="Bouton Fermer · Modale Nouvelle conversation" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex" }}>
+          <button type="button" onClick={() => requestClose(onClose)} data-fb-label="Bouton Fermer · Modale Nouvelle conversation" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex" }}>
             <X size={20} />
           </button>
         </div>
@@ -113,7 +119,7 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
             <button
               key={m.id}
               type="button"
-              onClick={() => { onSelect(m.id); onClose(); }}
+              onClick={() => requestClose(() => { onSelect(m.id); onClose(); })}
               data-fb-label="Carte membre · Modale Nouvelle conversation"
               style={{
                 width: "100%",

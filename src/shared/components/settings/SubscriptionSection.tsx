@@ -7,13 +7,16 @@ import { SettingsCard } from "./SettingsCard";
 
 // Forme renvoyée par GET /api/payments/me. Un paiement = une ligne dans la
 // base Notion `Paiements` (DB ID 2a1bad05-…) reliée à l'utilisateur via la
-// relation `Lead` qui pointe vers un Call de la base `Calls` portant son
-// `E-mail Guest`.
+// relation `Membre` qui pointe vers sa page dans la DB Membres.
+//
+// `amountHt` (Montant HT Notion) est optionnel — disponible depuis la V2 du
+// matching, certains paiements anciens ne l'ont pas en base.
 type Payment = {
   notionId: string;
   notionUrl: string | null;
   label: string;
   amount: number | null;
+  amountHt?: number | null;
   paymentDate: string | null;
   source: string | null;
   status: string | null;

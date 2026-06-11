@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
-import { SlidersHorizontal } from 'lucide-react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
 import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceCard } from './ResourceCard';
 import { TemplateCard } from './TemplateCard';
 import { SuggestTemplateCard } from './SuggestTemplateCard';
+import { BorderBeam } from 'border-beam';
+import { useTheme } from '@/shared/lib/hooks/useTheme';
 
 type PrimaryFilter = 'Tout' | 'Ressources' | 'Templates';
 
@@ -26,16 +29,17 @@ interface ResourcesGridProps {
   items: ResourceItem[];
 }
 
-function pluralizeCount(count: number, primaryFilter: PrimaryFilter): string {
-  if (primaryFilter === 'Ressources') {
-    return count <= 1 ? `${count} ressource` : `${count} ressources`;
-  }
-  if (primaryFilter === 'Templates') {
-    return count <= 1 ? `${count} template` : `${count} templates`;
-  }
-  // Tout — mix
-  if (count <= 1) return `${count} élément`;
-  return `${count} éléments`;
+function extractSearchText(item: ResourceItem): string {
+  const base = `${item.titre} ${item.description}`;
+  if (item.category !== 'resource') return base.toLowerCase();
+  const contentText = item.content
+    .map((block) => {
+      if (block.type === 'paragraph' || block.type === 'heading') return block.text;
+      if (block.type === 'list') return block.items.join(' ');
+      return '';
+    })
+    .join(' ');
+  return `${base} ${contentText}`.toLowerCase();
 }
 
 export function ResourcesGrid({ items }: ResourcesGridProps) {
@@ -54,6 +58,9 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     }
     return new Set();
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchActive, setSearchActive] = useState(false);
+  const [leavingItems, setLeavingItems] = useState<ResourceItem[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
   // Aligne le dropdown à droite quand l'ancrage gauche le ferait déborder
@@ -61,8 +68,27 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const [alignRight, setAlignRight] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const filterBtnRef = useRef<HTMLButtonElement>(null);
+  const prevVisibleRef = useRef<ResourceItem[]>([]);
+  const leavingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ctaTextRef = useRef<HTMLSpanElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const kbdsRef = useRef<HTMLSpanElement>(null);
 
   const currentCapability: UserCapability = mockCurrentUser.capability;
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (!searchActive) activateSearch();
+        else searchInputRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchActive]);
 
   useEffect(() => {
     if (!filterOpen) return;
@@ -90,7 +116,97 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     return true;
   });
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const visibleItems = normalizedQuery
+    ? filteredItems.filter((item) => extractSearchText(item).includes(normalizedQuery))
+    : filteredItems;
+
   const hasActiveFilters = selectedTypes.size > 0;
+
+  // Track items leaving the grid to animate them out
+  useEffect(() => {
+    const prev = prevVisibleRef.current;
+    const currentSlugs = new Set(visibleItems.map((i) => i.slug));
+    const removed = prev.filter((item) => !currentSlugs.has(item.slug));
+    prevVisibleRef.current = visibleItems;
+
+    if (removed.length === 0) return;
+
+    setLeavingItems(removed);
+    if (leavingTimerRef.current) clearTimeout(leavingTimerRef.current);
+    leavingTimerRef.current = setTimeout(() => setLeavingItems([]), 220);
+  }, [visibleItems]);
+
+  function activateSearch() {
+    const el = ctaTextRef.current;
+    const kbds = kbdsRef.current;
+    const dur = 150;
+
+    if (kbds) {
+      kbds.style.transition = 'opacity 120ms ease';
+      kbds.style.opacity = '0';
+    }
+
+    if (el) {
+      // Phase 1 — exit CTA text (blur + slide up)
+      el.classList.add('is-exit');
+
+      setTimeout(() => {
+        // Phase 2 — swap to shimmer text, teleport below, animate in
+        el.textContent = 'Que cherches-tu ?';
+        el.setAttribute('data-text', 'Que cherches-tu ?');
+        el.classList.add('t-shimmer');
+        el.classList.remove('is-exit');
+        el.classList.add('is-enter-start');
+        void el.offsetHeight;
+        el.classList.remove('is-enter-start');
+
+        // Phase 3 — wait for full enter animation (dur ms) before crossfade
+        // This prevents the shimmer mid-animation overlap that caused flickering
+        setTimeout(() => {
+          setSearchActive(true);
+          setTimeout(() => searchInputRef.current?.focus(), dur);
+        }, dur);
+      }, dur);
+    } else {
+      setSearchActive(true);
+      setTimeout(() => searchInputRef.current?.focus(), 0);
+    }
+  }
+
+  function deactivateSearch() {
+    const el = ctaTextRef.current;
+    const kbds = kbdsRef.current;
+    const dur = 150;
+
+    setSearchQuery('');
+
+    if (el) {
+      // Phase 1 — exit shimmer text (Layer A is invisible, opacity 0)
+      el.classList.add('is-exit');
+
+      setTimeout(() => {
+        // Remove shimmer, restore original JSX (Search icon + label) via flushSync
+        el.classList.remove('t-shimmer', 'is-exit');
+        el.removeAttribute('data-text');
+        flushSync(() => setSearchActive(false));
+
+        // Phase 2 — CTA enters from below as Layer A fades in
+        el.classList.add('is-enter-start');
+        void el.offsetHeight;
+        el.classList.remove('is-enter-start');
+
+        setTimeout(() => {
+          if (kbds) {
+            kbds.style.transition = 'opacity 150ms ease';
+            kbds.style.opacity = '0.5';
+          }
+        }, dur);
+      }, dur);
+    } else {
+      setSearchActive(false);
+    }
+  }
 
   function toggleType(type: ResourceMetierType) {
     setSelectedTypes((prev) => {
@@ -106,13 +222,14 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
   function resetFilters() {
     setSelectedTypes(new Set());
+    setSearchQuery('');
   }
 
   const showTypeFilter = primaryFilter === 'Tout' || primaryFilter === 'Ressources';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Filter bar */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Filter bar + search on same row */}
       <div
         data-fb-label="Filtre barre · Grille des ressources"
         style={{
@@ -328,32 +445,231 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           </div>
         )}
 
-        {/* Count */}
-        <span className="nc-resource-count">
-          {pluralizeCount(filteredItems.length, primaryFilter)}
-        </span>
+        {/* Search — right-aligned, fixed width, same row as filters */}
+        {/* Two layers always in DOM; opacity-toggled so text-swap animation
+            completes before the button layer fades out and input fades in. */}
+        <div style={{ marginLeft: 'auto', position: 'relative', width: 240, flexShrink: 0, height: 36 }}>
+
+          {/* Layer A — idle CTA button with pulsing border animation */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              opacity: searchActive ? 0 : 1,
+              pointerEvents: searchActive ? 'none' : 'auto',
+              transition: 'opacity 150ms ease',
+              zIndex: searchActive ? 0 : 1,
+            }}
+          >
+            <BorderBeam
+              size="pulse-inner"
+              colorVariant="mono"
+              strength={0.94}
+              theme={theme}
+              style={{ width: '100%', height: 36, borderRadius: 9999 }}
+            >
+            <button
+              type="button"
+              className="nc-search-pulse"
+              data-fb-label="Bouton recherche · Grille des ressources"
+              onClick={activateSearch}
+              style={{
+                width: '100%',
+                height: 36,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 6,
+                padding: '0 12px',
+                borderRadius: 9999,
+                border: '1px solid var(--color-border-default)',
+                background: 'var(--color-surface-card)',
+                cursor: 'pointer',
+                fontSize: 13,
+                color: 'var(--color-text-muted)',
+                boxSizing: 'border-box',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span
+                ref={ctaTextRef}
+                className="t-text-swap"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, overflow: 'hidden', minWidth: 0 }}
+              >
+                <Search size={13} style={{ flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  Cherche une ressource…
+                </span>
+              </span>
+              <span ref={kbdsRef} style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0.5 }}>
+                <kbd className="nc-kbd-badge">⌘</kbd>
+                <kbd className="nc-kbd-badge">K</kbd>
+              </span>
+            </button>
+            </BorderBeam>
+          </div>
+
+          {/* Layer B — active input with shimmer placeholder */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              opacity: searchActive ? 1 : 0,
+              pointerEvents: searchActive ? 'auto' : 'none',
+              transition: 'opacity 150ms ease',
+              zIndex: searchActive ? 1 : 0,
+            }}
+          >
+            <BorderBeam size="md" colorVariant="mono" strength={0.74} theme={theme} style={{ width: '100%', height: 36 }}>
+              <div style={{ position: 'relative', width: '100%', height: 36, borderRadius: 9999 }}>
+              {/* Shimmer placeholder — always in DOM, opacity-driven for smooth entrance */}
+              <span
+                className={searchActive ? 't-shimmer' : ''}
+                data-text={searchActive ? 'Que cherches-tu ?' : ''}
+                style={{
+                  position: 'absolute',
+                  left: 14,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontSize: 13,
+                  pointerEvents: 'none',
+                  zIndex: 2,
+                  whiteSpace: 'nowrap',
+                  opacity: searchActive && !searchQuery ? 1 : 0,
+                  transition: 'opacity 180ms ease 60ms',
+                }}
+              >
+                {searchActive ? 'Que cherches-tu ?' : ''}
+              </span>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  padding: '0 32px 0 14px',
+                  borderRadius: 9999,
+                  border: '1px solid var(--color-border-default)',
+                  background: 'var(--color-surface-card)',
+                  fontSize: 13,
+                  color: 'var(--color-text-primary)',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+                onBlur={() => { if (!searchQuery) deactivateSearch(); }}
+                onKeyDown={(e) => { if (e.key === 'Escape') deactivateSearch(); }}
+              />
+            <button
+              type="button"
+              onClick={deactivateSearch}
+              aria-label="Fermer la recherche"
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                borderRadius: '50%',
+                width: 18,
+                height: 18,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--color-text-muted)',
+                padding: 0,
+                zIndex: 3,
+              }}
+            >
+              <X size={10} />
+              </button>
+              </div>
+            </BorderBeam>
+          </div>
+
+        </div>
       </div>
 
       {/* Grid */}
       {filteredItems.length > 0 ? (
-        <div data-fb-label="Grille des ressources" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredItems.map((item) =>
-            item.category === 'resource' ? (
-              <ResourceCard
-                key={item.slug}
-                resource={item}
-                currentCapability={currentCapability}
-              />
-            ) : (
-              <TemplateCard
-                key={item.slug}
-                template={item}
-                currentCapability={currentCapability}
-              />
-            )
+        <>
+          {visibleItems.length > 0 ? (
+            <div data-fb-label="Grille des ressources" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {visibleItems.map((item, idx) => (
+                <div
+                  key={item.slug}
+                  style={{
+                    height: '100%',
+                    animation: 'nc-card-stagger-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both',
+                    animationDelay: `${Math.min(idx * 35, 180)}ms`,
+                  }}
+                >
+                  {item.category === 'resource' ? (
+                    <ResourceCard resource={item} currentCapability={currentCapability} />
+                  ) : (
+                    <TemplateCard template={item} currentCapability={currentCapability} />
+                  )}
+                </div>
+              ))}
+              {/* Items fading out — appended at end so the grid reflows above */}
+              {leavingItems.map((item) => (
+                <div
+                  key={`out-${item.slug}`}
+                  style={{
+                    height: '100%',
+                    opacity: 0,
+                    transform: 'translateY(0)',
+                    filter: 'blur(0)',
+                    transition: 'opacity 180ms ease',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {item.category === 'resource' ? (
+                    <ResourceCard resource={item} currentCapability={currentCapability} />
+                  ) : (
+                    <TemplateCard template={item} currentCapability={currentCapability} />
+                  )}
+                </div>
+              ))}
+              <SuggestTemplateCard variant={primaryFilter} />
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '48px 24px',
+                gap: 10,
+                color: 'var(--color-text-muted)',
+              }}
+            >
+              <p style={{ fontSize: 14, margin: 0 }}>
+                Aucun résultat pour &ldquo;{searchQuery}&rdquo;
+              </p>
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: 'var(--color-brand)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                Effacer la recherche
+              </button>
+            </div>
           )}
-          <SuggestTemplateCard variant={primaryFilter} />
-        </div>
+        </>
       ) : (
         <div
           style={{

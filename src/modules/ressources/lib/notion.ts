@@ -185,22 +185,81 @@ export async function fetchTemplateBySlug(slug: string): Promise<Template | null
 
 // ─── Block fetch + conversion ────────────────────────────────────────
 
-async function fetchAllBlocks(blockId: string): Promise<any[]> {
+const MAX_RETRIES = 4;
+
+// Retourne les blocs enfants d'un blockId en suivant la pagination Notion.
+// Sur 429 : respecte Retry-After avec backoff exponentiel, jusqu'à MAX_RETRIES.
+// Sur tout autre erreur non-2xx : throw (jamais de liste tronquée silencieuse).
+async function fetchBlockChildren(blockId: string): Promise<any[]> {
   const all: any[] = [];
   let cursor: string | undefined;
   do {
     const url = new URL(`${NOTION_API}/blocks/${blockId}/children`);
     if (cursor) url.searchParams.set("start_cursor", cursor);
-    const res = await fetch(url.toString(), {
-      headers: notionHeaders(),
-      next: { revalidate: REVALIDATE_SECONDS },
-    });
-    if (!res.ok) break;
-    const data = await res.json();
+
+    let res: Response | undefined;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      res = await fetch(url.toString(), {
+        headers: notionHeaders(),
+        next: { revalidate: REVALIDATE_SECONDS },
+      });
+      if (res.status !== 429) break;
+      if (attempt === MAX_RETRIES) {
+        throw new Error(
+          `[ressources/notion] Notion rate-limit (429) sur /blocks/${blockId}/children après ${MAX_RETRIES + 1} tentatives`,
+        );
+      }
+      const retryAfter = res.headers.get("Retry-After");
+      const waitMs = retryAfter
+        ? Math.min(parseFloat(retryAfter) * 1000, 30_000)
+        : Math.min(1_000 * 2 ** attempt, 30_000);
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+
+    if (!res!.ok) {
+      throw new Error(
+        `[ressources/notion] Notion a retourné ${res!.status} sur /blocks/${blockId}/children`,
+      );
+    }
+
+    const data = await res!.json();
     all.push(...(data.results ?? []));
     cursor = data.has_more ? data.next_cursor : undefined;
   } while (cursor);
   return all;
+}
+
+const MAX_DEPTH = 6;
+const CONCURRENCY = 3;
+
+// Descend récursivement dans les blocs ayant has_children, jusqu'à MAX_DEPTH.
+// Limite la concurrence à CONCURRENCY appels /children simultanés pour ne pas
+// dépasser le rate-limit Notion (~3 req/s par intégration).
+async function fetchAllBlocksRecursive(blockId: string, depth: number): Promise<any[]> {
+  const blocks = await fetchBlockChildren(blockId);
+  if (depth >= MAX_DEPTH) return blocks;
+
+  const withChildren = blocks.filter((b: any) => b.has_children);
+  if (withChildren.length === 0) return blocks;
+
+  // Pool de concurrence borné.
+  const childrenMap = new Map<string, any[]>();
+  for (let i = 0; i < withChildren.length; i += CONCURRENCY) {
+    const batch = withChildren.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(
+      batch.map((b: any) => fetchAllBlocksRecursive(b.id, depth + 1)),
+    );
+    batch.forEach((b: any, j: number) => childrenMap.set(b.id, results[j]));
+  }
+
+  return blocks.map((b: any) =>
+    b.has_children ? { ...b, _children: childrenMap.get(b.id) ?? [] } : b,
+  );
+}
+
+// Conservé comme point d'entrée public (appelé par fetchResourceBySlug + sync).
+async function fetchAllBlocks(blockId: string): Promise<any[]> {
+  return fetchAllBlocksRecursive(blockId, 0);
 }
 
 function richTextToString(rt: any[] | undefined): string {
@@ -209,7 +268,7 @@ function richTextToString(rt: any[] | undefined): string {
 
 function blocksToContent(blocks: any[]): ContentBlock[] {
   const out: ContentBlock[] = [];
-  let currentList: string[] | null = null;
+  let currentList: Array<{ text: string; children?: ContentBlock[] }> | null = null;
 
   const flushList = () => {
     if (currentList && currentList.length > 0) {
@@ -220,10 +279,14 @@ function blocksToContent(blocks: any[]): ContentBlock[] {
 
   for (const block of blocks) {
     const type = block.type;
+
     if (type === "bulleted_list_item" || type === "numbered_list_item") {
       const text = richTextToString(block[type]?.rich_text);
+      const itemChildren: ContentBlock[] | undefined = block._children?.length
+        ? blocksToContent(block._children)
+        : undefined;
       if (!currentList) currentList = [];
-      if (text) currentList.push(text);
+      currentList.push({ text, children: itemChildren });
       continue;
     }
     flushList();
@@ -251,8 +314,41 @@ function blocksToContent(blocks: any[]): ContentBlock[] {
       if (url.includes("tella.tv") || url.includes("tella.video")) {
         out.push({ type: "tella_embed", url });
       }
+    } else if (type === "callout") {
+      const icon =
+        (block.callout?.icon?.type === "emoji"
+          ? (block.callout.icon.emoji as string)
+          : null) ?? null;
+      const text = richTextToString(block.callout?.rich_text);
+      const children = block._children?.length
+        ? blocksToContent(block._children)
+        : [];
+      out.push({ type: "callout", icon, text, children });
+    } else if (type === "quote") {
+      const text = richTextToString(block.quote?.rich_text);
+      const children = block._children?.length
+        ? blocksToContent(block._children)
+        : [];
+      out.push({ type: "quote", text, children });
+    } else if (type === "code") {
+      const text = richTextToString(block.code?.rich_text);
+      const language = (block.code?.language as string) ?? "plain text";
+      if (text) out.push({ type: "code", language, text });
+    } else if (
+      type === "divider" ||
+      type === "table" ||
+      type === "table_row" ||
+      type === "child_page"
+    ) {
+      // Intentionnellement ignorés : divider est cosmétique, table est un
+      // ticket séparé, child_page n'a pas de contenu inline.
+    } else {
+      // Type Notion non géré — signal visible dans les logs pour détecter
+      // tout type présent dans d'autres ressources mais pas encore mappé.
+      console.warn(
+        `[ressources/blocksToContent] type Notion non géré : "${type}" (bloc ${block.id ?? "???"})`,
+      );
     }
-    // Skip: divider, callout, quote, code, table, child_page, etc.
   }
   flushList();
   return out;

@@ -22,6 +22,7 @@ import Image from "next/image";
 import { CalendarClock, ExternalLink, X } from "lucide-react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
 import { formatNextCallLabel } from "@/shared/lib/coaching/formatNextCallLabel";
+import { useControlledModalTransition } from "@/shared/lib/hooks/useControlledModalTransition";
 
 function subscribeToMount(): () => void {
   return () => {};
@@ -51,6 +52,7 @@ export function NextCallDetailModal({
     () => true,
     () => false,
   );
+  const { shouldRender, stateClass, overlayOpen } = useControlledModalTransition(isOpen);
 
   const handleClose = useCallback(() => {
     onClose();
@@ -74,7 +76,7 @@ export function NextCallDetailModal({
     };
   }, [isOpen]);
 
-  if (!isOpen || !mounted) return null;
+  if (!shouldRender || !mounted) return null;
 
   // Libellé long pour le header de modale — on réutilise le helper de la pill
   // pour rester cohérent (aucun risque que pill et modale racontent une histoire
@@ -101,10 +103,13 @@ export function NextCallDetailModal({
         backdropFilter: "blur(4px)",
         WebkitBackdropFilter: "blur(4px)",
         padding: "16px",
+        opacity: overlayOpen ? 1 : 0,
+        transition: "opacity var(--modal-open-dur) var(--modal-ease)",
       }}
     >
       <div
         data-fb-label="Fenêtre prochain appel · Modale prochain appel"
+        className={`t-modal ${stateClass}`}
         style={{
           width: "100%",
           maxWidth: 520,
@@ -114,7 +119,6 @@ export function NextCallDetailModal({
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-          animation: "nc-modal-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both",
         }}
       >
         <MacOSWindowBar onClose={handleClose} />

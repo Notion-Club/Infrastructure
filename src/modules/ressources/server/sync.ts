@@ -49,9 +49,20 @@ export async function syncRessourcesFromNotion(): Promise<RessourcesSyncReport> 
       resourcesFailed += 1;
       continue;
     }
+
+    const notionId = slugToNotionId(full.slug);
+
+    // Snapshot de l'ancien content avant écrasement (single-version backup).
+    // Sur un insert (ligne absente), content_backup reste null.
+    const { data: existing } = await admin
+      .from("resources")
+      .select("content")
+      .eq("notion_id", notionId)
+      .maybeSingle<{ content: unknown }>();
+
     const { error } = await admin.from("resources").upsert(
       {
-        notion_id: slugToNotionId(full.slug),
+        notion_id: notionId,
         slug: full.slug,
         category: "resource",
         titre: full.titre,
@@ -60,6 +71,7 @@ export async function syncRessourcesFromNotion(): Promise<RessourcesSyncReport> 
         formation: full.formation,
         type: full.type,
         content: full.content,
+        ...(existing ? { content_backup: existing.content } : {}),
         url_notion_public_page: null,
         url_tella: null,
         date_creation: full.dateCreation,

@@ -1,33 +1,41 @@
 // Payments API — GET renvoie la liste des paiements de l'utilisateur courant
 // tels qu'ils sont enregistrés dans la base Notion `Paiements`.
 //
-// Le matching utilisateur → paiements se fait en 2 étapes parce que la DB
-// Paiements n'a pas d'email : elle pointe vers la DB `Calls` via la relation
-// `Lead`, et c'est la DB `Calls` qui porte la propriété `E-mail Guest`.
+// V2 — Matching simplifié via `Membre` (relation directe → DB Membres) au lieu
+// du double round-trip `E-mail Guest` → DB Calls → DB Paiements.
 //
-//   1. Query DB Calls          filter: `E-mail Guest = auth.email`
-//      → on récupère les IDs Notion des Calls du prospect
-//   2. Query DB Paiements      filter: `Lead.relation.contains <call-id>`
-//                              (combiné en `or` si plusieurs Calls matchent)
-//      → on récupère et normalise la liste des paiements
+//   1. Lecture profiles.notion_member_page_id (rempli au 1er clic
+//      "Réserver coaching" via ensureNotionMemberPage — pattern existant).
+//   2. Query DB Paiements filter: `Membre.relation.contains <memberPageId>`.
+//
+// Avantages :
+//   - 1 seul round-trip Notion (au lieu de 2)
+//   - Match déterministe par membre (au lieu de l'email du Call, qui peut
+//     varier si l'admin a saisi plusieurs Calls avec des emails différents
+//     pour la même personne au fil du temps)
+//   - Cohérent avec le matching coaching (PR #113)
+//
+// Fallback : si l'user n'a pas de notion_member_page_id (jamais ouvert
+// /coaching), on retourne `payments: []`. C'est l'état attendu — un user qui
+// n'est passé que par signup email n'a pas encore de page Notion liée donc
+// pas de paiements à fetch.
 //
 // Variables d'env :
-//   - NOTION_API_TOKEN                  (déjà existant — widget feedback)
-//   - NOTION_SALES_CALL_DATABASE_ID     override DB Calls (optionnel, staging)
-//   - NOTION_PAYMENTS_DATABASE_ID       override DB Paiements (optionnel, staging)
+//   - NOTION_API_TOKEN              (déjà existant — widget feedback, coaching)
+//   - NOTION_PAYMENTS_DATABASE_ID   override DB Paiements (optionnel, staging)
 //
-// Aucune écriture, lecture seule. `cache: "no-store"` pour toujours refléter
-// l'état Notion courant (l'admin met à jour à la main).
+// Lecture seule. `cache: "no-store"` pour toujours refléter l'état Notion
+// courant (l'admin met à jour les paiements à la main).
+
 import { NextResponse } from "next/server";
 
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import { ensureNotionMemberPage } from "@/modules/coaching/server/ensureNotionMemberPage";
 
 export const dynamic = "force-dynamic";
 
 const CORS = { "Content-Type": "application/json" };
 
-// IDs Notion transmis par l'admin via les tickets OPS-41 (Roadmap de Production).
-const SALES_CALL_DATABASE_ID = "1d4bad05-6a95-808e-8997-d8f73838d2df";
 const PAYMENTS_DATABASE_ID = "2a1bad05-6a95-80cc-b34d-c3bc28ad2d1d";
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -51,21 +59,6 @@ interface NotionDateProp {
   date: { start: string | null } | null;
 }
 
-interface NotionRelationProp {
-  relation: Array<{ id: string }>;
-}
-
-interface NotionEmailProp {
-  email: string | null;
-}
-
-interface CallPage {
-  id: string;
-  properties: {
-    "E-mail Guest"?: NotionEmailProp;
-  };
-}
-
 interface PaymentPage {
   id: string;
   url?: string;
@@ -73,10 +66,10 @@ interface PaymentPage {
   properties: {
     Nom?: NotionTitleProp;
     "Montant TTC"?: NotionNumberProp;
+    "Montant HT"?: NotionNumberProp;
     "Date de Paiement"?: NotionDateProp;
     Source?: NotionSelectProp;
     Statut?: NotionSelectProp;
-    Lead?: NotionRelationProp;
   };
 }
 
@@ -97,31 +90,16 @@ function mapStatut(
   return "unknown";
 }
 
-async function queryNotion(dbId: string, body: object, token: string) {
-  return fetch(`https://api.notion.com/v1/databases/${dbId}/query`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Notion-Version": "2022-06-28",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-}
-
 export async function GET() {
   const supabase = await createSupabaseServerClient();
   const { data: authData, error: authError } = await supabase.auth.getUser();
 
-  if (authError || !authData.user || !authData.user.email) {
+  if (authError || !authData.user) {
     return NextResponse.json(
       { error: "Authentication required" },
       { status: 401, headers: CORS },
     );
   }
-
-  const userEmail = authData.user.email.trim().toLowerCase();
 
   const token = process.env.NOTION_API_TOKEN;
   if (!token) {
@@ -131,90 +109,67 @@ export async function GET() {
     );
   }
 
-  const callsDbId =
-    process.env.NOTION_SALES_CALL_DATABASE_ID ?? SALES_CALL_DATABASE_ID;
+  // Résout (ou crée / matche par email) la page Notion Membre du user. Idem
+  // pattern coaching : si la page existe déjà côté Notion (ancien membre),
+  // on la matche par email + tagge l'UUID Supabase ; sinon création. Le
+  // notion_member_page_id est persisté dans profiles pour la prochaine fois.
+  //
+  // Cette étape déclenche entre 0 (cache hit) et 2 round-trips Notion au
+  // premier appel — mais c'est idempotent : appels suivants tombent en cache
+  // direct via profiles.notion_member_page_id.
+  const member = await ensureNotionMemberPage();
+  if (!member.ok || !member.notionPageId) {
+    // Pas de page Notion liée ET impossible d'en créer une → on retourne 0
+    // paiement. L'user n'a tout simplement aucune trace dans le CRM côté admin.
+    return NextResponse.json({ payments: [] }, { headers: CORS });
+  }
+
   const paymentsDbId =
     process.env.NOTION_PAYMENTS_DATABASE_ID ?? PAYMENTS_DATABASE_ID;
 
   try {
-    // ─── Étape 1 : trouver les Calls correspondant à l'utilisateur ────────
-    const callsRes = await queryNotion(
-      callsDbId,
+    const res = await fetch(
+      `https://api.notion.com/v1/databases/${paymentsDbId}/query`,
       {
-        filter: {
-          property: "E-mail Guest",
-          email: { equals: userEmail },
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Notion-Version": "2022-06-28",
+          "Content-Type": "application/json",
         },
-        page_size: 25,
-      },
-      token,
-    );
-
-    if (!callsRes.ok) {
-      const err = await callsRes.json().catch(() => ({}));
-      console.error("[payments/me] Calls query error:", JSON.stringify(err));
-      return NextResponse.json(
-        {
-          error: `Notion (Calls) a retourné ${callsRes.status} — vérifiez le token et la connexion de l'intégration.`,
-        },
-        { status: 502, headers: CORS },
-      );
-    }
-
-    const callsData = await callsRes.json();
-    const calls: CallPage[] = callsData.results ?? [];
-    const callIds = calls.map((c) => c.id);
-
-    if (callIds.length === 0) {
-      // Pas de Call rattaché à cet email → pas de paiements à afficher.
-      return NextResponse.json({ payments: [] }, { headers: CORS });
-    }
-
-    // ─── Étape 2 : récupérer les Paiements liés à ces Calls ───────────────
-    // Filtre Notion : `or` de `Lead.relation.contains <callId>` pour matcher
-    // n'importe quel Call de l'utilisateur. Un seul Lead suffit à inclure
-    // la ligne (les paiements ont 1 Lead, mais on reste générique).
-    const leadFilter =
-      callIds.length === 1
-        ? {
-            property: "Lead",
-            relation: { contains: callIds[0] },
-          }
-        : {
-            or: callIds.map((id) => ({
-              property: "Lead",
-              relation: { contains: id },
-            })),
-          };
-
-    const paymentsRes = await queryNotion(
-      paymentsDbId,
-      {
-        filter: leadFilter,
-        sorts: [
-          {
-            property: "Date de Paiement",
-            direction: "descending",
+        body: JSON.stringify({
+          filter: {
+            property: "Membre",
+            relation: { contains: member.notionPageId },
           },
-        ],
-        page_size: 100,
+          sorts: [
+            // Date de Paiement DESC : les plus récents (ou les à-venir
+            // datés) en premier. Les paiements sans date sortent en fin
+            // de liste — c'est le comportement Notion par défaut.
+            {
+              property: "Date de Paiement",
+              direction: "descending",
+            },
+          ],
+          page_size: 100,
+        }),
+        cache: "no-store",
       },
-      token,
     );
 
-    if (!paymentsRes.ok) {
-      const err = await paymentsRes.json().catch(() => ({}));
-      console.error("[payments/me] Payments query error:", JSON.stringify(err));
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error("[payments/me] query error:", JSON.stringify(err));
       return NextResponse.json(
         {
-          error: `Notion (Paiements) a retourné ${paymentsRes.status} — vérifiez la connexion de l'intégration à la base Paiements.`,
+          error: `Notion a retourné ${res.status} — vérifiez la connexion de l'intégration à la base Paiements.`,
         },
         { status: 502, headers: CORS },
       );
     }
 
-    const paymentsData = await paymentsRes.json();
-    const pages: PaymentPage[] = paymentsData.results ?? [];
+    const data = await res.json();
+    const pages: PaymentPage[] = data.results ?? [];
 
     const payments = pages.map((p) => {
       const statutRaw = p.properties.Statut?.select?.name ?? null;
@@ -223,6 +178,7 @@ export async function GET() {
         notionUrl: p.url ?? null,
         label: readTitle(p.properties.Nom),
         amount: p.properties["Montant TTC"]?.number ?? null,
+        amountHt: p.properties["Montant HT"]?.number ?? null,
         paymentDate: p.properties["Date de Paiement"]?.date?.start ?? null,
         source: p.properties.Source?.select?.name ?? null,
         status: statutRaw,

@@ -134,7 +134,11 @@ export type AccountEmailChangeInput = z.infer<typeof accountEmailChangeSchema>;
 // ============================================================================
 // Le file lui-même n'est pas validé via zod (zod ne checkpas File/FormData) ;
 // on exporte les contraintes pour que client + serveur les utilisent.
-export const AVATAR_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+// 25 MB — Théo a demandé une marge confortable (OPS-36) pour que les
+// utilisateurs puissent uploader des photos smartphone non-compressées
+// (HEIC export iPhone fait facilement 4-6 MB, photos HD 8-15 MB). Aligné
+// avec la limite file_size_limit du bucket avatars (mig. 031).
+export const AVATAR_MAX_BYTES = 25 * 1024 * 1024;
 export const AVATAR_ALLOWED_MIME = [
   "image/png",
   "image/jpeg",

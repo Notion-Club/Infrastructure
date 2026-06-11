@@ -4,23 +4,66 @@ import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
 import { ProgressBar } from "./ProgressBar";
 
-const MOCK_FORMATION = {
-  moduleTitle: "Module 6 — Bases de données avancées",
-  videoIndex: 3,
-  videoTotal: 5,
-  progressPercent: 58,
-  modulesCompleted: 5,
-  modulesTotal: 12,
-  resumeUrl: "/formation/module-6/video-3",
-  formationUrl: "/formation",
+// Données live injectées par le dashboard server component
+// (getDashboardFormationData). Le widget reste 100% présentationnel — toute la
+// logique métier (sélection du programme à afficher, % global, "Reprendre où
+// j'en étais") est calculée côté server.
+//
+// Quand data est null → l'user n'a aucune formation accessible. On retourne
+// null pour laisser le slot vide (le dashboard place déjà un placeholder
+// "Communauté · Coaching · à venir" dans cette zone).
+export interface FormationWidgetData {
+  programSlug: string;
+  programName: string;
+  totalCourses: number;
+  completedCourses: number;
+  percent: number;
+  resumeHref: string | null;
+  nextCourseLabel: string | null;
+}
+
+interface FormationWidgetProps {
+  // Si non fourni → fallback sur les anciens mocks pour préserver l'aperçu
+  // visuel pendant que Théo travaille hors connexion. En prod le dashboard
+  // passe toujours data (potentiellement null).
+  data?: FormationWidgetData | null;
+}
+
+// Fallback mock — conservé pour les aperçus Storybook / dev mode sans Supabase.
+// En production le dashboard passe systématiquement `data`.
+const FALLBACK: FormationWidgetData = {
+  programSlug: "devenir-consultant-notion",
+  programName: "Module 6 — Bases de données avancées",
+  totalCourses: 12,
+  completedCourses: 5,
+  percent: 58,
+  resumeHref: "/formation",
+  nextCourseLabel: "Vidéo 3 / 5",
 };
 
-export function FormationWidget() {
+export function FormationWidget({ data }: FormationWidgetProps = {}) {
   const router = useRouter();
+
+  // data === null = pas de formation accessible → widget masqué
+  if (data === null) return null;
+
+  const view = data ?? FALLBACK;
+  const formationUrl = `/formation/${view.programSlug}`;
+  const resumeUrl = view.resumeHref ?? formationUrl;
+  const remaining = Math.max(0, view.totalCourses - view.completedCourses);
+  // Sous-titre dynamique : "prochain cours" si l'API le fournit (cas
+  // "Reprendre où j'en étais"), sinon état lisible selon la progression.
+  const subtitle = view.nextCourseLabel
+    ? `Prochain cours : ${view.nextCourseLabel}`
+    : view.completedCourses === 0
+      ? "Démarre quand tu veux"
+      : view.completedCourses >= view.totalCourses
+        ? "Formation terminée 🎉"
+        : `${view.completedCourses} / ${view.totalCourses} cours complétés`;
 
   return (
     <article
-      onClick={() => router.push(MOCK_FORMATION.formationUrl)}
+      onClick={() => router.push(formationUrl)}
       data-fb-label="Encadré Formation · Tableau de bord"
       style={{
         background: "var(--color-surface-card)",
@@ -80,19 +123,17 @@ export function FormationWidget() {
             margin: 0,
           }}
         >
-          {MOCK_FORMATION.moduleTitle}
+          {view.programName}
         </h2>
         <p style={{ fontSize: 14, color: "var(--color-text-secondary)", margin: 0 }}>
-          Tu t&apos;es arrêté à la vidéo {MOCK_FORMATION.videoIndex} /{" "}
-          {MOCK_FORMATION.videoTotal}
+          {subtitle}
         </p>
       </div>
 
       <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 6 }}>
-        <ProgressBar percent={MOCK_FORMATION.progressPercent} />
+        <ProgressBar percent={view.percent} />
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>
-          {MOCK_FORMATION.modulesCompleted} modules complétés ·{" "}
-          {MOCK_FORMATION.modulesTotal - MOCK_FORMATION.modulesCompleted} restants
+          {view.completedCourses} cours complétés · {remaining} restants
         </p>
       </div>
 
@@ -101,7 +142,7 @@ export function FormationWidget() {
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            router.push(MOCK_FORMATION.resumeUrl);
+            router.push(resumeUrl);
           }}
           data-fb-label="Bouton Reprendre · Widget Formation"
           style={{

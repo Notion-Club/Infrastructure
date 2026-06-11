@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useLayoutEffect, useCallback, useTransition } from "react";
+import { useRef, useEffect, useLayoutEffect, useCallback, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -22,6 +22,7 @@ import {
 } from "@/shared/components/identity/ProfileIdentityProvider";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import { DevToolboxButton } from "@/shared/components/dev/DevToolbox";
+import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
 
 type NavItem = { label: string; icon: LucideIcon; href: string };
 
@@ -56,7 +57,13 @@ const SEPARATOR = (
 export function Topbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [avatarOpen, setAvatarOpen] = useState(false);
+  const {
+    isOpen: avatarOpen,
+    isMounted: avatarMounted,
+    stateClass: avatarStateClass,
+    close: closeAvatar,
+    toggle: toggleAvatar,
+  } = useDropdownTransition();
   const [signingOut, startSignOut] = useTransition();
   const avatarRef = useRef<HTMLDivElement>(null);
 
@@ -76,12 +83,12 @@ export function Topbar() {
     if (!avatarOpen) return;
     function onClickOutside(e: MouseEvent) {
       if (avatarRef.current && !avatarRef.current.contains(e.target as Node)) {
-        setAvatarOpen(false);
+        closeAvatar();
       }
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [avatarOpen]);
+  }, [avatarOpen, closeAvatar]);
 
   const { theme } = useTheme();
   const { identity } = useProfileIdentityContext();
@@ -286,7 +293,7 @@ export function Topbar() {
           <button
             type="button"
             aria-label="Menu compte"
-            onClick={() => setAvatarOpen((o) => !o)}
+            onClick={() => toggleAvatar()}
             data-fb-label="Avatar compte · Barre de navigation"
             style={{
               width: 36,
@@ -321,11 +328,12 @@ export function Topbar() {
             )}
           </button>
 
-          {avatarOpen && (
+          {avatarMounted && (
             <div
               role="menu"
               data-fb-label="Menu compte · Barre de navigation"
-              className="nc-dropdown-panel"
+              className={`nc-dropdown-panel t-dropdown ${avatarStateClass}`}
+              data-origin="top-right"
               style={{
                 position: "absolute",
                 top: "calc(100% + 10px)",
@@ -355,7 +363,7 @@ export function Topbar() {
               <Link
                 href="/settings"
                 role="menuitem"
-                onClick={() => setAvatarOpen(false)}
+                onClick={() => closeAvatar()}
                 data-fb-label="Lien « Réglages » · Menu compte"
                 style={{
                   display: "block",
