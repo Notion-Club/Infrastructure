@@ -1520,3 +1520,26 @@ html.dark .nc-lt-scrim {
   border-color: rgba(255,255,255,0.14);
   color: rgba(255,255,255,0.82);
 }
+
+/* Croix d'effacement de la recherche — reprend l'encadré des touches ⌘/Ctrl K
+   (cf. .nc-kbd-badge, posée conjointement). Ajoute juste curseur + survol. */
+.nc-search-clear {
+  cursor: pointer;
+}
+.nc-search-clear:hover {
+  background: rgba(0, 0, 0, 0.16);
+}
+.dark .nc-search-clear:hover {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* Groupe tabs + filtre : aligné à droite sur desktop (poussé par la recherche
+   fixe), aligné à gauche sur mobile (la barre passe à la ligne au-dessus). */
+.nc-tags-group {
+  margin-left: 0;
+}
+@media (min-width: 768px) {
+  .nc-tags-group {
+    margin-left: auto;
+  }
+}

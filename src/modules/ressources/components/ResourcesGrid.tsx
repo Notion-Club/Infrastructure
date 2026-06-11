@@ -253,10 +253,11 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           flexWrap: 'wrap',
         }}
       >
-        {/* Tags group (droite) — bouton Filtres à gauche, pills à droite.
-            marginLeft:auto le pousse à droite sans coupler la largeur de la
-            recherche (qui reste fixe). */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
+        {/* Tags group — bouton Filtres à gauche, pills à droite.
+            Desktop : poussé à droite (.nc-tags-group → margin-left:auto), sans
+            coupler la largeur de la recherche (qui reste fixe).
+            Mobile : aligné à gauche (margin-left:0, la barre est au-dessus). */}
+        <div className="nc-tags-group" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         {/* Primary filter pills */}
         <div style={{ order: 1, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
           {PRIMARY_FILTERS.map((filter) => {
@@ -628,36 +629,27 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
             <kbd className="nc-kbd-badge">K</kbd>
           </span>
 
-          {/* Bouton fermer — seul habillage interactif, visible quand actif */}
+          {/* Bouton fermer — seul habillage interactif, visible quand actif.
+              Reprend l'encadré des touches ⌘/Ctrl K (.nc-kbd-badge). */}
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={clearAndCloseSearch}
             aria-label="Fermer la recherche"
             tabIndex={searchActive ? 0 : -1}
+            className="nc-kbd-badge nc-search-clear"
             style={{
               position: 'absolute',
               right: 10,
               top: '50%',
               transform: 'translateY(-50%)',
-              background: 'none',
-              border: 'none',
-              borderRadius: '50%',
-              width: 18,
-              height: 18,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--color-text-muted)',
-              padding: 0,
               opacity: searchActive ? 1 : 0,
               pointerEvents: searchActive ? 'auto' : 'none',
-              transition: 'opacity 150ms ease',
+              transition: 'opacity 150ms ease, background 120ms ease',
               zIndex: 4,
             }}
           >
-            <X size={10} />
+            <X size={12} />
           </button>
         </div>
       </div>
