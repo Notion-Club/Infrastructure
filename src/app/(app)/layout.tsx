@@ -11,6 +11,7 @@ import { Topbar } from "@/shared/components/dashboard/Topbar";
 import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { DevToolboxProvider } from "@/shared/components/dev/DevToolbox";
+import { AdminPushRegistrar } from "@/shared/components/dev/admin-push/AdminPushRegistrar";
 
 // Layout commun à toutes les pages connectées (dashboard, settings, communaute,
 // coaching, ressources). Server Component : on pré-fetch l'identity de l'user
@@ -76,6 +77,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <ProfileIdentityProvider initialIdentity={identity}>
       <DevToolboxProvider>
+        <AdminPushRegistrar />
         <Topbar />
         <div className="md:hidden">
           <MobileTopActions />
