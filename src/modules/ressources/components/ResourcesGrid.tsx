@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { flushSync } from 'react-dom';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
@@ -9,8 +8,13 @@ import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceCard } from './ResourceCard';
 import { TemplateCard } from './TemplateCard';
 import { SuggestTemplateCard } from './SuggestTemplateCard';
+import { NoResultsState } from './NoResultsState';
 import { BorderBeam } from 'border-beam';
 import { useTheme } from '@/shared/lib/hooks/useTheme';
+import { useGridChoreography } from '@/shared/hooks/useGridChoreography';
+
+/** Id de la carte « Suggérer » — toujours montée, masquée seulement si la grille est vide. */
+const SUGGEST_ID = '__suggest__';
 
 type PrimaryFilter = 'Tout' | 'Ressources' | 'Templates';
 
@@ -27,6 +31,22 @@ const METIER_TYPES: ResourceMetierType[] = [
 
 interface ResourcesGridProps {
   items: ResourceItem[];
+}
+
+/** Filtre catégorie + type métier (hors recherche texte). Logique pure, partagée
+ *  par le rendu déclaratif (compteurs / états vides) et le calcul de l'ensemble
+ *  visible passé à la chorégraphie. */
+function matchesFilters(
+  item: ResourceItem,
+  primary: PrimaryFilter,
+  types: Set<ResourceMetierType>,
+): boolean {
+  if (primary === 'Ressources' && item.category !== 'resource') return false;
+  if (primary === 'Templates' && item.category !== 'template') return false;
+  if (types.size > 0 && item.category === 'resource') {
+    if (!item.type.some((t) => types.has(t))) return false;
+  }
+  return true;
 }
 
 function extractSearchText(item: ResourceItem): string {
@@ -60,35 +80,63 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchActive, setSearchActive] = useState(false);
-  const [leavingItems, setLeavingItems] = useState<ResourceItem[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
+  // Raccourci clavier affiché : ⌘ sur Mac, sinon « Ctrl ». Défaut Mac pour que
+  // le 1er rendu client corresponde au SSR (pas de hydration mismatch) ; corrigé
+  // au montage selon la plateforme réelle.
+  const [isMac, setIsMac] = useState(true);
   // Aligne le dropdown à droite quand l'ancrage gauche le ferait déborder
   // hors du viewport (cas mobile : bouton trop à droite de l'écran).
   const [alignRight, setAlignRight] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const filterBtnRef = useRef<HTMLButtonElement>(null);
-  const prevVisibleRef = useRef<ResourceItem[]>([]);
-  const leavingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ctaTextRef = useRef<HTMLSpanElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const kbdsRef = useRef<HTMLSpanElement>(null);
+
+  const { animateTo, reveal } = useGridChoreography(gridRef);
 
   const currentCapability: UserCapability = mockCurrentUser.capability;
   const { theme } = useTheme();
+
+  /** Ensemble des slugs visibles pour un état (recherche + filtres) donné.
+   *  Inclut la carte « Suggérer » tant qu'au moins une carte réelle est visible. */
+  const buildVisibleIds = useCallback(
+    (query: string, primary: PrimaryFilter, types: Set<ResourceMetierType>): Set<string> => {
+      const needle = query.trim().toLowerCase();
+      const ids = new Set<string>();
+      for (const item of items) {
+        if (!matchesFilters(item, primary, types)) continue;
+        if (needle && !extractSearchText(item).includes(needle)) continue;
+        ids.add(item.slug);
+      }
+      if (ids.size > 0) ids.add(SUGGEST_ID);
+      return ids;
+    },
+    [items],
+  );
+
+  useEffect(() => {
+    // Détection client-only après montage (volontaire) : éviter de lire navigator
+    // au rendu casserait l'hydratation. C'est l'exception légitime à la règle.
+    const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
+    const platform = nav.userAgentData?.platform || navigator.platform || navigator.userAgent || '';
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsMac(/mac/i.test(platform));
+  }, []);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        if (!searchActive) activateSearch();
-        else searchInputRef.current?.focus();
+        // Focus direct : déclenché par un vrai événement clavier (activation
+        // utilisateur valide). `onFocus` de l'input bascule `searchActive`.
+        searchInputRef.current?.focus();
       }
     }
     document.addEventListener('keydown', onKeyDown, true);
     return () => document.removeEventListener('keydown', onKeyDown, true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchActive]);
+  }, []);
 
   useEffect(() => {
     if (!filterOpen) return;
@@ -106,15 +154,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, [filterOpen]);
 
-  const filteredItems = items.filter((item) => {
-    if (primaryFilter === 'Ressources' && item.category !== 'resource') return false;
-    if (primaryFilter === 'Templates' && item.category !== 'template') return false;
-    if (selectedTypes.size > 0 && item.category === 'resource') {
-      const hasMatchingType = item.type.some((t) => selectedTypes.has(t));
-      if (!hasMatchingType) return false;
-    }
-    return true;
-  });
+  const filteredItems = items.filter((item) => matchesFilters(item, primaryFilter, selectedTypes));
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const visibleItems = normalizedQuery
@@ -123,124 +163,103 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
   const hasActiveFilters = selectedTypes.size > 0;
 
-  // Track items leaving the grid to animate them out
-  useEffect(() => {
-    const prev = prevVisibleRef.current;
-    const currentSlugs = new Set(visibleItems.map((i) => i.slug));
-    const removed = prev.filter((item) => !currentSlugs.has(item.slug));
-    prevVisibleRef.current = visibleItems;
+  // Apparition initiale : applique la visibilité de départ (filtres d'URL) avant
+  // le premier paint pour éviter tout flash, puis joue la cascade `reveal()`.
+  // La classe `.is-hidden` est ensuite gérée exclusivement par le hook — jamais
+  // via le rendu React — pour ne pas écraser ses mutations DOM impératives.
+  // Le garde `didReveal` borne l'effet au montage tout en gardant des deps
+  // exhaustives (l'état initial reflète déjà les paramètres d'URL).
+  const didReveal = useRef(false);
+  useLayoutEffect(() => {
+    if (didReveal.current) return;
+    const container = gridRef.current;
+    if (!container) return;
+    didReveal.current = true;
+    const ids = buildVisibleIds(searchQuery, primaryFilter, selectedTypes);
+    container.querySelectorAll<HTMLElement>('[data-card-id]').forEach((el) => {
+      el.classList.toggle('is-hidden', !ids.has(el.dataset.cardId ?? ''));
+    });
+    reveal();
+  }, [buildVisibleIds, searchQuery, primaryFilter, selectedTypes, reveal]);
 
-    if (removed.length === 0) return;
-
-    setLeavingItems(removed);
-    if (leavingTimerRef.current) clearTimeout(leavingTimerRef.current);
-    leavingTimerRef.current = setTimeout(() => setLeavingItems([]), 220);
-  }, [visibleItems]);
-
-  function activateSearch() {
-    const el = ctaTextRef.current;
-    const kbds = kbdsRef.current;
-    const dur = 150;
-
-    if (kbds) {
-      kbds.style.transition = 'opacity 120ms ease';
-      kbds.style.opacity = '0';
-    }
-
-    if (el) {
-      // Phase 1 — exit CTA text (blur + slide up)
-      el.classList.add('is-exit');
-
-      setTimeout(() => {
-        // Phase 2 — swap to shimmer text, teleport below, animate in
-        el.textContent = 'Que cherches-tu ?';
-        el.setAttribute('data-text', 'Que cherches-tu ?');
-        el.classList.add('t-shimmer');
-        el.classList.remove('is-exit');
-        el.classList.add('is-enter-start');
-        void el.offsetHeight;
-        el.classList.remove('is-enter-start');
-
-        // Phase 3 — wait for full enter animation (dur ms) before crossfade
-        // This prevents the shimmer mid-animation overlap that caused flickering
-        setTimeout(() => {
-          setSearchActive(true);
-          setTimeout(() => searchInputRef.current?.focus(), dur);
-        }, dur);
-      }, dur);
-    } else {
-      setSearchActive(true);
-      setTimeout(() => searchInputRef.current?.focus(), 0);
-    }
+  // Recherche texte → reflow FLIP de la grille.
+  function onSearch(value: string) {
+    setSearchQuery(value);
+    animateTo(buildVisibleIds(value, primaryFilter, selectedTypes), { mode: 'reflow' });
   }
 
-  function deactivateSearch() {
-    const el = ctaTextRef.current;
-    const kbds = kbdsRef.current;
-    const dur = 150;
-
-    setSearchQuery('');
-
-    if (el) {
-      // Phase 1 — exit shimmer text (Layer A is invisible, opacity 0)
-      el.classList.add('is-exit');
-
-      setTimeout(() => {
-        // Remove shimmer, restore original JSX (Search icon + label) via flushSync
-        el.classList.remove('t-shimmer', 'is-exit');
-        el.removeAttribute('data-text');
-        flushSync(() => setSearchActive(false));
-
-        // Phase 2 — CTA enters from below as Layer A fades in
-        el.classList.add('is-enter-start');
-        void el.offsetHeight;
-        el.classList.remove('is-enter-start');
-
-        setTimeout(() => {
-          if (kbds) {
-            kbds.style.transition = 'opacity 150ms ease';
-            kbds.style.opacity = '0.5';
-          }
-        }, dur);
-      }, dur);
-    } else {
-      setSearchActive(false);
-    }
+  // Fermeture : vide le champ et retire le focus → `onBlur` repasse en inactif.
+  function clearAndCloseSearch() {
+    onSearch('');
+    setSearchActive(false);
+    searchInputRef.current?.blur();
   }
 
+  // Cocher/décocher un type → même mouvement horizontal que les sections (un
+  // filtre, donc « panneau »). Sens : cocher (on affine) entre par la droite,
+  // décocher (on élargit) entre par la gauche.
   function toggleType(type: ResourceMetierType) {
-    setSelectedTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) {
-        next.delete(type);
-      } else {
-        next.add(type);
-      }
-      return next;
+    const next = new Set(selectedTypes);
+    const adding = !next.has(type);
+    if (adding) {
+      next.add(type);
+    } else {
+      next.delete(type);
+    }
+    setSelectedTypes(next);
+    animateTo(buildVisibleIds(searchQuery, primaryFilter, next), {
+      mode: 'tab',
+      direction: adding ? 1 : -1,
     });
   }
 
   function resetFilters() {
-    setSelectedTypes(new Set());
+    const next = new Set<ResourceMetierType>();
+    setSelectedTypes(next);
     setSearchQuery('');
+    // Réinitialiser = on élargit → panneau horizontal depuis la gauche.
+    animateTo(buildVisibleIds('', primaryFilter, next), { mode: 'tab', direction: -1 });
+  }
+
+  // Clic sur un onglet primaire (Tout / Ressources / Templates) → transition
+  // directionnelle « panneau ». Le sens dépend de la position de l'onglet cible
+  // dans la barre par rapport à l'onglet courant.
+  function onPrimaryFilter(filter: PrimaryFilter) {
+    const dir = (Math.sign(PRIMARY_FILTERS.indexOf(filter) - PRIMARY_FILTERS.indexOf(primaryFilter)) ||
+      1) as 1 | -1;
+    const nextTypes = filter === 'Templates' ? new Set<ResourceMetierType>() : selectedTypes;
+    setPrimaryFilter(filter);
+    if (filter === 'Templates') {
+      setSelectedTypes(new Set());
+      setFilterOpen(false);
+    }
+    animateTo(buildVisibleIds(searchQuery, filter, nextTypes), { mode: 'tab', direction: dir });
   }
 
   const showTypeFilter = primaryFilter === 'Tout' || primaryFilter === 'Ressources';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Filter bar + search on same row */}
+      {/* Filter bar + search on same row.
+          La recherche (order:-1) passe à gauche et grandit ; les tags sont
+          regroupés à droite avec un net espacement (gap conteneur). Dans le
+          groupe, le bouton Filtres est placé à gauche des pills. */}
       <div
         data-fb-label="Filtre barre · Grille des ressources"
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
+          gap: 24,
           flexWrap: 'wrap',
         }}
       >
+        {/* Tags group — bouton Filtres à gauche, pills à droite.
+            Desktop : poussé à droite (.nc-tags-group → margin-left:auto), sans
+            coupler la largeur de la recherche (qui reste fixe).
+            Mobile : aligné à gauche (margin-left:0, la barre est au-dessus). */}
+        <div className="nc-tags-group" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         {/* Primary filter pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+        <div style={{ order: 1, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
           {PRIMARY_FILTERS.map((filter) => {
             const isActive = primaryFilter === filter;
             return (
@@ -248,13 +267,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 key={filter}
                 type="button"
                 data-fb-label={`Filtre « ${filter} » · Grille des ressources`}
-                onClick={() => {
-                  setPrimaryFilter(filter);
-                  if (filter === 'Templates') {
-                    setSelectedTypes(new Set());
-                    setFilterOpen(false);
-                  }
-                }}
+                onClick={() => onPrimaryFilter(filter)}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -444,263 +457,264 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
             )}
           </div>
         )}
+        </div>
+        {/* /Tags group */}
 
-        {/* Search — right-aligned, fixed width, same row as filters */}
+        {/* Search — LEFT (order:-1), largeur FIXE et verrouillée : barre longue
+            (élément central) qui NE se redimensionne PAS quand le bouton Filtres
+            disparaît (flexShrink:0, aucune relation flex avec les filtres). */}
         {/* Two layers always in DOM; opacity-toggled so text-swap animation
             completes before the button layer fades out and input fades in. */}
-        <div style={{ marginLeft: 'auto', position: 'relative', width: 240, flexShrink: 0, height: 36 }}>
+        <div
+          className="nc-search-shimmer"
+          style={{ order: -1, width: 600, maxWidth: '100%', flexShrink: 0, position: 'relative', height: 44 }}
+        >
+          {/* BASE — input réel, TOUJOURS monté/visible/interactif. Le tap atterrit
+              directement dessus → focus natif → clavier mobile, sans focus différé.
+              searchActive n'est plus qu'une conséquence cosmétique du focus. */}
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearch(e.target.value)}
+            onFocus={() => setSearchActive(true)}
+            onBlur={() => { if (!searchQuery) setSearchActive(false); }}
+            onKeyDown={(e) => { if (e.key === 'Escape') searchInputRef.current?.blur(); }}
+            aria-label="Cherche une ressource"
+            data-fb-label="Champ recherche · Grille des ressources"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: 44,
+              padding: '0 40px 0 44px',
+              borderRadius: 9999,
+              border: '1px solid',
+              borderColor: searchActive ? 'transparent' : 'var(--color-border-default)',
+              background: 'var(--color-surface-card)',
+              fontSize: 14,
+              color: 'var(--color-text-primary)',
+              outline: 'none',
+              boxSizing: 'border-box',
+              transition: 'border-color 200ms ease',
+              zIndex: 1,
+            }}
+          />
 
-          {/* Layer A — idle CTA button with pulsing border animation */}
+          {/* ── Habillage décoratif (pointer-events:none) : n'intercepte JAMAIS le
+              geste, le tap traverse jusqu'à l'input. ───────────────────────────── */}
+
+          {/* Anneau breathe mono — état inactif */}
           <div
+            aria-hidden
             style={{
               position: 'absolute',
               inset: 0,
               opacity: searchActive ? 0 : 1,
-              pointerEvents: searchActive ? 'none' : 'auto',
-              transition: 'opacity 150ms ease',
-              zIndex: searchActive ? 0 : 1,
+              pointerEvents: 'none',
+              transition: 'opacity 200ms ease',
+              zIndex: 2,
             }}
           >
             <BorderBeam
               size="pulse-inner"
               colorVariant="mono"
-              strength={0.94}
+              strength={0.74}
               theme={theme}
-              style={{ width: '100%', height: 36, borderRadius: 9999 }}
+              style={{ width: '100%', height: 44, borderRadius: 9999 }}
             >
-            <button
-              type="button"
-              className="nc-search-pulse"
-              data-fb-label="Bouton recherche · Grille des ressources"
-              onClick={activateSearch}
-              style={{
-                width: '100%',
-                height: 36,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 6,
-                padding: '0 12px',
-                borderRadius: 9999,
-                border: '1px solid var(--color-border-default)',
-                background: 'var(--color-surface-card)',
-                cursor: 'pointer',
-                fontSize: 13,
-                color: 'var(--color-text-muted)',
-                boxSizing: 'border-box',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span
-                ref={ctaTextRef}
-                className="t-text-swap"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, overflow: 'hidden', minWidth: 0 }}
-              >
-                <Search size={13} style={{ flexShrink: 0 }} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  Cherche une ressource…
-                </span>
-              </span>
-              <span ref={kbdsRef} style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0.5 }}>
-                <kbd className="nc-kbd-badge">⌘</kbd>
-                <kbd className="nc-kbd-badge">K</kbd>
-              </span>
-            </button>
+              <div style={{ width: '100%', height: 44, borderRadius: 9999 }} />
             </BorderBeam>
           </div>
 
-          {/* Layer B — active input with shimmer placeholder */}
+          {/* Anneau rouge signature — état actif */}
           <div
+            aria-hidden
+            className="nc-search-beam"
             style={{
               position: 'absolute',
               inset: 0,
+              borderRadius: 9999,
               opacity: searchActive ? 1 : 0,
-              pointerEvents: searchActive ? 'auto' : 'none',
-              transition: 'opacity 150ms ease',
-              zIndex: searchActive ? 1 : 0,
+              pointerEvents: 'none',
+              transition: 'opacity 200ms ease',
+              zIndex: 2,
+            }}
+          />
+
+          {/* Icône loupe persistante (alignée sur le texte de l'input) */}
+          <Search
+            size={15}
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: 18,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--color-text-muted)',
+              pointerEvents: 'none',
+              zIndex: 3,
+            }}
+          />
+
+          {/* Text swap décoratif (non interactif) : le libellé inactif sort en
+              glissant vers le haut + flou pendant que le placeholder actif entre
+              depuis le bas. Piloté en CSS par searchActive → ne bloque jamais le
+              focus de l'input. */}
+          <span
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: 44,
+              right: 14,
+              top: '50%',
+              transform: searchActive ? 'translateY(calc(-50% - 6px))' : 'translateY(-50%)',
+              filter: searchActive ? 'blur(2px)' : 'blur(0px)',
+              opacity: searchActive ? 0 : 1,
+              transition:
+                'opacity 220ms var(--nc-ease), transform 220ms var(--nc-ease), filter 220ms var(--nc-ease)',
+              fontSize: 14,
+              color: 'var(--color-text-muted)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              pointerEvents: 'none',
+              zIndex: 3,
             }}
           >
-            <BorderBeam size="md" colorVariant="mono" strength={0.74} theme={theme} style={{ width: '100%', height: 36 }}>
-              <div style={{ position: 'relative', width: '100%', height: 36, borderRadius: 9999 }}>
-              {/* Shimmer placeholder — always in DOM, opacity-driven for smooth entrance */}
-              <span
-                className={searchActive ? 't-shimmer' : ''}
-                data-text={searchActive ? 'Que cherches-tu ?' : ''}
-                style={{
-                  position: 'absolute',
-                  left: 14,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  fontSize: 13,
-                  pointerEvents: 'none',
-                  zIndex: 2,
-                  whiteSpace: 'nowrap',
-                  opacity: searchActive && !searchQuery ? 1 : 0,
-                  transition: 'opacity 180ms ease 60ms',
-                }}
-              >
-                {searchActive ? 'Que cherches-tu ?' : ''}
-              </span>
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  padding: '0 32px 0 14px',
-                  borderRadius: 9999,
-                  border: '1px solid var(--color-border-default)',
-                  background: 'var(--color-surface-card)',
-                  fontSize: 13,
-                  color: 'var(--color-text-primary)',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-                onBlur={() => { if (!searchQuery) deactivateSearch(); }}
-                onKeyDown={(e) => { if (e.key === 'Escape') deactivateSearch(); }}
-              />
-            <button
-              type="button"
-              onClick={deactivateSearch}
-              aria-label="Fermer la recherche"
-              style={{
-                position: 'absolute',
-                right: 8,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                borderRadius: '50%',
-                width: 18,
-                height: 18,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: 'var(--color-text-muted)',
-                padding: 0,
-                zIndex: 3,
-              }}
-            >
-              <X size={10} />
-              </button>
-              </div>
-            </BorderBeam>
-          </div>
+            Cherche une ressource…
+          </span>
 
+          {/* Placeholder actif « Que cherches-tu ? » (shimmer) — entre depuis le bas */}
+          <span
+            aria-hidden
+            className={searchActive ? 't-shimmer' : undefined}
+            data-text="Que cherches-tu ?"
+            style={{
+              position: 'absolute',
+              left: 44,
+              top: '50%',
+              transform: searchActive ? 'translateY(-50%)' : 'translateY(calc(-50% + 6px))',
+              filter: searchActive ? 'blur(0px)' : 'blur(2px)',
+              opacity: searchActive && !searchQuery ? 1 : 0,
+              transition:
+                'opacity 220ms var(--nc-ease), transform 220ms var(--nc-ease), filter 220ms var(--nc-ease)',
+              fontSize: 14,
+              pointerEvents: 'none',
+              zIndex: 3,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Que cherches-tu ?
+          </span>
+
+          {/* Raccourci clavier (masqué sur mobile) — fondu quand actif */}
+          <span
+            aria-hidden
+            className="nc-kbd-hint"
+            style={{
+              position: 'absolute',
+              right: 14,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              alignItems: 'center',
+              gap: 3,
+              opacity: searchActive ? 0 : 0.5,
+              transition: 'opacity 180ms ease',
+              pointerEvents: 'none',
+              zIndex: 3,
+            }}
+          >
+            <kbd className="nc-kbd-badge">{isMac ? '⌘' : 'Ctrl'}</kbd>
+            <kbd className="nc-kbd-badge">K</kbd>
+          </span>
+
+          {/* Bouton fermer — seul habillage interactif, visible quand actif.
+              Reprend l'encadré des touches ⌘/Ctrl K (.nc-kbd-badge). */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={clearAndCloseSearch}
+            aria-label="Fermer la recherche"
+            tabIndex={searchActive ? 0 : -1}
+            className="nc-kbd-badge nc-search-clear"
+            style={{
+              position: 'absolute',
+              right: 10,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              opacity: searchActive ? 1 : 0,
+              pointerEvents: searchActive ? 'auto' : 'none',
+              transition: 'opacity 150ms ease, background 120ms ease',
+              zIndex: 4,
+            }}
+          >
+            <X size={12} />
+          </button>
         </div>
       </div>
 
-      {/* Grid */}
-      {filteredItems.length > 0 ? (
-        <>
-          {visibleItems.length > 0 ? (
-            <div data-fb-label="Grille des ressources" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {visibleItems.map((item, idx) => (
-                <div
-                  key={item.slug}
-                  style={{
-                    height: '100%',
-                    animation: 'nc-card-stagger-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both',
-                    animationDelay: `${Math.min(idx * 35, 180)}ms`,
-                  }}
-                >
-                  {item.category === 'resource' ? (
-                    <ResourceCard resource={item} currentCapability={currentCapability} />
-                  ) : (
-                    <TemplateCard template={item} currentCapability={currentCapability} />
-                  )}
-                </div>
-              ))}
-              {/* Items fading out — appended at end so the grid reflows above */}
-              {leavingItems.map((item) => (
-                <div
-                  key={`out-${item.slug}`}
-                  style={{
-                    height: '100%',
-                    opacity: 0,
-                    transform: 'translateY(0)',
-                    filter: 'blur(0)',
-                    transition: 'opacity 180ms ease',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  {item.category === 'resource' ? (
-                    <ResourceCard resource={item} currentCapability={currentCapability} />
-                  ) : (
-                    <TemplateCard template={item} currentCapability={currentCapability} />
-                  )}
-                </div>
-              ))}
-              <SuggestTemplateCard variant={primaryFilter} />
-            </div>
-          ) : (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '48px 24px',
-                gap: 10,
-                color: 'var(--color-text-muted)',
-              }}
-            >
-              <p style={{ fontSize: 14, margin: 0 }}>
-                Aucun résultat pour &ldquo;{searchQuery}&rdquo;
-              </p>
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: 'var(--color-brand)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              >
-                Effacer la recherche
-              </button>
-            </div>
-          )}
-        </>
-      ) : (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '64px 24px',
-            gap: 12,
-            color: 'var(--color-text-muted)',
-          }}
-        >
-          <p style={{ fontSize: 14, margin: 0 }}>Aucun élément ne correspond à ces filtres.</p>
-          <button
-            type="button"
-            data-fb-label="Bouton Réinitialiser filtres · Grille des ressources"
-            onClick={resetFilters}
+      {/* Grille — toutes les cartes sont montées en permanence (prérequis FLIP).
+          Le hook useGridChoreography gère leur visibilité (.is-hidden) et anime
+          reflow / changement d'onglet ; React ne pilote jamais la visibilité. */}
+      <div
+        ref={gridRef}
+        data-fb-label="Grille des ressources"
+        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+        style={{ position: 'relative' }}
+      >
+        {items.map((item) => (
+          <div key={item.slug} className="nc-grid-card" data-card-id={item.slug} data-cat={item.category}>
+            {item.category === 'resource' ? (
+              <ResourceCard resource={item} currentCapability={currentCapability} />
+            ) : (
+              <TemplateCard template={item} currentCapability={currentCapability} />
+            )}
+          </div>
+        ))}
+        <div className="nc-grid-card" data-card-id={SUGGEST_ID}>
+          <SuggestTemplateCard variant={primaryFilter} />
+        </div>
+      </div>
+
+      {/* États vides — la grille reste montée (refs/animation), seul ce bloc
+          informatif s'affiche par-dessus quand plus aucune carte n'est visible. */}
+      {visibleItems.length === 0 &&
+        (filteredItems.length === 0 ? (
+          <div
             style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: 'var(--color-brand)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '64px 24px',
+              gap: 12,
+              color: 'var(--color-text-muted)',
             }}
           >
-            Réinitialiser les filtres
-          </button>
-        </div>
-      )}
+            <p style={{ fontSize: 14, margin: 0 }}>Aucun élément ne correspond à ces filtres.</p>
+            <button
+              type="button"
+              data-fb-label="Bouton Réinitialiser filtres · Grille des ressources"
+              onClick={resetFilters}
+              style={{
+                fontSize: 13,
+                fontWeight: 500,
+                color: 'var(--color-brand)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              Réinitialiser les filtres
+            </button>
+          </div>
+        ) : (
+          <NoResultsState
+            filloutType={primaryFilter === 'Templates' ? 'Template Notion' : 'Ressource'}
+          />
+        ))}
     </div>
   );
 }
