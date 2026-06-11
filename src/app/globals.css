@@ -1047,72 +1047,25 @@ html {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Scénario C (ressources/templates) — morph « une seule surface »
+   Scénario C (ressources/templates) — morph d'élément partagé
 
-   Le nom n'est posé que sur la SEULE carte cliquée (`nc-resource-hero`)
-   + son titre (`nc-resource-hero-title`) → on cible les pseudo-éléments
-   DIRECTEMENT, sans `view-transition-class` (non supporté hors Chromium).
-
-   Par défaut le navigateur fond old + new ensemble sur toute la durée
-   (= fantôme) et étire les snapshots (= distorsion). On corrige les deux :
-   l'ancienne surface s'efface vite, la nouvelle entre décalée, et
-   `object-fit: cover` empêche l'étirement.
+   Posé via le composant React `<ViewTransition share="morph">`, qui assigne
+   la classe `morph` à la transition (carte grille ↔ encadré détail ↔ skeleton).
+   On règle la durée/easing du groupe et on ajoute un flou en milieu de course
+   (`via-blur`) pour masquer l'interpolation pixel et tuer le fantôme — c'est
+   l'approche recommandée par le guide Next « View transitions ».
    ────────────────────────────────────────────────────────────── */
-@keyframes nc-vt-fade-out { to   { opacity: 0; } }
-@keyframes nc-vt-fade-in  { from { opacity: 0; } }
-
-/* Surface : le GROUPE interpole position + taille (carte 16px → encadré 24px). */
-::view-transition-group(nc-resource-hero) {
+::view-transition-group(.morph) {
   animation-duration: var(--nc-duration-morph);
   animation-timing-function: var(--nc-ease-morph);
 }
-/* L'ANCIENNE surface s'efface vite → le contenu de la carte ne fantôme pas
-   pendant tout le morph ; la couleur de fond, elle, suit le groupe. */
-::view-transition-old(nc-resource-hero) {
-  animation: nc-vt-fade-out 120ms var(--nc-ease-out) forwards;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top left;
+::view-transition-image-pair(.morph) {
+  animation-name: nc-vt-morph-blur;
 }
-/* La NOUVELLE surface arrive en fondu, légèrement décalée. */
-::view-transition-new(nc-resource-hero) {
-  animation: nc-vt-fade-in 200ms var(--nc-ease) 60ms backwards;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top left;
-}
-
-/* Titre : capturé à part → reste net, morphe dans son propre groupe sans
-   s'étirer (object-fit: contain garde son ratio pendant l'agrandissement). */
-::view-transition-group(nc-resource-hero-title) {
-  animation-duration: var(--nc-duration-morph);
-  animation-timing-function: var(--nc-ease-morph);
-}
-::view-transition-old(nc-resource-hero-title) {
-  animation: nc-vt-fade-out 140ms var(--nc-ease-out) forwards;
-  object-fit: contain;
-  object-position: left top;
-}
-::view-transition-new(nc-resource-hero-title) {
-  animation: nc-vt-fade-in 220ms var(--nc-ease) 80ms backwards;
-  object-fit: contain;
-  object-position: left top;
-}
-
-/* Révélation douce du contenu réel par-dessus le skeleton (pages ressource /
-   template) : une fois le morph de la carte terminé et les données Notion
-   arrivées, l'encadré de contenu se fond en place. */
-@keyframes nc-hero-reveal {
-  from { opacity: 0; filter: blur(4px); }
-  to   { opacity: 1; filter: blur(0); }
-}
-.nc-hero-reveal {
-  animation: nc-hero-reveal 360ms var(--nc-ease) both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .nc-hero-reveal { animation: none !important; }
+@keyframes nc-vt-morph-blur {
+  30% {
+    filter: blur(3px);
+  }
 }
 
 /* Skeleton pulse — utilisé dans loading.tsx */
