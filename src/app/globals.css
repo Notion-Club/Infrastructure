@@ -1046,6 +1046,28 @@ html {
   }
 }
 
+/* ──────────────────────────────────────────────────────────────
+   Scénario C (ressources/templates) — morph d'élément partagé
+
+   Posé via le composant React `<ViewTransition share="morph">`, qui assigne
+   la classe `morph` à la transition (carte grille ↔ encadré détail ↔ skeleton).
+   On règle la durée/easing du groupe et on ajoute un flou en milieu de course
+   (`via-blur`) pour masquer l'interpolation pixel et tuer le fantôme — c'est
+   l'approche recommandée par le guide Next « View transitions ».
+   ────────────────────────────────────────────────────────────── */
+::view-transition-group(.morph) {
+  animation-duration: var(--nc-duration-morph);
+  animation-timing-function: var(--nc-ease-morph);
+}
+::view-transition-image-pair(.morph) {
+  animation-name: nc-vt-morph-blur;
+}
+@keyframes nc-vt-morph-blur {
+  30% {
+    filter: blur(3px);
+  }
+}
+
 /* Skeleton pulse — utilisé dans loading.tsx */
 @keyframes nc-skeleton-pulse {
   0%, 100% { opacity: 1; }

@@ -1,3 +1,4 @@
+import { Suspense, ViewTransition } from 'react';
 import { notFound } from 'next/navigation';
 import { GradualBlurOverlay } from '@/shared/components/GradualBlurOverlay';
 import { getResourceBySlug, getRelatedResources } from '@/modules/ressources/lib/fetch';
@@ -8,6 +9,7 @@ import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
 import { CapabilityLock } from '@/modules/ressources/components/shared/CapabilityLock';
 import { ResourcePageFooter } from '@/modules/ressources/components/shared/ResourcePageFooter';
 import { canAccess } from '@/modules/ressources/lib/access';
+import { heroVtName } from '@/modules/ressources/lib/heroTransition';
 import type { ContentBlock } from '@/modules/ressources/types';
 
 interface PageProps {
@@ -23,6 +25,24 @@ function formatDate(iso: string): string {
   const d = new Date(iso);
   return `${d.getDate()} ${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
 }
+
+// DNA partagée carte ↔ encadré : même fond + bordure, border-radius 24px (la
+// carte « s'ouvre » de 16px → 24px). Identique sur le skeleton et le contenu
+// réel pour que le morph et le reveal soient continus.
+const encadreStyle: React.CSSProperties = {
+  background: 'var(--color-surface-card)',
+  border: '1px solid var(--color-border-default)',
+  borderRadius: 'var(--nc-radius-md)',
+  padding: '32px',
+  boxShadow: 'var(--nc-shadow-3)',
+  marginBottom: 32,
+};
+
+const pulse: React.CSSProperties = {
+  animation: 'nc-skeleton-pulse 1.6s ease-in-out infinite',
+  background: 'var(--color-surface-raised)',
+  borderRadius: 'var(--nc-radius-xs)',
+};
 
 function renderBlock(block: ContentBlock, idx: number) {
   switch (block.type) {
@@ -233,8 +253,38 @@ function renderBlock(block: ContentBlock, idx: number) {
   }
 }
 
-export default async function ResourceDetailPage({ params }: PageProps) {
-  const { slug } = await params;
+// Skeleton affiché pendant le fetch Notion. Son encadré porte le MÊME
+// view-transition-name que la carte → la carte s'agrandit vers ce skeleton, puis
+// le contenu réel se révèle par-dessus (reveal Suspense).
+function ResourceDetailSkeleton({ slug }: { slug: string }) {
+  return (
+    <>
+      <div style={{ marginBottom: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ ...pulse, height: 30, width: 168, borderRadius: 9999 }} />
+        <div style={{ ...pulse, height: 14, width: 220, borderRadius: 8, animationDelay: '60ms' }} />
+      </div>
+      <ViewTransition name={heroVtName('res', slug)} share="morph" default="none">
+        <div style={{ ...encadreStyle, minHeight: 420 }}>
+          <div style={{ ...pulse, height: 46, width: '72%', borderRadius: 'var(--nc-radius-sm)' }} />
+          <div style={{ ...pulse, height: 16, width: '94%', marginTop: 20, borderRadius: 8, animationDelay: '60ms' }} />
+          <div style={{ ...pulse, height: 16, width: '60%', marginTop: 10, borderRadius: 8, animationDelay: '100ms' }} />
+          <div style={{ ...pulse, height: 13, width: 120, marginTop: 20, borderRadius: 8, animationDelay: '140ms' }} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+            {[96, 120, 84].map((w, i) => (
+              <div key={w} style={{ ...pulse, height: 24, width: w, borderRadius: 9999, animationDelay: `${160 + i * 40}ms` }} />
+            ))}
+          </div>
+          <div style={{ borderTop: '1px solid var(--color-border-default)', margin: '28px 0' }} />
+          {['100%', '96%', '88%', '92%', '70%'].map((w, i) => (
+            <div key={w} style={{ ...pulse, height: 14, width: w, marginTop: i === 0 ? 0 : 12, borderRadius: 8, animationDelay: `${200 + i * 40}ms` }} />
+          ))}
+        </div>
+      </ViewTransition>
+    </>
+  );
+}
+
+async function ResourceDetailContent({ slug }: { slug: string }) {
   const resource = await getResourceBySlug(slug);
 
   if (!resource) {
@@ -246,107 +296,108 @@ export default async function ResourceDetailPage({ params }: PageProps) {
 
   return (
     <>
+      <div data-fb-label="Fil d'ariane · Page ressource" style={{ marginBottom: 32 }}>
+        <ResourceBreadcrumb
+          items={[
+            ...(resource.type[0]
+              ? [{ label: resource.type[0], href: `/ressources?type=${encodeURIComponent(resource.type[0])}` }]
+              : []),
+            { label: resource.titre },
+          ]}
+        />
+      </div>
+
+      <ViewTransition name={heroVtName('res', slug)} share="morph" default="none">
+        <div data-fb-label="Encadré contenu · Page ressource" style={encadreStyle}>
+          <h1
+            data-fb-label="Titre · Page ressource"
+            style={{
+              fontSize: 'clamp(36px, 5vw, 52px)',
+              fontWeight: 700,
+              letterSpacing: '-0.03em',
+              color: 'var(--color-text-primary)',
+              margin: '0 0 16px',
+              lineHeight: 1.1,
+            }}
+          >
+            {resource.titre}
+          </h1>
+          <p
+            style={{
+              fontSize: 16,
+              color: 'var(--color-text-secondary)',
+              margin: '0 0 16px',
+              lineHeight: 1.6,
+            }}
+          >
+            {resource.description}
+          </p>
+          <div
+            style={{
+              fontSize: 13,
+              color: 'var(--color-text-muted)',
+              marginBottom: 16,
+            }}
+          >
+            {formatDate(resource.dateCreation)}
+          </div>
+          <div data-fb-label="Badges méta · Page ressource" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <ResourceBadge variant="ressource" label="Ressource" />
+            {resource.formation.map((f) => (
+              <ResourceBadge key={f} variant="formation" label={f} />
+            ))}
+            {resource.type.map((t) => (
+              <ResourceBadge key={t} variant="type" label={t} />
+            ))}
+          </div>
+
+          <hr
+            style={{
+              border: 'none',
+              borderTop: '1px solid var(--color-border-default)',
+              margin: '28px 0',
+            }}
+          />
+
+          {hasAccess ? (
+            <div data-fb-label="Corps Notion · Page ressource">
+              {resource.content.map((block, idx) => renderBlock(block, idx))}
+            </div>
+          ) : (
+            <CapabilityLock
+              title={`Contenu réservé aux membres ${resource.visibilite}`}
+              description={`Cette ressource est accessible à partir de l'offre ${resource.visibilite}. Rejoins le programme pour la débloquer ainsi que toute la bibliothèque correspondante.`}
+              ctaLabel="Découvrir les offres"
+              ctaHref="/offres"
+            />
+          )}
+        </div>
+      </ViewTransition>
+
+      <ResourcePageFooter
+        relatedResources={relatedResources}
+        currentCapability={mockCurrentUser.capability}
+      />
+    </>
+  );
+}
+
+export default async function ResourceDetailPage({ params }: PageProps) {
+  const { slug } = await params;
+
+  return (
+    <>
       <GradualBlurOverlay />
       <div className="nc-page-halo" style={{ minHeight: '100dvh' }}>
         <main style={{ position: 'relative', zIndex: 1 }}>
           <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
             <div style={{ maxWidth: 720, margin: '0 auto' }}>
-              {/* Breadcrumb */}
-              <div data-fb-label="Fil d'ariane · Page ressource" style={{ marginBottom: 32 }}>
-                <ResourceBreadcrumb
-                  items={[
-                    ...(resource.type[0]
-                      ? [{ label: resource.type[0], href: `/ressources?type=${encodeURIComponent(resource.type[0])}` }]
-                      : []),
-                    { label: resource.titre },
-                  ]}
-                />
-              </div>
-
-              {/* Encadré blanc : header + contenu complet */}
-              <div
-                data-fb-label="Encadré contenu · Page ressource"
-                style={{
-                  background: 'var(--color-surface-card)',
-                  borderRadius: 20,
-                  padding: '32px',
-                  boxShadow: 'var(--nc-shadow-3)',
-                  marginBottom: 32,
-                  viewTransitionName: `card-${resource.slug}`,
-                }}
-              >
-                {/* Header */}
-                <h1
-                  data-fb-label="Titre · Page ressource"
-                  style={{
-                    fontSize: 'clamp(36px, 5vw, 52px)',
-                    fontWeight: 700,
-                    letterSpacing: '-0.03em',
-                    color: 'var(--color-text-primary)',
-                    margin: '0 0 16px',
-                    lineHeight: 1.1,
-                  }}
-                >
-                  {resource.titre}
-                </h1>
-                <p
-                  style={{
-                    fontSize: 16,
-                    color: 'var(--color-text-secondary)',
-                    margin: '0 0 16px',
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {resource.description}
-                </p>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: 'var(--color-text-muted)',
-                    marginBottom: 16,
-                  }}
-                >
-                  {formatDate(resource.dateCreation)}
-                </div>
-                <div data-fb-label="Badges méta · Page ressource" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <ResourceBadge variant="ressource" label="Ressource" />
-                  {resource.formation.map((f) => (
-                    <ResourceBadge key={f} variant="formation" label={f} />
-                  ))}
-                  {resource.type.map((t) => (
-                    <ResourceBadge key={t} variant="type" label={t} />
-                  ))}
-                </div>
-
-                {/* Séparateur */}
-                <hr
-                  style={{
-                    border: 'none',
-                    borderTop: '1px solid var(--color-border-default)',
-                    margin: '28px 0',
-                  }}
-                />
-
-                {/* Contenu */}
-                {hasAccess ? (
-                  <div data-fb-label="Corps Notion · Page ressource">
-                    {resource.content.map((block, idx) => renderBlock(block, idx))}
-                  </div>
-                ) : (
-                  <CapabilityLock
-                    title={`Contenu réservé aux membres ${resource.visibilite}`}
-                    description={`Cette ressource est accessible à partir de l'offre ${resource.visibilite}. Rejoins le programme pour la débloquer ainsi que toute la bibliothèque correspondante.`}
-                    ctaLabel="Découvrir les offres"
-                    ctaHref="/offres"
-                  />
-                )}
-              </div>
-
-              {/* Footer unifié : bouton vu + ressources liées (conditionnel) */}
-              <ResourcePageFooter
-                relatedResources={relatedResources}
-                currentCapability={mockCurrentUser.capability}
-              />
+              {/* Le shell ne suspend pas (await params seulement) → la grille
+                  loading.tsx parente ne s'affiche pas ; seul ce Suspense interne
+                  pilote le skeleton, cible du morph puis du reveal. */}
+              <Suspense fallback={<ResourceDetailSkeleton slug={slug} />}>
+                <ResourceDetailContent slug={slug} />
+              </Suspense>
             </div>
           </div>
         </main>

@@ -16,6 +16,11 @@ import { useGridChoreography } from '@/shared/hooks/useGridChoreography';
 /** Id de la carte « Suggérer » — toujours montée, masquée seulement si la grille est vide. */
 const SUGGEST_ID = '__suggest__';
 
+/** Cascade d'entrée jouée une seule fois par session (module-level) : on ne la
+ *  rejoue pas au retour depuis une page détail pour ne pas gêner le morph de
+ *  fermeture. */
+let hasCascadedOnce = false;
+
 type PrimaryFilter = 'Tout' | 'Ressources' | 'Templates';
 
 const PRIMARY_FILTERS: PrimaryFilter[] = ['Tout', 'Ressources', 'Templates'];
@@ -179,7 +184,14 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     container.querySelectorAll<HTMLElement>('[data-card-id]').forEach((el) => {
       el.classList.toggle('is-hidden', !ids.has(el.dataset.cardId ?? ''));
     });
-    reveal();
+    // Cascade d'apparition : uniquement à la 1ʳᵉ venue sur la grille dans la
+    // session. Au retour depuis une page détail, on ne la rejoue pas — sinon les
+    // cartes repartiraient d'opacity 0 et le morph de fermeture (encadré → carte)
+    // atterrirait sur une carte invisible.
+    if (!hasCascadedOnce) {
+      hasCascadedOnce = true;
+      reveal();
+    }
   }, [buildVisibleIds, searchQuery, primaryFilter, selectedTypes, reveal]);
 
   // Recherche texte → reflow FLIP de la grille.
@@ -276,7 +288,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                   fontSize: 13,
                   fontWeight: isActive ? 600 : 500,
                   color: isActive ? '#ffffff' : 'var(--color-text-primary)',
-                  background: isActive ? 'var(--color-brand)' : 'var(--color-surface-raised)',
+                  background: isActive ? 'var(--color-brand)' : 'var(--color-surface-card)',
                   border: '1px solid',
                   borderColor: isActive ? 'var(--color-brand)' : 'var(--color-border-default)',
                   cursor: 'pointer',
@@ -308,7 +320,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 fontSize: 13,
                 fontWeight: 500,
                 color: hasActiveFilters ? '#ffffff' : 'var(--color-text-primary)',
-                background: hasActiveFilters ? 'var(--color-brand)' : 'var(--color-surface-raised)',
+                background: hasActiveFilters ? 'var(--color-brand)' : 'var(--color-surface-card)',
                 border: '1px solid',
                 borderColor: hasActiveFilters ? 'var(--color-brand)' : 'var(--color-border-default)',
                 cursor: 'pointer',

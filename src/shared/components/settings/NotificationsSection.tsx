@@ -182,7 +182,6 @@ export function NotificationsSection({
     setSaving(true);
     try {
       if (isMocked) {
-        await new Promise((r) => setTimeout(r, 400));
         toast.success("Préférences enregistrées (démo)");
         return;
       }
