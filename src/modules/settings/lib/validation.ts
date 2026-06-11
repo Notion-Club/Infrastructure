@@ -256,11 +256,14 @@ const channelPreferenceRow = z.object({
 });
 
 // Update unifié : on envoie d'un coup la matrice fine + les toggles globaux.
-// Limite stricte sur la taille pour éviter qu'un client malicieux n'envoie un
-// payload énorme (5 cats × 3 channels = 15 lignes max ; 3 canaux).
+// Limites strictes paramétriques sur la longueur des constantes ci-dessus
+// (au lieu de valeurs en dur 15/3) — l'ajout d'un canal ou d'une catégorie
+// ne crée plus de désaccord silencieux entre le validator et l'UI.
 export const notificationSettingsUpdateSchema = z.object({
-  preferences: z.array(notificationPreferenceRow).max(15),
-  channels: z.array(channelPreferenceRow).max(3),
+  preferences: z
+    .array(notificationPreferenceRow)
+    .max(NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length),
+  channels: z.array(channelPreferenceRow).max(NOTIFICATION_CHANNELS.length),
 });
 
 export type NotificationSettingsUpdateInput = z.infer<
