@@ -223,7 +223,12 @@ export const NOTIFICATION_CATEGORIES = [
   "billing",
 ] as const;
 
-export const NOTIFICATION_CHANNELS = ["email", "in_app", "whatsapp"] as const;
+export const NOTIFICATION_CHANNELS = [
+  "email",
+  "in_app",
+  "whatsapp",
+  "push",
+] as const;
 
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
@@ -233,6 +238,10 @@ export const DEFAULT_CHANNEL_ENABLED: Record<NotificationChannel, boolean> = {
   email: true,
   in_app: true,
   whatsapp: false,
+  // Push : off par défaut. L'utilisateur doit explicitement accepter la
+  // permission navigateur via le toggle dans Réglages — pas de souscription
+  // silencieuse au signup.
+  push: false,
 };
 
 const notificationPreferenceRow = z.object({

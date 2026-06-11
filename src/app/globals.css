@@ -944,14 +944,14 @@ html {
  *   distribués sur la ligne (plus de grand vide central).
  */
 .nc-notif-grid {
-  grid-template-columns: minmax(0, 1fr) repeat(3, 56px);
-  gap: 4px;
+  grid-template-columns: minmax(0, 1fr) repeat(4, 52px);
+  gap: 3px;
 }
 
 @media (min-width: 768px) {
   .nc-notif-grid {
-    grid-template-columns: minmax(0, 1fr) repeat(3, 96px);
-    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) repeat(4, 88px);
+    gap: 8px;
   }
 }
 
