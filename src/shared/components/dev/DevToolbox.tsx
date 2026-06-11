@@ -2,14 +2,17 @@
 
 // Toolbox de la barre de navigation — pattern réutilisable par toutes les pages.
 //
-// Le dropdown agrège deux zones :
-//   • EN HAUT  — section « retours » globale (icônes feedback + tickets), la
-//     même sur toutes les pages. Enregistrée par le FeedbackWidget via
+// Le dropdown agrège trois zones (de haut en bas) :
+//   • RETOURS  — section « feedback » globale (icônes feedback + tickets),
+//     identique sur toutes les pages. Enregistrée par le FeedbackWidget via
 //     `useRegisterFeedbackTools`.
-//   • EN BAS   — panneau d'état dev SPÉCIFIQUE à la page courante. Enregistré
+//   • ADMIN    — outils admin globaux (ex. envoi de push à un membre).
+//     Enregistrés par le AppLayout via `useRegisterAdminTools`, visibles
+//     uniquement si l'utilisateur a le rôle admin.
+//   • PAGE     — panneau d'état dev SPÉCIFIQUE à la page courante. Enregistré
 //     par la page via `useRegisterDevTools` (absent → section non affichée).
 //
-// Le bouton clé à molette s'affiche dès qu'au moins une des deux zones existe.
+// Le bouton clé à molette s'affiche dès qu'au moins une zone existe.
 // Les panneaux sont passés en ReactNode : leurs contrôles vivent dans l'arbre
 // React de leur émetteur, donc pilotent directement son état.
 
@@ -28,12 +31,14 @@ import { Wrench } from "lucide-react";
 interface DevToolboxSetApi {
   setPanel: (node: ReactNode | null) => void;
   setFeedback: (node: ReactNode | null) => void;
+  setAdmin: (node: ReactNode | null) => void;
   requestClose: () => void;
 }
 
 interface DevToolboxState {
   panel: ReactNode | null;
   feedback: ReactNode | null;
+  admin: ReactNode | null;
   closeNonce: number;
 }
 
@@ -43,12 +48,14 @@ const SetContext = createContext<DevToolboxSetApi | null>(null);
 const StateContext = createContext<DevToolboxState>({
   panel: null,
   feedback: null,
+  admin: null,
   closeNonce: 0,
 });
 
 export function DevToolboxProvider({ children }: { children: ReactNode }) {
   const [panel, setPanelState] = useState<ReactNode | null>(null);
   const [feedback, setFeedbackState] = useState<ReactNode | null>(null);
+  const [admin, setAdminState] = useState<ReactNode | null>(null);
   const [closeNonce, setCloseNonce] = useState(0);
 
   const setPanel = useCallback((node: ReactNode | null) => setPanelState(node), []);
@@ -56,15 +63,19 @@ export function DevToolboxProvider({ children }: { children: ReactNode }) {
     (node: ReactNode | null) => setFeedbackState(node),
     [],
   );
+  const setAdmin = useCallback(
+    (node: ReactNode | null) => setAdminState(node),
+    [],
+  );
   const requestClose = useCallback(() => setCloseNonce((n) => n + 1), []);
 
   const api = useMemo<DevToolboxSetApi>(
-    () => ({ setPanel, setFeedback, requestClose }),
-    [setPanel, setFeedback, requestClose],
+    () => ({ setPanel, setFeedback, setAdmin, requestClose }),
+    [setPanel, setFeedback, setAdmin, requestClose],
   );
   const state = useMemo<DevToolboxState>(
-    () => ({ panel, feedback, closeNonce }),
-    [panel, feedback, closeNonce],
+    () => ({ panel, feedback, admin, closeNonce }),
+    [panel, feedback, admin, closeNonce],
   );
 
   return (
@@ -96,6 +107,17 @@ export function useRegisterFeedbackTools(node: ReactNode) {
   }, [api]);
 }
 
+/** Enregistre la section admin globale (entre retours et page). */
+export function useRegisterAdminTools(node: ReactNode) {
+  const api = useContext(SetContext);
+  useEffect(() => {
+    api?.setAdmin(node);
+  }, [api, node]);
+  useEffect(() => {
+    return () => api?.setAdmin(null);
+  }, [api]);
+}
+
 /** Demande la fermeture du dropdown (ex. avant d'ouvrir la sélection/le form). */
 export function useDevToolboxClose() {
   const api = useContext(SetContext);
@@ -116,7 +138,7 @@ export function DevToolboxButton({
   size = 40,
   floating = false,
 }: DevToolboxButtonProps) {
-  const { panel, feedback, closeNonce } = useContext(StateContext);
+  const { panel, feedback, admin, closeNonce } = useContext(StateContext);
   const [phase, setPhase] = useState<Phase>("closed");
   const [entered, setEntered] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -179,7 +201,7 @@ export function DevToolboxButton({
   }, []);
 
   // Rien à afficher pour cette page → pas de bouton.
-  if (!feedback && !panel) return null;
+  if (!feedback && !admin && !panel) return null;
 
   const ddClass = `t-dropdown nc-dropdown-panel${
     phase === "open" && entered ? " is-open" : ""
@@ -237,22 +259,32 @@ export function DevToolboxButton({
           {/* Zone haute — retours (globale) */}
           {feedback}
 
-          {/* Séparateur entre retours et état de page */}
-          {feedback && panel && (
-            <div
-              aria-hidden
-              style={{
-                height: 1,
-                background: "var(--color-border-default)",
-                margin: "10px 2px",
-              }}
-            />
-          )}
+          {/* Séparateur entre retours et admin */}
+          {feedback && admin && <DropdownSeparator />}
+
+          {/* Zone admin globale (push notifications, etc.) */}
+          {admin}
+
+          {/* Séparateur entre admin (ou retours) et état de page */}
+          {(feedback || admin) && panel && <DropdownSeparator />}
 
           {/* Zone basse — état dev de la page */}
           {panel}
         </div>
       )}
     </div>
+  );
+}
+
+function DropdownSeparator() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        height: 1,
+        background: "var(--color-border-default)",
+        margin: "10px 2px",
+      }}
+    />
   );
 }
