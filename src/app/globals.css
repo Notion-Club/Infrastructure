@@ -469,6 +469,18 @@ html {
   background-color: var(--color-surface-page);
   position: relative;
   isolation: isolate;
+  /*
+   * En PWA standalone avec `apple-mobile-web-app-status-bar-style:
+   * black-translucent`, le body s'étend jusqu'au bord supérieur du
+   * téléphone (env(safe-area-inset-top) vaut ~44px). Sans compensation,
+   * tout le contenu des pages remonte de 44px et passe sous l'heure
+   * iOS. On rajoute ce padding directement sur le halo : background-
+   * color étendu sur la zone (zéro seam), padding-top de chaque page
+   * (`pt-[96px]`, `pt-[148px]`, etc.) reste valide et se cumule par-
+   * dessus → les composants reprennent leur position d'origine.
+   * Hors standalone, env(safe-area-inset-top) = 0 → no-op.
+   */
+  padding-top: env(safe-area-inset-top);
 }
 
 .nc-page-halo::before {
@@ -1090,6 +1102,48 @@ html {
  */
 html {
   -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * Scrim status bar — uniquement en light mode + PWA standalone.
+ *
+ * Avec `apple-mobile-web-app-status-bar-style: black-translucent`, la
+ * zone status bar iOS devient transparente : la page s'étend jusqu'au
+ * bord supérieur (immersion totale, plus de seam visible avec le fond
+ * de page). Mais le texte iOS (heure, signal, batterie) est rendu en
+ * BLANC. Sur le fond cream `#f5f2f2` du thème light, le blanc serait
+ * illisible.
+ *
+ * Solution : un dégradé sombre fin (≈ safe-area-inset-top) appliqué
+ * uniquement quand le thème app est light. En dark mode, le fond warm
+ * near-black `#141211` offre déjà assez de contraste — pas de scrim.
+ *
+ * Element rendu via `<div class="nc-statusbar-scrim" />` dans le layout.
+ * `pointer-events: none` pour ne pas bloquer les clics dans la zone
+ * Dynamic Island.
+ */
+.nc-statusbar-scrim {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top);
+  z-index: 100;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.2) 60%,
+    transparent 100%
+  );
+  /* Hidden par défaut — réactivé seulement en standalone + light. */
+  display: none;
+}
+
+@media (display-mode: standalone) {
+  html:not(.dark) .nc-statusbar-scrim {
+    display: block;
+  }
 }
 
 /*

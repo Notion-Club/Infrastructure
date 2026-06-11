@@ -23,8 +23,17 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Notion Club",
-    // "default" garde la status bar iOS lisible sur fond clair (#f5f2f2).
-    statusBarStyle: "default",
+    // `black-translucent` rend la zone status bar **transparente** : la
+    // page s'étend jusqu'au bord supérieur du téléphone (zéro seam visible
+    // entre la status bar et la page). Le texte iOS (heure, signal,
+    // batterie) reste affiché en blanc par-dessus.
+    //
+    // Conséquence : le contenu *sous* la zone status bar doit fournir
+    // assez de contraste pour que le texte blanc reste lisible. En dark
+    // mode la page est déjà sombre — pas d'action. En light mode, on
+    // ajoute un dégradé sombre subtil en haut via `.nc-statusbar-scrim`
+    // (cf. globals.css) pour ne pas perdre la lisibilité.
+    statusBarStyle: "black-translucent",
   },
   icons: {
     icon: [
@@ -62,7 +71,14 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#f5f2f2",
+  // Theme-color per scheme : la valeur n'est pas utilisée par iOS PWA en
+  // mode `black-translucent` (status bar transparente), mais reste consommée
+  // par Chrome Android pour colorer sa barre d'adresse, et par certains
+  // navigateurs desktop pour le titre d'onglet.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f2f2" },
+    { media: "(prefers-color-scheme: dark)", color: "#141211" },
+  ],
 };
 
 // Inline script runs before paint to avoid a flash of incorrect theme.
@@ -87,6 +103,10 @@ export default function RootLayout({
         <ThemeProvider>{children}</ThemeProvider>
         <Toaster />
         <ServiceWorkerRegistrar />
+        {/* Scrim status bar — visible uniquement en PWA standalone + light
+            mode (cf. .nc-statusbar-scrim dans globals.css). En dark mode,
+            le fond `#141211` suffit à rendre le texte iOS blanc lisible. */}
+        <div className="nc-statusbar-scrim" aria-hidden />
       </body>
     </html>
   );
