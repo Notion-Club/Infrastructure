@@ -264,11 +264,7 @@ export function useGridChoreography(containerRef: React.RefObject<HTMLElement | 
     if (!container) return;
     if (reduced.current) return;
     const cards = Array.from(container.querySelectorAll<HTMLElement>('[data-card-id]')).filter(
-      // Exclut les cartes masquées ET celle en cours de morph (shared-element
-      // view transition, marquée `data-vt-hero`) : la ré-animer en cascade la
-      // ferait repartir d'opacity 0 pendant que l'encadré de la page détail se
-      // referme dessus au retour → le morph atterrirait sur une carte invisible.
-      (el) => !el.classList.contains('is-hidden') && !el.querySelector('[data-vt-hero]'),
+      (el) => !el.classList.contains('is-hidden'),
     );
     for (const el of cards) {
       el.style.transition = 'none';

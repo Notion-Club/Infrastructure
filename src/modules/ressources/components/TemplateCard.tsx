@@ -1,12 +1,11 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { flushSync } from 'react-dom';
+import Link from 'next/link';
+import { ViewTransition } from 'react';
 import { Lock } from 'lucide-react';
 import type { Template, UserCapability } from '../types';
 import { canAccess } from '../lib/access';
-import { HERO_VT_NAME, HERO_TITLE_VT_NAME } from '../lib/heroTransition';
-import { useActiveHero, setActiveHero } from '../lib/useActiveHero';
+import { heroVtName } from '../lib/heroTransition';
 import { ResourceBadge } from './shared/ResourceBadge';
 
 interface TemplateCardProps {
@@ -15,113 +14,96 @@ interface TemplateCardProps {
 }
 
 export function TemplateCard({ template, currentCapability }: TemplateCardProps) {
-  const router = useRouter();
   const isLocked = !canAccess(currentCapability, template.visibilite);
-  const activeSlug = useActiveHero();
-  const isHero = activeSlug === template.slug;
-
-  // Cf. ResourceCard : on arme le héros de façon synchrone avant la navigation.
-  function open() {
-    flushSync(() => setActiveHero(template.slug));
-    router.push('/ressources/template/' + template.slug);
-  }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      data-fb-label={`Carte template « ${template.titre} » · Grille des ressources`}
-      // Cf. ResourceCard : exclut la carte du morph de la cascade.
-      data-vt-hero={isHero ? '1' : undefined}
-      onClick={open}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          open();
-        }
-      }}
-      className="group hover:border-[rgba(224,98,90,0.32)]"
-      style={{
-        background: 'var(--color-surface-card)',
-        border: '1px solid var(--color-border-default)',
-        boxShadow: 'var(--nc-shadow-3)',
-        borderRadius: 16,
-        padding: 20,
-        // Remplit la cellule de grille étirée → hauteur égale sur toute la ligne.
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        cursor: 'pointer',
-        transition: 'border-color 350ms cubic-bezier(0.22, 1, 0.36, 1)',
-        position: 'relative',
-        overflow: 'hidden',
-        // Seule la carte en cours d'ouverture porte le nom partagé.
-        viewTransitionName: isHero ? HERO_VT_NAME : undefined,
-      }}
+    // Cf. ResourceCard : <Link> (prefetch) + <ViewTransition> sur la surface.
+    <Link
+      href={'/ressources/template/' + template.slug}
+      style={{ display: 'block', height: '100%', textDecoration: 'none', color: 'inherit' }}
     >
-      <div
-        aria-hidden
-        className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 ease-out"
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          width: 160,
-          height: 160,
-          pointerEvents: 'none',
-          backgroundImage:
-            'radial-gradient(circle, var(--nc-card-dot-color) 1px, transparent 1.4px)',
-          backgroundSize: '11px 11px',
-          maskImage:
-            'radial-gradient(circle at top right, black 0%, transparent 70%)',
-          WebkitMaskImage:
-            'radial-gradient(circle at top right, black 0%, transparent 70%)',
-        }}
-      />
-
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-        <ResourceBadge variant="template" label="Template" />
-        {isLocked && (
-          <span data-fb-label="Cadenas accès · Carte template">
-            <ResourceBadge variant="neutral" label={template.visibilite} icon={<Lock size={10} />} />
-          </span>
-        )}
-      </div>
-
-      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-        <h3
+      <ViewTransition name={heroVtName('tpl', template.slug)} share="morph" default="none">
+        <div
+          data-fb-label={`Carte template « ${template.titre} » · Grille des ressources`}
+          className="group hover:border-[rgba(224,98,90,0.32)]"
           style={{
-            fontSize: 15,
-            fontWeight: 600,
-            color: 'var(--color-text-primary)',
-            margin: 0,
-            lineHeight: 1.4,
-            // Cf. ResourceCard : titre capturé à part (héros uniquement).
-            viewTransitionName: isHero ? HERO_TITLE_VT_NAME : undefined,
-          }}
-        >
-          {template.titre}
-        </h3>
-        <p
-          style={{
-            fontSize: 13,
-            color: 'var(--color-text-secondary)',
-            margin: 0,
-            lineHeight: 1.5,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
+            background: 'var(--color-surface-card)',
+            border: '1px solid var(--color-border-default)',
+            boxShadow: 'var(--nc-shadow-3)',
+            borderRadius: 16,
+            padding: 20,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            cursor: 'pointer',
+            transition: 'border-color 350ms cubic-bezier(0.22, 1, 0.36, 1)',
+            position: 'relative',
             overflow: 'hidden',
           }}
         >
-          {template.description}
-        </p>
-      </div>
+          <div
+            aria-hidden
+            className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 ease-out"
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: 160,
+              height: 160,
+              pointerEvents: 'none',
+              backgroundImage:
+                'radial-gradient(circle, var(--nc-card-dot-color) 1px, transparent 1.4px)',
+              backgroundSize: '11px 11px',
+              maskImage:
+                'radial-gradient(circle at top right, black 0%, transparent 70%)',
+              WebkitMaskImage:
+                'radial-gradient(circle at top right, black 0%, transparent 70%)',
+            }}
+          />
 
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <ResourceBadge variant="type" label={template.type} />
-      </div>
-    </div>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <ResourceBadge variant="template" label="Template" />
+            {isLocked && (
+              <span data-fb-label="Cadenas accès · Carte template">
+                <ResourceBadge variant="neutral" label={template.visibilite} icon={<Lock size={10} />} />
+              </span>
+            )}
+          </div>
+
+          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+            <h3
+              style={{
+                fontSize: 15,
+                fontWeight: 600,
+                color: 'var(--color-text-primary)',
+                margin: 0,
+                lineHeight: 1.4,
+              }}
+            >
+              {template.titre}
+            </h3>
+            <p
+              style={{
+                fontSize: 13,
+                color: 'var(--color-text-secondary)',
+                margin: 0,
+                lineHeight: 1.5,
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              {template.description}
+            </p>
+          </div>
+
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <ResourceBadge variant="type" label={template.type} />
+          </div>
+        </div>
+      </ViewTransition>
+    </Link>
   );
 }
