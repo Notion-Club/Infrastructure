@@ -34,6 +34,8 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
         boxShadow: 'var(--nc-shadow-3)',
         borderRadius: 16,
         padding: 20,
+        // Remplit la cellule de grille étirée → hauteur égale sur toute la ligne.
+        height: '100%',
         display: 'flex',
         flexDirection: 'column',
         gap: 12,

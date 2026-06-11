@@ -155,6 +155,15 @@ html {
   --nc-duration-morph: 370ms;
   --nc-ease-out: cubic-bezier(0.4, 0, 1, 1);
   --nc-ease-morph: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  /* Chorégraphie de grille (useGridChoreography) — easings & durées.
+     Valeurs réglées à la main : ne pas « optimiser » sans validation. */
+  --ease-fluid: cubic-bezier(0.3, 0.78, 0.34, 1); /* reflow : décélération douce, sans départ sec */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1); /* fondus opacity / blur */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1); /* accélération de sortie */
+  --ease-back: cubic-bezier(0.34, 1.28, 0.64, 1); /* settle avec léger overshoot (entrée d'onglet) */
+  --reflow-dur: 470ms;
+  --enter-dur: 360ms;
+  --exit-dur: 240ms;
   /* Tags communauté */
   --nc-tag-general-bg: rgba(0, 0, 0, 0.06);
   --nc-tag-general-text: var(--color-text-secondary);
@@ -1396,21 +1405,21 @@ html.dark .nc-lt-scrim {
   }
 }
 
-/* ── Card stagger-in (ResourcesGrid) ───────────────────────────────────── */
-@keyframes nc-card-stagger-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-    filter: blur(3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
-  }
+/* ── Chorégraphie de grille — cartes animées par useGridChoreography ────── */
+/* La carte doit pouvoir être déplacée par transform sans artefact, et sa
+   visibilité est pilotée par le hook via `.is-hidden` (jamais par React). */
+.nc-grid-card {
+  will-change: transform;
+  backface-visibility: hidden;
+  height: 100%;
+}
+.nc-grid-card.is-hidden {
+  display: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  [style*="nc-card-stagger-in"] { animation: none !important; }
+  .nc-grid-card {
+    transition: none !important;
+  }
 }
 
 /* ── transitions.dev #04 — Text states swap (search button Layer A) ─────── */
@@ -1428,33 +1437,133 @@ html.dark .nc-lt-scrim {
   --shimmer-highlight: #ffffff;
 }
 
-/* ── Idle search button — brand-red breathing pulse ────────────────────── */
-@keyframes nc-search-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(224,98,90,0);
-    border-color: var(--color-border-default);
-  }
-  50% {
-    box-shadow: 0 0 0 4px rgba(224,98,90,0.14);
-    border-color: rgba(224,98,90,0.48);
-  }
+/* Shimmer du placeholder « Que cherches-tu ? » : band plus large + cycle plus
+   long → balayages plus espacés, effet moins intense. */
+.nc-search-shimmer {
+  --shimmer-dur: 3400ms;
+  --shimmer-band: 800%;
 }
-.nc-search-pulse {
-  animation: nc-search-pulse 2.6s ease-in-out infinite;
+
+/* ── transitions.dev #18 — Texts reveal (état « aucun résultat ») ───────────
+   Lignes empilées qui montent avec un léger flou en cascade. `.is-shown` joue
+   l'entrée ; chaque ligne suivante est retardée de --stagger-stagger. */
+:root {
+  --stagger-dur: 500ms;
+  --stagger-distance: 12px;
+  --stagger-stagger: 40ms;
+  --stagger-blur: 3px;
+  --stagger-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.t-stagger-line {
+  display: block;
+  opacity: 0;
+  transform: translateY(var(--stagger-distance));
+  filter: blur(var(--stagger-blur));
+  transition:
+    opacity var(--stagger-dur) var(--stagger-ease),
+    transform var(--stagger-dur) var(--stagger-ease),
+    filter var(--stagger-dur) var(--stagger-ease);
+  will-change: transform, opacity, filter;
+}
+.t-stagger-line--2 {
+  transition-delay: var(--stagger-stagger);
+}
+.t-stagger-line--3 {
+  transition-delay: calc(var(--stagger-stagger) * 2);
+}
+.t-stagger.is-shown .t-stagger-line {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+/* Sortie découplée du stagger : même fondu pour chaque ligne, sans retour Y. */
+.t-stagger.is-hiding .t-stagger-line {
+  opacity: 0;
+  transform: translateY(0);
+  filter: blur(0);
+  transition:
+    opacity 200ms ease,
+    transform 0s linear,
+    filter 0s linear;
+  transition-delay: 0s;
 }
 @media (prefers-reduced-motion: reduce) {
-  .nc-search-pulse { animation: none !important; }
+  .t-stagger-line {
+    transition: none !important;
+  }
+}
+
+/* ── Search box — border treatments (couleur sous contrôle, sans lib) ──────
+   Idle : le breathe mono est fourni par <BorderBeam size="pulse-inner"
+   colorVariant="mono">. Aucun effet rouge sur l'état inactif.
+   Actif : faisceau « signature » rouge brand recréé en CSS (conic-gradient
+   rotatif via @property --nc-shine-angle), pour maîtriser la couleur que la
+   lib BorderBeam (palettes figées) ne permet pas. */
+.nc-search-beam {
+  position: relative;
+}
+/* Anneau rouge qui tourne — masque composite pour ne peindre que la bordure. */
+.nc-search-beam::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--nc-shine-angle),
+    rgba(224, 98, 90, 0.04),
+    rgba(224, 98, 90, 0.5) 22%,
+    rgba(224, 98, 90, 0.04) 48%,
+    rgba(224, 98, 90, 0.04) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: nc-shine-rotate 3s linear infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+/* Halo rouge diffus — appuie la signature couleur. */
+.nc-search-beam::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: 0 0 7px 0 rgba(224, 98, 90, 0.12);
+  pointer-events: none;
+  z-index: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-search-beam::before {
+    animation: none;
+  }
 }
 
 /* ── kbd badges inside the search button ───────────────────────────────── */
+/* Indice raccourci clavier (⌘/Ctrl + K) — inutile au tactile : masqué < md. */
+.nc-kbd-hint {
+  display: none;
+}
+@media (min-width: 768px) {
+  .nc-kbd-hint {
+    display: inline-flex;
+  }
+}
+
 .nc-kbd-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  min-width: 20px;
+  font-size: 12px;
   font-family: inherit;
-  padding: 1px 4px;
-  border-radius: 4px;
+  padding: 3px 6px;
+  border-radius: 5px;
   border: 1px solid rgba(0,0,0,0.18);
   background: rgba(0,0,0,0.09);
   color: var(--color-text-primary);
@@ -1464,4 +1573,27 @@ html.dark .nc-lt-scrim {
   background: rgba(0,0,0,0.45);
   border-color: rgba(255,255,255,0.14);
   color: rgba(255,255,255,0.82);
+}
+
+/* Croix d'effacement de la recherche — reprend l'encadré des touches ⌘/Ctrl K
+   (cf. .nc-kbd-badge, posée conjointement). Ajoute juste curseur + survol. */
+.nc-search-clear {
+  cursor: pointer;
+}
+.nc-search-clear:hover {
+  background: rgba(0, 0, 0, 0.16);
+}
+.dark .nc-search-clear:hover {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* Groupe tabs + filtre : aligné à droite sur desktop (poussé par la recherche
+   fixe), aligné à gauche sur mobile (la barre passe à la ligne au-dessus). */
+.nc-tags-group {
+  margin-left: 0;
+}
+@media (min-width: 768px) {
+  .nc-tags-group {
+    margin-left: auto;
+  }
 }
