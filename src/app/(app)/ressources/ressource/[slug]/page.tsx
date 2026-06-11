@@ -8,6 +8,7 @@ import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
 import { CapabilityLock } from '@/modules/ressources/components/shared/CapabilityLock';
 import { ResourcePageFooter } from '@/modules/ressources/components/shared/ResourcePageFooter';
 import { canAccess } from '@/modules/ressources/lib/access';
+import { HERO_VT_NAME, HERO_TITLE_VT_NAME } from '@/modules/ressources/lib/heroTransition';
 import type { ContentBlock } from '@/modules/ressources/types';
 
 interface PageProps {
@@ -263,16 +264,23 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                 />
               </div>
 
-              {/* Encadré blanc : header + contenu complet */}
+              {/* Encadré blanc : header + contenu complet. C'est la cible du
+                  morph (carte grille → encadré). `nc-hero-reveal` fond le contenu
+                  réel par-dessus le skeleton de `loading.tsx` une fois chargé. */}
               <div
                 data-fb-label="Encadré contenu · Page ressource"
+                className="nc-hero-reveal"
                 style={{
+                  // DNA partagée avec la carte (même fond + même bordure) pour
+                  // que le morph lise comme une seule surface qui s'ouvre :
+                  // border-radius 16px (carte) → 24px (encadré).
                   background: 'var(--color-surface-card)',
-                  borderRadius: 20,
+                  border: '1px solid var(--color-border-default)',
+                  borderRadius: 'var(--nc-radius-md)',
                   padding: '32px',
                   boxShadow: 'var(--nc-shadow-3)',
                   marginBottom: 32,
-                  viewTransitionName: `card-${resource.slug}`,
+                  viewTransitionName: HERO_VT_NAME,
                 }}
               >
                 {/* Header */}
@@ -285,6 +293,9 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                     color: 'var(--color-text-primary)',
                     margin: '0 0 16px',
                     lineHeight: 1.1,
+                    // Capturé à part de la surface → morphe net depuis le titre
+                    // de la carte (cf. globals.css nc-resource-hero-title).
+                    viewTransitionName: HERO_TITLE_VT_NAME,
                   }}
                 >
                   {resource.titre}

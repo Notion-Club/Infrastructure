@@ -7,6 +7,7 @@ import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBa
 import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
 import { TemplatePageFooter } from '@/modules/ressources/components/shared/TemplatePageFooter';
 import { canAccess } from '@/modules/ressources/lib/access';
+import { HERO_VT_NAME, HERO_TITLE_VT_NAME } from '@/modules/ressources/lib/heroTransition';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -50,16 +51,20 @@ export default async function TemplateDetailPage({ params }: PageProps) {
                 />
               </div>
 
-              {/* Header card — title, description, badges, video */}
+              {/* Header card — cible du morph (carte grille → encadré).
+                  `nc-hero-reveal` fond le contenu réel par-dessus le skeleton. */}
               <div
                 data-fb-label="Encadré contenu · Page template"
+                className="nc-hero-reveal"
                 style={{
+                  // DNA partagée avec la carte (16px → 24px à l'ouverture).
                   background: 'var(--color-surface-card)',
-                  borderRadius: 20,
+                  border: '1px solid var(--color-border-default)',
+                  borderRadius: 'var(--nc-radius-md)',
                   padding: '32px',
                   boxShadow: 'var(--nc-shadow-3)',
                   marginBottom: 32,
-                  viewTransitionName: `card-${template.slug}`,
+                  viewTransitionName: HERO_VT_NAME,
                 }}
               >
                 <h1
@@ -71,6 +76,7 @@ export default async function TemplateDetailPage({ params }: PageProps) {
                     color: 'var(--color-text-primary)',
                     margin: '0 0 16px',
                     lineHeight: 1.1,
+                    viewTransitionName: HERO_TITLE_VT_NAME,
                   }}
                 >
                   {template.titre}
