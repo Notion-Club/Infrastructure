@@ -18,7 +18,10 @@ import { sendWebPushToUser } from "@/shared/lib/push/webPush";
 
 const targetSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("self") }),
-  z.object({ type: z.literal("user"), userId: z.string().uuid() }),
+  z.object({
+    type: z.literal("users"),
+    userIds: z.array(z.string().uuid()).min(1).max(200),
+  }),
   z.object({ type: z.literal("all") }),
 ]);
 
@@ -113,7 +116,7 @@ export async function sendAdminPushAction(
       message:
         input.target.type === "all"
           ? "Aucun abonné actif pour le moment."
-          : "Ce membre n'a aucune souscription active.",
+          : "Aucun des membres sélectionnés n'a de souscription active.",
     };
   }
 
@@ -148,7 +151,11 @@ async function resolveRecipientIds(
   callerUserId: string,
 ): Promise<string[]> {
   if (target.type === "self") return [callerUserId];
-  if (target.type === "user") return [target.userId];
+  if (target.type === "users") {
+    // Dédoublonne et exclut les éventuels doublons (admin qui se sélectionne
+    // lui-même dans la liste en plus de la cible "Moi", etc.).
+    return Array.from(new Set(target.userIds));
+  }
 
   // type === "all" : on récupère les user_id distincts ayant au moins
   // une souscription active. Via admin client pour bypass RLS.
