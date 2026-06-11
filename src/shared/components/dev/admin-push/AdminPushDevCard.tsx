@@ -1,8 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState, useTransition } from "react";
 import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import {
+  ArrowLeft,
+  Bell,
   ChevronDown,
   ChevronRight,
   LoaderCircle,
@@ -69,6 +77,7 @@ function colorFromId(id: string): string {
 }
 
 export function AdminPushDevCard() {
+  const [page, setPage] = useState<1 | 2>(1);
   const [target, setTarget] = useState<Target>("self");
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [title, setTitle] = useState("Test Notion Club");
@@ -76,6 +85,26 @@ export function AdminPushDevCard() {
   const [url, setUrl] = useState("");
   const [urlLabel, setUrlLabel] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  // Mesure de hauteur dynamique sur la page active — épouse le contenu
+  // sans saut visuel quand on passe du gros bouton (page 1) au formulaire
+  // (page 2) ou inversement. Mirror du pattern FeedbackToolboxPanel.
+  const page1Ref = useRef<HTMLDivElement>(null);
+  const page2Ref = useRef<HTMLDivElement>(null);
+  const [slideHeight, setSlideHeight] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const el = page === 2 ? page2Ref.current : page1Ref.current;
+    if (!el) return;
+    const update = () => setSlideHeight(el.offsetHeight);
+    const raf = requestAnimationFrame(update);
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [page, target, selectedMemberIds, title, body, url, urlLabel, pending]);
 
   // Données pickers — chargées paresseusement quand on ouvre la carte la
   // première fois pour éviter les requêtes sur les rôles non-admin (la
@@ -145,28 +174,96 @@ export function AdminPushDevCard() {
 
   return (
     <div data-fb-label="Outils admin · Notif push">
-      <p
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: "var(--color-text-muted)",
-          margin: "2px 6px 8px",
-        }}
-      >
-        Notification push
-      </p>
-
       <div
+        className="t-page-slide"
+        data-page={page}
         style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          padding: "0 4px",
+          height: slideHeight,
+          transition: "height 240ms var(--nc-ease)",
+          overflow: "hidden",
         }}
       >
-        {/* ── Cible ────────────────────────────────────────────────── */}
+        {/* ── Page 1 — déclencheur compact (gros bouton icône) ── */}
+        <section ref={page1Ref} className="t-page" data-page-id="1">
+          <button
+            type="button"
+            onClick={() => setPage(2)}
+            data-fb-label="Ouvrir composer · Notif push"
+            style={{
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 6,
+              padding: "12px 8px",
+              borderRadius: 12,
+              border: "1px solid var(--color-border-default)",
+              background: "var(--color-surface-raised)",
+              color: "var(--color-text-primary)",
+              cursor: "pointer",
+              transition: "background 150ms ease, border-color 150ms ease",
+            }}
+            className="hover:border-[rgba(224,98,90,0.35)] hover:bg-[rgba(224,98,90,0.06)]"
+          >
+            <span
+              style={{ color: "var(--color-brand)", display: "inline-flex" }}
+            >
+              <Bell size={18} strokeWidth={1.8} />
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 500 }}>Notif push</span>
+          </button>
+        </section>
+
+        {/* ── Page 2 — formulaire complet ── */}
+        <section ref={page2Ref} className="t-page" data-page-id="2">
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 10,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setPage(1)}
+              aria-label="Retour"
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                border: "1px solid var(--color-border-default)",
+                background: "var(--color-surface-card)",
+                color: "var(--color-text-primary)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <ArrowLeft size={15} />
+            </button>
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--color-text-primary)",
+              }}
+            >
+              Envoyer une notif push
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              padding: "0 4px",
+            }}
+          >
+            {/* ── Cible ────────────────────────────────────────────────── */}
         <Field label="Cible">
           <div
             style={{
@@ -290,6 +387,8 @@ export function AdminPushDevCard() {
             </>
           )}
         </button>
+          </div>
+        </section>
       </div>
     </div>
   );
