@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom';
 import { Lock } from 'lucide-react';
 import type { Resource, UserCapability } from '../types';
 import { canAccess } from '../lib/access';
-import { HERO_VT_NAME } from '../lib/heroTransition';
+import { HERO_VT_NAME, HERO_TITLE_VT_NAME } from '../lib/heroTransition';
 import { useActiveHero, setActiveHero } from '../lib/useActiveHero';
 import { ResourceBadge } from './shared/ResourceBadge';
 
@@ -101,6 +101,9 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
             color: 'var(--color-text-primary)',
             margin: 0,
             lineHeight: 1.4,
+            // Capturé séparément (héros uniquement) → le titre morphe net vers
+            // le <h1> de la page détail au lieu de fantômer dans la surface.
+            viewTransitionName: isHero ? HERO_TITLE_VT_NAME : undefined,
           }}
         >
           {resource.titre}

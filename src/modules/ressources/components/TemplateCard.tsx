@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom';
 import { Lock } from 'lucide-react';
 import type { Template, UserCapability } from '../types';
 import { canAccess } from '../lib/access';
-import { HERO_VT_NAME } from '../lib/heroTransition';
+import { HERO_VT_NAME, HERO_TITLE_VT_NAME } from '../lib/heroTransition';
 import { useActiveHero, setActiveHero } from '../lib/useActiveHero';
 import { ResourceBadge } from './shared/ResourceBadge';
 
@@ -97,6 +97,8 @@ export function TemplateCard({ template, currentCapability }: TemplateCardProps)
             color: 'var(--color-text-primary)',
             margin: 0,
             lineHeight: 1.4,
+            // Cf. ResourceCard : titre capturé à part (héros uniquement).
+            viewTransitionName: isHero ? HERO_TITLE_VT_NAME : undefined,
           }}
         >
           {template.titre}

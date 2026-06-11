@@ -1,4 +1,4 @@
-import { HERO_VT_NAME } from '@/modules/ressources/lib/heroTransition';
+import { HERO_VT_NAME, HERO_TITLE_VT_NAME } from '@/modules/ressources/lib/heroTransition';
 
 const pulse: React.CSSProperties = {
   animation: 'nc-skeleton-pulse 1.6s ease-in-out infinite',
@@ -25,7 +25,8 @@ export default function TemplateDetailLoading() {
             <div
               style={{
                 background: 'var(--color-surface-card)',
-                borderRadius: 20,
+                border: '1px solid var(--color-border-default)',
+                borderRadius: 'var(--nc-radius-md)',
                 padding: 32,
                 boxShadow: 'var(--nc-shadow-3)',
                 marginBottom: 32,
@@ -33,8 +34,8 @@ export default function TemplateDetailLoading() {
                 viewTransitionName: HERO_VT_NAME,
               }}
             >
-              {/* Titre */}
-              <div style={{ ...pulse, height: 46, width: '68%', borderRadius: 'var(--nc-radius-sm)' }} />
+              {/* Titre — porte le nom du titre (morph continu pendant le load). */}
+              <div style={{ ...pulse, height: 46, width: '68%', borderRadius: 'var(--nc-radius-sm)', viewTransitionName: HERO_TITLE_VT_NAME }} />
 
               {/* Description */}
               <div style={{ ...pulse, height: 16, width: '92%', marginTop: 20, borderRadius: 8, animationDelay: '60ms' }} />

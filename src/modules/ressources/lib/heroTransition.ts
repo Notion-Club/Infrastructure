@@ -12,3 +12,13 @@
  * client `useActiveHero`.
  */
 export const HERO_VT_NAME = 'nc-resource-hero';
+
+/**
+ * Nom dédié au TITRE. Un descendant qui possède son propre `view-transition-name`
+ * est capturé dans son PROPRE groupe et exclu du snapshot de la surface : le
+ * titre morphe donc net (position + taille interpolées) au lieu de fantômer dans
+ * l'image de la surface. Posé sur le `<h3>` de la carte héros, le `<h1>` de la
+ * page détail et le placeholder titre du `loading.tsx`.
+ */
+export const HERO_TITLE_VT_NAME = 'nc-resource-hero-title';
+
