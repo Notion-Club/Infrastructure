@@ -48,6 +48,13 @@ begin;
 -- computeDisplayName côté queries puisse les utiliser. role='admin' pour
 -- que current_profile_admin_org() et current_profile_role() retournent
 -- ses valeurs. organization_id pointé sur Notion Club (org existante).
+--
+-- Note (2026-06-11) : le INSERT VALUES original cassait si
+-- l'auth.users id=53826b93-…  n'existait pas (FK profiles_id_fkey →
+-- auth.users). Sur prod ce user existe via signup ; sur les Supabase
+-- preview/fresh DB il n'existait pas → migration bloquée. On bascule
+-- en INSERT … SELECT … WHERE EXISTS pour rendre le backfill purement
+-- défensif : aucun effet si l'auth user est absent.
 insert into public.profiles (
   id,
   organization_id,
@@ -58,15 +65,18 @@ insert into public.profiles (
   role,
   email_verified_at
 )
-values (
-  '53826b93-88b4-4be1-a52f-73ac1950b0fa',
-  'f14b4169-5c78-42aa-99a6-7abcb8fc3f78',
+select
+  '53826b93-88b4-4be1-a52f-73ac1950b0fa'::uuid,
+  'f14b4169-5c78-42aa-99a6-7abcb8fc3f78'::uuid,
   'Nathan Gallais',
   'Nathan',
   'Gallais',
   'nathan-admin',
   'admin',
   now()
+where exists (
+  select 1 from auth.users
+  where id = '53826b93-88b4-4be1-a52f-73ac1950b0fa'::uuid
 )
 on conflict (id) do nothing;
 

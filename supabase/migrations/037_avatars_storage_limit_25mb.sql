@@ -1,6 +1,12 @@
 -- ============================================================================
--- 031 — Storage bucket `avatars` : passer la limite de 5 MB à 25 MB (OPS-36)
+-- 037 — Storage bucket `avatars` : passer la limite de 5 MB à 25 MB (OPS-36)
 -- ============================================================================
+-- Note (2026-06-11) : ce fichier était à l'origine numéroté `031_…`, ce qui
+-- créait un conflit de version avec `031_ressources_schema.sql` (deux
+-- migrations avec la même clé `031` cassaient le tracker
+-- `supabase_migrations.schema_migrations` au `supabase db push` : violation
+-- PK 23505). Renommé en `037_…` après `036_push_subscriptions` pour
+-- débloquer l'application.
 -- Contexte : la limite de 5 MB (mig. 015) est trop basse en pratique. Les
 -- photos prises au smartphone non-compressées (HEIC iPhone, JPEG HD Android)
 -- dépassent régulièrement 5 MB, ce qui fait échouer l'upload avant même

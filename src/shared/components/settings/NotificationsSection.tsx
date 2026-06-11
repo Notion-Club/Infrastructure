@@ -1,7 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Bell, LoaderCircle, Mail, MessageCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Bell,
+  LoaderCircle,
+  Mail,
+  MessageCircle,
+  Smartphone,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -13,6 +19,7 @@ import {
   type NotificationChannel,
   type NotificationSettings,
 } from "@/modules/settings";
+import { usePushSubscription } from "@/shared/lib/hooks/usePushSubscription";
 import { SettingsCard } from "./SettingsCard";
 import type { UserOffer } from "./types";
 
@@ -54,6 +61,9 @@ const CHANNELS: ChannelMeta[] = [
   { key: "email", label: "Mail", Icon: Mail },
   { key: "in_app", label: "InApp", Icon: Bell },
   { key: "whatsapp", label: "WhatsApp", Icon: MessageCircle },
+  // Web Push (mobile + desktop), requiert souscription navigateur. Sur iOS,
+  // marche uniquement quand la PWA est installée sur l'écran d'accueil.
+  { key: "push", label: "Push", Icon: Smartphone },
 ];
 
 type PreferenceMap = NotificationSettings["preferences"];
@@ -86,6 +96,30 @@ export function NotificationsSection({
   const [prefs, setPrefs] = useState<PreferenceMap>(initial.preferences);
   const [saving, setSaving] = useState(false);
 
+  // Push : la souscription navigateur (PushManager) doit être créée /
+  // détruite *au moment du clic* sur le toggle Push (iOS Safari refuse
+  // `pushManager.subscribe()` hors user gesture). On sync ensuite l'état
+  // visuel du toggle avec le statut réel renvoyé par le hook.
+  // `await Promise.resolve()` pour respecter la règle ESLint
+  // `react-hooks/set-state-in-effect` du repo (cf. AGENTS.md).
+  const push = usePushSubscription();
+  useEffect(() => {
+    if (push.status === "loading") return;
+    let cancelled = false;
+    (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setChannels((prev) => {
+        const next = push.status === "subscribed";
+        if (prev.push === next) return prev;
+        return { ...prev, push: next };
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [push.status]);
+
   const visibleCategories = useMemo(
     () =>
       CATEGORIES.filter((cat) => {
@@ -96,7 +130,38 @@ export function NotificationsSection({
     [userOffer],
   );
 
-  function toggleChannel(channel: NotificationChannel) {
+  async function toggleChannel(channel: NotificationChannel) {
+    // Cas spécial push : on ne peut pas se contenter de flipper le state.
+    // Il faut demander la permission navigateur et créer/détruire la
+    // souscription Web Push. Le state suit ensuite via l'effect ci-dessus.
+    if (channel === "push") {
+      if (!push.support.supported) {
+        const reasonLabel =
+          push.support.reason === "no_vapid_key"
+            ? "Notifications push non configurées côté serveur."
+            : "Notifications push non supportées sur ce navigateur.";
+        toast.error(reasonLabel);
+        return;
+      }
+      const turningOn = !channels.push;
+      const result = turningOn
+        ? await push.subscribe()
+        : await push.unsubscribe();
+      if (!result.ok) {
+        if (result.reason === "permission_denied") {
+          toast.error(
+            "Permission refusée. Active les notifications dans les réglages de ton navigateur.",
+          );
+        } else {
+          toast.error("Impossible de mettre à jour la souscription push.");
+        }
+      } else if (turningOn) {
+        toast.success("Notifications push activées 🎉");
+      } else {
+        toast.success("Notifications push désactivées.");
+      }
+      return;
+    }
     setChannels((prev) => ({ ...prev, [channel]: !prev[channel] }));
   }
 
