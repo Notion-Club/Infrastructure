@@ -3,6 +3,7 @@ import { Geist_Mono } from "next/font/google";
 import { Toaster } from "@/shared/components/ui/sonner";
 import { ThemeProvider } from "@/shared/components/theme/ThemeProvider";
 import ServiceWorkerRegistrar from "@/shared/components/pwa/ServiceWorkerRegistrar";
+import { GradualBlurOverlay } from "@/shared/components/GradualBlurOverlay";
 import { sfProDisplay } from "@/shared/lib/fonts";
 import "./globals.css";
 
@@ -28,11 +29,9 @@ export const metadata: Metadata = {
     // entre la status bar et la page). Le texte iOS (heure, signal,
     // batterie) reste affiché en blanc par-dessus.
     //
-    // Conséquence : le contenu *sous* la zone status bar doit fournir
-    // assez de contraste pour que le texte blanc reste lisible. En dark
-    // mode la page est déjà sombre — pas d'action. En light mode, on
-    // ajoute un dégradé sombre subtil en haut via `.nc-statusbar-scrim`
-    // (cf. globals.css) pour ne pas perdre la lisibilité.
+    // Pour la lisibilité du texte iOS blanc sur fond clair, on ajoute un
+    // `GradualBlurOverlay` ancré en haut (frosted glass façon iOS) sur
+    // mobile, monté dans le body — cf. plus bas.
     statusBarStyle: "black-translucent",
   },
   icons: {
@@ -103,10 +102,18 @@ export default function RootLayout({
         <ThemeProvider>{children}</ThemeProvider>
         <Toaster />
         <ServiceWorkerRegistrar />
-        {/* Scrim status bar — visible uniquement en PWA standalone + light
-            mode (cf. .nc-statusbar-scrim dans globals.css). En dark mode,
-            le fond `#141211` suffit à rendre le texte iOS blanc lisible. */}
-        <div className="nc-statusbar-scrim" aria-hidden />
+        {/* Frosted glass haut de page — mobile uniquement. Reprend le
+            composant utilisé en bas des pages Ressources / Communauté
+            mais ancré en haut : `backdrop-filter: blur` gradué qui floute
+            le contenu de page qui passe derrière la zone status bar iOS
+            (en PWA standalone, viewport-fit=cover laisse le body
+            s'étendre jusqu'au bord supérieur du téléphone). Effet
+            d'app native, valable en light comme en dark mode.
+            zIndex < MobileTopActions (40) → les boutons (clé, cloche,
+            avatar) restent nets au-dessus du voile. */}
+        <div className="md:hidden">
+          <GradualBlurOverlay anchor="top" height={100} zIndex={35} />
+        </div>
       </body>
     </html>
   );
