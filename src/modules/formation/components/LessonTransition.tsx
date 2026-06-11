@@ -15,12 +15,11 @@ type StartDetail = { feedback?: LessonFeedbackDetail };
 const START = "nc:lesson-transition-start";
 const READY = "nc:lesson-ready";
 
-const AUTO_CLOSE_MS = 12000; // fermeture auto (sécurité : le contenu est toujours chargé d'ici là)
-const MIN_CROSS = 5000; // la croix de skip n'apparaît jamais avant 5 s
+const MIN_CROSS = 5000; // la croix de skip n'apparaît jamais avant 5 s — ni avant que le contenu soit prêt
 const ANTIFLASH = 500; // durée mini du voile sans feedback (nav précédente)
 const FADE_MS = 280; // doit matcher la sortie .nc-lt-card
 const CLOSE_MS = 2000; // vidage de la barre après envoi du feedback
-const SAFETY_MS = 20000; // garde-fou ultime si "ready" est perdu
+const SAFETY_MS = 30000; // garde-fou ultime si le signal "ready" n'arrive jamais
 
 // Déclenché par la navigation leçon → leçon, AVANT le router.push : il faut
 // que le slot soit armé avant que React ne garde l'ancien contenu (la nav vit
@@ -128,6 +127,11 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     if (!activeRef.current || closingRef.current) return;
     if (crossTimer.current) clearTimeout(crossTimer.current);
     crossTimer.current = null;
+    // La croix apparaît : le contenu est prêt ET le minimum de 5 s est écoulé.
+    // On complète la barre (≤ 90 % → 100 %) et on stoppe le minuteur de remplissage.
+    if (progressTimer.current) clearInterval(progressTimer.current);
+    progressTimer.current = null;
+    setProgress(100);
     setCanClose(true);
   }
 
@@ -149,11 +153,14 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     setSeq((s) => s + 1);
     setActive(true);
 
-    // Minuteur : la barre se remplit linéairement sur les 12 s (façon pub
-    // YouTube — elle continue même une fois la croix de skip disponible).
+    // Minuteur : la barre se remplit sur les 5 s du minimum (façon pub YouTube).
+    // Tant que le body Notion du cours suivant n'est pas entièrement chargé, elle
+    // plafonne à 90 % pour signaler « chargement en cours » ; le solde se
+    // complète quand la croix s'active, c.-à-d. à max(5 s, ready).
     progressTimer.current = setInterval(() => {
       const elapsed = performance.now() - startTimeRef.current;
-      const p = Math.min(100, (elapsed / AUTO_CLOSE_MS) * 100);
+      const ceiling = readyRef.current ? 100 : 90;
+      const p = Math.min(ceiling, (elapsed / MIN_CROSS) * 100);
       setProgress((prev) => Math.max(prev, p));
     }, 60);
 
@@ -161,18 +168,23 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     safetyTimer.current = setTimeout(reveal, SAFETY_MS);
   }
 
-  // Contenu prêt. Avec feedback : la croix de skip apparaît à max(ready, 5 s) et
-  // la fermeture auto reste à 12 s. Sans feedback (nav précédente) : révélation
-  // dès que prêt (mini ANTIFLASH).
+  // Contenu prêt. Avec feedback : la croix de skip apparaît à max(5 s, ready) et
+  // le voile reste ensuite jusqu'à ce que l'utilisateur agisse (envoi du feedback
+  // ou clic sur la croix) — aucune fermeture auto. Sans feedback (nav
+  // précédente) : révélation dès que prêt (mini ANTIFLASH).
   function onReady() {
     if (!activeRef.current || readyRef.current) return;
     readyRef.current = true;
+    // Le contenu est arrivé → le garde-fou anti-signal-perdu n'a plus lieu d'être.
+    if (safetyTimer.current) clearTimeout(safetyTimer.current);
+    safetyTimer.current = null;
     const elapsed = performance.now() - startTimeRef.current;
     if (hasFormRef.current) {
+      // La croix (et donc la possibilité de quitter) apparaît au plus tard à
+      // max(5 s, ready). Pas de révélation auto ensuite : le temps d'attente a
+      // servi à charger entièrement le cours suivant, l'utilisateur garde la main.
       if (crossTimer.current) clearTimeout(crossTimer.current);
       crossTimer.current = setTimeout(enableClose, Math.max(0, MIN_CROSS - elapsed));
-      if (revealTimer.current) clearTimeout(revealTimer.current);
-      revealTimer.current = setTimeout(reveal, Math.max(0, AUTO_CLOSE_MS - elapsed));
     } else {
       if (revealTimer.current) clearTimeout(revealTimer.current);
       revealTimer.current = setTimeout(reveal, Math.max(0, ANTIFLASH - elapsed));
@@ -260,7 +272,8 @@ export function LessonTransition({ children }: { children: ReactNode }) {
                 boxShadow: "var(--nc-shadow-2)",
               }}
             >
-              {/* Barre du haut : "count" (minuteur 12 s, façon pub YouTube) →
+              {/* Barre du haut : "count" (remplissage sur le minimum 5 s, façon
+                  pub YouTube ; plafonne à 90 % tant que le contenu charge) →
                   "empty" (se vide = compte à rebours de fermeture après envoi). */}
               <div style={{ height: 4, background: "var(--color-border-default)" }}>
                 <div

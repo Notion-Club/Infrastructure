@@ -195,7 +195,6 @@ export function ProfileSection({
         : null;
 
       if (isMocked) {
-        await new Promise((r) => setTimeout(r, 500));
         toast.success("Modifications enregistrées (démo)");
         return;
       }
