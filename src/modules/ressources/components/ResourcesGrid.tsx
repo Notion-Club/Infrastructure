@@ -195,22 +195,30 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     searchInputRef.current?.blur();
   }
 
+  // Cocher/décocher un type → même mouvement horizontal que les sections (un
+  // filtre, donc « panneau »). Sens : cocher (on affine) entre par la droite,
+  // décocher (on élargit) entre par la gauche.
   function toggleType(type: ResourceMetierType) {
     const next = new Set(selectedTypes);
-    if (next.has(type)) {
-      next.delete(type);
-    } else {
+    const adding = !next.has(type);
+    if (adding) {
       next.add(type);
+    } else {
+      next.delete(type);
     }
     setSelectedTypes(next);
-    animateTo(buildVisibleIds(searchQuery, primaryFilter, next), { mode: 'reflow' });
+    animateTo(buildVisibleIds(searchQuery, primaryFilter, next), {
+      mode: 'tab',
+      direction: adding ? 1 : -1,
+    });
   }
 
   function resetFilters() {
     const next = new Set<ResourceMetierType>();
     setSelectedTypes(next);
     setSearchQuery('');
-    animateTo(buildVisibleIds('', primaryFilter, next), { mode: 'reflow' });
+    // Réinitialiser = on élargit → panneau horizontal depuis la gauche.
+    animateTo(buildVisibleIds('', primaryFilter, next), { mode: 'tab', direction: -1 });
   }
 
   // Clic sur un onglet primaire (Tout / Ressources / Templates) → transition

@@ -156,14 +156,21 @@ export function useGridChoreography(containerRef: React.RefObject<HTMLElement | 
       const last = new Map<HTMLElement, Rect>();
       for (const el of survivors) last.set(el, relRect(el, base2));
 
-      // INVERT — renvoyer instantanément les survivors à leur ancienne place
+      // INVERT — état de départ des survivors selon le mode.
+      // - reflow : FLIP (on les renvoie à leur ancienne place, puis ils glissent).
+      // - tab : panneau horizontal — pas de FLIP vertical, ils entrent depuis le
+      //   côté `dir` comme le reste du nouveau set (évite tout saut vertical).
       for (const el of survivors) {
-        const a = first.get(el)!;
-        const b = last.get(el)!;
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
         el.style.transition = 'none';
-        el.style.transform = dx || dy ? `translate(${dx}px,${dy}px)` : 'translateZ(0)';
+        if (mode === 'tab') {
+          el.style.transform = `translateX(${dir * SLIDE}px)`;
+        } else {
+          const a = first.get(el)!;
+          const b = last.get(el)!;
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          el.style.transform = dx || dy ? `translate(${dx}px,${dy}px)` : 'translateZ(0)';
+        }
       }
 
       // Cascade en ordre de lecture (haut → bas, gauche → droite)
@@ -175,8 +182,14 @@ export function useGridChoreography(containerRef: React.RefObject<HTMLElement | 
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
           order.forEach(({ el }, i) => {
-            el.style.transition = `transform var(--reflow-dur) var(--ease-fluid)`;
-            el.style.transitionDelay = `${stag(i, 70, 7)}ms`;
+            if (mode === 'tab') {
+              // Glisse horizontalement vers sa place, en cadence avec les entrants.
+              const d = stag(i, 180, 22);
+              el.style.transition = `transform var(--enter-dur) var(--ease-back) ${d}ms`;
+            } else {
+              el.style.transition = `transform var(--reflow-dur) var(--ease-fluid)`;
+              el.style.transitionDelay = `${stag(i, 70, 7)}ms`;
+            }
             el.style.transform = 'translateZ(0)';
           });
 
