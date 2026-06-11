@@ -548,32 +548,35 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
             }}
           />
 
-          {/* Libellé inactif + raccourci ⌘/Ctrl K — fondu via searchActive */}
-          <div
+          {/* Text swap décoratif (non interactif) : le libellé inactif sort en
+              glissant vers le haut + flou pendant que le placeholder actif entre
+              depuis le bas. Piloté en CSS par searchActive → ne bloque jamais le
+              focus de l'input. */}
+          <span
             aria-hidden
             style={{
               position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0 18px 0 44px',
-              pointerEvents: 'none',
+              left: 44,
+              right: 14,
+              top: '50%',
+              transform: searchActive ? 'translateY(calc(-50% - 6px))' : 'translateY(-50%)',
+              filter: searchActive ? 'blur(2px)' : 'blur(0px)',
               opacity: searchActive ? 0 : 1,
-              transition: 'opacity 200ms ease',
+              transition:
+                'opacity 220ms var(--nc-ease), transform 220ms var(--nc-ease), filter 220ms var(--nc-ease)',
+              fontSize: 14,
+              color: 'var(--color-text-muted)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              pointerEvents: 'none',
               zIndex: 3,
             }}
           >
-            <span style={{ fontSize: 14, color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Cherche une ressource…
-            </span>
-            <span className="nc-kbd-hint" style={{ alignItems: 'center', gap: 3, flexShrink: 0, opacity: 0.5 }}>
-              <kbd className="nc-kbd-badge">{isMac ? '\u2318' : 'Ctrl'}</kbd>
-              <kbd className="nc-kbd-badge">K</kbd>
-            </span>
-          </div>
+            Cherche une ressource…
+          </span>
 
-          {/* Placeholder shimmer actif « Que cherches-tu ? » — fondu, non interactif */}
+          {/* Placeholder actif « Que cherches-tu ? » (shimmer) — entre depuis le bas */}
           <span
             aria-hidden
             className={searchActive ? 't-shimmer' : undefined}
@@ -582,16 +585,39 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               position: 'absolute',
               left: 44,
               top: '50%',
-              transform: 'translateY(-50%)',
+              transform: searchActive ? 'translateY(-50%)' : 'translateY(calc(-50% + 6px))',
+              filter: searchActive ? 'blur(0px)' : 'blur(2px)',
+              opacity: searchActive && !searchQuery ? 1 : 0,
+              transition:
+                'opacity 220ms var(--nc-ease), transform 220ms var(--nc-ease), filter 220ms var(--nc-ease)',
               fontSize: 14,
               pointerEvents: 'none',
               zIndex: 3,
               whiteSpace: 'nowrap',
-              opacity: searchActive && !searchQuery ? 1 : 0,
-              transition: 'opacity 180ms ease 60ms',
             }}
           >
             Que cherches-tu ?
+          </span>
+
+          {/* Raccourci clavier (masqué sur mobile) — fondu quand actif */}
+          <span
+            aria-hidden
+            className="nc-kbd-hint"
+            style={{
+              position: 'absolute',
+              right: 14,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              alignItems: 'center',
+              gap: 3,
+              opacity: searchActive ? 0 : 0.5,
+              transition: 'opacity 180ms ease',
+              pointerEvents: 'none',
+              zIndex: 3,
+            }}
+          >
+            <kbd className="nc-kbd-badge">{isMac ? '⌘' : 'Ctrl'}</kbd>
+            <kbd className="nc-kbd-badge">K</kbd>
           </span>
 
           {/* Bouton fermer — seul habillage interactif, visible quand actif */}
