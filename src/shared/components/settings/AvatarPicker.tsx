@@ -129,7 +129,6 @@ export function AvatarPicker({
     setSavingColor(true);
     try {
       if (isMocked) {
-        await new Promise((r) => setTimeout(r, 400));
         toast.success("Couleur mise à jour (démo)");
         onAvatarUpdated({ avatarColor: selectedColor });
         setColorPopupOpen(false);
@@ -173,7 +172,6 @@ export function AvatarPicker({
     setUploading(true);
     try {
       if (isMocked) {
-        await new Promise((r) => setTimeout(r, 400));
         toast.info("Aperçu local — connectez-vous pour enregistrer.");
         // Convert to data URL pour aperçu visuel en mode démo
         const reader = new FileReader();
@@ -219,7 +217,6 @@ export function AvatarPicker({
     setRemoving(true);
     try {
       if (isMocked) {
-        await new Promise((r) => setTimeout(r, 300));
         toast.info("Suppression simulée (démo).");
         onAvatarUpdated({ avatarUrl: null });
         return;

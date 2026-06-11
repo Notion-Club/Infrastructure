@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     viewTransition: true,
+    // Router Cache côté client : par défaut, Next 16 fixe `dynamic: 0`, ce qui
+    // refait un fetch RSC complet à CHAQUE navigation — même pour une page déjà
+    // ouverte dans la session (et même au retour navigateur), puisque toutes les
+    // pages (app)/ sont dynamiques (cookies Supabase). On garde le payload d'une
+    // route visitée 3 min en mémoire → revisite instantanée, sans re-skeleton.
+    // Les mutations (router.refresh / revalidatePath) continuent d'invalider.
+    staleTimes: { dynamic: 180, static: 300 },
     // Avatars sont upload-és via Server Action en FormData. La limite par
     // défaut de Next (1 MB) refuse le payload AVANT d'atteindre notre
     // validation métier (AVATAR_MAX_BYTES = 5 MB) et renvoie un message

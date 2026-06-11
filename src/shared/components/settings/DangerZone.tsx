@@ -152,7 +152,6 @@ function DeleteAccountModal({
     setSubmitting(true);
     try {
       if (isMocked) {
-        await new Promise((r) => setTimeout(r, 600));
         toast.info("Suppression simulée (démo) — connectez-vous pour de vrai.");
         onClose();
         return;

@@ -216,7 +216,6 @@ function PasswordChangeForm({
     setSubmitting(true);
     try {
       if (isMocked) {
-        await new Promise((r) => setTimeout(r, 500));
         toast.success("Mot de passe mis à jour (démo)");
         setCurrent("");
         setNext("");
@@ -426,7 +425,6 @@ function GoogleIdentityBlock({
     setPending(true);
     try {
       if (isMocked) {
-        await new Promise((r) => setTimeout(r, 400));
         toast.info("Connectez-vous pour associer un compte Google.");
         return;
       }
@@ -453,7 +451,6 @@ function GoogleIdentityBlock({
     setPending(true);
     try {
       if (isMocked) {
-        await new Promise((r) => setTimeout(r, 400));
         toast.info("Connectez-vous pour dissocier votre compte Google.");
         return;
       }
