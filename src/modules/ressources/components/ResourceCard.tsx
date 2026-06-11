@@ -1,9 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { flushSync } from 'react-dom';
 import { Lock } from 'lucide-react';
 import type { Resource, UserCapability } from '../types';
 import { canAccess } from '../lib/access';
+import { HERO_VT_NAME } from '../lib/heroTransition';
+import { useActiveHero, setActiveHero } from '../lib/useActiveHero';
 import { ResourceBadge } from './shared/ResourceBadge';
 
 interface ResourceCardProps {
@@ -14,17 +17,30 @@ interface ResourceCardProps {
 export function ResourceCard({ resource, currentCapability }: ResourceCardProps) {
   const router = useRouter();
   const isLocked = !canAccess(currentCapability, resource.visibilite);
+  const activeSlug = useActiveHero();
+  const isHero = activeSlug === resource.slug;
+
+  // Ouverture : on marque CETTE carte comme héros de façon synchrone (flushSync)
+  // pour qu'elle porte le view-transition-name partagé AVANT que la navigation
+  // ne capture l'état sortant → le morph carte → encadré peut s'amorcer.
+  function open() {
+    flushSync(() => setActiveHero(resource.slug));
+    router.push('/ressources/ressource/' + resource.slug);
+  }
 
   return (
     <div
       role="button"
       tabIndex={0}
       data-fb-label={`Carte ressource « ${resource.titre} » · Grille des ressources`}
-      onClick={() => router.push('/ressources/ressource/' + resource.slug)}
+      // Marque la carte « héros » pour que la cascade de la grille l'ignore
+      // pendant le morph (cf. useGridChoreography).
+      data-vt-hero={isHero ? '1' : undefined}
+      onClick={open}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          router.push('/ressources/ressource/' + resource.slug);
+          open();
         }
       }}
       className="group hover:border-[rgba(224,98,90,0.32)]"
@@ -43,7 +59,9 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
         transition: 'border-color 350ms cubic-bezier(0.22, 1, 0.36, 1)',
         position: 'relative',
         overflow: 'hidden',
-        viewTransitionName: `card-${resource.slug}`,
+        // Seule la carte en cours d'ouverture porte le nom partagé → la grille
+        // reste unique pour l'API View Transitions.
+        viewTransitionName: isHero ? HERO_VT_NAME : undefined,
       }}
     >
       <div

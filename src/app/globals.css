@@ -1046,6 +1046,20 @@ html {
   }
 }
 
+/* Révélation douce du contenu réel par-dessus le skeleton (pages ressource /
+   template) : une fois le morph de la carte terminé et les données Notion
+   arrivées, l'encadré de contenu se fond en place. */
+@keyframes nc-hero-reveal {
+  from { opacity: 0; filter: blur(4px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+.nc-hero-reveal {
+  animation: nc-hero-reveal 360ms var(--nc-ease) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-hero-reveal { animation: none !important; }
+}
+
 /* Skeleton pulse — utilisé dans loading.tsx */
 @keyframes nc-skeleton-pulse {
   0%, 100% { opacity: 1; }

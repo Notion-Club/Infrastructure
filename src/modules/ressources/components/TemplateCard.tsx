@@ -1,9 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { flushSync } from 'react-dom';
 import { Lock } from 'lucide-react';
 import type { Template, UserCapability } from '../types';
 import { canAccess } from '../lib/access';
+import { HERO_VT_NAME } from '../lib/heroTransition';
+import { useActiveHero, setActiveHero } from '../lib/useActiveHero';
 import { ResourceBadge } from './shared/ResourceBadge';
 
 interface TemplateCardProps {
@@ -14,17 +17,27 @@ interface TemplateCardProps {
 export function TemplateCard({ template, currentCapability }: TemplateCardProps) {
   const router = useRouter();
   const isLocked = !canAccess(currentCapability, template.visibilite);
+  const activeSlug = useActiveHero();
+  const isHero = activeSlug === template.slug;
+
+  // Cf. ResourceCard : on arme le héros de façon synchrone avant la navigation.
+  function open() {
+    flushSync(() => setActiveHero(template.slug));
+    router.push('/ressources/template/' + template.slug);
+  }
 
   return (
     <div
       role="button"
       tabIndex={0}
       data-fb-label={`Carte template « ${template.titre} » · Grille des ressources`}
-      onClick={() => router.push('/ressources/template/' + template.slug)}
+      // Cf. ResourceCard : exclut la carte du morph de la cascade.
+      data-vt-hero={isHero ? '1' : undefined}
+      onClick={open}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          router.push('/ressources/template/' + template.slug);
+          open();
         }
       }}
       className="group hover:border-[rgba(224,98,90,0.32)]"
@@ -43,7 +56,8 @@ export function TemplateCard({ template, currentCapability }: TemplateCardProps)
         transition: 'border-color 350ms cubic-bezier(0.22, 1, 0.36, 1)',
         position: 'relative',
         overflow: 'hidden',
-        viewTransitionName: `card-${template.slug}`,
+        // Seule la carte en cours d'ouverture porte le nom partagé.
+        viewTransitionName: isHero ? HERO_VT_NAME : undefined,
       }}
     >
       <div
