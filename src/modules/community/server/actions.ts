@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import { notifyPush, notifyPushMany } from "./push-notify";
 import {
   createCommentReplySchema,
   createCommentSchema,
@@ -340,6 +341,45 @@ export async function createPostAction(
       );
     if (mentionsError) {
       console.error("[createPost] mentions insert failed:", mentionsError.message);
+    }
+  }
+
+  // Web Push téléphone (in-app déjà géré par trigger DB). Best-effort.
+  const postUrl = `/communaute/post/${data.id}`;
+  const postExcerpt = parsed.data.title?.trim() || parsed.data.body;
+
+  // Mentions dans le post → push à chaque mentionné.
+  if (mentionIds.length > 0) {
+    await notifyPushMany(mentionIds, {
+      actorId: caller.userId,
+      type: "mention_post",
+      excerpt: postExcerpt,
+      url: postUrl,
+    });
+  }
+
+  // Annonce admin → fan-out push à tous les membres non-bannis de l'org
+  // (même périmètre que le trigger notify_admin_annonce de la mig. 038).
+  if (parsed.data.tag === "annonce") {
+    const { data: authorProfile } = await supabase
+      .from("profiles")
+      .select("organization_id")
+      .eq("id", caller.userId)
+      .maybeSingle<{ organization_id: string }>();
+    if (authorProfile?.organization_id) {
+      const { data: members } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("organization_id", authorProfile.organization_id)
+        .eq("is_banned", false)
+        .neq("id", caller.userId);
+      const recipientIds = (members ?? []).map((m) => m.id);
+      await notifyPushMany(recipientIds, {
+        actorId: caller.userId,
+        type: "admin_annonce",
+        excerpt: postExcerpt,
+        url: postUrl,
+      });
     }
   }
 
@@ -718,7 +758,36 @@ export async function createCommentAction(
     }
   }
 
-  revalidatePath(`/communaute/post/${parsed.data.post_id}`);
+  // Web Push téléphone (in-app déjà géré par trigger DB). Best-effort.
+  const postUrl = `/communaute/post/${parsed.data.post_id}`;
+  const { data: post } = await supabase
+    .from("posts")
+    .select("author_id")
+    .eq("id", parsed.data.post_id)
+    .maybeSingle<{ author_id: string }>();
+  if (post?.author_id) {
+    await notifyPush({
+      recipientId: post.author_id,
+      actorId: caller.userId,
+      type: "comment_on_post",
+      excerpt: parsed.data.body,
+      url: postUrl,
+    });
+  }
+  // Mentions : un push par mentionné (le helper skippe l'auteur lui-même et
+  // le destinataire du commentaire si déjà notifié n'est pas dédupliqué — un
+  // mentionné qui serait aussi auteur du post reçoit donc 2 pushes, cas rare
+  // et acceptable). Aligné sur le comportement in-app (2 notifs distinctes).
+  if (mentionIds.length > 0) {
+    await notifyPushMany(mentionIds, {
+      actorId: caller.userId,
+      type: "mention_comment",
+      excerpt: parsed.data.body,
+      url: postUrl,
+    });
+  }
+
+  revalidatePath(postUrl);
   revalidatePath("/communaute");
   return { ok: true, commentId: data.id };
 }
@@ -844,12 +913,13 @@ export async function createCommentReplyAction(
 
   const supabase = await createSupabaseServerClient();
 
-  // On résout le post_id du comment parent pour revalidatePath ciblé.
+  // On résout le post_id + author_id du comment parent (revalidatePath ciblé
+  // + destinataire du push reply_to_comment).
   const { data: parentComment } = await supabase
     .from("comments")
-    .select("post_id")
+    .select("post_id, author_id")
     .eq("id", parsed.data.comment_id)
-    .maybeSingle<{ post_id: string }>();
+    .maybeSingle<{ post_id: string; author_id: string }>();
 
   const { data, error } = await supabase
     .from("comment_replies")
@@ -888,6 +958,28 @@ export async function createCommentReplyAction(
     if (mentionsError) {
       console.error("[createCommentReply] mentions insert failed:", mentionsError.message);
     }
+  }
+
+  // Web Push téléphone (in-app déjà géré par trigger DB). Best-effort.
+  const replyUrl = parentComment?.post_id
+    ? `/communaute/post/${parentComment.post_id}`
+    : "/communaute";
+  if (parentComment?.author_id) {
+    await notifyPush({
+      recipientId: parentComment.author_id,
+      actorId: caller.userId,
+      type: "reply_to_comment",
+      excerpt: parsed.data.body,
+      url: replyUrl,
+    });
+  }
+  if (mentionIds.length > 0) {
+    await notifyPushMany(mentionIds, {
+      actorId: caller.userId,
+      type: "mention_comment",
+      excerpt: parsed.data.body,
+      url: replyUrl,
+    });
   }
 
   revalidatePath("/communaute");
@@ -1052,6 +1144,24 @@ export async function togglePostReactionAction(
   if (error) {
     return { ok: false, code: "unknown", message: error.message };
   }
+
+  // Web Push téléphone — UNIQUEMENT à l'ajout (jamais au retrait). In-app déjà
+  // géré par trigger DB. Best-effort.
+  const { data: post } = await supabase
+    .from("posts")
+    .select("author_id, title, body")
+    .eq("id", post_id)
+    .maybeSingle<{ author_id: string; title: string | null; body: string }>();
+  if (post?.author_id) {
+    await notifyPush({
+      recipientId: post.author_id,
+      actorId: caller.userId,
+      type: "reaction_on_post",
+      excerpt: post.title?.trim() || post.body,
+      url: `/communaute/post/${post_id}`,
+    });
+  }
+
   revalidatePath("/communaute");
   revalidatePath(`/communaute/post/${post_id}`);
   return { ok: true, isAdded: true };
@@ -1322,6 +1432,33 @@ export async function sendMessageAction(
     .from("conversations")
     .update({ last_message_at: new Date().toISOString() })
     .eq("id", parsed.data.conversation_id);
+
+  // Web Push téléphone vers l'autre participant (in-app déjà géré par trigger
+  // DB). Best-effort. Excerpt aligné sur le trigger (label pour les fichiers).
+  const { data: conv } = await supabase
+    .from("conversations")
+    .select("participant_a_id, participant_b_id")
+    .eq("id", parsed.data.conversation_id)
+    .maybeSingle<{ participant_a_id: string; participant_b_id: string }>();
+  if (conv) {
+    const recipientId =
+      conv.participant_a_id === caller.userId
+        ? conv.participant_b_id
+        : conv.participant_a_id;
+    const excerpt =
+      parsed.data.type === "image"
+        ? "📷 Image"
+        : parsed.data.type === "pdf"
+          ? "📄 Document"
+          : parsed.data.body;
+    await notifyPush({
+      recipientId,
+      actorId: caller.userId,
+      type: "new_dm",
+      excerpt,
+      url: `/communaute?tab=messages&conversation=${parsed.data.conversation_id}`,
+    });
+  }
 
   revalidatePath("/communaute");
   return { ok: true, messageId: data.id };
