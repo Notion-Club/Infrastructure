@@ -10,8 +10,12 @@ export type NotificationType =
 export interface Notification {
   id: string;
   type: NotificationType;
+  /** Profil à l'origine de l'événement (qui a mentionné / commenté / réagi). */
+  actorId: string;
   actorName: string;
   actorAvatar: string | null;
+  /** Couleur d'avatar fallback (avatar_color), pour le rond initiales. */
+  actorAvatarColor: string | null;
   actorInitials: string;
   excerpt: string;
   postId?: string;
