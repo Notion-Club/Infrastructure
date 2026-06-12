@@ -1047,24 +1047,97 @@ html {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Scénario C (ressources/templates) — morph d'élément partagé
-
-   Posé via le composant React `<ViewTransition share="morph">`, qui assigne
-   la classe `morph` à la transition (carte grille ↔ encadré détail ↔ skeleton).
-   On règle la durée/easing du groupe et on ajoute un flou en milieu de course
-   (`via-blur`) pour masquer l'interpolation pixel et tuer le fantôme — c'est
-   l'approche recommandée par le guide Next « View transitions ».
+   Overlay « container transform » des ressources (morph FLIP).
+   Un SEUL élément réel (le panneau) morphe depuis le rect de la carte
+   vers un panneau centré — géométrie (top/left/width/height/radius)
+   animée en JS dans ResourceOverlay. Ici : scrim, fondus décalés du
+   header/corps (comme .detail-head / .detail-body du prototype),
+   bouton fermer, et garde reduced-motion.
    ────────────────────────────────────────────────────────────── */
-::view-transition-group(.morph) {
-  animation-duration: var(--nc-duration-morph);
-  animation-timing-function: var(--nc-ease-morph);
+.nc-rovl-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1000;
+  transition: opacity 340ms var(--ease-out);
 }
-::view-transition-image-pair(.morph) {
-  animation-name: nc-vt-morph-blur;
+.nc-rovl-scrim.is-open {
+  opacity: 1;
+  pointer-events: auto;
 }
-@keyframes nc-vt-morph-blur {
-  30% {
-    filter: blur(3px);
+
+.nc-rovl-panel {
+  position: fixed;
+  z-index: 1001;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-default);
+  box-shadow: var(--nc-shadow-2);
+  overflow: hidden;
+  /* hint GPU seulement le temps du morph (posé/retiré en JS). */
+}
+.nc-rovl-scroll {
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 32px clamp(20px, 4vw, 40px) 40px;
+}
+.nc-rovl-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 250ms var(--ease-out) 120ms, background 200ms ease;
+}
+.nc-rovl-close:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+.nc-rovl-panel.is-open .nc-rovl-close {
+  opacity: 1;
+}
+
+/* Header : « partagé » visuellement avec la carte, apparaît vite. */
+.nc-rovl-head {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 260ms var(--ease-out) 50ms, transform 320ms var(--nc-ease) 50ms;
+}
+.nc-rovl-panel.is-open .nc-rovl-head {
+  opacity: 1;
+  transform: none;
+}
+
+/* Corps : fondu + léger glissement, plus tardif (après le morph). */
+.nc-rovl-body {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 340ms var(--ease-out) 140ms, transform 400ms var(--nc-ease) 140ms;
+}
+.nc-rovl-panel.is-open .nc-rovl-body {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nc-rovl-scrim,
+  .nc-rovl-panel,
+  .nc-rovl-head,
+  .nc-rovl-body,
+  .nc-rovl-close {
+    transition: none !important;
   }
 }
 
