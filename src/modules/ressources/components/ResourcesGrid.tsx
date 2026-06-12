@@ -9,6 +9,7 @@ import { ResourceCard } from './ResourceCard';
 import { TemplateCard } from './TemplateCard';
 import { SuggestTemplateCard } from './SuggestTemplateCard';
 import { NoResultsState } from './NoResultsState';
+import { ResourceOverlay } from './ResourceOverlay';
 import { BorderBeam } from 'border-beam';
 import { useTheme } from '@/shared/lib/hooks/useTheme';
 import { useGridChoreography } from '@/shared/hooks/useGridChoreography';
@@ -103,6 +104,14 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
 
   const currentCapability: UserCapability = mockCurrentUser.capability;
   const { theme } = useTheme();
+
+  // Overlay « container transform » : item ouvert + élément DOM de la carte
+  // source (rect du morph). La grille reste montée dessous → la fermeture morphe
+  // vers une carte qui existe toujours.
+  const [overlay, setOverlay] = useState<{ item: ResourceItem; el: HTMLElement } | null>(null);
+  const openOverlay = useCallback((item: ResourceItem, el: HTMLElement) => {
+    setOverlay({ item, el });
+  }, []);
 
   /** Ensemble des slugs visibles pour un état (recherche + filtres) donné.
    *  Inclut la carte « Suggérer » tant qu'au moins une carte réelle est visible. */
@@ -678,9 +687,9 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
         {items.map((item) => (
           <div key={item.slug} className="nc-grid-card" data-card-id={item.slug} data-cat={item.category}>
             {item.category === 'resource' ? (
-              <ResourceCard resource={item} currentCapability={currentCapability} />
+              <ResourceCard resource={item} currentCapability={currentCapability} onOpen={openOverlay} />
             ) : (
-              <TemplateCard template={item} currentCapability={currentCapability} />
+              <TemplateCard template={item} currentCapability={currentCapability} onOpen={openOverlay} />
             )}
           </div>
         ))}
@@ -688,6 +697,14 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           <SuggestTemplateCard variant={primaryFilter} />
         </div>
       </div>
+
+      {/* Overlay FLIP (porté dans <body>) — monté en permanence, piloté par l'état. */}
+      <ResourceOverlay
+        item={overlay?.item ?? null}
+        sourceEl={overlay?.el ?? null}
+        currentCapability={currentCapability}
+        onClose={() => setOverlay(null)}
+      />
 
       {/* États vides — la grille reste montée (refs/animation), seul ce bloc
           informatif s'affiche par-dessus quand plus aucune carte n'est visible. */}
