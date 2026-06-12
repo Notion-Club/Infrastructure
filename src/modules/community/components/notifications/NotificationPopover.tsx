@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
 import { Bell } from "lucide-react";
-import { MOCK_NOTIFICATIONS } from "../../mocks/notifications.mock";
+import { useNotifications } from "../../hooks/useNotifications";
 import type { Notification } from "../../types/notification.types";
 import { timeAgo } from "../../utils/date-helpers";
-import { UserAvatar } from "../shared/UserAvatar";
 
 const NOTIF_LABELS: Record<Notification["type"], string> = {
   mention_post: "t'a mentionné dans",
@@ -21,15 +20,27 @@ const NOTIF_LABELS: Record<Notification["type"], string> = {
 
 interface NotificationPopoverProps {
   buttonClassName?: string;
+  /**
+   * Contexte d'affichage du bouton trigger :
+   * - "topbar" (défaut) : bouton transparent rond 40px, badge coin haut-droit
+   *   avec bord blanc (look Topbar desktop).
+   * - "mobile" : le bouton est entièrement stylé par la class
+   *   `nc-mobile-action-btn` (frosted glass) — on n'applique aucun style inline
+   *   de layout/fond qui l'écraserait, et le badge prend le look brand mobile.
+   */
+  variant?: "topbar" | "mobile";
 }
 
-export function NotificationPopover({ buttonClassName }: NotificationPopoverProps) {
+export function NotificationPopover({
+  buttonClassName,
+  variant = "topbar",
+}: NotificationPopoverProps) {
+  const isMobile = variant === "mobile";
   const router = useRouter();
   const { isOpen, isMounted, stateClass, close, toggle } = useDropdownTransition();
-  const [notifs, setNotifs] = useState(MOCK_NOTIFICATIONS);
+  const { notifications: notifs, unreadCount: unread, markAsRead, markAllRead } =
+    useNotifications();
   const ref = useRef<HTMLDivElement>(null);
-
-  const unread = notifs.filter((n) => !n.read).length;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -41,7 +52,7 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
   }, [isOpen, close]);
 
   function handleNotifClick(n: Notification) {
-    setNotifs((prev) => prev.map((x) => x.id === n.id ? { ...x, read: true } : x));
+    markAsRead(n.id);
     if (n.conversationId) {
       router.push(`/communaute?tab=messages&conversation=${n.conversationId}`);
     } else if (n.postId) {
@@ -50,55 +61,78 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
     close();
   }
 
-  function markAllRead() {
-    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
-  }
-
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button
         type="button"
-        aria-label="Notifications"
+        aria-label={unread > 0 ? `${unread} notifications` : "Notifications"}
         onClick={() => toggle()}
         data-fb-label="Bouton Notifications · Communauté"
         className={buttonClassName}
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: "50%",
-          border: "none",
-          background: "transparent",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          color: "var(--color-text-secondary)",
-          position: "relative",
-          flexShrink: 0,
-          transition: "background 150ms ease",
-        }}
+        style={
+          isMobile
+            ? // Le look (taille, fond frosted, bordure, shadow) vient de la
+              // class nc-mobile-action-btn — on n'écrase que la couleur d'icône.
+              { color: "var(--color-text-secondary)" }
+            : {
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "var(--color-text-secondary)",
+                position: "relative",
+                flexShrink: 0,
+                transition: "background 150ms ease",
+              }
+        }
       >
-        <Bell size={18} />
+        <Bell size={isMobile ? 16 : 18} />
         {unread > 0 && (
           <span
-            style={{
-              position: "absolute",
-              top: 2,
-              right: 2,
-              minWidth: 15,
-              height: 15,
-              background: "#e0625a",
-              color: "white",
-              borderRadius: 9999,
-              fontSize: 9,
-              fontWeight: 700,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "1.5px solid white",
-              padding: "0 3px",
-              lineHeight: 1,
-            }}
+            style={
+              isMobile
+                ? {
+                    position: "absolute",
+                    top: -2,
+                    right: -2,
+                    minWidth: 17,
+                    height: 17,
+                    background: "var(--color-brand)",
+                    color: "white",
+                    borderRadius: 9999,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "2px solid white",
+                    padding: "0 3px",
+                    lineHeight: 1,
+                  }
+                : {
+                    position: "absolute",
+                    top: 2,
+                    right: 2,
+                    minWidth: 15,
+                    height: 15,
+                    background: "#e0625a",
+                    color: "white",
+                    borderRadius: 9999,
+                    fontSize: 9,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "1.5px solid white",
+                    padding: "0 3px",
+                    lineHeight: 1,
+                  }
+            }
           >
             {unread > 9 ? "9+" : unread}
           </span>
@@ -162,6 +196,26 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
 
           {/* List */}
           <div>
+            {notifs.length === 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "36px 16px",
+                  textAlign: "center",
+                }}
+              >
+                <Bell size={26} color="var(--color-text-muted)" strokeWidth={1.5} />
+                <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-secondary)" }}>
+                  Aucune notification pour le moment
+                </p>
+                <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-muted)" }}>
+                  Mentions, réponses et messages s&rsquo;afficheront ici.
+                </p>
+              </div>
+            )}
             {notifs.map((n) => (
               <button
                 key={n.id}
@@ -196,7 +250,7 @@ export function NotificationPopover({ buttonClassName }: NotificationPopoverProp
                         width: 36,
                         height: 36,
                         borderRadius: "50%",
-                        background: "#e0625a",
+                        background: n.actorAvatarColor ?? "#e0625a",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",

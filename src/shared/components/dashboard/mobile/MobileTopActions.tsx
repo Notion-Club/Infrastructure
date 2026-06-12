@@ -3,17 +3,15 @@
 import { useState, useRef, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell } from "lucide-react";
 
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
+import { NotificationPopover } from "@/modules/community/components/notifications/NotificationPopover";
 import {
   computeIdentityInitials,
   useProfileIdentityContext,
 } from "@/shared/components/identity/ProfileIdentityProvider";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import { DevToolboxButton } from "@/shared/components/dev/DevToolbox";
-
-const UNREAD_COUNT = 2;
 
 export function MobileTopActions() {
   const router = useRouter();
@@ -67,40 +65,8 @@ export function MobileTopActions() {
           panneau d'options dev. */}
       <DevToolboxButton size={38} floating />
 
-      {/* Notifications */}
-      <button
-        type="button"
-        aria-label={`${UNREAD_COUNT} notifications`}
-        data-fb-label="Bouton Notifications · Barre de navigation"
-        className="nc-mobile-action-btn"
-        style={{ color: "var(--color-text-secondary)" }}
-      >
-        <Bell size={16} />
-        {UNREAD_COUNT > 0 && (
-          <span
-            style={{
-              position: "absolute",
-              top: -2,
-              right: -2,
-              minWidth: 17,
-              height: 17,
-              background: "var(--color-brand)",
-              color: "white",
-              borderRadius: 9999,
-              fontSize: 10,
-              fontWeight: 700,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "2px solid white",
-              padding: "0 3px",
-              lineHeight: 1,
-            }}
-          >
-            {UNREAD_COUNT}
-          </span>
-        )}
-      </button>
+      {/* Notifications — données réelles via useNotifications */}
+      <NotificationPopover buttonClassName="nc-mobile-action-btn" variant="mobile" />
 
       {/* Avatar + dropdown */}
       <div ref={avatarRef} style={{ position: "relative" }}>

@@ -10,11 +10,11 @@ import {
   Users,
   Calendar,
   Library,
-  Bell,
   type LucideIcon,
 } from "lucide-react";
 
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
+import { NotificationPopover } from "@/modules/community/components/notifications/NotificationPopover";
 import { useTheme } from "@/shared/lib/hooks/useTheme";
 import {
   computeIdentityInitials,
@@ -38,8 +38,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Coaching", icon: Calendar, href: "/coaching" },
   { label: "Ressources", icon: Library, href: "/ressources" },
 ];
-
-const UNREAD_COUNT = 2;
 
 const SEPARATOR = (
   <div
@@ -241,52 +239,8 @@ export function Topbar() {
               un panneau (cf. DevToolboxProvider / useRegisterDevTools). */}
           <DevToolboxButton size={40} />
 
-          {/* Cloche */}
-          <button
-            type="button"
-            aria-label="Notifications"
-            data-fb-label="Bouton Notifications · Barre de navigation"
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: "50%",
-              border: "none",
-              background: "transparent",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              color: "var(--color-text-secondary)",
-              position: "relative",
-              flexShrink: 0,
-              transition: "background 150ms ease",
-            }}
-            className="hover:bg-[rgba(0,0,0,0.04)]"
-          >
-            <Bell size={18} />
-            <span
-              style={{
-                position: "absolute",
-                top: 2,
-                right: 2,
-                minWidth: 15,
-                height: 15,
-                background: "#e0625a",
-                color: "white",
-                borderRadius: 9999,
-                fontSize: 9,
-                fontWeight: 700,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "1.5px solid white",
-                padding: "0 3px",
-                lineHeight: 1,
-              }}
-            >
-              {UNREAD_COUNT}
-            </span>
-          </button>
+          {/* Cloche + popover notifications (données réelles via useNotifications) */}
+          <NotificationPopover buttonClassName="hover:bg-[rgba(0,0,0,0.04)]" />
 
           {/* Avatar + dropdown */}
           <div ref={avatarRef} style={{ position: "relative" }}>
