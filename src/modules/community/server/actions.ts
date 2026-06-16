@@ -1284,6 +1284,31 @@ export async function toggleCommentReplyReactionAction(
 }
 
 // ============================================================================
+// resolveUsernameAction — username → userId (deep-link conversation)
+// ============================================================================
+// Utilisé par /communaute/messages/<username> quand aucune conversation
+// existante ne porte ce username côté client (cas "DM d'un user jamais
+// contacté"). Lookup case-insensitive (l'index unique de profiles.username
+// est lui-même case-insensitive, cf. migration 010). Retourne null si le
+// username n'existe pas ou n'est pas visible (RLS profiles same-org).
+export async function resolveUsernameAction(
+  username: string,
+): Promise<{ userId: string; username: string } | null> {
+  const clean = username.trim().replace(/^@/, "");
+  if (!clean) return null;
+
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, username")
+    .ilike("username", clean)
+    .maybeSingle<{ id: string; username: string | null }>();
+
+  if (!data?.username) return null;
+  return { userId: data.id, username: data.username };
+}
+
+// ============================================================================
 // createConversationAction — créer ou réutiliser la conv 1-1 avec un user
 // ============================================================================
 // La table conversations impose participant_a_id < participant_b_id (CHECK)
@@ -1456,7 +1481,7 @@ export async function sendMessageAction(
       actorId: caller.userId,
       type: "new_dm",
       excerpt,
-      url: `/communaute?tab=messages&conversation=${parsed.data.conversation_id}`,
+      url: `/communaute/messages/${parsed.data.conversation_id}`,
     });
   }
 

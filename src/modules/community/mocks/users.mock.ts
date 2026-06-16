@@ -4,6 +4,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "self-free",
     name: "Théo (Free)",
+    username: null,
     avatarUrl: "https://i.pravatar.cc/100?u=self-free",
     avatarColor: null,
     initials: "TF",
@@ -14,6 +15,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "self-paid",
     name: "Théo (Payant)",
+    username: null,
     avatarUrl: "https://i.pravatar.cc/100?u=self-paid",
     avatarColor: null,
     initials: "TP",
@@ -24,6 +26,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "self-admin",
     name: "Théo Gouman",
+    username: null,
     avatarUrl: "https://i.pravatar.cc/100?u=self-admin",
     avatarColor: null,
     initials: "TG",
@@ -34,6 +37,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "salim",
     name: "Salim Trouvé",
+    username: null,
     avatarUrl: "https://i.pravatar.cc/100?u=salim",
     avatarColor: null,
     initials: "ST",
@@ -44,6 +48,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "lucie",
     name: "Lucie Martin",
+    username: null,
     avatarUrl: "https://i.pravatar.cc/100?u=lucie",
     avatarColor: null,
     initials: "LM",
@@ -54,6 +59,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "bergelie",
     name: "Bergelie Desrosiers",
+    username: null,
     avatarUrl: "https://i.pravatar.cc/100?u=bergelie",
     avatarColor: null,
     initials: "BD",
@@ -64,6 +70,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "marc-p",
     name: "Marc Petit",
+    username: null,
     avatarUrl: "https://i.pravatar.cc/100?u=marc-p",
     avatarColor: null,
     initials: "MP",
@@ -74,6 +81,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "julie",
     name: "Julie Fabre",
+    username: null,
     avatarUrl: "https://i.pravatar.cc/100?u=julie",
     avatarColor: null,
     initials: "JF",
@@ -84,6 +92,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "free-marie",
     name: "Marie Dupont",
+    username: null,
     avatarUrl: "https://i.pravatar.cc/100?u=free-marie",
     avatarColor: null,
     initials: "MD",
@@ -94,6 +103,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "free-jean",
     name: "Jean Petit",
+    username: null,
     avatarUrl: "https://i.pravatar.cc/100?u=free-jean",
     avatarColor: null,
     initials: "JP",
@@ -104,6 +114,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "free-camille",
     name: "Camille Roux",
+    username: null,
     avatarUrl: "https://i.pravatar.cc/100?u=free-camille",
     avatarColor: null,
     initials: "CR",
@@ -114,6 +125,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "nathan",
     name: "Nathan Gallais",
+    username: null,
     avatarUrl: "https://i.pravatar.cc/100?u=nathan",
     avatarColor: null,
     initials: "NG",
@@ -124,6 +136,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "noah",
     name: "Noah Lambert",
+    username: null,
     avatarUrl: "https://i.pravatar.cc/100?u=noah",
     avatarColor: null,
     initials: "NL",
@@ -134,6 +147,7 @@ export const MOCK_USERS: User[] = [
   {
     id: "deleted-user",
     name: "Membre supprimé",
+    username: null,
     avatarUrl: null,
     avatarColor: null,
     initials: "??",

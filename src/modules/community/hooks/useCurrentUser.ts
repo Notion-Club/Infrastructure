@@ -23,6 +23,7 @@ export function useCurrentUser(_devRole?: unknown): User {
       return {
         id: "anonymous",
         name: "Invité",
+        username: null,
         avatarUrl: null,
         avatarColor: null,
         initials: "?",
@@ -58,6 +59,7 @@ export function useCurrentUser(_devRole?: unknown): User {
     return {
       id: identity.id,
       name,
+      username: username ?? null,
       avatarUrl: identity.avatarUrl,
       avatarColor: identity.avatarColor,
       initials,

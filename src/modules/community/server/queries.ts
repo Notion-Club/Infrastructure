@@ -176,6 +176,7 @@ function mapProfileToUser(p: ProfileRow, offer: Offer = "free"): User {
   return {
     id: p.id,
     name: computeDisplayName(p),
+    username: p.username,
     avatarUrl: p.avatar_url,
     avatarColor: p.avatar_color,
     initials: computeInitials(p),
@@ -189,6 +190,7 @@ function deletedUserShape(authorId: string): User {
   return {
     id: authorId,
     name: "Utilisateur supprimé",
+    username: null,
     avatarUrl: null,
     avatarColor: null,
     initials: "?",

@@ -54,7 +54,9 @@ export function NotificationPopover({
   function handleNotifClick(n: Notification) {
     markAsRead(n.id);
     if (n.conversationId) {
-      router.push(`/communaute?tab=messages&conversation=${n.conversationId}`);
+      // Le segment accepte un convId : MessagesLayout résout la conv puis
+      // normalise l'URL vers /messages/<username>.
+      router.push(`/communaute/messages/${n.conversationId}`);
     } else if (n.postId) {
       router.push(`/communaute/post/${n.postId}`);
     }
