@@ -51,7 +51,8 @@ export function UserHoverCard({ user, devRole, children }: UserHoverCardProps) {
 
   function handleDM(e: React.MouseEvent) {
     e.stopPropagation();
-    router.push(`/communaute?tab=messages&conversation=${user.id}`);
+    // Deep-link par username (fallback id si absent, défensif).
+    router.push(`/communaute/messages/${user.username ?? user.id}`);
   }
 
   return (

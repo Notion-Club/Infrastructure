@@ -13,6 +13,7 @@ import {
   createConversationAction,
   getConversationAction,
   markConversationReadAction,
+  resolveUsernameAction,
   sendMessageAction,
 } from "../../server/actions";
 
@@ -20,14 +21,16 @@ interface MessagesLayoutProps {
   currentUser: User;
   devRole: DevRole;
   initialConversations: Conversation[];
-  initialConversationId?: string | null;
+  // Username de la conversation à ouvrir, issu de la route
+  // /communaute/messages/<username>. null = onglet messages sans conv ouverte.
+  conversationUsername?: string | null;
   embedded?: boolean;
 }
 
 export function MessagesLayout({
   currentUser,
   initialConversations,
-  initialConversationId,
+  conversationUsername,
   embedded,
 }: MessagesLayoutProps) {
   const router = useRouter();
@@ -35,7 +38,6 @@ export function MessagesLayout({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
   const [, startTransition] = useTransition();
-  const didInit = useRef(false);
   // IDs de conversations dont les messages sont en cours de chargement
   // (getConversationAction en vol). Sert à afficher le skeleton dans le
   // thread sans casser le state Conversation (messages: []).
@@ -110,9 +112,9 @@ export function MessagesLayout({
     });
   }
 
-  // Le bouton DM dans UserHoverCard navigue avec ?conversation=<userId> —
-  // pas un convId. Si l'autre user n'a pas encore de conv avec moi, on en
-  // crée une via createConversationAction (RLS two-silo gère l'autorisation).
+  // Crée (ou réutilise) la conversation avec un user donné. Appelée par la
+  // résolution d'URL quand /messages/<username> cible un user sans conv
+  // existante. createConversationAction applique la RLS two-silo.
   function handleNewConversation(targetUserId: string) {
     const existing = conversations.find((c) => c.participant.id === targetUserId);
     if (existing) {
@@ -142,7 +144,13 @@ export function MessagesLayout({
         return [conv, ...prev];
       });
       setActiveId(result.conversationId);
+      loadedConvIds.current.add(result.conversationId);
       setMobileView("thread");
+      // Aligne l'URL sur la conv fraîchement créée (username du participant).
+      const targetUsername = conv.participant.username ?? conv.participant.id;
+      if (conversationUsername?.replace(/^@/, "").toLowerCase() !== targetUsername.toLowerCase()) {
+        router.replace(`/communaute/messages/${targetUsername}`);
+      }
       router.refresh();
     });
   }
@@ -189,23 +197,98 @@ export function MessagesLayout({
     });
   }
 
-  // Resolve initialConversationId — peut être un convId OU un userId.
+  // Username de deep-link d'une conversation (fallback id si pas de username
+  // — défensif, username est en pratique toujours présent cf. migration 010).
+  function usernameForConv(conv: Conversation): string {
+    return conv.participant.username ?? conv.participant.id;
+  }
+
+  // Navigation : ouvrir une conversation = pousser l'URL. L'URL est la source
+  // de vérité ; l'effet ci-dessous réagit au changement de conversationUsername
+  // pour ouvrir/charger la conv. On évite ainsi toute désync state ↔ URL.
+  function navigateToConversation(conv: Conversation) {
+    router.push(`/communaute/messages/${usernameForConv(conv)}`);
+  }
+
+  // Retour à la liste (mobile) = retirer le username de l'URL.
+  function navigateToList() {
+    setMobileView("list");
+    router.push("/communaute/messages");
+  }
+
+  // Clic sur un item de la liste : on navigue par l'URL (l'effet ouvre la
+  // conv). Render optimiste immédiat de activeId pour le surlignage, sans
+  // attendre le re-render de la route.
+  function handleSelectByUrl(id: string) {
+    const conv = conversations.find((c) => c.id === id);
+    if (!conv) return;
+    setActiveId(id);
+    navigateToConversation(conv);
+  }
+
+  // Résolution réactive de conversationUsername (route /messages/<username>).
+  // Réagit à chaque changement d'URL : ouvre la conv existante portant ce
+  // username, sinon résout username → userId et crée la conv. Si null
+  // (route /messages nue), on ferme le thread.
   useEffect(() => {
-    if (!initialConversationId || didInit.current) return;
-    didInit.current = true;
-    const byConvId = conversations.find((c) => c.id === initialConversationId);
-    if (byConvId) {
-      handleSelect(byConvId.id);
-      return;
-    }
-    const byUserId = conversations.find((c) => c.participant.id === initialConversationId);
-    if (byUserId) {
-      handleSelect(byUserId.id);
-      return;
-    }
-    handleNewConversation(initialConversationId);
+    let cancelled = false;
+
+    // Différé via microtask (await Promise.resolve) pour respecter la règle
+    // react-hooks/set-state-in-effect du repo : aucun setState synchrone dans
+    // le corps de l'effet (cf. useCurrentUser / usePushSubscription).
+    (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+
+      if (!conversationUsername) {
+        setActiveId(null);
+        setMobileView("list");
+        return;
+      }
+      const clean = conversationUsername.replace(/^@/, "").toLowerCase();
+
+      // 1. Conversation existante dont le participant a ce username.
+      const byUsername = conversations.find(
+        (c) => c.participant.username?.toLowerCase() === clean,
+      );
+      if (byUsername) {
+        handleSelect(byUsername.id);
+        return;
+      }
+      // 2. Fallback : le segment d'URL est un id (participant sans username),
+      //    ou directement un id de conversation (notifs/emails qui ne
+      //    connaissent qu'un convId). On normalise l'URL vers le username dès
+      //    qu'on a résolu la conv, pour rester propre.
+      const byParticipantId = conversations.find(
+        (c) => c.participant.id === conversationUsername,
+      );
+      const byConvId = conversations.find((c) => c.id === conversationUsername);
+      const resolvedConv = byParticipantId ?? byConvId;
+      if (resolvedConv) {
+        handleSelect(resolvedConv.id);
+        const uname = resolvedConv.participant.username;
+        if (uname && uname.toLowerCase() !== clean) {
+          router.replace(`/communaute/messages/${uname}`);
+        }
+        return;
+      }
+      // 3. Aucune conv existante : résoudre username → userId puis créer.
+      const resolved = await resolveUsernameAction(conversationUsername);
+      if (cancelled) return;
+      if (!resolved) {
+        // Username inconnu / invisible : retour à la liste des messages.
+        toast.error("Utilisateur introuvable.");
+        router.replace("/communaute/messages");
+        return;
+      }
+      handleNewConversation(resolved.userId);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [conversationUsername, conversations]);
 
   const activeConv = conversations.find((c) => c.id === activeId) ?? null;
 
@@ -234,7 +317,7 @@ export function MessagesLayout({
           conversations={conversations}
           activeId={activeId}
           currentUser={currentUser}
-          onSelect={handleSelect}
+          onSelect={handleSelectByUrl}
           onPrefetch={handlePrefetch}
           onNewConversation={handleNewConversation}
         />
@@ -266,7 +349,7 @@ export function MessagesLayout({
             conversations={conversations}
             activeId={activeId}
             currentUser={currentUser}
-            onSelect={handleSelect}
+            onSelect={handleSelectByUrl}
             onNewConversation={handleNewConversation}
           />
         ) : activeConv ? (
@@ -275,7 +358,7 @@ export function MessagesLayout({
             currentUser={currentUser}
             loading={loadingConvIds.has(activeConv.id)}
             onSendMessage={(body, reply, attachment) => handleSendMessage(activeConv.id, body, reply, attachment)}
-            onBack={() => setMobileView("list")}
+            onBack={navigateToList}
           />
         ) : (
           <MessagesEmptyState />

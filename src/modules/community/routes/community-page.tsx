@@ -27,15 +27,18 @@ type TagFilter = PostTag | "all";
 const COMMUNITY_TABS: Tab[] = ["feed", "messages"];
 
 interface CommunityPageProps {
-  initialTab?: Tab;
-  initialConversationId?: string | null;
+  // Onglet actif, dérivé de l'URL (/communaute/feed vs /communaute/messages).
+  activeTab?: Tab;
+  // Username de la conversation à ouvrir (route /messages/<username>). null
+  // sur /messages (liste sans conversation ouverte).
+  conversationUsername?: string | null;
   initialPosts: Post[];
   initialConversations: Conversation[];
 }
 
 export function CommunityPage({
-  initialTab = "feed",
-  initialConversationId,
+  activeTab = "feed",
+  conversationUsername,
   initialPosts,
   initialConversations,
 }: CommunityPageProps) {
@@ -54,7 +57,8 @@ export function CommunityPage({
       }
     } catch {}
   }, []);
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  // activeTab vient désormais de l'URL (prop), plus d'un state local — c'est
+  // la route qui est la source de vérité. Le switcher navigue via router.push.
   const [activeTag, setActiveTag] = useState<TagFilter>("all");
 
   const tabItemRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -263,9 +267,12 @@ export function CommunityPage({
                   type="button"
                   data-fb-label={`Onglet « ${label} » · Switcher feed/messages`}
                   onClick={() => {
+                    if (value === activeTab) return;
                     tabLastClickedRef.current = i;
                     moveTabTo(i, true);
-                    setActiveTab(value);
+                    // L'URL est la source de vérité : on navigue, le re-render
+                    // de la route remonte CommunityPage avec le bon activeTab.
+                    router.push(value === "feed" ? "/communaute/feed" : "/communaute/messages");
                   }}
                   style={{
                     flex: 1,
@@ -356,7 +363,7 @@ export function CommunityPage({
               currentUser={currentUser}
               devRole={role}
               initialConversations={initialConversations}
-              initialConversationId={initialConversationId}
+              conversationUsername={conversationUsername}
               embedded
             />
           </div>

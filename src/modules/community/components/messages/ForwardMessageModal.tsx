@@ -28,6 +28,7 @@ function memberAsUserShape(m: CommunityMember): User {
   return {
     id: m.id,
     name: m.name,
+    username: m.username,
     avatarUrl: m.avatarUrl,
     avatarColor: null,
     initials: m.initials,
