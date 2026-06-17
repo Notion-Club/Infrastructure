@@ -196,11 +196,17 @@ html {
   background: var(--color-surface-card);
 }
 
-/* Input NC en dark mode */
+/* Input NC en dark mode.
+   Le bord ne s'appuie PAS sur --color-border-default (#332e2b) : sur le
+   panneau de l'éditeur de profil mobile (fond = --color-surface-page
+   #141211) le triplet fond-page / fond-champ (#201d1b) / bord (#332e2b)
+   tient dans ~10 points de luminance → les contours du champ disparaissent.
+   On pose une hairline translucide claire qui contraste sur N'IMPORTE quelle
+   surface sombre (page #141211 comme card #2a2725). */
 .dark .nc-input {
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
-  border-color: var(--color-border-default);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 .dark .nc-input::placeholder {
   color: var(--color-text-muted);
@@ -316,8 +322,8 @@ html {
   background: var(--color-surface-page);
   /* PWA iOS : on ne veut pas que le header / footer du panneau passent
      sous l'encoche ou la barre de gestes. */
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   animation: nc-sheet-in var(--nc-duration-normal) var(--nc-ease) both;
 }
 @media (min-width: 768px) {
@@ -543,8 +549,11 @@ html {
    * (`pt-[96px]`, `pt-[148px]`, etc.) reste valide et se cumule par-
    * dessus → les composants reprennent leur position d'origine.
    * Hors standalone, env(safe-area-inset-top) = 0 → no-op.
+   * Fallback `0px` explicite : sur un moteur PWA qui ne connaît pas
+   * `env(safe-area-inset-*)`, l'absence de fallback invaliderait la
+   * déclaration → padding-top ignoré → saut de mise en page au 1ᵉʳ rendu.
    */
-  padding-top: env(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .nc-page-halo::before {
