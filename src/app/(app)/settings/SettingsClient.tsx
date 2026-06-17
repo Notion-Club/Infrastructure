@@ -9,7 +9,9 @@ import { ProfileSection } from "@/shared/components/settings/ProfileSection";
 import { SecuritySection } from "@/shared/components/settings/SecuritySection";
 import { SubscriptionSection } from "@/shared/components/settings/SubscriptionSection";
 import { NotificationsSection } from "@/shared/components/settings/NotificationsSection";
+import { AppearanceSection } from "@/shared/components/settings/AppearanceSection";
 import { DangerZone } from "@/shared/components/settings/DangerZone";
+import { DevPanel } from "@/shared/components/settings/DevPanel";
 import type {
   AuthIdentity,
   AuthUserShape,
@@ -22,6 +24,7 @@ import {
   MOCK_PROFILE,
   MOCK_USER_OFFER,
 } from "@/shared/lib/settings/mock-data";
+import { type ScenarioId } from "@/shared/lib/settings/scenarios";
 import { updateProfileAction, type NotificationSettings } from "@/modules/settings";
 
 type LoadState =
@@ -41,6 +44,7 @@ export function SettingsClient({
   initialNotificationSettings?: NotificationSettings | null;
 } = {}) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [scenarioId, setScenarioId] = useState<ScenarioId>("default");
   const { updateIdentity } = useProfileIdentityContext();
 
   useEffect(() => {
@@ -220,12 +224,20 @@ export function SettingsClient({
                   isMocked={state.isMocked}
                   initialSettings={initialNotificationSettings ?? null}
                 />
-                <DangerZone isMocked={state.isMocked} />
+                <div
+                  className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start"
+                  style={{ width: "100%" }}
+                >
+                  <AppearanceSection />
+                  <DangerZone isMocked={state.isMocked} />
+                </div>
               </>
             )}
           </div>
         </main>
       </div>
+
+      <DevPanel scenarioId={scenarioId} onScenarioChange={setScenarioId} />
     </>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, LoaderCircle } from "lucide-react";
+import { Check } from "lucide-react";
 
 // Logo Notion (Cloudinary, déjà autorisé dans next.config.ts via /dceobxyts/**).
 // Utilisé pour souligner visuellement que le champ qui suit concerne le compte
@@ -17,16 +17,10 @@ type EmailFieldProps = {
   useSeparateNotionEmail: boolean;
   platformEmailError?: string;
   notionEmailError?: string;
-  // L'email de login n'est PAS auto-sauvegardé (il déclenche un mail de
-  // confirmation Supabase) → action explicite via un bouton dédié, affiché
-  // uniquement quand l'email plateforme a changé.
-  platformEmailChanged?: boolean;
-  platformEmailSaving?: boolean;
   onPlatformEmailChange: (value: string) => void;
   onNotionEmailChange: (value: string) => void;
   onPlatformEmailBlur?: () => void;
   onNotionEmailBlur?: () => void;
-  onPlatformEmailSave?: () => void;
   onToggleSeparateNotion: (enabled: boolean) => void;
 };
 
@@ -36,13 +30,10 @@ export function EmailField({
   useSeparateNotionEmail,
   platformEmailError,
   notionEmailError,
-  platformEmailChanged = false,
-  platformEmailSaving = false,
   onPlatformEmailChange,
   onNotionEmailChange,
   onPlatformEmailBlur,
   onNotionEmailBlur,
-  onPlatformEmailSave,
   onToggleSeparateNotion,
 }: EmailFieldProps) {
   const innerRef = useRef<HTMLDivElement>(null);
@@ -132,55 +123,6 @@ export function EmailField({
         >
           Utilisé pour vous connecter et pour les invitations Notion par défaut.
         </p>
-
-        {platformEmailChanged && !platformEmailError && (
-          <div
-            className="nc-mode-in"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              flexWrap: "wrap",
-              marginTop: 2,
-            }}
-          >
-            <button
-              type="button"
-              onClick={onPlatformEmailSave}
-              disabled={platformEmailSaving}
-              data-fb-label="Bouton Mettre à jour l'email · Section profil"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 7,
-                padding: "8px 16px",
-                borderRadius: 9999,
-                border: "none",
-                background: "var(--color-brand)",
-                color: "white",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: platformEmailSaving ? "not-allowed" : "pointer",
-                opacity: platformEmailSaving ? 0.6 : 1,
-                boxShadow: "0 6px 18px -8px rgba(224,98,90,0.55)",
-              }}
-            >
-              {platformEmailSaving && (
-                <LoaderCircle size={13} className="animate-spin" />
-              )}
-              {platformEmailSaving ? "Envoi…" : "Mettre à jour l'email"}
-            </button>
-            <span
-              style={{
-                fontSize: 12,
-                color: "var(--color-text-muted)",
-                lineHeight: 1.4,
-              }}
-            >
-              Un email de confirmation sera envoyé à la nouvelle adresse.
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Bottom half — contrasted background */}
