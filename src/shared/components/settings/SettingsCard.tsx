@@ -6,6 +6,8 @@ type SettingsCardProps = {
   children: ReactNode;
   tone?: "default" | "danger";
   fbLabel?: string;
+  // Accessoire optionnel rendu à droite du titre (ex. indicateur d'auto-save).
+  action?: ReactNode;
 };
 
 export function SettingsCard({
@@ -14,6 +16,7 @@ export function SettingsCard({
   children,
   tone = "default",
   fbLabel,
+  action,
 }: SettingsCardProps) {
   const isDanger = tone === "danger";
   return (
@@ -32,32 +35,44 @@ export function SettingsCard({
         gap: 20,
       }}
     >
-      <header style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <h2
-          data-fb-label="Titre section · Réglages"
-          style={{
-            margin: 0,
-            fontSize: 17,
-            fontWeight: 600,
-            letterSpacing: "-0.01em",
-            color: isDanger
-              ? "var(--color-brand)"
-              : "var(--color-text-primary)",
-          }}
-        >
-          {title}
-        </h2>
-        {description && (
-          <p
+      <header
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+          <h2
+            data-fb-label="Titre section · Réglages"
             style={{
               margin: 0,
-              fontSize: 13,
-              color: "var(--color-text-muted)",
-              lineHeight: 1.5,
+              fontSize: 17,
+              fontWeight: 600,
+              letterSpacing: "-0.01em",
+              color: isDanger
+                ? "var(--color-brand)"
+                : "var(--color-text-primary)",
             }}
           >
-            {description}
-          </p>
+            {title}
+          </h2>
+          {description && (
+            <p
+              style={{
+                margin: 0,
+                fontSize: 13,
+                color: "var(--color-text-muted)",
+                lineHeight: 1.5,
+              }}
+            >
+              {description}
+            </p>
+          )}
+        </div>
+        {action && (
+          <div style={{ flexShrink: 0, paddingTop: 2 }}>{action}</div>
         )}
       </header>
       {children}
