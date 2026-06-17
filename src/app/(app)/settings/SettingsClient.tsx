@@ -9,7 +9,6 @@ import { ProfileSection } from "@/shared/components/settings/ProfileSection";
 import { SecuritySection } from "@/shared/components/settings/SecuritySection";
 import { SubscriptionSection } from "@/shared/components/settings/SubscriptionSection";
 import { NotificationsSection } from "@/shared/components/settings/NotificationsSection";
-import { AppearanceSection } from "@/shared/components/settings/AppearanceSection";
 import { DangerZone } from "@/shared/components/settings/DangerZone";
 import { DevPanel } from "@/shared/components/settings/DevPanel";
 import type {
@@ -224,13 +223,7 @@ export function SettingsClient({
                   isMocked={state.isMocked}
                   initialSettings={initialNotificationSettings ?? null}
                 />
-                <div
-                  className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start"
-                  style={{ width: "100%" }}
-                >
-                  <AppearanceSection />
-                  <DangerZone isMocked={state.isMocked} />
-                </div>
+                <DangerZone isMocked={state.isMocked} />
               </>
             )}
           </div>
