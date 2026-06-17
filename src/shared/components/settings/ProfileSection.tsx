@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
-import { LoaderCircle } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
   BIO_MAX_LENGTH,
   updateProfileAction,
   updateAccountEmailAction,
+  type ProfileUpdateInput,
 } from "@/modules/settings";
+import { useDebouncedCallback } from "@/shared/lib/hooks/useDebouncedCallback";
 import { SettingsCard } from "./SettingsCard";
+import { SaveStatus, type SaveState } from "./SaveStatus";
 import { EmailField } from "./EmailField";
 import { PhoneField, formatPhone, parsePhone, type PhoneValue } from "./PhoneField";
 import type { ProfileRow } from "./types";
@@ -122,8 +124,15 @@ export function ProfileSection({
     [profile, accountEmail],
   );
   const [values, setValues] = useState<FormValues>(initialValues);
-  const [saving, setSaving] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [serverUsernameError, setServerUsernameError] = useState<string | null>(
+    null,
+  );
+
+  // Dernier état profil persisté avec succès — point de revert sur échec.
+  const savedRef = useRef<FormValues>(initialValues);
 
   // Validation client : recalculée à chaque changement, mais affichée
   // uniquement pour les champs déjà "touched" (l'user a interagi avec).
@@ -134,131 +143,145 @@ export function ProfileSection({
     (Object.keys(errors) as (keyof FieldErrors)[]).forEach((k) => {
       if (touched[k]) v[k] = errors[k];
     });
+    // L'erreur serveur « username déjà pris » s'affiche inline même sans touch.
+    if (serverUsernameError) v.username = serverUsernameError;
     return v;
-  }, [errors, touched]);
-  const hasErrors = Object.keys(errors).length > 0;
+  }, [errors, touched, serverUsernameError]);
 
   function markTouched(field: keyof FieldErrors) {
     setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
   }
 
-  const hasChanges = useMemo(() => {
-    if (values.first_name !== initialValues.first_name) return true;
-    if (values.last_name !== initialValues.last_name) return true;
-    if (values.username.trim().toLowerCase() !== initialValues.username) return true;
-    if (values.bio !== initialValues.bio) return true;
-    if (values.email !== initialValues.email) return true;
-    if (
-      values.phone.countryCode !== initialValues.phone.countryCode ||
-      values.phone.national.trim() !== initialValues.phone.national.trim()
-    ) {
-      return true;
-    }
-    if (
-      values.use_separate_notion_email !==
-      initialValues.use_separate_notion_email
-    ) {
-      return true;
-    }
-    if (
-      values.use_separate_notion_email &&
-      values.notion_email !== initialValues.notion_email
-    ) {
-      return true;
-    }
-    return false;
-  }, [values, initialValues]);
-
-  function update<K extends keyof FormValues>(key: K, value: FormValues[K]) {
-    setValues((prev) => ({ ...prev, [key]: value }));
+  // Revert des champs modifiés vers le dernier état sauvegardé (échec save).
+  function revertChanged(saved: FormValues, changed: ProfileUpdateInput) {
+    setValues((prev) => {
+      const r = { ...prev };
+      if ("first_name" in changed) r.first_name = saved.first_name;
+      if ("last_name" in changed) r.last_name = saved.last_name;
+      if ("username" in changed) r.username = saved.username;
+      if ("bio" in changed) r.bio = saved.bio;
+      if ("phone" in changed) r.phone = saved.phone;
+      if ("notion_email" in changed) {
+        r.notion_email = saved.notion_email;
+        r.use_separate_notion_email = saved.use_separate_notion_email;
+      }
+      return r;
+    });
   }
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!hasChanges || saving) return;
-    // Au submit, on marque tous les champs comme touched pour que les
-    // erreurs apparaissent même si l'user n'a jamais focus le champ.
-    if (hasErrors) {
-      setTouched({
-        username: true,
-        bio: true,
-        email: true,
-        notion_email: true,
-      });
+  // ── Auto-enregistrement des champs profil (hors email de login) ───────────
+  // Email de login EXCLU : il déclenche un mail de confirmation Supabase → reste
+  // une action explicite (bouton dédié dans EmailField). Mot de passe : géré
+  // dans SecuritySection, jamais ici. Optimistic + revert (modèle patchDisplayName).
+  function persistProfile() {
+    const v = values;
+    const saved = savedRef.current;
+
+    // On ne sauve pas tant qu'un champ profil est invalide (format).
+    const errs = validateForm(v);
+    if (
+      errs.username ||
+      errs.bio ||
+      (v.use_separate_notion_email && errs.notion_email)
+    ) {
       return;
     }
-    setSaving(true);
-    try {
-      const phoneText = formatPhone(values.phone) || null;
-      const resolvedNotionEmail = values.use_separate_notion_email
-        ? values.notion_email.trim() || null
-        : null;
 
-      if (isMocked) {
-        toast.success("Modifications enregistrées (démo)");
+    const changed: ProfileUpdateInput = {};
+    if (v.first_name !== saved.first_name) changed.first_name = v.first_name;
+    if (v.last_name !== saved.last_name) changed.last_name = v.last_name;
+    if (
+      v.username.trim().toLowerCase() !== saved.username.trim().toLowerCase()
+    ) {
+      changed.username = v.username;
+    }
+    if (v.bio !== saved.bio) changed.bio = v.bio;
+
+    const phoneText = formatPhone(v.phone) || null;
+    const savedPhoneText = formatPhone(saved.phone) || null;
+    if (phoneText !== savedPhoneText) changed.phone = phoneText;
+
+    const resolvedNotion = v.use_separate_notion_email
+      ? v.notion_email.trim() || null
+      : null;
+    const savedNotion = saved.use_separate_notion_email
+      ? saved.notion_email.trim() || null
+      : null;
+    if (resolvedNotion !== savedNotion) changed.notion_email = resolvedNotion;
+
+    if (Object.keys(changed).length === 0) return;
+
+    if (isMocked) {
+      savedRef.current = v;
+      setSaveState("saved");
+      return;
+    }
+
+    setSaveState("saving");
+    void (async () => {
+      const result = await updateProfileAction(changed);
+      if (!result.ok) {
+        if (result.code === "username_taken") {
+          // On garde la valeur saisie + erreur inline (l'user corrige).
+          setServerUsernameError(
+            "Ce nom d'utilisateur est déjà pris. Choisis-en un autre.",
+          );
+          setTouched((prev) => ({ ...prev, username: true }));
+          setSaveState("error");
+          return;
+        }
+        // Échec générique → revert des champs modifiés.
+        revertChanged(saved, changed);
+        setSaveState("error");
+        toast.error(result.message);
         return;
       }
+      savedRef.current = v;
+      setServerUsernameError(null);
+      setSaveState("saved");
+    })();
+  }
 
-      const emailChanged =
-        values.email.trim().toLowerCase() !==
-        accountEmail.trim().toLowerCase();
+  const scheduleProfileSave = useDebouncedCallback(persistProfile, 1000);
 
-      const profileFieldsChanged =
-        values.first_name !== initialValues.first_name ||
-        values.last_name !== initialValues.last_name ||
-        values.username.trim().toLowerCase() !== initialValues.username ||
-        values.bio !== initialValues.bio ||
-        values.phone.countryCode !== initialValues.phone.countryCode ||
-        values.phone.national.trim() !== initialValues.phone.national.trim() ||
-        values.use_separate_notion_email !==
-          initialValues.use_separate_notion_email ||
-        (values.use_separate_notion_email &&
-          values.notion_email !== initialValues.notion_email);
+  // Update d'un champ profil → maj optimiste + planifie l'auto-save.
+  function updateProfileField<K extends keyof FormValues>(
+    key: K,
+    value: FormValues[K],
+  ) {
+    setValues((prev) => ({ ...prev, [key]: value }));
+    if (key === "username") setServerUsernameError(null);
+    scheduleProfileSave();
+  }
 
-      if (profileFieldsChanged) {
-        const result = await updateProfileAction({
-          first_name: values.first_name,
-          last_name: values.last_name,
-          username: values.username,
-          bio: values.bio,
-          phone: phoneText,
-          notion_email: resolvedNotionEmail,
-        });
-        if (!result.ok) {
-          // Si username pris, on flag le champ comme touched + on inject l'erreur
-          // inline (en plus du toast). Sinon comportement standard.
-          if (result.code === "username_taken") {
-            setTouched((prev) => ({ ...prev, username: true }));
-          }
-          toast.error(result.message);
-          return;
-        }
+  // Email de login : update simple, pas d'auto-save (action explicite).
+  function updateEmail(value: string) {
+    setValues((prev) => ({ ...prev, email: value }));
+  }
+
+  const platformEmailChanged =
+    values.email.trim().toLowerCase() !== accountEmail.trim().toLowerCase();
+  const platformEmailValid = EMAIL_REGEX.test(values.email.trim());
+
+  async function handleSavePlatformEmail() {
+    if (!platformEmailChanged || !platformEmailValid || emailSaving) return;
+    if (isMocked) {
+      toast.info("Email de connexion (démo) — connectez-vous pour de vrai.");
+      return;
+    }
+    setEmailSaving(true);
+    try {
+      const result = await updateAccountEmailAction({ newEmail: values.email });
+      if (!result.ok) {
+        setTouched((prev) => ({ ...prev, email: true }));
+        toast.error(result.message);
+        return;
       }
-
-      if (emailChanged) {
-        const result = await updateAccountEmailAction({
-          newEmail: values.email,
-        });
-        if (!result.ok) {
-          toast.error(result.message);
-          return;
-        }
-        toast.info(
-          "Un email de confirmation a été envoyé à votre nouvelle adresse.",
-        );
-      }
-
-      if (profileFieldsChanged || emailChanged) {
-        toast.success("Modifications enregistrées");
-      }
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Erreur lors de l'enregistrement";
-      toast.error(message);
+      toast.info(
+        "Un email de confirmation a été envoyé à votre nouvelle adresse.",
+      );
     } finally {
-      setSaving(false);
+      setEmailSaving(false);
     }
   }
 
@@ -267,14 +290,12 @@ export function ProfileSection({
       title="Informations du profil"
       description="Ces informations sont visibles dans l'application et utilisées pour votre facturation."
       fbLabel="Section profil · Réglages"
+      action={<SaveStatus state={saveState} />}
     >
-      <form
-        onSubmit={handleSubmit}
-        style={{ display: "flex", flexDirection: "column", gap: 16 }}
-      >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <UsernameField
           value={values.username}
-          onChange={(v) => update("username", v)}
+          onChange={(v) => updateProfileField("username", v)}
           onBlur={() => markTouched("username")}
           error={visibleErrors.username}
         />
@@ -289,7 +310,7 @@ export function ProfileSection({
             id="first_name"
             label="Prénom"
             value={values.first_name}
-            onChange={(v) => update("first_name", v)}
+            onChange={(v) => updateProfileField("first_name", v)}
             autoComplete="given-name"
             placeholder="Théo"
             fbLabel="Champ Prénom · Section profil"
@@ -298,7 +319,7 @@ export function ProfileSection({
             id="last_name"
             label="Nom de famille"
             value={values.last_name}
-            onChange={(v) => update("last_name", v)}
+            onChange={(v) => updateProfileField("last_name", v)}
             autoComplete="family-name"
             placeholder="GOUMAN"
             fbLabel="Champ Nom · Section profil"
@@ -307,7 +328,7 @@ export function ProfileSection({
 
         <BioField
           value={values.bio}
-          onChange={(v) => update("bio", v)}
+          onChange={(v) => updateProfileField("bio", v)}
           onBlur={() => markTouched("bio")}
           error={visibleErrors.bio}
         />
@@ -316,7 +337,7 @@ export function ProfileSection({
           id="phone"
           label="Numéro de téléphone"
           value={values.phone}
-          onChange={(next) => update("phone", next)}
+          onChange={(next) => updateProfileField("phone", next)}
         />
 
         <EmailField
@@ -325,53 +346,25 @@ export function ProfileSection({
           useSeparateNotionEmail={values.use_separate_notion_email}
           platformEmailError={visibleErrors.email}
           notionEmailError={visibleErrors.notion_email}
-          onPlatformEmailChange={(v) => update("email", v)}
-          onNotionEmailChange={(v) => update("notion_email", v)}
+          platformEmailChanged={platformEmailChanged}
+          platformEmailSaving={emailSaving}
+          onPlatformEmailChange={updateEmail}
+          onNotionEmailChange={(v) => updateProfileField("notion_email", v)}
           onPlatformEmailBlur={() => markTouched("email")}
           onNotionEmailBlur={() => markTouched("notion_email")}
-          onToggleSeparateNotion={(enabled) =>
+          onPlatformEmailSave={handleSavePlatformEmail}
+          onToggleSeparateNotion={(enabled) => {
             setValues((prev) => ({
               ...prev,
               use_separate_notion_email: enabled,
               notion_email: enabled
                 ? prev.notion_email || initialValues.notion_email
                 : "",
-            }))
-          }
+            }));
+            scheduleProfileSave();
+          }}
         />
-
-        {hasChanges && (
-          <div
-            className="nc-mode-in"
-            style={{ display: "flex", justifyContent: "flex-end" }}
-          >
-            <button
-              type="submit"
-              disabled={saving}
-              data-fb-label="Bouton Enregistrer · Section profil"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "10px 20px",
-                borderRadius: 9999,
-                border: "none",
-                background: "var(--color-brand)",
-                color: "white",
-                fontWeight: 600,
-                fontSize: 14,
-                cursor: saving ? "not-allowed" : "pointer",
-                opacity: saving ? 0.6 : 1,
-                transition: "opacity 150ms ease",
-                boxShadow: "0 6px 18px -8px rgba(224,98,90,0.55)",
-              }}
-            >
-              {saving && <LoaderCircle size={14} className="animate-spin" />}
-              {saving ? "Enregistrement…" : "Enregistrer les modifications"}
-            </button>
-          </div>
-        )}
-      </form>
+      </div>
     </SettingsCard>
   );
 }

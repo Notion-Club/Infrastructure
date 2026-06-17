@@ -1,13 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  Bell,
-  LoaderCircle,
-  Mail,
-  MessageCircle,
-  Smartphone,
-} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Bell, Lock, Mail, MessageCircle, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -20,18 +14,25 @@ import {
   type NotificationSettings,
 } from "@/modules/settings";
 import { usePushSubscription } from "@/shared/lib/hooks/usePushSubscription";
+import { useDebouncedCallback } from "@/shared/lib/hooks/useDebouncedCallback";
 import { SettingsCard } from "./SettingsCard";
+import { SaveStatus, type SaveState } from "./SaveStatus";
 import type { UserOffer } from "./types";
 
-// OPS-53 v2 — Une SEULE matrix intégrée, plus de section "Canaux" séparée.
-// Le header de chaque colonne canal est un BOUTON cliquable (icône + label
-// empilés verticalement) avec fond brand red quand le canal est activé.
-// Click sur le header = toggle ON/OFF de toute la colonne, équivalent à
-// l'ancien switcher de canal.
+// Refonte notifications (premier jet) :
+//   - In-app TOUJOURS actif, non désactivable → colonne « App » affichée mais
+//     verrouillée (cases cochées, non cliquables).
+//   - Push = un seul interrupteur global « Notifications push (PWA) » sous la
+//     matrice (miroir de l'in-app), piloté par usePushSubscription. Plus de
+//     colonne push dans la matrice.
+//   - Seules colonnes configurables par catégorie : Mail et WhatsApp.
+//   - Cliquer une case d'une colonne éteinte réactive ce canal (et ne coche
+//     QUE cette case — pas de résurgence d'anciennes préférences).
+//   - Auto-enregistrement (debounce 800 ms), plus de bouton « Enregistrer ».
 //
-// Layout grid `minmax(0,1fr) repeat(3, 56px)` → tout tient inline sur
-// mobile, plus de scroll horizontal. Les labels de type wrappent sur
-// 2 lignes au besoin sur les viewports étroits, ce qui reste lisible.
+// Côté données : rien ne change. On envoie toujours la matrice complète +
+// les toggles globaux à updateNotificationSettingsAction. `in_app` est forcé
+// à `true` partout ; `push` global reflète la souscription navigateur.
 
 type Category = {
   key: NotificationCategory;
@@ -51,32 +52,55 @@ const CATEGORIES: Category[] = [
   { key: "billing", label: "Informations de facturation" },
 ];
 
-type ChannelMeta = {
-  key: NotificationChannel;
+type MatrixChannel = {
+  key: Extract<NotificationChannel, "email" | "in_app" | "whatsapp">;
   label: string;
   Icon: typeof Mail;
+  // `locked` = canal toujours actif, non configurable (in-app).
+  locked?: boolean;
 };
 
-const CHANNELS: ChannelMeta[] = [
+// Colonnes de la matrice : Mail · App (verrouillée) · WhatsApp. Le push n'y
+// figure plus — il a son interrupteur global dédié sous la matrice.
+const MATRIX_CHANNELS: MatrixChannel[] = [
   { key: "email", label: "Mail", Icon: Mail },
-  { key: "in_app", label: "InApp", Icon: Bell },
+  { key: "in_app", label: "App", Icon: Bell, locked: true },
   { key: "whatsapp", label: "WhatsApp", Icon: MessageCircle },
-  // Web Push (mobile + desktop), requiert souscription navigateur. Sur iOS,
-  // marche uniquement quand la PWA est installée sur l'écran d'accueil.
-  { key: "push", label: "Push", Icon: Smartphone },
 ];
+
+// Fond clair (toujours) pour le knob OFF des switches, car les cellules vivent
+// sur une ligne charbon dans les deux thèmes — un OFF translucide noir y serait
+// invisible.
+const ROW_SWITCH_OFF_BG = "rgba(255, 255, 255, 0.22)";
 
 type PreferenceMap = NotificationSettings["preferences"];
 type ChannelMap = NotificationSettings["channels"];
 
 function buildDefaults(): NotificationSettings {
   const preferences = NOTIFICATION_CATEGORIES.reduce((acc, cat) => {
-    acc[cat] = { ...DEFAULT_CHANNEL_ENABLED };
+    acc[cat] = { ...DEFAULT_CHANNEL_ENABLED, in_app: true };
     return acc;
   }, {} as PreferenceMap);
   return {
     preferences,
-    channels: { ...DEFAULT_CHANNEL_ENABLED },
+    channels: { ...DEFAULT_CHANNEL_ENABLED, in_app: true },
+  };
+}
+
+// Normalise l'état initial : in-app forcé à true (canal toujours actif) au
+// niveau global et pour chaque catégorie.
+function normalizeInitial(initial: NotificationSettings): NotificationSettings {
+  const preferences = NOTIFICATION_CATEGORIES.reduce((acc, cat) => {
+    acc[cat] = {
+      ...DEFAULT_CHANNEL_ENABLED,
+      ...(initial.preferences[cat] ?? {}),
+      in_app: true,
+    };
+    return acc;
+  }, {} as PreferenceMap);
+  return {
+    preferences,
+    channels: { ...DEFAULT_CHANNEL_ENABLED, ...initial.channels, in_app: true },
   };
 }
 
@@ -91,17 +115,20 @@ export function NotificationsSection({
   isMocked,
   initialSettings,
 }: NotificationsSectionProps) {
-  const initial = initialSettings ?? buildDefaults();
+  const initial = initialSettings
+    ? normalizeInitial(initialSettings)
+    : buildDefaults();
   const [channels, setChannels] = useState<ChannelMap>(initial.channels);
   const [prefs, setPrefs] = useState<PreferenceMap>(initial.preferences);
-  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+
+  // Dernier état persisté avec succès — sert de point de revert si un
+  // auto-save échoue.
+  const savedSnapshot = useRef<NotificationSettings>(initial);
 
   // Push : la souscription navigateur (PushManager) doit être créée /
-  // détruite *au moment du clic* sur le toggle Push (iOS Safari refuse
-  // `pushManager.subscribe()` hors user gesture). On sync ensuite l'état
-  // visuel du toggle avec le statut réel renvoyé par le hook.
-  // `await Promise.resolve()` pour respecter la règle ESLint
-  // `react-hooks/set-state-in-effect` du repo (cf. AGENTS.md).
+  // détruite *au moment du clic* (iOS Safari refuse `subscribe()` hors user
+  // gesture). On synchronise l'état visuel du toggle avec le statut réel.
   const push = usePushSubscription();
   useEffect(() => {
     if (push.status === "loading") return;
@@ -130,173 +157,159 @@ export function NotificationsSection({
     [userOffer],
   );
 
-  async function toggleChannel(channel: NotificationChannel) {
-    // Cas spécial push : on ne peut pas se contenter de flipper le state.
-    // Il faut demander la permission navigateur et créer/détruire la
-    // souscription Web Push. Le state suit ensuite via l'effect ci-dessus.
-    if (channel === "push") {
-      if (!push.support.supported) {
-        const reasonLabel =
-          push.support.reason === "no_vapid_key"
-            ? "Notifications push non configurées côté serveur."
-            : "Notifications push non supportées sur ce navigateur.";
-        toast.error(reasonLabel);
-        return;
-      }
-      const turningOn = !channels.push;
-      const result = turningOn
-        ? await push.subscribe()
-        : await push.unsubscribe();
-      if (!result.ok) {
-        if (result.reason === "permission_denied") {
-          toast.error(
-            "Permission refusée. Active les notifications dans les réglages de ton navigateur.",
-          );
-        } else {
-          toast.error("Impossible de mettre à jour la souscription push.");
-        }
-      } else if (turningOn) {
-        toast.success("Notifications push activées 🎉");
-      } else {
-        toast.success("Notifications push désactivées.");
-      }
+  // ── Auto-enregistrement ───────────────────────────────────────────────────
+  // doSave lit l'état frais via la closure (useDebouncedCallback rafraîchit sa
+  // ref de callback à chaque render). On force in_app=true à l'écriture.
+  function doSave() {
+    if (isMocked) {
+      setSaveState("saved");
       return;
     }
-    setChannels((prev) => ({ ...prev, [channel]: !prev[channel] }));
-  }
-
-  function togglePref(
-    category: NotificationCategory,
-    channel: NotificationChannel,
-  ) {
-    setPrefs((prev) => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [channel]: !prev[category][channel],
-      },
+    setSaveState("saving");
+    // Snapshot des maps d'état courantes (point de revert si l'écriture rate).
+    const snapshot: NotificationSettings = {
+      preferences: prefs,
+      channels,
+    };
+    const preferencesPayload = visibleCategories.flatMap((cat) =>
+      NOTIFICATION_CHANNELS.map((channel) => ({
+        category: cat.key,
+        channel,
+        enabled: channel === "in_app" ? true : prefs[cat.key][channel],
+      })),
+    );
+    const channelsPayload = NOTIFICATION_CHANNELS.map((channel) => ({
+      channel,
+      enabled: channel === "in_app" ? true : channels[channel],
     }));
-  }
 
-  async function handleSave() {
-    setSaving(true);
-    try {
-      if (isMocked) {
-        toast.success("Préférences enregistrées (démo)");
-        return;
-      }
-
-      const preferences = visibleCategories.flatMap((cat) =>
-        NOTIFICATION_CHANNELS.map((ch) => ({
-          category: cat.key,
-          channel: ch,
-          enabled: prefs[cat.key][ch],
-        })),
-      );
-      const channelRows = NOTIFICATION_CHANNELS.map((ch) => ({
-        channel: ch,
-        enabled: channels[ch],
-      }));
-
+    void (async () => {
       const result = await updateNotificationSettingsAction({
-        preferences,
-        channels: channelRows,
+        preferences: preferencesPayload,
+        channels: channelsPayload,
       });
-
       if (!result.ok) {
+        // Revert vers le dernier état sauvegardé.
+        setChannels(savedSnapshot.current.channels);
+        setPrefs(savedSnapshot.current.preferences);
+        setSaveState("error");
         toast.error(result.message);
         return;
       }
-      toast.success("Préférences enregistrées");
-    } finally {
-      setSaving(false);
-    }
+      savedSnapshot.current = snapshot;
+      setSaveState("saved");
+    })();
   }
+
+  const scheduleSave = useDebouncedCallback(doSave, 800);
+
+  // ── Mutations matrice ─────────────────────────────────────────────────────
+  // Header d'une colonne configurable (Mail / WhatsApp) : ON/OFF de toute la
+  // colonne (l'in-app verrouillé n'a pas de header cliquable).
+  function toggleColumn(channel: NotificationChannel) {
+    setChannels((prev) => ({ ...prev, [channel]: !prev[channel] }));
+    scheduleSave();
+  }
+
+  // Clic sur une case (Mail / WhatsApp).
+  //   - Colonne déjà active → simple toggle de la case.
+  //   - Colonne éteinte → on réactive le canal ET on coche UNIQUEMENT cette
+  //     case (les autres restent OFF : pas de résurgence d'anciennes prefs).
+  function handleCellClick(
+    category: NotificationCategory,
+    channel: NotificationChannel,
+  ) {
+    if (channels[channel]) {
+      setPrefs((prev) => ({
+        ...prev,
+        [category]: { ...prev[category], [channel]: !prev[category][channel] },
+      }));
+    } else {
+      setChannels((prev) => ({ ...prev, [channel]: true }));
+      setPrefs((prev) => {
+        const next = { ...prev } as PreferenceMap;
+        for (const cat of NOTIFICATION_CATEGORIES) {
+          next[cat] = { ...next[cat], [channel]: cat === category };
+        }
+        return next;
+      });
+    }
+    scheduleSave();
+  }
+
+  // ── Toggle push global (PWA) ──────────────────────────────────────────────
+  async function handleTogglePush() {
+    if (!push.support.supported) {
+      const reasonLabel =
+        push.support.reason === "no_vapid_key"
+          ? "Notifications push non configurées côté serveur."
+          : "Notifications push non supportées sur ce navigateur.";
+      toast.error(reasonLabel);
+      return;
+    }
+    const turningOn = !channels.push;
+    const result = turningOn
+      ? await push.subscribe()
+      : await push.unsubscribe();
+    if (!result.ok) {
+      if (result.reason === "permission_denied") {
+        toast.error(
+          "Permission refusée. Active les notifications dans les réglages de ton navigateur.",
+        );
+      } else {
+        toast.error("Impossible de mettre à jour la souscription push.");
+      }
+      return;
+    }
+    toast.success(
+      turningOn ? "Notifications push activées 🎉" : "Notifications push désactivées.",
+    );
+    setChannels((prev) => ({ ...prev, push: turningOn }));
+    scheduleSave();
+  }
+
+  const pushUnavailable = !push.support.supported || push.status === "denied";
 
   return (
     <SettingsCard
       title="Notifications"
-      description="Cliquez sur un canal en-tête pour activer/désactiver toutes ses notifications, ou utilisez les switches pour ajuster chaque type."
+      description="L'in-app est toujours actif. Choisissez les canaux Mail et WhatsApp par type de notification ; le push téléphone (PWA) s'active globalement plus bas."
       fbLabel="Section notifications · Réglages"
+      action={<SaveStatus state={saveState} />}
     >
       <NotificationsMatrix
         categories={visibleCategories}
         channels={channels}
         prefs={prefs}
-        onToggleChannel={toggleChannel}
-        onTogglePref={togglePref}
+        onToggleColumn={toggleColumn}
+        onCellClick={handleCellClick}
       />
 
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          data-fb-label="Bouton Enregistrer préférences · Section notifications"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 20px",
-            borderRadius: 9999,
-            border: "none",
-            background: "var(--color-brand)",
-            color: "white",
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: saving ? "not-allowed" : "pointer",
-            opacity: saving ? 0.6 : 1,
-            transition: "opacity 150ms ease",
-            boxShadow: "0 6px 18px -8px rgba(224,98,90,0.55)",
-          }}
-        >
-          {saving && <LoaderCircle size={14} className="animate-spin" />}
-          {saving ? "Enregistrement…" : "Enregistrer les préférences"}
-        </button>
-      </div>
+      <PushToggle
+        enabled={channels.push}
+        unavailable={pushUnavailable}
+        onToggle={handleTogglePush}
+      />
     </SettingsCard>
   );
 }
 
 // ============================================================================
-// NotificationsMatrix — table intégrée unique.
-//
-// Layout grid : `minmax(0, 1fr) repeat(3, 56px)` → la 1re colonne (Type)
-// prend la place restante en s'adaptant, les 3 colonnes canaux sont fixes
-// à 56 px. Avec ~ 320 px de contenu disponible dans une SettingsCard
-// mobile, ça donne 152 px pour les labels de type → les longs labels
-// wrappent sur 2 lignes proprement au lieu d'un scroll horizontal.
-//
-// Header :
-//   - Cellule (0,0) : petit label "Type" en uppercase muted.
-//   - Cellules (0,1..3) : ChannelHeaderButton (icône + label empilés
-//     verticalement). Click = toggle on/off de toute la colonne. Fond
-//     brand red + ombre quand actif, transparent + muted quand off.
-//
-// Body :
-//   - Cellule (i,0) : label du type, lineHeight 1.3 pour rester lisible
-//     même en cas de wrap sur 2 lignes.
-//   - Cellules (i,1..3) : mini SwitchToggle (size sm). Quand la colonne
-//     est OFF, opacity 0.4 + disabled.
+// NotificationsMatrix — table intégrée (en-tête + lignes catégorie).
 // ============================================================================
 function NotificationsMatrix({
   categories,
   channels,
   prefs,
-  onToggleChannel,
-  onTogglePref,
+  onToggleColumn,
+  onCellClick,
 }: {
   categories: Category[];
   channels: ChannelMap;
   prefs: PreferenceMap;
-  onToggleChannel: (ch: NotificationChannel) => void;
-  onTogglePref: (cat: NotificationCategory, ch: NotificationChannel) => void;
+  onToggleColumn: (ch: NotificationChannel) => void;
+  onCellClick: (cat: NotificationCategory, ch: NotificationChannel) => void;
 }) {
-  // Grid responsive via la classe `nc-notif-grid` (définie dans
-  // globals.css). Sur mobile : `minmax(0,1fr) repeat(3, 56px)` (compact,
-  // tient ≥ 320 px). Sur desktop : `minmax(0,1fr) repeat(3, 96px)` +
-  // gap plus large → les 3 boutons canaux sont plus respirants et la
-  // proportion titre/buttons devient correcte (sans grand vide central).
   const baseGrid: React.CSSProperties = {
     display: "grid",
     padding: 6,
@@ -315,7 +328,7 @@ function NotificationsMatrix({
         overflow: "hidden",
       }}
     >
-      {/* HEADER */}
+      {/* HEADER (fond inchangé) */}
       <div
         role="row"
         className="nc-notif-grid"
@@ -341,30 +354,31 @@ function NotificationsMatrix({
         >
           Type
         </div>
-        {CHANNELS.map(({ key, label, Icon }) => (
+        {MATRIX_CHANNELS.map(({ key, label, Icon, locked }) => (
           <div key={key} role="columnheader">
             <ChannelHeaderButton
               label={label}
               Icon={Icon}
-              active={channels[key]}
-              onClick={() => onToggleChannel(key)}
+              active={locked ? true : channels[key]}
+              locked={locked}
+              onClick={locked ? undefined : () => onToggleColumn(key)}
             />
           </div>
         ))}
       </div>
 
-      {/* BODY */}
+      {/* BODY — lignes charbon contrastées (.nc-notif-row) */}
       {categories.map((cat, i) => (
         <div
           key={cat.key}
           role="row"
-          className="nc-notif-grid"
+          className="nc-notif-grid nc-notif-row"
           style={{
             ...baseGrid,
             borderBottom:
               i === categories.length - 1
                 ? "none"
-                : "1px solid var(--color-border-default)",
+                : "1px solid rgba(255,255,255,0.08)",
             alignItems: "center",
           }}
         >
@@ -374,18 +388,39 @@ function NotificationsMatrix({
               padding: "8px 12px",
               fontSize: 13,
               fontWeight: 500,
-              color: "var(--color-text-primary)",
+              // Hérite du clair de `.nc-notif-row` → lisible sur charbon.
+              color: "inherit",
               lineHeight: 1.3,
-              // Sur viewport étroit, les longs labels wrappent sur 2 lignes
-              // au lieu d'overflow → reste lisible sans scroll horizontal.
               wordBreak: "normal",
               overflowWrap: "break-word",
             }}
           >
             {cat.label}
           </div>
-          {CHANNELS.map(({ key, label: chLabel }) => {
-            const channelOff = !channels[key];
+          {MATRIX_CHANNELS.map(({ key, label: chLabel, locked }) => {
+            if (locked) {
+              // In-app : toujours coché, verrouillé, non cliquable.
+              return (
+                <div
+                  key={key}
+                  role="cell"
+                  title="Toujours activé"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 8,
+                  }}
+                >
+                  <SwitchToggle
+                    size="sm"
+                    checked
+                    readOnly
+                    ariaLabel={`${cat.label} via ${chLabel} (toujours activé)`}
+                  />
+                </div>
+              );
+            }
             const checked = prefs[cat.key][key] && channels[key];
             return (
               <div
@@ -396,15 +431,13 @@ function NotificationsMatrix({
                   alignItems: "center",
                   justifyContent: "center",
                   padding: 8,
-                  opacity: channelOff ? 0.4 : 1,
-                  transition: "opacity 200ms ease",
                 }}
               >
                 <SwitchToggle
                   size="sm"
                   checked={checked}
-                  disabled={channelOff}
-                  onChange={() => onTogglePref(cat.key, key)}
+                  offBg={ROW_SWITCH_OFF_BG}
+                  onChange={() => onCellClick(cat.key, key)}
                   ariaLabel={`${cat.label} via ${chLabel}`}
                 />
               </div>
@@ -417,31 +450,35 @@ function NotificationsMatrix({
 }
 
 // ============================================================================
-// ChannelHeaderButton — bouton cliquable dans le header de la matrix.
-//   - Icône + label empilés verticalement (compact, tient en 56 px).
-//   - Fond brand red + ombre douce quand actif → l'utilisateur voit
-//     d'un coup d'œil quels canaux sont allumés.
-//   - Click = toggle de toute la colonne.
-//   - role="switch" pour qu'un lecteur d'écran annonce bien l'état.
+// ChannelHeaderButton — en-tête de colonne canal.
+//   - Mail / WhatsApp : bouton cliquable (toggle ON/OFF de la colonne).
+//   - App (in-app) : statique + cadenas, signale « toujours actif ».
 // ============================================================================
 function ChannelHeaderButton({
   label,
   Icon,
   active,
+  locked,
   onClick,
 }: {
   label: string;
   Icon: typeof Mail;
   active: boolean;
-  onClick: () => void;
+  locked?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={active}
-      aria-label={`Canal ${label}`}
-      data-fb-label={`Interrupteur canal ${label} · Section notifications`}
+      aria-disabled={locked || undefined}
+      aria-label={locked ? `Canal ${label} (toujours activé)` : `Canal ${label}`}
+      data-fb-label={
+        locked
+          ? `Canal ${label} verrouillé · Section notifications`
+          : `Interrupteur canal ${label} · Section notifications`
+      }
       onClick={onClick}
       style={{
         width: "100%",
@@ -455,20 +492,21 @@ function ChannelHeaderButton({
         border: active
           ? "1px solid rgba(224, 98, 90, 0.28)"
           : "1px solid transparent",
-        // Tint léger de la couleur brand quand actif (rgba 0.12) au lieu
-        // d'un fond plein qui surcharge la matrix. Le texte et l'icône
-        // restent en brand red sur ce fond clair → contraste lisible et
-        // identité visuelle conservée sans dominer le composant.
         background: active ? "rgba(224, 98, 90, 0.12)" : "transparent",
         color: active ? "var(--color-brand)" : "var(--color-text-muted)",
-        cursor: "pointer",
+        cursor: locked ? "default" : "pointer",
         transition:
           "background 200ms var(--nc-ease), color 200ms ease, border-color 200ms ease",
         minHeight: 48,
         outline: "none",
         fontFamily: "inherit",
+        position: "relative",
       }}
-      className="hover:bg-[var(--nc-nav-hover-bg)] focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+      className={
+        locked
+          ? undefined
+          : "hover:bg-[var(--nc-nav-hover-bg)] focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+      }
     >
       <Icon size={16} strokeWidth={active ? 2.25 : 2} aria-hidden />
       <span
@@ -476,40 +514,120 @@ function ChannelHeaderButton({
           fontSize: 11,
           fontWeight: 600,
           letterSpacing: "-0.005em",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 3,
         }}
       >
         {label}
+        {locked && <Lock size={9} aria-hidden />}
       </span>
     </button>
   );
 }
 
 // ============================================================================
-// SwitchToggle — iOS-like switch utilisé dans les cellules de la matrix.
-// Taille `sm` par défaut, `md` dispo pour de futurs usages. Brand color
-// quand activé, gris quand off, knob blanc avec transition left 200 ms.
+// PushToggle — interrupteur global « Notifications push (PWA) » sous la matrice.
+// ============================================================================
+function PushToggle({
+  enabled,
+  unavailable,
+  onToggle,
+}: {
+  enabled: boolean;
+  unavailable: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      data-fb-label="Encadré notifications push PWA · Section notifications"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        padding: "14px 16px",
+        borderRadius: 14,
+        border: "1px solid var(--color-border-default)",
+        background: "var(--color-surface-card)",
+        boxShadow: "var(--nc-shadow-3)",
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 38,
+          height: 38,
+          borderRadius: 10,
+          flexShrink: 0,
+          background: "rgba(224, 98, 90, 0.12)",
+          color: "var(--color-brand)",
+        }}
+      >
+        <Smartphone size={18} />
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 14,
+            fontWeight: 600,
+            color: "var(--color-text-primary)",
+          }}
+        >
+          Notifications push (PWA)
+        </p>
+        <p
+          style={{
+            margin: "2px 0 0",
+            fontSize: 12,
+            color: "var(--color-text-muted)",
+            lineHeight: 1.4,
+          }}
+        >
+          {unavailable
+            ? "Indisponible sur ce navigateur. Sur iPhone, installe l'app sur l'écran d'accueil."
+            : "Reçois sur ton téléphone les mêmes notifications que dans l'app."}
+        </p>
+      </div>
+      <SwitchToggle
+        checked={enabled}
+        onChange={onToggle}
+        ariaLabel="Notifications push (PWA)"
+      />
+    </div>
+  );
+}
+
+// ============================================================================
+// SwitchToggle — switch iOS-like.
+//   - `readOnly` : affiché coché, non cliquable (cas in-app verrouillé).
+//   - `offBg`    : couleur de fond OFF custom (cellules sur ligne charbon).
 // ============================================================================
 function SwitchToggle({
   checked,
   onChange,
   ariaLabel,
   disabled,
+  readOnly,
   size = "md",
+  offBg,
 }: {
   checked: boolean;
-  onChange: () => void;
+  onChange?: () => void;
   ariaLabel: string;
   disabled?: boolean;
+  readOnly?: boolean;
   size?: "md" | "sm";
+  offBg?: string;
 }) {
   const w = size === "sm" ? 32 : 42;
   const h = size === "sm" ? 20 : 24;
   const knob = size === "sm" ? 16 : 20;
-  // Distance que le knob parcourt entre les états off/on. Le knob est
-  // toujours positionné à `left: 2`, on l'anime ensuite via translateX
-  // (GPU-composited → plus fluide qu'animer `left` qui déclenche le
-  // layout à chaque frame, surtout visible sur mobile / WebKit).
   const knobTravel = w - knob - 4;
+  const clickable = !disabled && !readOnly;
 
   return (
     <button
@@ -517,21 +635,24 @@ function SwitchToggle({
       role="switch"
       aria-checked={checked}
       aria-label={ariaLabel}
+      aria-disabled={!clickable || undefined}
       data-fb-label={`Interrupteur ${ariaLabel} · Section notifications`}
-      onClick={disabled ? undefined : onChange}
+      onClick={clickable ? onChange : undefined}
       disabled={disabled}
       style={{
         width: w,
         height: h,
         borderRadius: 9999,
-        background:
-          checked && !disabled ? "var(--color-brand)" : "var(--nc-switch-off-bg)",
+        background: checked
+          ? "var(--color-brand)"
+          : offBg ?? "var(--nc-switch-off-bg)",
         border: "none",
-        cursor: disabled ? "not-allowed" : "pointer",
+        cursor: clickable ? "pointer" : "default",
         position: "relative",
         transition: "background 200ms ease",
         flexShrink: 0,
         padding: 0,
+        opacity: disabled ? 0.5 : 1,
       }}
     >
       <span
@@ -545,9 +666,6 @@ function SwitchToggle({
           borderRadius: "50%",
           background: "white",
           boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-          // transform/translateX au lieu de `left` → GPU compositing,
-          // animation fluide sur mobile (Safari iOS / Chrome Android
-          // saccadaient avec `left` à cause des reflows).
           transform: `translateX(${checked ? knobTravel : 0}px)`,
           transition: "transform 200ms ease",
           willChange: "transform",

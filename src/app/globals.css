@@ -937,6 +937,8 @@ html {
 
 /*
  * Grid responsive pour la matrix NotificationsSection.
+ * 3 colonnes canaux : Mail · App (verrouillée) · WhatsApp. Le push n'est plus
+ * une colonne — il a son propre interrupteur global sous la matrice.
  * Mobile (< md = 768 px) : colonnes channels compactes 56 px, gap 4 px
  *   → la matrix tient inline sur les viewports ≥ 320 px.
  * Desktop (≥ 768 px) : colonnes channels élargies à 96 px et gap 10 px
@@ -944,15 +946,32 @@ html {
  *   distribués sur la ligne (plus de grand vide central).
  */
 .nc-notif-grid {
-  grid-template-columns: minmax(0, 1fr) repeat(4, 52px);
-  gap: 3px;
+  grid-template-columns: minmax(0, 1fr) repeat(3, 56px);
+  gap: 4px;
 }
 
 @media (min-width: 768px) {
   .nc-notif-grid {
-    grid-template-columns: minmax(0, 1fr) repeat(4, 88px);
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) repeat(3, 96px);
+    gap: 10px;
   }
+}
+
+/*
+ * Lignes du CORPS de la matrice notifications — fond charbon contrasté.
+ * Le texte et les icônes de catégorie passent en clair (héritage `color`)
+ * pour rester lisibles (WCAG AA) sur ce fond sombre.
+ * En thème sombre, #3D3A39 se fondrait dans la carte (#2a2725) : on bascule
+ * sur `--color-surface-page` (token existant, plus sombre que la carte et que
+ * l'en-tête `--color-surface-raised`) pour conserver une séparation visible.
+ * L'en-tête de la matrice n'est PAS concerné (garde son fond actuel).
+ */
+.nc-notif-row {
+  background: #3d3a39;
+  color: #f2edeb;
+}
+.dark .nc-notif-row {
+  background: var(--color-surface-page);
 }
 
 @keyframes nc-sheet-in {
