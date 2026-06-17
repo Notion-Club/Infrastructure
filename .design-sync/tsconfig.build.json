@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "baseUrl": "..",
+    "paths": {
+      "@/modules/auth": [
+        "./src/modules/auth/index.ts"
+      ],
+      "@/modules/settings": [
+        "./src/modules/settings/index.ts"
+      ],
+      "server-only": [
+        "./.design-sync/stubs/empty.ts"
+      ],
+      "web-push": [
+        "./.design-sync/stubs/empty.ts"
+      ],
+      "resend": [
+        "./.design-sync/stubs/resend.ts"
+      ],
+      "next/image": [
+        "./.design-sync/stubs/next-image.tsx"
+      ],
+      "@/shared/*": [
+        "./src/shared/*"
+      ],
+      "@/modules/*": [
+        "./src/modules/*"
+      ],
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  }
+}

@@ -1,0 +1,9 @@
+@import "../src/app/globals.css";
+@source "../src";
+
+/* Brand font is shipped with the DS (see fonts.css via cfg.extraFonts).
+   Force it on body so every preview inherits SF Pro Display. */
+body {
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    system-ui, sans-serif;
+}
