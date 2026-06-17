@@ -507,7 +507,7 @@ function EditableDisplayName({
               fontWeight: 600,
               letterSpacing: "-0.01em",
               color: "var(--color-text-primary)",
-              background: "var(--color-surface-card)",
+              background: "var(--color-surface-raised)",
               border: "1px solid var(--color-brand)",
               borderRadius: 9999,
               padding: `0 ${PILL_PADDING_RIGHT}px 0 ${PILL_PADDING_LEFT}px`,
@@ -566,14 +566,14 @@ function EditableDisplayName({
           isEmpty ? "Ajouter un nom d'affichage" : "Modifier le nom d'affichage"
         }
         data-fb-label="Nom d'affichage · Section profil"
-        className={`hover:bg-[var(--color-surface-raised)] focus-visible:bg-[var(--color-surface-raised)] ${
+        className={`hover:bg-[var(--color-surface-card)] focus-visible:bg-[var(--color-surface-card)] ${
           isEmpty ? "nc-pill-width-cycle" : ""
         }`}
         style={{
           ...wrapperBase,
           ...pillVars,
           ...widthStyle,
-          background: "var(--color-surface-card)",
+          background: "var(--color-surface-raised)",
           border: "1px solid var(--color-border-default)",
           borderRadius: 9999,
           cursor: "pointer",

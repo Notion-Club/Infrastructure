@@ -306,7 +306,12 @@ function CountryPicker({
   }
 
   return (
-    <div ref={containerRef} style={{ position: "relative" }}>
+    // `display: flex` + pas de hauteur fixe → le bouton s'étire à la
+    // hauteur de la ligne (définie par l'input `.nc-input` voisin via le
+    // `align-items: stretch` du parent). Garantit que préfixe et numéro ont
+    // exactement la même hauteur, quelle que soit la hauteur calculée de
+    // `.nc-input`.
+    <div ref={containerRef} style={{ position: "relative", display: "flex" }}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -318,7 +323,6 @@ function CountryPicker({
           alignItems: "center",
           gap: 6,
           padding: "0 12px",
-          height: 44,
           borderRadius: 12,
           border: "1px solid var(--color-border-default)",
           background: "var(--color-surface-raised)",
