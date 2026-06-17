@@ -3,6 +3,34 @@
 
 ---
 
+# Règle absolue — toujours à jour avec `main` avant tout merge
+
+**Avant CHAQUE merge (et avant de préparer/pousser une PR), il FAUT vérifier qu'on est à jour avec les dernières modifications distantes.** Cette vérification est systématique et se fait **de mon côté, sans qu'on ait à me le demander**.
+
+Théo (et d'autres) poussent sur `main` en parallèle. Merger une branche en retard risquerait d'écraser leur travail ou de partir sur une base périmée. C'est non négociable.
+
+## Procédure obligatoire avant tout merge
+
+1. `git fetch origin` — récupérer l'état distant le plus frais (juste avant le merge, pas seulement en début de session).
+2. Vérifier que `origin/main` n'a pas avancé depuis le départ de la branche :
+   - `git log --oneline <ma-branche>..origin/main` → doit être **vide**.
+   - `git merge-base --is-ancestor origin/main <ma-branche>` → doit réussir.
+3. Si `origin/main` a avancé :
+   - mettre `main` local à jour (`git pull --ff-only origin main`),
+   - vérifier que les nouveaux commits **ne touchent pas les mêmes fichiers** que ma branche (`git show <sha> --stat`),
+   - rebaser/réintégrer ma branche sur le `main` à jour **avant** de merger,
+   - ne JAMAIS force-push ni merger d'une façon qui écraserait un commit distant.
+4. Vérifier `mergeable: MERGEABLE` + CI verte avant de lancer le merge.
+5. Après merge : `git checkout main && git pull --ff-only origin main` pour resynchroniser.
+
+## Quand cette règle s'applique
+
+- À chaque `gh pr merge` / merge de branche.
+- À chaque `git push` qui prépare ou met à jour une PR.
+- Même si une vérification a déjà été faite plus tôt dans la session : **on re-fetch juste avant le merge** (quelqu'un a pu pousser entre-temps).
+
+---
+
 # Règle absolue — format de chaque pull request
 
 À CHAQUE `git push` qui prépare ou met à jour une pull request sur ce repo, le corps de la PR DOIT respecter exactement la structure ci-dessous, dans cet ordre, en français, avec des sous-titres `##` et `###`, des tableaux Markdown quand pertinent, et des emojis en tête de section comme dans les PR #33 et #38 du repo (référence de style).
