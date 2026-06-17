@@ -2,30 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
-import { toast } from "sonner";
 
-import { ProfileHero } from "@/shared/components/settings/ProfileHero";
-import { ProfileSection } from "@/shared/components/settings/ProfileSection";
+import { ProfileRecapCard } from "@/shared/components/settings/ProfileRecapCard";
+import { AccountSection } from "@/shared/components/settings/AccountSection";
 import { SecuritySection } from "@/shared/components/settings/SecuritySection";
 import { SubscriptionSection } from "@/shared/components/settings/SubscriptionSection";
 import { NotificationsSection } from "@/shared/components/settings/NotificationsSection";
 import { AppearanceSection } from "@/shared/components/settings/AppearanceSection";
 import { DangerZone } from "@/shared/components/settings/DangerZone";
-import { DevPanel } from "@/shared/components/settings/DevPanel";
 import type {
   AuthIdentity,
   AuthUserShape,
   ProfileRow,
 } from "@/shared/components/settings/types";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
-import { useProfileIdentityContext } from "@/shared/components/identity/ProfileIdentityProvider";
+import { ContentEnter } from "@/shared/components/motion/ContentEnter";
 import {
   MOCK_AUTH_USER,
   MOCK_PROFILE,
   MOCK_USER_OFFER,
 } from "@/shared/lib/settings/mock-data";
-import { type ScenarioId } from "@/shared/lib/settings/scenarios";
-import { updateProfileAction, type NotificationSettings } from "@/modules/settings";
+import { type NotificationSettings } from "@/modules/settings";
 
 type LoadState =
   | { status: "loading" }
@@ -44,8 +41,6 @@ export function SettingsClient({
   initialNotificationSettings?: NotificationSettings | null;
 } = {}) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
-  const [scenarioId, setScenarioId] = useState<ScenarioId>("default");
-  const { updateIdentity } = useProfileIdentityContext();
 
   useEffect(() => {
     let cancelled = false;
@@ -97,64 +92,6 @@ export function SettingsClient({
     };
   }, []);
 
-  function patchAvatar(next: {
-    avatarUrl?: string | null;
-    avatarColor?: string | null;
-  }) {
-    setState((prev) => {
-      if (prev.status !== "ready") return prev;
-      const patched = { ...prev.profile };
-      if (next.avatarUrl !== undefined) patched.avatar_url = next.avatarUrl;
-      if (next.avatarColor !== undefined)
-        patched.avatar_color = next.avatarColor;
-      return { ...prev, profile: patched };
-    });
-    // Propagate to the shared identity context so Topbar/Mobile reflect
-    // the change immediately (without a full reload).
-    updateIdentity({
-      ...(next.avatarUrl !== undefined && { avatarUrl: next.avatarUrl }),
-      ...(next.avatarColor !== undefined && { avatarColor: next.avatarColor }),
-    });
-  }
-
-  // OPS-47 — Sauvegarde du nom d'affichage depuis l'inline-edit dans
-  // ProfileHero. Optimistic update local + propagation au context identité
-  // (Topbar / MobileTopActions s'actualisent immédiatement), puis appel
-  // server action. En cas d'erreur on toast l'utilisateur sans revert : il
-  // garde la nouvelle valeur dans l'input pour pouvoir corriger et retenter.
-  async function patchDisplayName(nextDisplayName: string) {
-    if (state.status !== "ready") return;
-    const previous = state.profile.display_name;
-    const trimmed = nextDisplayName.trim() || null;
-
-    // Optimistic update
-    setState((prev) =>
-      prev.status === "ready"
-        ? { ...prev, profile: { ...prev.profile, display_name: trimmed } }
-        : prev,
-    );
-    updateIdentity({ displayName: trimmed });
-
-    if (state.isMocked) {
-      toast.success("Nom d'affichage mis à jour (démo)");
-      return;
-    }
-
-    const result = await updateProfileAction({ display_name: trimmed });
-    if (!result.ok) {
-      // Revert optimistic update on server failure.
-      setState((prev) =>
-        prev.status === "ready"
-          ? { ...prev, profile: { ...prev.profile, display_name: previous } }
-          : prev,
-      );
-      updateIdentity({ displayName: previous });
-      toast.error(result.message);
-      throw new Error(result.message);
-    }
-    toast.success("Nom d'affichage mis à jour");
-  }
-
   return (
     <>
       <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
@@ -182,18 +119,10 @@ export function SettingsClient({
                 <LoaderCircle size={20} className="animate-spin" />
               </div>
             ) : (
-              <>
-                <ProfileHero
-                  avatarUrl={state.profile.avatar_url}
-                  avatarColor={state.profile.avatar_color}
-                  firstName={state.profile.first_name}
-                  lastName={state.profile.last_name}
-                  displayName={state.profile.display_name}
-                  email={state.user.email}
-                  isMocked={state.isMocked}
-                  onAvatarChange={patchAvatar}
-                  onDisplayNameSave={patchDisplayName}
-                />
+              <ContentEnter
+                style={{ display: "flex", flexDirection: "column", gap: 20 }}
+              >
+                <ProfileRecapCard />
                 {banner}
                 {state.isMocked && (
                   <div
@@ -212,7 +141,7 @@ export function SettingsClient({
                     Mode démo — connectez-vous pour enregistrer vos modifications.
                   </div>
                 )}
-                <ProfileSection
+                <AccountSection
                   profile={state.profile}
                   accountEmail={state.user.email}
                   isMocked={state.isMocked}
@@ -231,13 +160,11 @@ export function SettingsClient({
                   <AppearanceSection />
                   <DangerZone isMocked={state.isMocked} />
                 </div>
-              </>
+              </ContentEnter>
             )}
           </div>
         </main>
       </div>
-
-      <DevPanel scenarioId={scenarioId} onScenarioChange={setScenarioId} />
     </>
   );
 }

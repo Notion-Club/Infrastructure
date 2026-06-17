@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ChevronDown, Eye, EyeOff, KeyRound, LoaderCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  AlertCircle,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  KeyRound,
+  LoaderCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
@@ -71,13 +79,13 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
   // header du formulaire à l'intérieur du même bloc.
   return (
     <div
+      className="nc-pw-modal"
       style={{
         display: "flex",
         flexDirection: "column",
-        borderRadius: 12,
+        borderRadius: 14,
         border: "1px solid var(--color-border-default)",
         overflow: "hidden",
-        background: "var(--color-surface-raised)",
       }}
     >
       <button
@@ -162,7 +170,6 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
             "max-height 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease",
           maxHeight: open ? innerHeight + 8 : 0,
           opacity: open ? 1 : 0,
-          background: "var(--color-surface-card)",
         }}
       >
         <div ref={innerRef} style={{ padding: "14px 14px 16px" }}>
@@ -258,10 +265,6 @@ function PasswordChangeForm({
         display: "flex",
         flexDirection: "column",
         gap: 12,
-        padding: 14,
-        borderRadius: 12,
-        border: "1px solid var(--color-border-default)",
-        background: "var(--color-surface-card)",
       }}
     >
       <PasswordField
@@ -372,7 +375,7 @@ function PasswordField({
           onChange={(e) => onChange(e.target.value)}
           autoComplete={autoComplete}
           data-fb-label={`Champ ${label} · Section sécurité`}
-          className="nc-input"
+          className="nc-input nc-pw-input"
           style={{ paddingRight: 44 }}
         />
         <button
@@ -401,6 +404,126 @@ function PasswordField({
 
 /* ------------------------- Google identity ------------------------- */
 
+const SUPPORT_EMAIL = "theo@gouman.fr";
+
+// #134 — Traduction des erreurs Supabase OAuth en messages clairs côté UI.
+// On ne montre JAMAIS le message technique brut (ex. « Manual Linking is
+// Disabled ») : on mappe les cas connus, sinon on retombe sur un message
+// générique actionnable (« réessaie »). Le détail technique reste loggué en
+// console pour le debug.
+function humanizeGoogleError(
+  err: unknown,
+  context: "link" | "unlink",
+): string {
+  const raw = err instanceof Error ? err.message : String(err ?? "");
+  if (raw) console.warn(`[google-${context}] erreur brute:`, raw);
+  const low = raw.toLowerCase();
+
+  if (low.includes("manual linking is disabled")) {
+    return "L'association de comptes Google n'est pas disponible pour le moment. Réessaie plus tard, ou contacte le support si le problème persiste.";
+  }
+  if (low.includes("already") && low.includes("identit")) {
+    return "Ce compte Google est déjà associé à un autre profil Notion Club.";
+  }
+  if (
+    low.includes("last identity") ||
+    low.includes("single identity") ||
+    low.includes("cannot unlink")
+  ) {
+    return "Impossible de dissocier Google : c'est ta seule méthode de connexion. Définis d'abord un mot de passe.";
+  }
+  if (
+    low.includes("network") ||
+    low.includes("failed to fetch") ||
+    low.includes("timeout")
+  ) {
+    return "Connexion impossible. Vérifie ton accès internet et réessaie.";
+  }
+  return context === "link"
+    ? "Impossible de connecter le compte Google pour le moment. Réessaie dans un instant."
+    : "Impossible de dissocier le compte Google pour le moment. Réessaie dans un instant.";
+}
+
+// #134 — Encart d'erreur clair + actions (réessayer / contacter le support).
+function GoogleErrorNotice({
+  message,
+  onRetry,
+  retrying,
+}: {
+  message: string;
+  onRetry: () => void;
+  retrying: boolean;
+}) {
+  return (
+    <div
+      role="alert"
+      data-fb-label="Erreur Google · Section sécurité"
+      style={{
+        display: "flex",
+        gap: 10,
+        padding: 12,
+        borderRadius: 12,
+        background: "rgba(224,98,90,0.08)",
+        border: "1px solid rgba(224,98,90,0.25)",
+      }}
+    >
+      <AlertCircle
+        size={16}
+        style={{ color: "var(--color-brand)", flexShrink: 0, marginTop: 1 }}
+      />
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 12.5,
+            color: "var(--color-text-secondary)",
+            lineHeight: 1.5,
+          }}
+        >
+          {message}
+        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            type="button"
+            onClick={onRetry}
+            disabled={retrying}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "5px 12px",
+              borderRadius: 8,
+              border: "none",
+              background: "var(--color-brand)",
+              color: "white",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: retrying ? "not-allowed" : "pointer",
+              opacity: retrying ? 0.6 : 1,
+            }}
+          >
+            {retrying && <LoaderCircle size={12} className="animate-spin" />}
+            Réessayer
+          </button>
+          <a
+            href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+              "Problème connexion Google — Notion Club",
+            )}`}
+            style={{
+              fontSize: 12,
+              fontWeight: 500,
+              color: "var(--color-text-muted)",
+              textDecoration: "underline",
+            }}
+          >
+            Contacter le support
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getGoogleEmail(identity: AuthIdentity): string | null {
   const data = identity.identity_data;
   if (!data) return null;
@@ -417,11 +540,16 @@ function GoogleIdentityBlock({
   hasOtherIdentity: boolean;
   isMocked: boolean;
 }) {
+  const router = useRouter();
   const [pending, setPending] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  // Erreur affichée en clair sous le bloc (pas seulement en toast) avec une
+  // action de reprise. `context` sert au bouton « Réessayer ».
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   async function linkGoogle() {
     if (pending) return;
+    setErrorMsg(null);
     setPending(true);
     try {
       if (isMocked) {
@@ -431,11 +559,10 @@ function GoogleIdentityBlock({
       const supabase = createSupabaseBrowserClient();
       const { error } = await supabase.auth.linkIdentity({ provider: "google" });
       if (error) throw error;
+      // En cas de succès, Supabase redirige vers Google : pas de suite ici.
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Impossible de connecter le compte Google";
+      const message = humanizeGoogleError(err, "link");
+      setErrorMsg(message);
       toast.error(message);
     } finally {
       setPending(false);
@@ -448,6 +575,7 @@ function GoogleIdentityBlock({
       setConfirming(true);
       return;
     }
+    setErrorMsg(null);
     setPending(true);
     try {
       if (isMocked) {
@@ -460,17 +588,30 @@ function GoogleIdentityBlock({
       );
       if (error) throw error;
       toast.success("Compte Google dissocié");
+      setConfirming(false);
+      // Rafraîchit la page : le bloc Google disparaît une fois l'identité
+      // retirée (les identités sont chargées côté serveur via le layout).
+      router.refresh();
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Impossible de dissocier le compte Google";
+      const message = humanizeGoogleError(err, "unlink");
+      setErrorMsg(message);
       toast.error(message);
     } finally {
       setPending(false);
-      setConfirming(false);
     }
   }
+
+  const errorBox = errorMsg ? (
+    <GoogleErrorNotice
+      message={errorMsg}
+      onRetry={() => {
+        setErrorMsg(null);
+        if (googleIdentity) unlinkGoogle();
+        else linkGoogle();
+      }}
+      retrying={pending}
+    />
+  ) : null;
 
   if (!googleIdentity) {
     return (
@@ -493,6 +634,7 @@ function GoogleIdentityBlock({
           loading={pending}
           onClick={linkGoogle}
         />
+        {errorBox}
       </div>
     );
   }
@@ -556,8 +698,12 @@ function GoogleIdentityBlock({
           type="button"
           onClick={unlinkGoogle}
           disabled={pending}
+          aria-busy={pending}
           data-fb-label="Bouton Déconnecter Google · Section sécurité"
           style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
             padding: "8px 14px",
             borderRadius: 9999,
             border: "1px solid var(--color-border-default)",
@@ -567,11 +713,14 @@ function GoogleIdentityBlock({
             fontWeight: 500,
             cursor: pending ? "not-allowed" : "pointer",
             opacity: pending ? 0.6 : 1,
+            transition: "opacity 150ms ease",
           }}
         >
-          {pending ? "…" : "Déconnecter"}
+          {pending && <LoaderCircle size={13} className="animate-spin" />}
+          {pending ? "Déconnexion…" : "Déconnecter"}
         </button>
       </div>
+      {errorBox}
       {confirming && (
         <div
           role="alert"

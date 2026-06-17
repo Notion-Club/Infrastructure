@@ -278,6 +278,70 @@ html {
     inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
 }
 
+/* ──────────────────────────────────────────────────────────────
+   Éditeur de profil (#128) — surface unique, responsive :
+     - mobile  : prend toute la page (full-bleed), slide-up (nc-sheet-in)
+     - desktop : modale centrée (nc-modal-in)
+   La racine vit au niveau du (app)/layout, HORS de tout `nc-page-halo`
+   (isolation: isolate) → `position: fixed` n'est jamais cassé.
+   ────────────────────────────────────────────────────────────── */
+.nc-profile-modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 768px) {
+  .nc-profile-modal-root {
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+}
+
+.nc-profile-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.nc-profile-panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-page);
+  /* PWA iOS : on ne veut pas que le header / footer du panneau passent
+     sous l'encoche ou la barre de gestes. */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: nc-sheet-in var(--nc-duration-normal) var(--nc-ease) both;
+}
+@media (min-width: 768px) {
+  .nc-profile-panel {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: 560px;
+    max-height: 86vh;
+    border-radius: 28px;
+    border: 1px solid var(--color-border-default);
+    background: var(--color-surface-card);
+    box-shadow: var(--nc-shadow-2);
+    overflow: hidden;
+    padding: 0;
+    animation: nc-modal-in var(--nc-duration-normal) var(--nc-ease) both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-profile-panel {
+    animation: none;
+  }
+}
+
 /* ── FAB "Nouveau post" mobile (feed communauté) ── */
 .nc-feed-fab {
   position: fixed;
@@ -553,6 +617,24 @@ html {
 
 .nc-mode-in {
   animation: nc-mode-in var(--nc-duration-normal) var(--nc-ease) both;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   #130 — Apparition de contenu unifiée (wrapper ContentEnter).
+   On réutilise EXACTEMENT le keyframe « premium » de /coaching
+   (nc-mode-in : opacity + translateY léger, pas de blur lourd) et on
+   ajoute un stagger optionnel piloté par la var `--nc-enter-i` (index
+   de l'enfant). Volontairement léger pour rester fluide sur mobile.
+   ────────────────────────────────────────────────────────────── */
+.nc-content-enter {
+  animation: nc-mode-in var(--nc-duration-normal) var(--nc-ease) both;
+  animation-delay: calc(var(--nc-enter-i, 0) * 60ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-mode-in,
+  .nc-content-enter {
+    animation: none;
+  }
 }
 
 /* ── Dropdown (transitions.dev) — toolbox dev & menus ────────────────────── */
@@ -1000,6 +1082,39 @@ html {
 }
 
 /* ──────────────────────────────────────────────────────────────
+   #133 — Modale « Changer mon mot de passe » : hiérarchie des fonds.
+   Objectif premium en dark mode :
+     - le conteneur de la modale porte la surface dark PRINCIPALE
+       (#141211) → un puits sombre qui se détache de la carte Réglages
+       (surface-card #2a2725) qui l'entoure ;
+     - les 3 champs partagent un fond UNIFORME #2B2725, légèrement
+       surélevé par-dessus ce puits → lisibilité + effet « premium »,
+       sans empilement de boîtes bordées.
+   Light mode : on garde une hiérarchie douce (carte blanche, champs
+   sur surface-raised) cohérente avec le reste des Réglages.
+   ────────────────────────────────────────────────────────────── */
+.nc-pw-modal {
+  background: var(--color-surface-card);
+}
+.dark .nc-pw-modal {
+  background: var(--color-surface-page);
+}
+
+/* Champs : fond uniforme. `.nc-pw-input` est appliqué EN PLUS de
+   `.nc-input`, donc le focus (bordure + halo brand) et la bordure
+   d'erreur (style inline) restent intacts — on ne touche qu'au fond. */
+.nc-pw-input {
+  background: var(--color-surface-raised);
+}
+.dark .nc-pw-input {
+  background: #2b2725;
+}
+.dark .nc-pw-input:focus {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(224, 98, 90, 0.18);
+}
+
+/* ──────────────────────────────────────────────────────────────
    View transitions (Next.js experimental.viewTransition)
    ────────────────────────────────────────────────────────────── */
 
@@ -1124,6 +1239,13 @@ html {
  */
 html {
   -webkit-tap-highlight-color: transparent;
+  /* Safari iOS / PWA — bandeaux blancs (notch + barre de gestes + rubber-band
+     overscroll) : `body` est peint en `--background` (blanc en light), donc
+     toute zone hors contenu (safe-area, overscroll) virait au blanc.
+     On peint le « canvas » html avec la surface de page → ces zones prennent
+     la bonne couleur (clair #f5f2f2 / sombre #141211), comme une PWA intégrée.
+     `viewport-fit=cover` + `theme-color` (root layout) complètent l'effet. */
+  background-color: var(--color-surface-page);
 }
 
 /*
