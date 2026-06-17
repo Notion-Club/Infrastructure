@@ -1082,36 +1082,16 @@ html {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   #133 — Modale « Changer mon mot de passe » : hiérarchie des fonds.
-   Objectif premium en dark mode :
-     - le conteneur de la modale porte la surface dark PRINCIPALE
-       (#141211) → un puits sombre qui se détache de la carte Réglages
-       (surface-card #2a2725) qui l'entoure ;
-     - les 3 champs partagent un fond UNIFORME #2B2725, légèrement
-       surélevé par-dessus ce puits → lisibilité + effet « premium »,
-       sans empilement de boîtes bordées.
-   Light mode : on garde une hiérarchie douce (carte blanche, champs
-   sur surface-raised) cohérente avec le reste des Réglages.
+   #133 — Modale « Changer mon mot de passe ».
+   On reste STRICTEMENT sur les surfaces du design system (pas de fond
+   plus prononcé que le reste des Réglages) : conteneur = `surface-card`
+   (comme toutes les cartes/modales), champs = `.nc-input` standard
+   (`surface-raised`). La seule amélioration conservée est structurelle
+   (suppression de la carte imbriquée redondante) → fin de l'effet
+   « blocs empilés », sans assombrir.
    ────────────────────────────────────────────────────────────── */
 .nc-pw-modal {
   background: var(--color-surface-card);
-}
-.dark .nc-pw-modal {
-  background: var(--color-surface-page);
-}
-
-/* Champs : fond uniforme. `.nc-pw-input` est appliqué EN PLUS de
-   `.nc-input`, donc le focus (bordure + halo brand) et la bordure
-   d'erreur (style inline) restent intacts — on ne touche qu'au fond. */
-.nc-pw-input {
-  background: var(--color-surface-raised);
-}
-.dark .nc-pw-input {
-  background: #2b2725;
-}
-.dark .nc-pw-input:focus {
-  border-color: var(--color-brand);
-  box-shadow: 0 0 0 3px rgba(224, 98, 90, 0.18);
 }
 
 /* ──────────────────────────────────────────────────────────────
