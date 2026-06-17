@@ -46,6 +46,15 @@ export function MessagesLayout({
   // chargés au moins une fois. Évite de re-fetcher quand l'utilisateur
   // revient sur une conv déjà vue dans la même session.
   const loadedConvIds = useRef<Set<string>>(new Set());
+  // URL (segment) déjà résolue — anti-boucle (cf. effet de résolution).
+  const resolvedUrlRef = useRef<string | null>(null);
+  // Miroir des conversations courantes, lu par l'effet de résolution sans en
+  // dépendre (sinon chaque setConversations relancerait l'effet → boucle).
+  // Synchronisé dans un effet (jamais pendant le render — règle react-hooks/refs).
+  const conversationsRef = useRef(conversations);
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
 
   // Préchauffage : déclenché au mouseEnter d'un item de la liste. On lance
   // getConversationAction en background si la conv n'est pas déjà chargée,
@@ -76,10 +85,11 @@ export function MessagesLayout({
       });
   }
 
-  // Marquer la conv comme lue côté DB + fetch les messages détaillés.
+  // Ouvre une conversation : marque lue + charge les messages détaillés.
   // listConversations() ne charge pas messages[] (par perf), on les tire
   // ici via getConversationAction au moment où l'utilisateur ouvre la conv.
-  function handleSelect(id: string) {
+  // Idempotent (cache loadedConvIds) → safe à rappeler.
+  function openConversation(id: string) {
     setActiveId(id);
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)),
@@ -115,12 +125,10 @@ export function MessagesLayout({
   // Crée (ou réutilise) la conversation avec un user donné. Appelée par la
   // résolution d'URL quand /messages/<username> cible un user sans conv
   // existante. createConversationAction applique la RLS two-silo.
-  function handleNewConversation(targetUserId: string) {
-    const existing = conversations.find((c) => c.participant.id === targetUserId);
-    if (existing) {
-      handleSelect(existing.id);
-      return;
-    }
+  // IMPORTANT : pas de router.refresh() ici — il re-rendrait le Server
+  // Component, réinjecterait initialConversations et relancerait la cascade.
+  // Le state local est déjà à jour, ça suffit.
+  function createOrOpenConversation(targetUserId: string) {
     startTransition(async () => {
       const result = await createConversationAction({ target_user_id: targetUserId });
       if (!result.ok) {
@@ -129,15 +137,10 @@ export function MessagesLayout({
       }
       const conv = await getConversationAction(result.conversationId);
       if (!conv) {
-        // La conv a été créée côté DB mais on n'arrive pas à la re-fetch.
-        // Cas peu probable (cache stale ou RLS qui bouge), on prévient l'user
-        // pour qu'il rafraîchisse plutôt que de rester sans feedback.
         toast.error("Conversation créée mais impossible à charger. Recharge la page.");
         return;
       }
       setConversations((prev) => {
-        // Si la conv existait déjà, on la garde à sa place ; sinon on
-        // l'ajoute en tête (last_message_at = now au moment de la création).
         if (prev.some((c) => c.id === conv.id)) {
           return prev.map((c) => (c.id === conv.id ? conv : c));
         }
@@ -146,12 +149,14 @@ export function MessagesLayout({
       setActiveId(result.conversationId);
       loadedConvIds.current.add(result.conversationId);
       setMobileView("thread");
-      // Aligne l'URL sur la conv fraîchement créée (username du participant).
+      // Aligne l'URL sur la conv (username du participant). On marque cette URL
+      // comme déjà résolue pour que le replace ne relance pas la résolution.
       const targetUsername = conv.participant.username ?? conv.participant.id;
-      if (conversationUsername?.replace(/^@/, "").toLowerCase() !== targetUsername.toLowerCase()) {
+      const cleanCurrent = conversationUsername?.replace(/^@/, "").toLowerCase();
+      if (cleanCurrent !== targetUsername.toLowerCase()) {
+        resolvedUrlRef.current = targetUsername;
         router.replace(`/communaute/messages/${targetUsername}`);
       }
-      router.refresh();
     });
   }
 
@@ -186,14 +191,15 @@ export function MessagesLayout({
         return;
       }
       // Re-fetch la conv pour récupérer le vrai message DB et purger
-      // l'optimistic local de ConversationThread.
+      // l'optimistic local de ConversationThread. Pas de router.refresh() :
+      // le state local est déjà à jour, et un refresh re-rendrait le Server
+      // Component inutilement (latence + risque de re-montage du thread).
       const conv = await getConversationAction(conversationId);
       if (conv) {
         setConversations((prev) =>
           prev.map((c) => (c.id === conversationId ? conv : c)),
         );
       }
-      router.refresh();
     });
   }
 
@@ -226,69 +232,79 @@ export function MessagesLayout({
     navigateToConversation(conv);
   }
 
-  // Résolution réactive de conversationUsername (route /messages/<username>).
-  // Réagit à chaque changement d'URL : ouvre la conv existante portant ce
-  // username, sinon résout username → userId et crée la conv. Si null
-  // (route /messages nue), on ferme le thread.
-  useEffect(() => {
-    let cancelled = false;
+  // Démarrer une conversation avec un user (picker NewConversationModal). On
+  // navigue par l'URL : si une conv avec ce user existe déjà, on cible son
+  // username ; sinon on navigue par userId et l'effet de résolution la crée.
+  function handleNewConversationByUser(targetUserId: string) {
+    const existing = conversations.find((c) => c.participant.id === targetUserId);
+    const segment = existing
+      ? existing.participant.username ?? existing.participant.id
+      : targetUserId;
+    router.push(`/communaute/messages/${segment}`);
+  }
 
-    // Différé via microtask (await Promise.resolve) pour respecter la règle
-    // react-hooks/set-state-in-effect du repo : aucun setState synchrone dans
-    // le corps de l'effet (cf. useCurrentUser / usePushSubscription).
+  // Résolution de l'URL /messages/<segment> → conversation ouverte.
+  // Le segment peut être un username, un userId ou un convId (notifs/emails).
+  // Exécutée UNE fois par valeur d'URL — l'effet ne dépend QUE de
+  // conversationUsername (jamais de `conversations`, sinon boucle infinie →
+  // freeze de la page / crash de la PWA). resolvedUrlRef garde la dernière
+  // URL traitée pour ignorer les re-renders sans changement d'URL.
+  useEffect(() => {
+    const segment = conversationUsername ?? null;
+    // Déjà traité cette valeur d'URL → on ne refait rien (anti-boucle).
+    if (resolvedUrlRef.current === segment) return;
+    resolvedUrlRef.current = segment;
+
+    let cancelled = false;
+    // Différé via microtask (await Promise.resolve) : aucun setState synchrone
+    // dans le corps de l'effet (règle react-hooks/set-state-in-effect du repo,
+    // cf. useCurrentUser / usePushSubscription).
     (async () => {
       await Promise.resolve();
       if (cancelled) return;
 
-      if (!conversationUsername) {
+      if (!segment) {
+        // Route /messages nue : on ferme le thread (retour à la liste).
         setActiveId(null);
         setMobileView("list");
         return;
       }
-      const clean = conversationUsername.replace(/^@/, "").toLowerCase();
 
-      // 1. Conversation existante dont le participant a ce username.
-      const byUsername = conversations.find(
-        (c) => c.participant.username?.toLowerCase() === clean,
-      );
-      if (byUsername) {
-        handleSelect(byUsername.id);
-        return;
-      }
-      // 2. Fallback : le segment d'URL est un id (participant sans username),
-      //    ou directement un id de conversation (notifs/emails qui ne
-      //    connaissent qu'un convId). On normalise l'URL vers le username dès
-      //    qu'on a résolu la conv, pour rester propre.
-      const byParticipantId = conversations.find(
-        (c) => c.participant.id === conversationUsername,
-      );
-      const byConvId = conversations.find((c) => c.id === conversationUsername);
-      const resolvedConv = byParticipantId ?? byConvId;
-      if (resolvedConv) {
-        handleSelect(resolvedConv.id);
-        const uname = resolvedConv.participant.username;
+      const clean = segment.replace(/^@/, "").toLowerCase();
+      // Lecture via le ref miroir — pas de dépendance sur `conversations`.
+      const current = conversationsRef.current;
+      const match =
+        current.find((c) => c.participant.username?.toLowerCase() === clean) ??
+        current.find((c) => c.participant.id === segment) ??
+        current.find((c) => c.id === segment);
+
+      if (match) {
+        openConversation(match.id);
+        // Normalise l'URL vers le username si on était entré par id/convId.
+        const uname = match.participant.username;
         if (uname && uname.toLowerCase() !== clean) {
+          resolvedUrlRef.current = uname; // évite de re-résoudre après replace
           router.replace(`/communaute/messages/${uname}`);
         }
         return;
       }
-      // 3. Aucune conv existante : résoudre username → userId puis créer.
-      const resolved = await resolveUsernameAction(conversationUsername);
+
+      // Aucune conv existante : résoudre le username → userId puis créer.
+      const resolved = await resolveUsernameAction(segment);
       if (cancelled) return;
       if (!resolved) {
-        // Username inconnu / invisible : retour à la liste des messages.
         toast.error("Utilisateur introuvable.");
         router.replace("/communaute/messages");
         return;
       }
-      handleNewConversation(resolved.userId);
+      createOrOpenConversation(resolved.userId);
     })();
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationUsername, conversations]);
+  }, [conversationUsername]);
 
   const activeConv = conversations.find((c) => c.id === activeId) ?? null;
 
@@ -319,7 +335,7 @@ export function MessagesLayout({
           currentUser={currentUser}
           onSelect={handleSelectByUrl}
           onPrefetch={handlePrefetch}
-          onNewConversation={handleNewConversation}
+          onNewConversation={handleNewConversationByUser}
         />
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           {activeConv ? (
@@ -350,7 +366,7 @@ export function MessagesLayout({
             activeId={activeId}
             currentUser={currentUser}
             onSelect={handleSelectByUrl}
-            onNewConversation={handleNewConversation}
+            onNewConversation={handleNewConversationByUser}
           />
         ) : activeConv ? (
           <ConversationThread
