@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState, useTransition } from "react";
+import { ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 import { resendVerificationEmailAction } from "@/modules/auth";
@@ -56,42 +57,64 @@ export function EmailConfirmBannerActions({
         : "Renvoyer l'email";
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        flexWrap: "wrap",
+        justifyContent: "flex-end",
+      }}
+    >
+      {/* Action principale (gauche) — ouvrir Gmail directement sur la recherche
+          « Notion club ». Bouton explicitement labellisé avec le logo Gmail
+          (distinct de l'icône enveloppe de la bannière → plus de confusion
+          « double icône mail ») + flèche « nouvel onglet ». Sur mobile, le
+          libellé se replie pour rester compact. */}
       {showGmail && (
         <a
           href={GMAIL_SEARCH_URL}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="Ouvrir Gmail"
+          aria-label="Ouvrir Gmail dans un nouvel onglet"
           title="Ouvrir Gmail"
           data-fb-label="Bouton Ouvrir Gmail · Bannière Confirmation email"
           style={{
-            width: 36,
             height: 36,
-            borderRadius: "50%",
+            padding: "0 14px",
+            borderRadius: 9999,
             background: "var(--color-surface-card)",
             border: "1px solid var(--color-border-default)",
-            display: "flex",
+            display: "inline-flex",
             alignItems: "center",
-            justifyContent: "center",
+            gap: 8,
             flexShrink: 0,
-            boxShadow:
-              "0 1px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
             transition: "box-shadow 150ms ease, border-color 150ms ease",
             textDecoration: "none",
+            color: "var(--color-text-primary)",
+            fontSize: 13,
+            fontWeight: 500,
+            whiteSpace: "nowrap",
           }}
           className="hover:border-[rgba(0,0,0,0.15)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)]"
         >
           <Image
             src={GMAIL_LOGO}
-            alt="Gmail"
-            width={20}
-            height={20}
-            style={{ display: "block" }}
+            alt=""
+            width={18}
+            height={18}
+            style={{ display: "block", flexShrink: 0 }}
+          />
+          <span className="hidden sm:inline">Ouvrir Gmail</span>
+          <ExternalLink
+            size={13}
+            style={{ color: "var(--color-text-muted)", flexShrink: 0 }}
           />
         </a>
       )}
 
+      {/* Action secondaire (droite) — renvoyer l'email de vérification. */}
       <button
         type="button"
         onClick={handleClick}

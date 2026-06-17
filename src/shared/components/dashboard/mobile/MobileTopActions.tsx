@@ -3,9 +3,11 @@
 import { useState, useRef, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Settings, UserRound } from "lucide-react";
 
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
 import { NotificationPopover } from "@/modules/community/components/notifications/NotificationPopover";
+import { useProfileModal } from "@/shared/components/profile/ProfileModalProvider";
 import {
   computeIdentityInitials,
   useProfileIdentityContext,
@@ -18,6 +20,7 @@ export function MobileTopActions() {
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [signingOut, startSignOut] = useTransition();
   const avatarRef = useRef<HTMLDivElement>(null);
+  const { open: openProfileModal } = useProfileModal();
   const { identity } = useProfileIdentityContext();
   const initials = computeIdentityInitials(identity);
   const avatarUrl = identity?.avatarUrl ?? null;
@@ -148,13 +151,43 @@ export function MobileTopActions() {
                 margin: "4px 0",
               }}
             />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setAvatarOpen(false);
+                openProfileModal();
+              }}
+              data-fb-label="Bouton « Profil » · Menu compte"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                width: "100%",
+                textAlign: "left",
+                padding: "10px 10px",
+                fontSize: 14,
+                color: "var(--color-text-primary)",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                borderRadius: 10,
+                transition: "background 150ms ease",
+              }}
+              className="hover:bg-[var(--color-surface-raised)]"
+            >
+              <UserRound size={16} style={{ color: "var(--color-text-muted)" }} />
+              Profil
+            </button>
             <Link
               href="/settings"
               role="menuitem"
               onClick={() => setAvatarOpen(false)}
               data-fb-label="Lien « Réglages » · Menu compte"
               style={{
-                display: "block",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
                 padding: "10px 10px",
                 fontSize: 14,
                 color: "var(--color-text-primary)",
@@ -164,6 +197,7 @@ export function MobileTopActions() {
               }}
               className="hover:bg-[var(--color-surface-raised)]"
             >
+              <Settings size={16} style={{ color: "var(--color-text-muted)" }} />
               Réglages
             </Link>
             <button

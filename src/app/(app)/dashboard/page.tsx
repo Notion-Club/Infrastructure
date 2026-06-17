@@ -5,6 +5,7 @@ import { FormationWidget } from "@/shared/components/dashboard/widgets/Formation
 import { ProfilWidget } from "@/shared/components/dashboard/widgets/ProfilWidget";
 import { EmailVerifiedToast, LogoutButton } from "@/modules/auth";
 import { EmailConfirmBanner } from "@/shared/components/dashboard/EmailConfirmBanner";
+import { ContentEnter } from "@/shared/components/motion/ContentEnter";
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 import {
   getDashboardFormationData,
@@ -53,7 +54,7 @@ export default async function DashboardPage() {
     <>
       <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
       <main style={{ position: "relative", zIndex: 1 }}>
-        <div
+        <ContentEnter
           style={{
             maxWidth: 840,
             margin: "0 auto",
@@ -221,7 +222,7 @@ export default async function DashboardPage() {
           <div className="flex justify-center pt-4">
             <LogoutButton />
           </div>
-        </div>
+        </ContentEnter>
       </main>
       </div>
     </>
