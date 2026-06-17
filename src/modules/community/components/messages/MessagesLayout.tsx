@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useTransition } from "react";
+import { useState, useEffect, useRef, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
 import type { Conversation } from "../../types/conversation.types";
+import { useConversationsRealtime } from "../../hooks/useConversationsRealtime";
 import { ConversationList } from "./ConversationList";
 import { ConversationThread } from "./ConversationThread";
 import { MessagesEmptyState } from "./MessagesEmptyState";
@@ -55,6 +56,13 @@ export function MessagesLayout({
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
+  // Miroir de activeId, lu par le handler Realtime (handleIncomingMessage) qui
+  // doit rester stable : sans ce ref, dépendre de activeId relancerait
+  // l'abonnement Realtime à chaque ouverture de conv.
+  const activeIdRef = useRef(activeId);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
 
   // Préchauffage : déclenché au mouseEnter d'un item de la liste. On lance
   // getConversationAction en background si la conv n'est pas déjà chargée,
@@ -202,6 +210,45 @@ export function MessagesLayout({
       }
     });
   }
+
+  // Réception d'un message en TEMPS RÉEL (mig. 039 + useConversationsRealtime).
+  // Déclenché uniquement pour les messages d'AUTRES participants (le hook
+  // ignore les miens, déjà gérés par l'optimistic du flux d'envoi). On re-fetch
+  // la conv concernée et on merge dans le state.
+  //
+  // IMPORTANT — anti-freeze : ce callback est stable (useCallback []), lit
+  // activeId via activeIdRef, et n'utilise QUE setConversations(prev => …).
+  // Il ne touche jamais l'effet de résolution d'URL (qui ne dépend que de
+  // conversationUsername) → aucune boucle de re-render. Pas de router.refresh().
+  const handleIncomingMessage = useCallback((conversationId: string) => {
+    void (async () => {
+      const conv = await getConversationAction(conversationId);
+      if (!conv) return;
+      const isActive = activeIdRef.current === conversationId;
+      // Conv ouverte à l'écran → le user lit le message : on marque lu et on
+      // force unreadCount à 0 (sinon le badge clignoterait une frame).
+      if (isActive) {
+        markConversationReadAction({ conversation_id: conversationId }).catch(() => {});
+      }
+      loadedConvIds.current.add(conversationId);
+      setConversations((prev) => {
+        const merged = isActive ? { ...conv, unreadCount: 0 } : conv;
+        const exists = prev.some((c) => c.id === conversationId);
+        const next = exists
+          ? prev.map((c) => (c.id === conversationId ? merged : c))
+          : [merged, ...prev];
+        // Re-tri antichronologique (dernier message en haut), comme
+        // listConversations (order last_message_at desc).
+        return [...next].sort((a, b) =>
+          a.lastMessageAt < b.lastMessageAt ? 1 : a.lastMessageAt > b.lastMessageAt ? -1 : 0,
+        );
+      });
+    })();
+  }, []);
+
+  // Abonnement Realtime aux messages entrants (autres participants). currentUser.id
+  // et handleIncomingMessage sont stables → l'abonnement se monte une seule fois.
+  useConversationsRealtime(currentUser.id, handleIncomingMessage);
 
   // Username de deep-link d'une conversation (fallback id si pas de username
   // — défensif, username est en pratique toujours présent cf. migration 010).
