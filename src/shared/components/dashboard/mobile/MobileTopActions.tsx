@@ -53,7 +53,7 @@ export function MobileTopActions() {
         // `safe-area-inset-top` vaut ~44px en PWA standalone (status bar
         // iOS transparente grâce à `black-translucent`). Sans cet offset,
         // les boutons se retrouveraient sous l'heure iPhone.
-        top: "calc(12px + env(safe-area-inset-top))",
+        top: "calc(12px + env(safe-area-inset-top, 0px))",
         right: 12,
         zIndex: 40,
         display: "flex",

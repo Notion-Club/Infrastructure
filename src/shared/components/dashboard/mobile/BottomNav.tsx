@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, BookOpen, Users, Calendar, Library, type LucideIcon } from "lucide-react";
@@ -66,6 +66,39 @@ export function BottomNav() {
     moveTo(idx, false);
   }, [pathname, moveTo]);
 
+  // Premier chargement : la pill est mesurée une seule fois (layout-effect
+  // ci-dessus), mais les largeurs des items bougent ENCORE après ce premier
+  // paint — la police SF Pro Display est en `display: swap` (cf. fonts.ts),
+  // elle remplace le fallback système une fois téléchargée, et la safe-area
+  // iOS ne se résout qu'après la première frame en PWA standalone. Sans
+  // re-mesure, la pill garde des `offsetLeft/offsetWidth` périmés → elle
+  // « saute » / se désaligne au 1ᵉʳ chargement. On re-snappe (sans animation)
+  // sur ces évènements. Aucun impact sur l'animation de clic : ces snaps ne
+  // se déclenchent qu'au montage / changement de layout, pas pendant un clic.
+  useEffect(() => {
+    const snap = () => {
+      const idx = NAV_ITEMS.findIndex(
+        ({ href }) => pathname === href || pathname.startsWith(href + "/"),
+      );
+      moveTo(idx, false);
+    };
+    const raf = requestAnimationFrame(snap);
+    window.addEventListener("resize", snap);
+    window.addEventListener("orientationchange", snap);
+    let cancelled = false;
+    if (typeof document !== "undefined" && "fonts" in document) {
+      document.fonts.ready.then(() => {
+        if (!cancelled) snap();
+      });
+    }
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", snap);
+      window.removeEventListener("orientationchange", snap);
+    };
+  }, [pathname, moveTo]);
+
   return (
     <nav
       aria-label="Navigation principale"
@@ -78,7 +111,7 @@ export function BottomNav() {
         // padding-bottom dilaterait la pill sans déplacer les icônes (la
         // height fixe ne contient pas le padding) — visuellement, on
         // verrait l'encadré décalé sous les boutons.
-        bottom: "calc(10px + env(safe-area-inset-bottom))",
+        bottom: "calc(10px + env(safe-area-inset-bottom, 0px))",
         left: 12,
         right: 12,
         height: 56,
