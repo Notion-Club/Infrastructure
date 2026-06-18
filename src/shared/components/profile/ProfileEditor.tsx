@@ -409,15 +409,7 @@ function EditorBody({
         error={visibleErrors.bio}
       />
 
-      <div
-        style={{
-          position: "sticky",
-          bottom: 0,
-          display: "flex",
-          justifyContent: "flex-end",
-          paddingTop: 4,
-        }}
-      >
+      <div className="nc-profile-save-row">
         <button
           type="submit"
           disabled={!hasChanges || saving}

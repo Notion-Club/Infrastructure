@@ -336,8 +336,11 @@ html {
   bottom: 0;
   display: flex;
   flex-direction: column;
-  height: 75dvh;
-  max-height: 75dvh;
+  /* Hauteur = contenu, plafonnée près du plein écran pour éviter le scroll
+     interne (le formulaire tient en entier). On garde un liseré de page
+     floutée en haut + la poignée pour signaler le sheet. */
+  height: auto;
+  max-height: 92dvh;
   background: var(--color-surface-page);
   border-top-left-radius: 28px;
   border-top-right-radius: 28px;
@@ -369,6 +372,25 @@ html {
   height: 4px;
   border-radius: 9999px;
   background: var(--color-border-default);
+}
+
+/* Rangée du bouton « Enregistrer ».
+   - mobile : statique, le sheet grandit pour tout contenir → aucun scroll
+     interne, donc pas de chevauchement avec les champs.
+   - desktop : collée en bas (sticky) avec un fond, car la modale peut
+     scroller sur les petits écrans. */
+.nc-profile-save-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+@media (min-width: 768px) {
+  .nc-profile-save-row {
+    position: sticky;
+    bottom: 0;
+    padding-bottom: 4px;
+    background: var(--color-surface-card);
+  }
 }
 
 /* ── Desktop : modale centrée (scale + fade) ── */
