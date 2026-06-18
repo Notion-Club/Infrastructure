@@ -83,6 +83,15 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
           phone: null,
           communication_email: null,
           notion_email: null,
+          // Champs facturation (OPS-129) — non édités ici, valeurs par défaut.
+          billing_type: "individual",
+          billing_company_id: null,
+          billing_name: null,
+          billing_address_line1: null,
+          billing_address_line2: null,
+          billing_postal_code: null,
+          billing_city: null,
+          billing_country: null,
         };
         if (!cancelled)
           setState({
