@@ -47,9 +47,7 @@ export function ProfileRecapCard() {
         background: "var(--color-surface-card)",
         boxShadow: "var(--nc-shadow-3)",
         cursor: "pointer",
-        transition: "transform 150ms ease, box-shadow 150ms ease",
       }}
-      className="hover:-translate-y-[1px]"
     >
       <span
         aria-hidden

@@ -86,9 +86,9 @@ export default async function DashboardPage() {
               <h1
                 data-fb-label="Titre Salutation · Tableau de bord"
                 style={{
-                  fontSize: "clamp(42px, 5vw, 64px)",
+                  fontSize: "clamp(32px, 4vw, 44px)",
                   fontWeight: 700,
-                  letterSpacing: "-0.03em",
+                  letterSpacing: "-0.025em",
                   color: "var(--color-text-primary)",
                   margin: 0,
                   lineHeight: 1.1,
@@ -152,9 +152,9 @@ export default async function DashboardPage() {
             <h1
               data-fb-label="Titre Salutation · Tableau de bord"
               style={{
-                fontSize: "clamp(36px, 9vw, 48px)",
+                fontSize: "clamp(32px, 4vw, 44px)",
                 fontWeight: 700,
-                letterSpacing: "-0.03em",
+                letterSpacing: "-0.025em",
                 color: "var(--color-text-primary)",
                 margin: 0,
                 lineHeight: 1.1,
