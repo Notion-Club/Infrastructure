@@ -33,7 +33,6 @@ type NotificationRow = {
   conversation_id: string | null;
   excerpt: string | null;
   read_at: string | null;
-  archived_at: string | null;
   created_at: string;
   actor: ActorRow | null;
 };
@@ -81,7 +80,6 @@ function mapRow(row: NotificationRow): Notification {
     postId: row.post_id ?? undefined,
     conversationId: row.conversation_id ?? undefined,
     read: row.read_at !== null,
-    archived: row.archived_at !== null,
     createdAt: row.created_at,
   };
 }
@@ -104,16 +102,13 @@ export async function getNotifications(): Promise<Notification[]> {
     .select(
       `
         id, type, post_id, comment_id, conversation_id,
-        excerpt, read_at, archived_at, created_at,
+        excerpt, read_at, created_at,
         actor:profiles!notifications_actor_id_fkey (
           id, first_name, last_name, display_name, username,
           avatar_url, avatar_color
         )
       `,
     )
-    // Le centre n'affiche que les notifs actives : les archivées sont masquées
-    // (axe indépendant de read/unread, cf. mig. 039).
-    .is("archived_at", null)
     .order("created_at", { ascending: false })
     .limit(MAX_NOTIFICATIONS)
     .returns<NotificationRow[]>();
@@ -176,12 +171,12 @@ export async function markAllNotificationsAsRead(): Promise<{ ok: boolean }> {
 }
 
 // ----------------------------------------------------------------------------
-// archiveNotification — stamp archived_at (bouton archiver par notif)
+// markNotificationAsUnread — repasse une notif lue en non lue (bouton cloche)
 // ----------------------------------------------------------------------------
-// Masque la notif du centre pour ce destinataire uniquement (RLS update_self).
-// On stamp aussi read_at si la notif était encore non lue : une notif archivée
-// ne doit jamais re-compter dans le badge des non-lues. no-op si déjà archivée.
-export async function archiveNotification(
+// Remet read_at à NULL : la notif quitte "Lues" et réapparaît dans "Non-lues"
+// (et re-compte dans le badge). RLS update_self borne au user courant. no-op
+// si déjà non lue.
+export async function markNotificationAsUnread(
   id: string,
 ): Promise<{ ok: boolean }> {
   const supabase = await createSupabaseServerClient();
@@ -190,25 +185,14 @@ export async function archiveNotification(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false };
 
-  const nowIso = new Date().toISOString();
-  const { data: existing } = await supabase
-    .from("notifications")
-    .select("read_at")
-    .eq("id", id)
-    .maybeSingle();
-
   const { error } = await supabase
     .from("notifications")
-    .update({
-      archived_at: nowIso,
-      // Conserve la date de lecture si déjà lue, sinon la pose maintenant.
-      read_at: existing?.read_at ?? nowIso,
-    })
+    .update({ read_at: null })
     .eq("id", id)
-    .is("archived_at", null);
+    .not("read_at", "is", null); // no-op si déjà non lue
 
   if (error) {
-    console.error("[archiveNotification] failed:", error.message);
+    console.error("[markNotificationAsUnread] failed:", error.message);
     return { ok: false };
   }
   return { ok: true };

@@ -19,8 +19,8 @@ const NOTIF_LABELS: Record<Notification["type"], string> = {
 };
 
 // Onglets du centre — chaque catégorie a son icône SVG (public/icons-notion).
-// Les SVG sont posés en masque CSS (.t-tab-icon) → recolorés par currentColor,
-// donc ils suivent l'état actif/inactif de l'onglet.
+// Les SVG sont posés en masque CSS (.nc-notif-seg-icon) → recolorés par
+// currentColor, donc ils suivent l'état actif/inactif de l'onglet.
 type TabKey = "unread" | "read" | "all";
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
@@ -29,8 +29,10 @@ const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: "all", label: "Toutes", icon: "/icons-notion/list_lightgray.svg" },
 ];
 
+// Notif non lue → bouton "archiver" (= marquer comme lu) ; notif lue → bouton
+// "remettre en non lue" (icône cloche).
 const ARCHIVE_ICON = "/icons-notion/archive_lightgray.svg";
-const CHECK_ICON = "/icons-notion/checkmark_lightgray.svg";
+const MARK_UNREAD_ICON = "/icons-notion/notification_lightgray.svg";
 
 // Durée de la collapse d'une carte qui quitte la liste (cale sur la transition
 // max-height de .nc-notif-card dans globals.css).
@@ -76,7 +78,7 @@ export function NotificationPopover({
     unreadCount: unread,
     markAsRead,
     markAllRead,
-    archive,
+    markAsUnread,
   } = useNotifications();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -121,10 +123,12 @@ export function NotificationPopover({
     close();
   }
 
+  // Bouton "archiver" d'une notif non lue → la passe en lue. Depuis l'onglet
+  // Non-lues, elle quitte la liste → collapse animé ; depuis "Toutes" elle
+  // reste affichée (changement de style seulement).
   function handleMarkRead(e: React.MouseEvent, n: Notification) {
     e.stopPropagation();
     if (n.read || leaving.has(n.id)) return;
-    // Depuis l'onglet Non-lues, la carte quitte la liste → on l'anime.
     if (tab === "unread") {
       animateOut(n.id, () => markAsRead(n.id));
     } else {
@@ -132,10 +136,16 @@ export function NotificationPopover({
     }
   }
 
-  function handleArchive(e: React.MouseEvent, n: Notification) {
+  // Bouton cloche d'une notif lue → la repasse en non lue. Depuis l'onglet
+  // Lues, elle quitte la liste → collapse animé ; depuis "Toutes" elle reste.
+  function handleMarkUnread(e: React.MouseEvent, n: Notification) {
     e.stopPropagation();
-    if (leaving.has(n.id)) return;
-    animateOut(n.id, () => archive(n.id));
+    if (!n.read || leaving.has(n.id)) return;
+    if (tab === "read") {
+      animateOut(n.id, () => markAsUnread(n.id));
+    } else {
+      markAsUnread(n.id);
+    }
   }
 
   const visible = notifs.filter((n) =>
@@ -232,7 +242,12 @@ export function NotificationPopover({
             right: 0,
             width: 360,
             maxHeight: 480,
-            overflowY: "auto",
+            // Colonne flex : header figé (flex-shrink:0) + liste scrollable
+            // (flex:1). overflow:hidden sur le conteneur → seul le contenu sous
+            // la barre de séparation peut scroller, le haut reste verrouillé.
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
             background: "var(--color-surface-card)",
             border: "1px solid var(--color-border-default)",
             borderRadius: 16,
@@ -240,14 +255,12 @@ export function NotificationPopover({
             zIndex: 200,
           }}
         >
-          {/* Header + onglets — collés en haut pendant le scroll de la liste. */}
+          {/* Header + onglets — figés en haut (ne scrollent jamais). */}
           <div
             style={{
-              position: "sticky",
-              top: 0,
+              flexShrink: 0,
               background: "var(--color-surface-card)",
               borderBottom: "1px solid var(--color-border-default)",
-              zIndex: 1,
             }}
           >
             <div
@@ -315,8 +328,15 @@ export function NotificationPopover({
             </div>
           </div>
 
-          {/* List */}
-          <div>
+          {/* List — seule zone scrollable. */}
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              overscrollBehavior: "contain",
+            }}
+          >
             {visible.length === 0 && (
               <div
                 style={{
@@ -423,51 +443,46 @@ export function NotificationPopover({
                     </p>
                   </div>
 
-                  {/* Actions : marquer comme lu (si non lue) + archiver. */}
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 6,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {!n.read && (
+                  {/* Action unique selon l'état : non lue → archiver (= lu),
+                      lue → remettre en non lue. */}
+                  <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                    {n.read ? (
                       <button
                         type="button"
-                        onClick={(e) => handleMarkRead(e, n)}
-                        aria-label="Marquer comme lu"
-                        title="Marquer comme lu"
-                        data-fb-label="Bouton Marquer comme lu · Carte notification"
+                        onClick={(e) => handleMarkUnread(e, n)}
+                        aria-label="Marquer comme non lue"
+                        title="Marquer comme non lue"
+                        data-fb-label="Bouton Marquer comme non lue · Carte notification"
                         className="nc-notif-action"
                       >
                         <span
                           className="nc-notif-action-icon"
                           aria-hidden="true"
                           style={{
-                            WebkitMaskImage: `url(${CHECK_ICON})`,
-                            maskImage: `url(${CHECK_ICON})`,
+                            WebkitMaskImage: `url(${MARK_UNREAD_ICON})`,
+                            maskImage: `url(${MARK_UNREAD_ICON})`,
+                          }}
+                        />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => handleMarkRead(e, n)}
+                        aria-label="Archiver"
+                        title="Archiver — marquer comme lu"
+                        data-fb-label="Bouton Archiver · Carte notification"
+                        className="nc-notif-action"
+                      >
+                        <span
+                          className="nc-notif-action-icon"
+                          aria-hidden="true"
+                          style={{
+                            WebkitMaskImage: `url(${ARCHIVE_ICON})`,
+                            maskImage: `url(${ARCHIVE_ICON})`,
                           }}
                         />
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={(e) => handleArchive(e, n)}
-                      aria-label="Archiver"
-                      title="Archiver"
-                      data-fb-label="Bouton Archiver · Carte notification"
-                      className="nc-notif-action"
-                    >
-                      <span
-                        className="nc-notif-action-icon"
-                        aria-hidden="true"
-                        style={{
-                          WebkitMaskImage: `url(${ARCHIVE_ICON})`,
-                          maskImage: `url(${ARCHIVE_ICON})`,
-                        }}
-                      />
-                    </button>
                   </div>
                 </div>
               </div>
