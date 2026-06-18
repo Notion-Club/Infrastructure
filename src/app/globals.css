@@ -698,6 +698,153 @@ html {
   }
 }
 
+/* ── Notification segments — pastille icône qui s'étend au libellé actif ──── */
+/* Segmented control "expanding selected" : chaque catégorie est une pastille
+   icône ; l'active s'étend pour révéler son libellé via l'astuce
+   grid-template-columns 0fr → 1fr (anime la largeur jusqu'au contenu), avec
+   fondu + masque de bord droit. Piloté par aria-selected (état React). */
+:root {
+  --tabs-dur: 200ms;
+  --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nc-notif-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.nc-notif-seg {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 9px;
+  appearance: none;
+  border: 0;
+  border-radius: 9999px;
+  /* Fond gris par défaut (inactif) : visible aussi sur mobile, où il n'y a
+     pas de hover. L'état actif le remplace par la teinte brand. */
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    background var(--tabs-dur) var(--tabs-ease),
+    color var(--tabs-dur) var(--tabs-ease),
+    padding var(--tabs-dur) var(--tabs-ease);
+}
+.nc-notif-seg:not([aria-selected="true"]):hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--color-text-primary);
+}
+.nc-notif-seg[aria-selected="true"] {
+  background: rgba(224, 98, 90, 0.1);
+  color: var(--color-brand);
+}
+/* Icône SVG posée en masque → recolorée par currentColor (suit l'état actif). */
+.nc-notif-seg-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+/* Libellé : grille 0fr → 1fr pour animer la largeur jusqu'au contenu. */
+.nc-notif-seg-label {
+  display: grid;
+  grid-template-columns: 0fr;
+  opacity: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    grid-template-columns var(--tabs-dur) var(--tabs-ease),
+    opacity var(--tabs-dur) var(--tabs-ease),
+    padding var(--tabs-dur) var(--tabs-ease);
+}
+.nc-notif-seg[aria-selected="true"] .nc-notif-seg-label {
+  grid-template-columns: 1fr;
+  opacity: 1;
+  /* Padding généreux : le mot s'affiche en entier, net, sans fondu de bord. */
+  padding-left: 6px;
+  padding-right: 6px;
+}
+.nc-notif-seg-label > span {
+  min-width: 0;
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-notif-seg,
+  .nc-notif-seg-label {
+    transition: none !important;
+  }
+}
+
+/* ── Notification card — collapse à l'archivage (les suivantes remontent) ─── */
+/* À l'archivage (ou au mark-as-read depuis l'onglet Non-lues), la carte passe
+   en .is-leaving : max-height + opacity + translateY tweenent vers 0, ce qui
+   fait remonter les cartes suivantes pour combler le vide sans saut. */
+.nc-notif-card {
+  overflow: hidden;
+  max-height: 200px;
+  transition:
+    max-height 300ms var(--tabs-ease),
+    opacity 200ms ease,
+    transform 300ms var(--tabs-ease);
+  will-change: max-height, opacity, transform;
+}
+.nc-notif-card.is-leaving {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-notif-card {
+    transition: none !important;
+  }
+}
+
+/* Boutons d'action par notif (encadré arrondi : marquer lu / archiver). */
+.nc-notif-action {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface-card);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+.nc-notif-action:hover {
+  background: rgba(224, 98, 90, 0.08);
+  border-color: rgba(224, 98, 90, 0.25);
+  color: var(--color-brand);
+}
+.nc-notif-action-icon {
+  width: 15px;
+  height: 15px;
+  background-color: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
 /* ── Page side-by-side (transitions.dev) — navigation interne du dropdown ── */
 :root {
   --page-slide-dur: 200ms;
@@ -1447,52 +1594,6 @@ html.dark .nc-lt-scrim {
   border-radius: 19px;
   overflow: hidden;
   background: var(--color-surface-card);
-}
-
-/* OPS-79 — shimmer doux qui glisse sur les contours extérieurs d'une carte
-   tant qu'elle est sélectionnée (survol / focus interne). Bordure conic-gradient
-   animée (réutilise --nc-shine-angle / nc-shine-rotate), masquée pour ne peindre
-   que le périmètre (technique mask-composite : exclude). pointer-events:none →
-   ne gêne ni le clic de la carte ni son CTA. */
-.nc-card-shimmer::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1.5px;
-  --nc-shine-angle: 0deg;
-  background: conic-gradient(
-    from var(--nc-shine-angle),
-    rgba(224, 98, 90, 0) 0%,
-    rgba(224, 98, 90, 0) 62%,
-    rgba(224, 98, 90, 0.85) 80%,
-    rgba(224, 98, 90, 0) 98%,
-    rgba(224, 98, 90, 0) 100%
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 280ms var(--nc-ease);
-  pointer-events: none;
-  z-index: 3;
-}
-.nc-card-shimmer:hover::before,
-.nc-card-shimmer:focus-within::before {
-  opacity: 1;
-  animation: nc-shine-rotate 2.6s linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nc-card-shimmer:hover::before,
-  .nc-card-shimmer:focus-within::before {
-    animation: none;
-  }
 }
 
 /* Apparition douce (croix de fermeture, etc.) */
