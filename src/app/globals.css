@@ -1253,7 +1253,10 @@ html {
   background: var(--color-surface-card);
 }
 .dark .nc-pw-modal {
-  background: var(--color-surface-page);
+  /* #133 — le conteneur du modal adopte la couleur des cartes (#2a2725) au lieu
+     du near-black de la page : il s'intègre aux encadrés voisins des Réglages,
+     les 3 champs (#2b2725) restant légèrement surélevés par-dessus. */
+  background: var(--color-surface-card);
 }
 
 /* Champs : fond uniforme. `.nc-pw-input` est appliqué EN PLUS de

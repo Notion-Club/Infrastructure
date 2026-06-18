@@ -286,13 +286,20 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                   padding: '8px 16px',
                   borderRadius: 9999,
                   fontSize: 13,
-                  fontWeight: isActive ? 600 : 500,
+                  // #109 — poids constant : faire varier fontWeight avec l'état
+                  // actif modifiait la largeur du texte et déformait les coins
+                  // arrondis pendant la transition de couleur. L'état actif est
+                  // déjà signalé par le fond brand + texte blanc.
+                  fontWeight: 600,
                   color: isActive ? '#ffffff' : 'var(--color-text-primary)',
                   background: isActive ? 'var(--color-brand)' : 'var(--color-surface-card)',
                   border: '1px solid',
                   borderColor: isActive ? 'var(--color-brand)' : 'var(--color-border-default)',
                   cursor: 'pointer',
-                  transition: 'all 150ms ease',
+                  // Transition ciblée (pas `all`) → on n'anime que la couleur,
+                  // jamais la géométrie : la pilule conserve sa forme.
+                  transition:
+                    'background-color 180ms ease, border-color 180ms ease, color 180ms ease',
                   whiteSpace: 'nowrap',
                 }}
                 className={!isActive ? 'hover:bg-[#eaeaea]' : 'hover:opacity-90'}

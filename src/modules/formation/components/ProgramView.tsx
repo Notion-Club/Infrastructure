@@ -5,6 +5,7 @@ import type { ProgramDetail } from "../types";
 import { ModuleAccordion } from "./ModuleAccordion";
 import { LessonReady } from "./LessonTransition";
 import { FormationBackLink } from "./FormationBackLink";
+import { ResumeLessonButton } from "./ResumeLessonButton";
 
 // Page programme (Server Component). Le module contenant la prochaine leçon
 // à faire est ouvert par défaut. `openModuleSlug` (deep-link depuis le fil
@@ -17,6 +18,18 @@ export function ProgramView({
   openModuleSlug?: string;
 }) {
   const isComplete = detail.percent === 100 && detail.totalCourses > 0;
+
+  // #102 — lien « reprendre » vers la prochaine leçon à suivre (la première
+  // leçon non terminée / débloquée, marquée isNext). Masqué si le programme est
+  // terminé (l'encadré de félicitations prend le relais).
+  let resumeHref: string | null = null;
+  for (const m of detail.modules) {
+    const next = m.courses.find((c) => c.isNext && !c.locked);
+    if (next) {
+      resumeHref = `/formation/${detail.slug}/${m.slug}/${next.slug}`;
+      break;
+    }
+  }
 
   const deepLinkModule = openModuleSlug
     ? detail.modules.find((m) => m.slug === openModuleSlug)
@@ -60,6 +73,8 @@ export function ProgramView({
             <span style={{ fontWeight: 600, color: "var(--color-brand)" }}>{detail.percent}%</span>
           </div>
         </div>
+
+        {!isComplete && resumeHref && <ResumeLessonButton href={resumeHref} />}
 
         {isComplete && (
           <div

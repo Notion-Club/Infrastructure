@@ -216,7 +216,7 @@ export function NotificationsSection({
   return (
     <SettingsCard
       title="Notifications"
-      description="Cliquez sur un canal en-tête pour activer/désactiver toutes ses notifications, ou utilisez les switches pour ajuster chaque type."
+      description="Définis les notifications que tu souhaites recevoir"
       fbLabel="Section notifications · Réglages"
     >
       <NotificationsMatrix
