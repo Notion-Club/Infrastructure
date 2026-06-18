@@ -174,8 +174,10 @@ export async function GET() {
     const payments = pages.map((p) => {
       const statutRaw = p.properties.Statut?.select?.name ?? null;
       return {
+        // #132 — on n'expose jamais l'URL de la page Notion au client (Notion
+        // est le back-end et ne doit pas apparaître, même dans la réponse réseau).
+        // notionId reste un identifiant opaque utilisé comme clé de liste.
         notionId: p.id,
-        notionUrl: p.url ?? null,
         label: readTitle(p.properties.Nom),
         amount: p.properties["Montant TTC"]?.number ?? null,
         amountHt: p.properties["Montant HT"]?.number ?? null,
