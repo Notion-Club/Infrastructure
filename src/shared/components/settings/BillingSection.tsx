@@ -228,7 +228,7 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
               error={visibleErrors.companyName}
               placeholder="Ma Société SAS"
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <Field
                 id="siret"
                 label="SIRET"
@@ -305,7 +305,7 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
             placeholder="Bâtiment, étage… (optionnel)"
             optional
           />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Field
               id="billing-postal"
               label="Code postal"
@@ -379,11 +379,11 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
             </span>
           </span>
           <span className="nc-payments-cta__sub">
-            Factures, reçus et historique de tes règlements.
+            Tout l&apos;historique est centralisé avec les factures.
           </span>
         </span>
-        {/* Aperçu de facture (skeleton) — desktop uniquement. */}
-        <span className="nc-payments-cta__preview">
+        {/* Aperçu de facture (skeleton), clippé : seul le haut dépasse. */}
+        <span className="nc-payments-cta__preview" aria-hidden>
           <InvoicePreview />
         </span>
       </button>
