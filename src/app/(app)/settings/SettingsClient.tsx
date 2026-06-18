@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LoaderCircle } from "lucide-react";
+import { SettingsSkeleton } from "@/shared/components/settings/SettingsSkeleton";
 
 import { ProfileRecapCard } from "@/shared/components/settings/ProfileRecapCard";
 import { AccountSection } from "@/shared/components/settings/AccountSection";
@@ -9,6 +9,10 @@ import { SecuritySection } from "@/shared/components/settings/SecuritySection";
 import { NotificationsSection } from "@/shared/components/settings/NotificationsSection";
 import { BillingSection } from "@/shared/components/settings/BillingSection";
 import { DangerZone } from "@/shared/components/settings/DangerZone";
+import {
+  SettingsCard,
+  SettingsDivider,
+} from "@/shared/components/settings/SettingsCard";
 import type {
   AuthIdentity,
   AuthUserShape,
@@ -123,17 +127,7 @@ export function SettingsClient({
             className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-12"
           >
             {state.status === "loading" ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "80px 0",
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                <LoaderCircle size={20} className="animate-spin" />
-              </div>
+              <SettingsSkeleton />
             ) : (
               <ContentEnter
                 style={{ display: "flex", flexDirection: "column", gap: 20 }}
@@ -157,12 +151,22 @@ export function SettingsClient({
                     Mode démo — connectez-vous pour enregistrer vos modifications.
                   </div>
                 )}
-                <AccountSection
-                  profile={state.profile}
-                  accountEmail={state.user.email}
-                  isMocked={state.isMocked}
-                />
-                <SecuritySection user={state.user} isMocked={state.isMocked} />
+                {/* « Mes informations » et « Sécurité » fusionnés dans un seul
+                    encadré, séparés par un filet, via le mode `embedded`. */}
+                <SettingsCard fbLabel="Compte & sécurité · Réglages">
+                  <AccountSection
+                    profile={state.profile}
+                    accountEmail={state.user.email}
+                    isMocked={state.isMocked}
+                    embedded
+                  />
+                  <SettingsDivider />
+                  <SecuritySection
+                    user={state.user}
+                    isMocked={state.isMocked}
+                    embedded
+                  />
+                </SettingsCard>
                 <BillingSection
                   profile={state.profile}
                   company={state.company}

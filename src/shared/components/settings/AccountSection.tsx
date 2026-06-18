@@ -28,12 +28,14 @@ type AccountSectionProps = {
   profile: ProfileRow;
   accountEmail: string;
   isMocked: boolean;
+  embedded?: boolean;
 };
 
 export function AccountSection({
   profile,
   accountEmail,
   isMocked,
+  embedded = false,
 }: AccountSectionProps) {
   const initial = useMemo(() => {
     return {
@@ -130,6 +132,7 @@ export function AccountSection({
       icon="/icons-notion/card_lightgray.svg"
       description="C'est avec ces informations que tu te connectes au Notion Club"
       fbLabel="Section compte · Réglages"
+      embedded={embedded}
     >
       <form
         onSubmit={handleSubmit}

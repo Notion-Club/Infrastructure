@@ -98,7 +98,8 @@ export function ConfirmDialog({
               padding: "10px 16px",
               borderRadius: 9999,
               border: "1px solid var(--color-border-default)",
-              background: "var(--color-surface-card)",
+              // Même fond que le bouton « Se déconnecter » de la zone de danger.
+              background: "var(--color-surface-raised)",
               color: "var(--color-text-primary)",
               fontSize: 14,
               fontWeight: 600,

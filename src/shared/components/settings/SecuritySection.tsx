@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ChevronDown, Eye, EyeOff, KeyRound, LoaderCircle } from "lucide-react";
+import {
+  ChevronDown,
+  Eye,
+  EyeOff,
+  LockKeyholeOpen,
+  LoaderCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
@@ -17,11 +23,20 @@ import type { AuthIdentity, AuthUserShape } from "./types";
 type SecuritySectionProps = {
   user: AuthUserShape;
   isMocked: boolean;
+  embedded?: boolean;
 };
 
 const MIN_PASSWORD_LENGTH = 8;
 
-export function SecuritySection({ user, isMocked }: SecuritySectionProps) {
+// Logo Notion (Cloudinary, déjà autorisé dans next.config.ts via /dceobxyts/**).
+const NOTION_LOGO_SRC =
+  "https://res.cloudinary.com/dceobxyts/image/upload/v1776790487/Logo_Notion_fgou5g.png";
+
+export function SecuritySection({
+  user,
+  isMocked,
+  embedded = false,
+}: SecuritySectionProps) {
   const { emailIdentity, googleIdentity } = useMemo(() => {
     const list = user.identities ?? [];
     return {
@@ -36,6 +51,7 @@ export function SecuritySection({ user, isMocked }: SecuritySectionProps) {
       icon="/icons-notion/key-antique_lightgray.svg"
       description="Gère tes méthodes de connexion au Notion Club"
       fbLabel="Section sécurité · Réglages"
+      embedded={embedded}
     >
       {emailIdentity && (
         <>
@@ -121,7 +137,7 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
               color: "var(--color-text-secondary)",
             }}
           >
-            <KeyRound size={14} />
+            <LockKeyholeOpen size={14} />
           </span>
           <span
             style={{
@@ -492,40 +508,11 @@ function GoogleIdentityBlock({
     }
   }
 
-  if (!linked) {
-    return (
-      <div
-        key="google-unlinked"
-        className="nc-cta-reveal"
-        data-fb-label="Bloc Google · Section sécurité"
-        style={{ display: "flex", flexDirection: "column", gap: 10 }}
-      >
-        <h3
-          style={{
-            margin: 0,
-            fontSize: 14,
-            fontWeight: 600,
-            color: "var(--color-text-primary)",
-          }}
-        >
-          Connexion avec Google
-        </h3>
-        <GoogleButton
-          label="Connecter avec Google"
-          loading={pending}
-          onClick={linkGoogle}
-        />
-      </div>
-    );
-  }
-
-  const googleEmail = getGoogleEmail(linked);
+  const googleEmail = linked ? getGoogleEmail(linked) : null;
 
   return (
     <div
-      key="google-linked"
-      className="nc-cta-reveal"
-      data-fb-label="Bloc Google · Section sécurité"
+      data-fb-label="Bloc Intégrations · Section sécurité"
       style={{ display: "flex", flexDirection: "column", gap: 10 }}
     >
       <h3
@@ -536,66 +523,50 @@ function GoogleIdentityBlock({
           color: "var(--color-text-primary)",
         }}
       >
-        Connexion avec Google
+        Intégrations
       </h3>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: 14,
-          borderRadius: 12,
-          border: "1px dashed var(--color-border-default)",
-          background: "var(--color-surface-raised)",
-        }}
-      >
-        <GoogleLogo className="size-5" />
-        <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--color-text-primary)",
-            }}
-          >
-            Google
-          </p>
-          {googleEmail && (
-            <p
-              style={{
-                margin: 0,
-                fontSize: 12,
-                color: "var(--color-text-muted)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {googleEmail}
-            </p>
-          )}
+
+      {/* Google — bouton de connexion (non lié) ou carte connectée. Le `key`
+          rejoue l'animation de reveal au basculement. */}
+      {!linked ? (
+        <div key="google-unlinked" className="nc-cta-reveal">
+          <GoogleButton
+            label="Connecter avec Google"
+            loading={pending}
+            onClick={linkGoogle}
+          />
         </div>
-        <button
-          type="button"
-          onClick={unlinkGoogle}
-          disabled={pending}
-          data-fb-label="Bouton Déconnecter Google · Section sécurité"
-          style={{
-            padding: "8px 14px",
-            borderRadius: 9999,
-            border: "1px solid var(--color-border-default)",
-            background: "var(--color-surface-card)",
-            color: "var(--color-text-primary)",
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: pending ? "not-allowed" : "pointer",
-            opacity: pending ? 0.6 : 1,
-          }}
-        >
-          {pending ? "…" : "Déconnecter"}
-        </button>
-      </div>
+      ) : (
+        <div key="google-linked" className="nc-cta-reveal">
+          <IntegrationCard
+            logo={<GoogleLogo className="size-5" />}
+            title="Connexion avec Google"
+            subtitle={googleEmail}
+            action={
+              <button
+                type="button"
+                onClick={unlinkGoogle}
+                disabled={pending}
+                data-fb-label="Bouton Déconnecter Google · Section sécurité"
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 9999,
+                  border: "1px solid var(--color-border-default)",
+                  background: "var(--color-surface-card)",
+                  color: "var(--color-text-primary)",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: pending ? "not-allowed" : "pointer",
+                  opacity: pending ? 0.6 : 1,
+                }}
+              >
+                {pending ? "…" : "Déconnecter"}
+              </button>
+            }
+          />
+        </div>
+      )}
+
       {confirming && (
         <div
           role="alert"
@@ -646,6 +617,99 @@ function GoogleIdentityBlock({
           </div>
         </div>
       )}
+
+      {/* Notion — intégration OAuth2 à venir. Même design de carte ; à la place
+          du bouton d'action, un badge non cliquable « Prochaine fonctionnalité »
+          (rouge signature + texte blanc + shimmer). */}
+      <IntegrationCard
+        logo={
+          <img
+            src={NOTION_LOGO_SRC}
+            alt="Notion"
+            width={20}
+            height={20}
+            style={{ display: "block", borderRadius: 4 }}
+          />
+        }
+        title="Connexion avec Notion"
+        action={
+          <span
+            className="nc-btn-shine"
+            aria-disabled="true"
+            data-fb-label="Badge Notion à venir · Section sécurité"
+            style={{
+              padding: "8px 14px",
+              borderRadius: 9999,
+              background: "var(--color-brand)",
+              color: "#ffffff",
+              fontSize: 13,
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              cursor: "default",
+              userSelect: "none",
+            }}
+          >
+            Prochaine fonctionnalité
+          </span>
+        }
+      />
+    </div>
+  );
+}
+
+// Carte d'intégration générique (logo + titre + sous-titre optionnel + action
+// à droite). Reprend le design de l'ancienne carte Google connectée.
+function IntegrationCard({
+  logo,
+  title,
+  subtitle,
+  action,
+}: {
+  logo: React.ReactNode;
+  title: string;
+  subtitle?: string | null;
+  action: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: 14,
+        borderRadius: 12,
+        border: "1px dashed var(--color-border-default)",
+        background: "var(--color-surface-raised)",
+      }}
+    >
+      {logo}
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 13,
+            fontWeight: 500,
+            color: "var(--color-text-primary)",
+          }}
+        >
+          {title}
+        </p>
+        {subtitle && (
+          <p
+            style={{
+              margin: 0,
+              fontSize: 12,
+              color: "var(--color-text-muted)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {subtitle}
+          </p>
+        )}
+      </div>
+      {action}
     </div>
   );
 }

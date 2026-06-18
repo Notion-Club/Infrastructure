@@ -549,6 +549,14 @@ html {
 .nc-feed-fab:active {
   transform: scale(0.94);
 }
+/* Le FAB est strictement mobile : sur desktop, un bouton inline crée le post.
+   `.nc-feed-fab { display: flex }` l'emportait sur la classe `md:hidden`
+   (ordre de cascade) → on force le masquage en ≥ 768px ici. */
+@media (min-width: 768px) {
+  .nc-feed-fab {
+    display: none;
+  }
+}
 
 /* ── Compteur de ressources (chip lisible, intégré au design system) ── */
 .nc-resource-count {
@@ -1003,6 +1011,21 @@ html {
   border-color: rgba(224, 98, 90, 0.25);
   color: var(--color-brand);
 }
+/* Dark — fond des segments de catégorie INACTIFS + des boutons d'action
+   (marquer non-lu / archiver) en #211D1B. */
+.dark .nc-notif-seg:not([aria-selected="true"]) {
+  background: #211d1b;
+}
+.dark .nc-notif-action {
+  background: #211d1b;
+}
+/* Dark — au hover du bouton archiver / marquer : l'icône passe en blanc, le
+   fond reste identique (#211D1B). */
+.dark .nc-notif-action:hover {
+  background: #211d1b;
+  border-color: var(--color-border-default);
+  color: #ffffff;
+}
 .nc-notif-action-icon {
   width: 15px;
   height: 15px;
@@ -1385,11 +1408,12 @@ html {
   }
 }
 
-/* Lignes du tableau de notifications — en dark, chaque ligne a un fond
-   distinct du fond de l'encadré (#3D3A39) pour mieux ressortir. Light mode
-   inchangé (lignes transparentes sur la carte). */
+/* Lignes du tableau de notifications — en dark, on recule légèrement les
+   lignes sur la surface basse (raised, plus sombre que la carte) pour un
+   contraste discret et propre, plutôt qu'un gris clair qui paraissait cassé.
+   Light mode inchangé (lignes transparentes sur la carte). */
 .dark .nc-notif-row {
-  background: #3d3a39;
+  background: var(--color-surface-raised);
 }
 
 /* ──────────────────────────────────────────────────────────────

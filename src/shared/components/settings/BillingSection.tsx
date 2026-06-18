@@ -11,7 +11,11 @@ import {
 import { Check, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
-import { updateBillingAction, SIRET_LENGTH } from "@/modules/settings";
+import {
+  updateBillingAction,
+  updateProfileAction,
+  SIRET_LENGTH,
+} from "@/modules/settings";
 import { SettingsCard } from "./SettingsCard";
 import { CountrySelect } from "./CountrySelect";
 import { PaymentsModal } from "./PaymentsModal";
@@ -48,15 +52,12 @@ function formatSiret(v: string): string {
 }
 
 export function BillingSection({ profile, company, isMocked }: BillingSectionProps) {
-  const defaultName = [profile.first_name, profile.last_name]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-
   const initial = useMemo(() => {
     const isCompany = profile.billing_type === "company";
     return {
       isCompany,
+      firstName: profile.first_name ?? "",
+      lastName: profile.last_name ?? "",
       companyName: company?.name ?? "",
       siret: formatSiret(company?.siret ?? ""),
       vat: company?.vat_number ?? "",
@@ -69,6 +70,8 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
   }, [profile, company]);
 
   const [isCompany, setIsCompany] = useState(initial.isCompany);
+  const [firstName, setFirstName] = useState(initial.firstName);
+  const [lastName, setLastName] = useState(initial.lastName);
   const [companyName, setCompanyName] = useState(initial.companyName);
   const [siret, setSiret] = useState(initial.siret);
   const [vat, setVat] = useState(initial.vat);
@@ -113,12 +116,15 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
         vat !== initial.vat
       );
     }
-    // Le nom de facturation (particulier) est un miroir du profil, non éditable
-    // ici → il ne déclenche pas de changement. Les champs adresse/pays sont
-    // déjà couverts plus haut.
-    return false;
+    // Particulier : le prénom/nom (synchronisés avec le profil) sont éditables
+    // ici → ils déclenchent un changement. Adresse/pays déjà couverts plus haut.
+    return (
+      firstName !== initial.firstName || lastName !== initial.lastName
+    );
   }, [
     isCompany,
+    firstName,
+    lastName,
     companyName,
     siret,
     vat,
@@ -143,9 +149,32 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
         toast.success("Informations de facturation enregistrées (démo)");
         return;
       }
+
+      // Particulier : prénom + nom sont les champs du PROFIL (synchronisation
+      // vice-versa). On les enregistre via updateProfileAction si modifiés ;
+      // ça met aussi à jour profiles.billing_name côté serveur.
+      const fullName = [firstName, lastName]
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      const namesChanged =
+        !isCompany &&
+        (firstName !== initial.firstName || lastName !== initial.lastName);
+      if (namesChanged) {
+        const nameResult = await updateProfileAction({
+          first_name: firstName,
+          last_name: lastName,
+        });
+        if (!nameResult.ok) {
+          toast.error(nameResult.message);
+          return;
+        }
+      }
+
       const result = await updateBillingAction({
         billing_type: isCompany ? "company" : "individual",
-        billing_name: isCompany ? null : defaultName || null,
+        billing_name: isCompany ? null : fullName || null,
         address_line1: line1,
         address_line2: line2,
         postal_code: postalCode,
@@ -222,17 +251,40 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
           </div>
         </Collapse>
 
-        {/* Nom de facturation — particulier uniquement */}
+        {/* Nom de facturation — particulier uniquement. Prénom + nom sont les
+            mêmes champs que dans le profil : éditables ici comme là-bas, la
+            synchronisation se fait dans les deux sens (mêmes colonnes profil). */}
         <Collapse open={!isCompany}>
-          <Field
-            id="billing-name"
-            label="Nom pour la facturation"
-            value={defaultName}
-            onChange={() => {}}
-            readOnly
-            placeholder="Prénom Nom"
-            hint="Synchronisé avec ton prénom et ton nom — modifiable depuis ton profil."
-          />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div
+              style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
+            >
+              <Field
+                id="billing-first-name"
+                label="Prénom"
+                value={firstName}
+                onChange={setFirstName}
+                placeholder="Prénom"
+              />
+              <Field
+                id="billing-last-name"
+                label="Nom"
+                value={lastName}
+                onChange={setLastName}
+                placeholder="Nom"
+              />
+            </div>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 12,
+                color: "var(--color-text-muted)",
+                lineHeight: 1.4,
+              }}
+            >
+              Synchronisé avec ton profil — modifiable ici comme dans ton profil.
+            </p>
+          </div>
         </Collapse>
 
         {/* Adresse de facturation (toujours) */}
