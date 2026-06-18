@@ -1,5 +1,8 @@
 "use server";
 
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/shared/lib/supabase/admin";
 import {
@@ -933,4 +936,54 @@ export async function updateNotificationSettingsAction(
   }
 
   return { ok: true };
+}
+
+// ============================================================================
+// linkGoogleIdentityAction — associe un compte Google à l'utilisateur courant
+// ============================================================================
+// Mirroir du sign-in Google (modules/auth) mais côté liaison : on initialise le
+// flow OAuth en PKCE depuis le serveur et on redirige vers Google. La clé est
+// `redirectTo = ${origin}/auth/callback?next=/settings` → après autorisation,
+// l'utilisateur revient sur /auth/callback (qui échange le code) puis est
+// renvoyé sur /settings (et non /login). L'ancien appel `linkIdentity` côté
+// navigateur (flow implicit) retombait sans `code` sur /auth/callback → /login.
+async function resolveOrigin(): Promise<string> {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  const h = await headers();
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const host = h.get("host") ?? "localhost:3000";
+  return `${proto}://${host}`;
+}
+
+export type LinkIdentityResult = { ok: false; message: string };
+
+export async function linkGoogleIdentityAction(): Promise<
+  LinkIdentityResult | void
+> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, message: "Tu dois être connecté pour associer Google." };
+  }
+
+  const origin = await resolveOrigin();
+  const { data, error } = await supabase.auth.linkIdentity({
+    provider: "google",
+    options: {
+      redirectTo: `${origin}/auth/callback?next=/settings`,
+    },
+  });
+
+  if (error || !data?.url) {
+    return {
+      ok: false,
+      message: error?.message ?? "Impossible de connecter le compte Google.",
+    };
+  }
+
+  // Redirige le navigateur vers la page de consentement Google. Au retour,
+  // /auth/callback échange le code puis renvoie sur /settings.
+  redirect(data.url);
 }

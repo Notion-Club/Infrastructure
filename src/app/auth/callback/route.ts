@@ -17,6 +17,16 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const errorParam = searchParams.get("error");
 
+  // Destination finale après échange. On n'accepte qu'un chemin relatif interne
+  // (commençant par "/" mais pas "//") pour éviter tout open-redirect ; sinon
+  // on retombe sur /dashboard. Utilisé notamment par l'association Google
+  // depuis /settings (next=/settings) pour ramener l'user là où il était.
+  const nextParam = searchParams.get("next");
+  const next =
+    nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")
+      ? nextParam
+      : "/dashboard";
+
   if (errorParam) {
     return NextResponse.redirect(`${origin}/login?error=oauth_denied`);
   }
@@ -50,5 +60,5 @@ export async function GET(request: NextRequest) {
 
   // TODO(posthog) : track('user_logged_in', { method: 'google', user_id }).
 
-  return NextResponse.redirect(`${origin}/dashboard`);
+  return NextResponse.redirect(`${origin}${next}`);
 }
