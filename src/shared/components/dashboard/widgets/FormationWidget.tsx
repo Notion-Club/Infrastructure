@@ -81,25 +81,6 @@ export function FormationWidget({ data }: FormationWidgetProps = {}) {
       }}
       className="group hover:border-[rgba(224,98,90,0.32)]"
     >
-      <div
-        aria-hidden
-        className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 ease-out"
-        style={{
-          position: "absolute",
-          top: 0,
-          right: 0,
-          width: 180,
-          height: 180,
-          pointerEvents: "none",
-          backgroundImage:
-            "radial-gradient(circle, var(--nc-card-dot-color) 1px, transparent 1.4px)",
-          backgroundSize: "11px 11px",
-          maskImage:
-            "radial-gradient(circle at top right, black 0%, transparent 70%)",
-          WebkitMaskImage:
-            "radial-gradient(circle at top right, black 0%, transparent 70%)",
-        }}
-      />
       <span
         style={{
           position: "relative",

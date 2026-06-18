@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ChevronDown, Eye, EyeOff, KeyRound, LoaderCircle } from "lucide-react";
+import {
+  ChevronDown,
+  Eye,
+  EyeOff,
+  LockKeyholeOpen,
+  LoaderCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
@@ -121,7 +127,7 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
               color: "var(--color-text-secondary)",
             }}
           >
-            <KeyRound size={14} />
+            <LockKeyholeOpen size={14} />
           </span>
           <span
             style={{

@@ -42,25 +42,6 @@ export function TemplateCard({ template, currentCapability }: TemplateCardProps)
             overflow: 'hidden',
           }}
         >
-          <div
-            aria-hidden
-            className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 ease-out"
-            style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              width: 160,
-              height: 160,
-              pointerEvents: 'none',
-              backgroundImage:
-                'radial-gradient(circle, var(--nc-card-dot-color) 1px, transparent 1.4px)',
-              backgroundSize: '11px 11px',
-              maskImage:
-                'radial-gradient(circle at top right, black 0%, transparent 70%)',
-              WebkitMaskImage:
-                'radial-gradient(circle at top right, black 0%, transparent 70%)',
-            }}
-          />
 
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <ResourceBadge variant="template" label="Template" />

@@ -549,6 +549,14 @@ html {
 .nc-feed-fab:active {
   transform: scale(0.94);
 }
+/* Le FAB est strictement mobile : sur desktop, un bouton inline crée le post.
+   `.nc-feed-fab { display: flex }` l'emportait sur la classe `md:hidden`
+   (ordre de cascade) → on force le masquage en ≥ 768px ici. */
+@media (min-width: 768px) {
+  .nc-feed-fab {
+    display: none;
+  }
+}
 
 /* ── Compteur de ressources (chip lisible, intégré au design system) ── */
 .nc-resource-count {
@@ -1002,6 +1010,21 @@ html {
   background: rgba(224, 98, 90, 0.08);
   border-color: rgba(224, 98, 90, 0.25);
   color: var(--color-brand);
+}
+/* Dark — fond des segments de catégorie INACTIFS + des boutons d'action
+   (marquer non-lu / archiver) en #211D1B. */
+.dark .nc-notif-seg:not([aria-selected="true"]) {
+  background: #211d1b;
+}
+.dark .nc-notif-action {
+  background: #211d1b;
+}
+/* Dark — au hover du bouton archiver / marquer : l'icône passe en blanc, le
+   fond reste identique (#211D1B). */
+.dark .nc-notif-action:hover {
+  background: #211d1b;
+  border-color: var(--color-border-default);
+  color: #ffffff;
 }
 .nc-notif-action-icon {
   width: 15px;
