@@ -283,7 +283,7 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
                 lineHeight: 1.4,
               }}
             >
-              Synchronisé avec ton profil — modifiable ici comme dans ton profil.
+              Synchronisé avec ton profil, modifiable ici aussi.
             </p>
           </div>
         </Collapse>

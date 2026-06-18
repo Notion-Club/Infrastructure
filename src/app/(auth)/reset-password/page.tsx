@@ -3,7 +3,7 @@ import Image from "next/image";
 import { ResetPasswordRequestForm } from "@/modules/auth";
 
 export const metadata = {
-  title: "Mot de passe oublié — Notion Club",
+  title: "Mot de passe oublié · Notion Club",
 };
 
 const LOGO_SRC =

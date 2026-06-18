@@ -3,7 +3,7 @@ import Image from "next/image";
 import { AuthMockup } from "@/modules/auth";
 
 export const metadata = {
-  title: "Inscription — Notion Club",
+  title: "Inscription · Notion Club",
 };
 
 const LOGO_SRC =

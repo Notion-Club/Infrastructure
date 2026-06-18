@@ -9,7 +9,7 @@ import {
 } from "@/modules/formation";
 
 export const metadata: Metadata = {
-  title: "Leçon — Formation — Notion Club",
+  title: "Leçon · Formation · Notion Club",
 };
 
 type Params = Promise<{

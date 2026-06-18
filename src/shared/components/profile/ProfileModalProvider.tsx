@@ -193,7 +193,7 @@ export function ProfileModalProvider({ children }: { children: ReactNode }) {
       <ConfirmDialog
         open={confirmOpen}
         title="Modifications non enregistrées"
-        description="Tu as des modifications non enregistrées dans ton profil. Veux-tu les enregistrer avant de fermer ?"
+        description="Souhaites-tu enregistrer tes modifications ?"
         confirmLabel={confirmSaving ? "Enregistrement…" : "Enregistrer"}
         onConfirm={saveAndClose}
         secondaryLabel="Annuler les modifications"

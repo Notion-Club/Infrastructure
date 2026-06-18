@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Politique de confidentialité — Notion Club",
+  title: "Politique de confidentialité · Notion Club",
   description:
     "Politique de confidentialité de Notion Club : quelles données nous collectons, pourquoi, et comment vous pouvez les contrôler.",
 };
@@ -82,15 +82,15 @@ export default function PrivacyPage() {
         </p>
         <ul>
           <li>
-            <code>openid</code> — pour identifier votre compte Google de
+            <code>openid</code> : pour identifier votre compte Google de
             manière unique.
           </li>
           <li>
-            <code>email</code> — pour récupérer votre adresse e-mail
+            <code>email</code> : pour récupérer votre adresse e-mail
             principale et l'associer à votre compte Notion Club.
           </li>
           <li>
-            <code>profile</code> — pour récupérer votre nom et, le cas
+            <code>profile</code> : pour récupérer votre nom et, le cas
             échéant, votre photo de profil Google (qui n'est jamais
             stockée sans votre consentement explicite).
           </li>
@@ -141,7 +141,7 @@ export default function PrivacyPage() {
         <ul>
           <li>
             <strong>Supabase</strong> (hébergement de la base de données et
-            de l'authentification) — Union européenne.
+            de l'authentification), Union européenne.
           </li>
           <li>
             <strong>Vercel</strong> (hébergement de l'application web).

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Conversation — Communauté — Notion Club",
+  title: "Conversation · Communauté · Notion Club",
 };
 
 // Marqueur de route. /communaute/messages/<username> : le shell persistant

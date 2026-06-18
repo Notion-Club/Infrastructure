@@ -33,7 +33,7 @@ interface FormationWidgetProps {
 // En production le dashboard passe systématiquement `data`.
 const FALLBACK: FormationWidgetData = {
   programSlug: "devenir-consultant-notion",
-  programName: "Module 6 — Bases de données avancées",
+  programName: "Module 6 : Bases de données avancées",
   totalCourses: 12,
   completedCourses: 5,
   percent: 58,

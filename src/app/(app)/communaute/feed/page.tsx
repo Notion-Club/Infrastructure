@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Communauté — Notion Club",
+  title: "Communauté · Notion Club",
 };
 
 // Marqueur de route. Le rendu (feed) vit dans communaute/layout.tsx, qui monte

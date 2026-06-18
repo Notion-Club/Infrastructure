@@ -88,7 +88,7 @@ export function LessonBreadcrumb({
     <div ref={wrapRef} style={{ position: "relative", display: "inline-block", maxWidth: "100%" }}>
       <button
         type="button"
-        aria-label={`Parcourir la formation — leçon ${courseName}`}
+        aria-label={`Parcourir la formation, leçon ${courseName}`}
         aria-expanded={open}
         onClick={() => (open && !closing ? closeMenu() : (setClosing(false), setOpen(true)))}
         data-fb-label="Déclencheur fil d'ariane · Fil d'ariane leçon"

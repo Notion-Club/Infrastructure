@@ -172,7 +172,7 @@ export function AvatarPicker({
     setUploading(true);
     try {
       if (isMocked) {
-        toast.info("Aperçu local — connectez-vous pour enregistrer.");
+        toast.info("Aperçu local. Connecte-toi pour enregistrer.");
         // Convert to data URL pour aperçu visuel en mode démo
         const reader = new FileReader();
         reader.onload = () => {

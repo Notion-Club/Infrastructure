@@ -4,7 +4,7 @@ import { getNotificationSettings } from "@/modules/settings";
 import { SettingsClient } from "./SettingsClient";
 
 export const metadata: Metadata = {
-  title: "Réglages — Notion Club",
+  title: "Réglages · Notion Club",
 };
 
 export default async function SettingsPage() {

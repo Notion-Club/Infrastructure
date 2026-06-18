@@ -279,7 +279,7 @@ export function FeedbackBody({
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value.slice(0, 1900))}
-              placeholder="Optionnel — ton retour nous aide à améliorer le Notion Club…"
+              placeholder="Optionnel : ton retour nous aide à améliorer le Notion Club."
               rows={3}
               data-fb-label="Champ commentaire feedback · Formulaire feedback leçon"
               style={{

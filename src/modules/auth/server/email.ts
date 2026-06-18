@@ -75,7 +75,7 @@ export async function sendVerificationEmail({
     from,
     to: [email],
     replyTo,
-    subject: "Confirme ton adresse email — Notion Club",
+    subject: "Confirme ton adresse email · Notion Club",
     text: buildPlainTextEmail(firstNameSafe, verifyUrl),
     html: buildHtmlEmail(firstNameSafe, verifyUrl),
   });
@@ -185,7 +185,7 @@ confirme ton adresse email en cliquant sur ce lien :
 
 ${verifyUrl}
 
-Tu peux d'ores et déjà te connecter à ton espace — le rappel restera
+Tu peux d'ores et déjà te connecter à ton espace, le rappel restera
 affiché jusqu'à ce que tu valides ton email.
 
 À tout de suite,
@@ -208,7 +208,7 @@ function buildHtmlEmail(firstName: string, verifyUrl: string): string {
           <a href="${verifyUrl}" style="display:inline-block;padding:12px 24px;background:#e0625a;color:#ffffff;text-decoration:none;border-radius:9999px;font-weight:600;font-size:15px;">Confirmer mon email</a>
         </p>
         <p style="margin:0 0 16px;font-size:13px;line-height:1.5;color:#64748b;">
-          Tu peux déjà te connecter à ton espace — le rappel restera affiché
+          Tu peux déjà te connecter à ton espace, le rappel restera affiché
           dans ton tableau de bord jusqu'à ce que tu valides ton email.
         </p>
         <p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#94a3b8;">

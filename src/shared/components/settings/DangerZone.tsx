@@ -153,7 +153,7 @@ function DeleteAccountModal({
     setSubmitting(true);
     try {
       if (isMocked) {
-        toast.info("Suppression simulée (démo) — connectez-vous pour de vrai.");
+        toast.info("Suppression simulée. Connecte-toi pour de vrai.");
         onClose();
         return;
       }

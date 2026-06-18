@@ -13,7 +13,7 @@ import {
 } from "@/modules/formation/server/dashboard";
 
 export const metadata: Metadata = {
-  title: "Accueil — Notion Club",
+  title: "Accueil · Notion Club",
 };
 
 // Récupère le prénom du user courant pour le greeting. Fallback :

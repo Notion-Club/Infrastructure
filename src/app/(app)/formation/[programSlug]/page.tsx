@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ProgramView, getProgramDetail } from "@/modules/formation";
 
 export const metadata: Metadata = {
-  title: "Programme — Formation — Notion Club",
+  title: "Programme · Formation · Notion Club",
 };
 
 type Params = Promise<{ programSlug: string }>;

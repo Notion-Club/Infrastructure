@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const post = await getPostById(id);
   return {
-    title: post?.title ? `${post.title} — Communauté` : "Post — Communauté",
+    title: post?.title ? `${post.title} · Communauté` : "Post · Communauté",
   };
 }
 
