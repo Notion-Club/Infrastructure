@@ -81,7 +81,7 @@ export function EmailField({
             color: "var(--color-text-secondary)",
           }}
         >
-          Email Notion Club
+          Ton mail
         </label>
         <input
           id="platform-email"
@@ -113,16 +113,6 @@ export function EmailField({
             {platformEmailError}
           </p>
         )}
-        <p
-          style={{
-            margin: 0,
-            fontSize: 12,
-            color: "var(--color-text-muted)",
-            lineHeight: 1.4,
-          }}
-        >
-          Utilisé pour vous connecter et pour les invitations Notion par défaut.
-        </p>
       </div>
 
       {/* Bottom half — contrasted background */}

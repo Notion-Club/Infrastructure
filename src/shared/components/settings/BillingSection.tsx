@@ -159,7 +159,7 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
   return (
     <SettingsCard
       title="Informations de facturation"
-      description="Utilisées pour l'émission de vos factures. Les informations société (SIRET, TVA) sont stockées séparément de votre profil."
+      description="Ce sont ces informations qu'on utilise pour émettre tes factures"
       fbLabel="Section facturation · Réglages"
     >
       <form

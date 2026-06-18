@@ -66,18 +66,49 @@ export function EmailConfirmBannerActions({
         justifyContent: "flex-end",
       }}
     >
-      {/* Action principale (gauche) — ouvrir Gmail directement sur la recherche
-          « Notion club ». Bouton explicitement labellisé avec le logo Gmail
-          (distinct de l'icône enveloppe de la bannière → plus de confusion
-          « double icône mail ») + flèche « nouvel onglet ». Sur mobile, le
-          libellé se replie pour rester compact. */}
+      {/* #111 — Action principale (gauche) : renvoyer l'email de vérification. */}
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={disabled}
+        data-fb-label="Bouton Renvoyer l'email · Bannière Confirmation email"
+        style={{
+          height: 36,
+          padding: "0 18px",
+          borderRadius: 9999,
+          fontSize: 13,
+          fontWeight: 500,
+          border: "1px solid var(--color-border-default)",
+          background: disabled
+            ? "var(--color-surface-raised)"
+            : "var(--color-surface-card)",
+          color: disabled
+            ? "var(--color-text-muted)"
+            : "var(--color-text-primary)",
+          cursor: disabled ? "not-allowed" : "pointer",
+          transition:
+            "background 150ms ease, color 150ms ease, border-color 150ms ease",
+          boxShadow: disabled
+            ? "none"
+            : "0 1px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+          whiteSpace: "nowrap",
+        }}
+        className={disabled ? "" : "hover:border-[rgba(0,0,0,0.15)]"}
+      >
+        {label}
+      </button>
+
+      {/* #111 — Action secondaire (droite) : ouvrir Gmail directement sur la
+          recherche « Notion club ». Logo Gmail à gauche + flèche « nouvel
+          onglet » à droite. Sur mobile, le libellé se replie pour rester
+          compact. */}
       {showGmail && (
         <a
           href={GMAIL_SEARCH_URL}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="Ouvrir Gmail dans un nouvel onglet"
-          title="Ouvrir Gmail"
+          aria-label="Ouvrir dans Gmail (nouvel onglet)"
+          title="Ouvrir dans Gmail"
           data-fb-label="Bouton Ouvrir Gmail · Bannière Confirmation email"
           style={{
             height: 36,
@@ -106,43 +137,13 @@ export function EmailConfirmBannerActions({
             height={18}
             style={{ display: "block", flexShrink: 0 }}
           />
-          <span className="hidden sm:inline">Ouvrir Gmail</span>
+          <span className="hidden sm:inline">Ouvrir dans Gmail</span>
           <ExternalLink
             size={13}
             style={{ color: "var(--color-text-muted)", flexShrink: 0 }}
           />
         </a>
       )}
-
-      {/* Action secondaire (droite) — renvoyer l'email de vérification. */}
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={disabled}
-        data-fb-label="Bouton Renvoyer l'email · Bannière Confirmation email"
-        style={{
-          height: 36,
-          padding: "0 18px",
-          borderRadius: 9999,
-          fontSize: 13,
-          fontWeight: 500,
-          border: "1px solid var(--color-border-default)",
-          background: disabled ? "var(--color-surface-raised)" : "white",
-          color: disabled
-            ? "var(--color-text-muted)"
-            : "var(--color-text-primary)",
-          cursor: disabled ? "not-allowed" : "pointer",
-          transition:
-            "background 150ms ease, color 150ms ease, border-color 150ms ease",
-          boxShadow: disabled
-            ? "none"
-            : "0 1px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
-          whiteSpace: "nowrap",
-        }}
-        className={disabled ? "" : "hover:border-[rgba(0,0,0,0.15)]"}
-      >
-        {label}
-      </button>
     </div>
   );
 }
