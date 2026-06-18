@@ -24,7 +24,7 @@ export function GoogleButton({
       onClick={onClick}
       data-fb-label={dataFbLabel}
       className={cn(
-        "flex w-full items-center justify-center gap-3 rounded-full border border-dashed border-[var(--color-border-default)] bg-[var(--color-surface-raised)] px-5 py-3 text-[15px] font-medium text-[var(--color-text-primary)] transition-all duration-200 ease-out hover:border-[#d4d4d8] hover:bg-[#eeeeee] disabled:cursor-not-allowed disabled:opacity-70",
+        "flex w-full items-center justify-center gap-3 rounded-full border border-dashed border-[var(--color-border-default)] bg-[var(--color-surface-raised)] px-5 py-3 text-[15px] font-medium text-[var(--color-text-primary)] transition-opacity duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-70",
         className,
       )}
       aria-label={label}

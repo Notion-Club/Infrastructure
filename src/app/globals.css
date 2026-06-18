@@ -327,14 +327,33 @@ html {
 .nc-profile-modal-root[data-open="true"] .nc-profile-backdrop {
   opacity: 1;
 }
-/* Desktop : flou intégral. Contrairement au sheet mobile (qui laisse
-   transparaître la page sur son quart supérieur), la modale centrée occulte
-   complètement la Topbar et le contenu — l'arrière-plan devient illisible. */
+/* Desktop : le flou de l'arrière-plan (page + barre de navigation) est porté
+   par `.nc-app-blurzone` (filter sur l'app entière), PAS par le backdrop —
+   `backdrop-filter` ratait la Topbar fixed à cause de sa couche de compositing
+   `translateZ(0)`. Ici le backdrop n'est plus qu'un voile sombre + cible de
+   clic au-dessus de la zone déjà floutée. */
 @media (min-width: 768px) {
   .nc-profile-backdrop {
     background: rgba(0, 0, 0, 0.32);
-    backdrop-filter: blur(24px) saturate(120%);
-    -webkit-backdrop-filter: blur(24px) saturate(120%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Zone floutée = toute l'app (nav incluse) quand le pop-up profil est ouvert.
+   Desktop uniquement : sur mobile, le bottom sheet conserve son backdrop flou
+   qui laisse volontairement transparaître le haut de la page. */
+@media (min-width: 768px) {
+  .nc-app-blurzone {
+    transition: filter var(--nc-duration-normal) var(--nc-ease);
+  }
+  .nc-app-blurzone[data-profile-open="true"] {
+    filter: blur(24px) saturate(115%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-app-blurzone {
+    transition: none;
   }
 }
 
@@ -1386,6 +1405,56 @@ html {
   outline: none;
   border-color: var(--color-brand);
   box-shadow: 0 0 0 3px rgba(224, 98, 90, 0.12);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Champ téléphone fusionné — préfixe pays + numéro dans un seul cadre.
+   Le cadre vit sur `.nc-phone-group` ; le bouton préfixe et l'input perdent
+   leur cadre propre et sont séparés par un simple filet vertical. Le focus
+   est porté par le groupe (`:focus-within`) pour un anneau unifié.
+   PAS d'`overflow: hidden` → la popup du sélecteur de pays peut déborder.
+   ────────────────────────────────────────────────────────────── */
+.nc-phone-group {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--nc-radius-xs);
+  background: #ffffff;
+  transition:
+    border-color var(--nc-duration-fast) ease,
+    box-shadow var(--nc-duration-fast) ease;
+}
+.dark .nc-phone-group {
+  background: var(--color-surface-raised);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.nc-phone-group:focus-within {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(224, 98, 90, 0.12);
+}
+.dark .nc-phone-group:focus-within {
+  box-shadow: 0 0 0 3px rgba(224, 98, 90, 0.15);
+}
+/* Préfixe : plus de cadre propre, juste un filet de séparation à droite. */
+.nc-phone-group .nc-phone-prefix {
+  border: none;
+  border-right: 1px solid var(--color-border-default);
+  border-radius: 0;
+  background: transparent;
+}
+.dark .nc-phone-group .nc-phone-prefix {
+  border-right-color: rgba(255, 255, 255, 0.14);
+}
+/* Numéro : l'input se fond dans le groupe (pas de cadre, fond transparent,
+   pas d'anneau de focus propre → c'est le groupe qui le porte). */
+.nc-phone-group .nc-input,
+.dark .nc-phone-group .nc-input {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+.nc-phone-group .nc-input:focus {
+  box-shadow: none;
 }
 
 /* ──────────────────────────────────────────────────────────────

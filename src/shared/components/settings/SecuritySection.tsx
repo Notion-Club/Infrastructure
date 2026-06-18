@@ -30,6 +30,7 @@ export function SecuritySection({ user, isMocked }: SecuritySectionProps) {
   return (
     <SettingsCard
       title="Sécurité"
+      icon="/icons-notion/key-antique_lightgray.svg"
       description="Gère tes méthodes de connexion au Notion Club"
       fbLabel="Section sécurité · Réglages"
     >

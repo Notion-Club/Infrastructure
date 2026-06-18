@@ -272,9 +272,24 @@ export async function updateProfileAction(
     };
   }
 
+  // Miroir nom de facturation ↔ profil : quand le prénom ET le nom sont mis à
+  // jour ensemble (cas de l'éditeur de profil), on synchronise `billing_name`
+  // sur « Prénom Nom ». Ainsi le nom de facturation des particuliers suit
+  // toujours l'identité du profil, sans saisie séparée (cf. BillingSection,
+  // champ en lecture seule).
+  const updates: Record<string, unknown> = { ...parsed.data };
+  if ("first_name" in parsed.data && "last_name" in parsed.data) {
+    const fullName = [parsed.data.first_name, parsed.data.last_name]
+      .map((v) => (v ?? "").trim())
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    updates.billing_name = fullName || null;
+  }
+
   const { error } = await supabase
     .from("profiles")
-    .update(parsed.data)
+    .update(updates)
     .eq("id", user.id);
 
   if (error) {

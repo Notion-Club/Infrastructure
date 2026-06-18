@@ -146,7 +146,7 @@ export function SubscriptionSection() {
   return (
     <SettingsCard
       title="Paiements"
-      description="Consultez l'historique de vos paiements en temps réel."
+      description="Tous tes paiements sont centralisés ici"
       fbLabel="Section abonnement · Réglages"
     >
       <div

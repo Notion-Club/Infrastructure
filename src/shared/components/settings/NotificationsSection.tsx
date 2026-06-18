@@ -241,6 +241,7 @@ export function NotificationsSection({
   return (
     <SettingsCard
       title="Notifications"
+      icon="/icons-notion/bell_lightgray.svg"
       description="Définis les notifications que tu souhaites recevoir"
       fbLabel="Section notifications · Réglages"
     >

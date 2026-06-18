@@ -127,6 +127,7 @@ export function AccountSection({
   return (
     <SettingsCard
       title="Mes informations"
+      icon="/icons-notion/card_lightgray.svg"
       description="C'est avec ces informations que tu te connectes au Notion Club"
       fbLabel="Section compte · Réglages"
     >

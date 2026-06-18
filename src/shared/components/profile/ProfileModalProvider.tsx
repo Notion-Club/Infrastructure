@@ -110,7 +110,18 @@ export function ProfileModalProvider({ children }: { children: ReactNode }) {
 
   return (
     <ProfileModalContext.Provider value={{ isOpen, open, close }}>
-      {children}
+      {/* Zone floutée = TOUTE l'app (barre de navigation incluse). On floute
+          directement le contenu via `filter` sur cet ancêtre — fiable y compris
+          sur la Topbar fixed (que `backdrop-filter` ne capturait pas à cause de
+          sa couche de compositing `translateZ(0)`). Le pop-up profil est rendu
+          en SIBLING, hors de cette zone, donc il reste net. Desktop uniquement
+          (cf. globals.css) ; sur mobile, le bottom sheet garde son backdrop. */}
+      <div
+        className="nc-app-blurzone"
+        data-profile-open={visible ? "true" : "false"}
+      >
+        {children}
+      </div>
       {mounted && (
         <div
           className="nc-profile-modal-root"

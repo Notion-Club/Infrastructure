@@ -6,6 +6,9 @@ type SettingsCardProps = {
   children: ReactNode;
   tone?: "default" | "danger";
   fbLabel?: string;
+  /** Chemin d'une icône (ex. "/icons-notion/card_lightgray.svg") affichée à
+   *  gauche du titre de section. */
+  icon?: string;
 };
 
 export function SettingsCard({
@@ -14,6 +17,7 @@ export function SettingsCard({
   children,
   tone = "default",
   fbLabel,
+  icon,
 }: SettingsCardProps) {
   const isDanger = tone === "danger";
   return (
@@ -33,20 +37,32 @@ export function SettingsCard({
       }}
     >
       <header style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <h2
-          data-fb-label="Titre section · Réglages"
-          style={{
-            margin: 0,
-            fontSize: 17,
-            fontWeight: 600,
-            letterSpacing: "-0.01em",
-            color: isDanger
-              ? "var(--color-brand)"
-              : "var(--color-text-primary)",
-          }}
-        >
-          {title}
-        </h2>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {icon && (
+            <img
+              src={icon}
+              alt=""
+              aria-hidden
+              width={22}
+              height={22}
+              style={{ flexShrink: 0, display: "block" }}
+            />
+          )}
+          <h2
+            data-fb-label="Titre section · Réglages"
+            style={{
+              margin: 0,
+              fontSize: 17,
+              fontWeight: 600,
+              letterSpacing: "-0.01em",
+              color: isDanger
+                ? "var(--color-brand)"
+                : "var(--color-text-primary)",
+            }}
+          >
+            {title}
+          </h2>
+        </div>
         {description && (
           <p
             style={{
