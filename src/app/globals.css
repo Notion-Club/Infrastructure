@@ -327,6 +327,16 @@ html {
 .nc-profile-modal-root[data-open="true"] .nc-profile-backdrop {
   opacity: 1;
 }
+/* Desktop : flou intégral. Contrairement au sheet mobile (qui laisse
+   transparaître la page sur son quart supérieur), la modale centrée occulte
+   complètement la Topbar et le contenu — l'arrière-plan devient illisible. */
+@media (min-width: 768px) {
+  .nc-profile-backdrop {
+    background: rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(24px) saturate(120%);
+    -webkit-backdrop-filter: blur(24px) saturate(120%);
+  }
+}
 
 /* ── Mobile : bottom sheet ancré en bas, 3/4 de l'écran ── */
 .nc-profile-panel {
