@@ -175,13 +175,7 @@ export function PhoneField({
       >
         {label}
       </label>
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          alignItems: "stretch",
-        }}
-      >
+      <div className="nc-phone-group">
         <CountryPicker
           selected={selected}
           onSelect={(country) =>
@@ -318,14 +312,12 @@ function CountryPicker({
         aria-haspopup="listbox"
         aria-expanded={open}
         data-fb-label="Sélecteur pays · Section profil"
+        className="nc-phone-prefix"
         style={{
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
           padding: "0 12px",
-          borderRadius: 12,
-          border: "1px solid var(--color-border-default)",
-          background: "var(--color-surface-raised)",
           color: "var(--color-text-primary)",
           fontSize: 14,
           cursor: "pointer",

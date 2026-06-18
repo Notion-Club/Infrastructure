@@ -1389,6 +1389,56 @@ html {
 }
 
 /* ──────────────────────────────────────────────────────────────
+   Champ téléphone fusionné — préfixe pays + numéro dans un seul cadre.
+   Le cadre vit sur `.nc-phone-group` ; le bouton préfixe et l'input perdent
+   leur cadre propre et sont séparés par un simple filet vertical. Le focus
+   est porté par le groupe (`:focus-within`) pour un anneau unifié.
+   PAS d'`overflow: hidden` → la popup du sélecteur de pays peut déborder.
+   ────────────────────────────────────────────────────────────── */
+.nc-phone-group {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--nc-radius-xs);
+  background: #ffffff;
+  transition:
+    border-color var(--nc-duration-fast) ease,
+    box-shadow var(--nc-duration-fast) ease;
+}
+.dark .nc-phone-group {
+  background: var(--color-surface-raised);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.nc-phone-group:focus-within {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(224, 98, 90, 0.12);
+}
+.dark .nc-phone-group:focus-within {
+  box-shadow: 0 0 0 3px rgba(224, 98, 90, 0.15);
+}
+/* Préfixe : plus de cadre propre, juste un filet de séparation à droite. */
+.nc-phone-group .nc-phone-prefix {
+  border: none;
+  border-right: 1px solid var(--color-border-default);
+  border-radius: 0;
+  background: transparent;
+}
+.dark .nc-phone-group .nc-phone-prefix {
+  border-right-color: rgba(255, 255, 255, 0.14);
+}
+/* Numéro : l'input se fond dans le groupe (pas de cadre, fond transparent,
+   pas d'anneau de focus propre → c'est le groupe qui le porte). */
+.nc-phone-group .nc-input,
+.dark .nc-phone-group .nc-input {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+.nc-phone-group .nc-input:focus {
+  box-shadow: none;
+}
+
+/* ──────────────────────────────────────────────────────────────
    #133 — Modale « Changer mon mot de passe ».
    On reste STRICTEMENT sur les surfaces du design system (pas de fond
    plus prononcé que le reste des Réglages) : conteneur = `surface-card`
