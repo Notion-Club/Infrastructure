@@ -55,7 +55,7 @@ export function SettingsClient({
         const { data: profileRow } = await supabase
           .from("profiles")
           .select(
-            "id, avatar_url, avatar_color, display_name, first_name, last_name, username, bio, phone, communication_email, notion_email, billing_type, billing_company_id, billing_name, billing_address_line1, billing_address_line2, billing_postal_code, billing_city, billing_country, company:billing_company_id ( name, siret, vat_number, address_line1, address_line2, postal_code, city, country )",
+            "id, avatar_url, avatar_color, display_name, first_name, last_name, username, bio, phone, communication_email, billing_type, billing_company_id, billing_name, billing_address_line1, billing_address_line2, billing_postal_code, billing_city, billing_country, company:billing_company_id ( name, siret, vat_number, address_line1, address_line2, postal_code, city, country )",
           )
           .eq("id", authUser.id)
           .maybeSingle<ProfileRow & { company: CompanyEmbed | CompanyEmbed[] | null }>();
@@ -70,7 +70,6 @@ export function SettingsClient({
           bio: null,
           phone: null,
           communication_email: null,
-          notion_email: null,
           billing_type: "individual",
           billing_company_id: null,
           billing_name: null,

@@ -66,10 +66,6 @@ const phoneField = trimmedOrNull.pipe(
     .nullable(),
 );
 
-const optionalEmail = trimmedOrNull.pipe(
-  z.string().email("Email invalide").nullable(),
-);
-
 // Username : 3-30 chars, ASCII lowercase + chiffres + - _, ne pas
 // commencer/finir par - ou _. OBLIGATOIRE (auto-généré au signup, doit
 // rester rempli ensuite). Case-insensitive côté DB via index unique.
@@ -104,7 +100,6 @@ export const profileUpdateSchema = z.object({
   username: usernameField.optional(),
   bio: bioField.optional(),
   phone: phoneField.optional(),
-  notion_email: optionalEmail.optional(),
 });
 
 export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
@@ -115,7 +110,7 @@ export const USERNAME_MIN_LENGTH = 3;
 export const USERNAME_MAX_LENGTH = 30;
 
 // ============================================================================
-// Account email change — section Profile (champ "Email Notion Club")
+// Account email change — section compte (champ "Ton mail")
 // ============================================================================
 // Séparé de profileUpdate parce que ça déclenche un email de confirmation
 // Supabase (l'user doit cliquer un lien) — flow et UX différents.
