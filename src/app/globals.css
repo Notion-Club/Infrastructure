@@ -1401,6 +1401,20 @@ html {
   background: var(--color-surface-card);
 }
 
+/* Dark mode — inversion des surfaces du modal mot de passe.
+   Par défaut : conteneur = surface-card (clair), champs = surface-raised
+   (sombre). On inverse : le conteneur prend la surface basse (raised) et les
+   trois champs (ancien / nouveau / confirmation) prennent la surface haute
+   (card), la même que le fond visible du modal lorsque le menu est fermé.
+   Résultat : les inputs ressortent en clair sur un cadre plus sombre.
+   Override scopé à `.nc-pw-modal` → les autres `.nc-input` du repo ne bougent pas. */
+.dark .nc-pw-modal {
+  background: var(--color-surface-raised);
+}
+.dark .nc-pw-modal .nc-input {
+  background: var(--color-surface-card);
+}
+
 /* ──────────────────────────────────────────────────────────────
    View transitions (Next.js experimental.viewTransition)
    ────────────────────────────────────────────────────────────── */
