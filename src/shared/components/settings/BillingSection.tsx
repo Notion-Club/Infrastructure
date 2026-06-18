@@ -170,6 +170,7 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
   return (
     <SettingsCard
       title="Informations de facturation"
+      icon="/icons-notion/receipt_lightgray.svg"
       description="Ce sont ces informations qu'on utilise pour émettre tes factures"
       fbLabel="Section facturation · Réglages"
     >
