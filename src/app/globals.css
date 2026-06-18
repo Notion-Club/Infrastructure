@@ -710,7 +710,7 @@ html {
 .nc-notif-tabs {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 6px;
 }
 .nc-notif-seg {
@@ -721,7 +721,9 @@ html {
   appearance: none;
   border: 0;
   border-radius: 9999px;
-  background: transparent;
+  /* Fond gris par défaut (inactif) : visible aussi sur mobile, où il n'y a
+     pas de hover. L'état actif le remplace par la teinte brand. */
+  background: rgba(0, 0, 0, 0.05);
   color: var(--color-text-secondary);
   cursor: pointer;
   overflow: hidden;
@@ -731,7 +733,7 @@ html {
     padding var(--tabs-dur) var(--tabs-ease);
 }
 .nc-notif-seg:not([aria-selected="true"]):hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(0, 0, 0, 0.08);
   color: var(--color-text-primary);
 }
 .nc-notif-seg[aria-selected="true"] {
@@ -760,8 +762,6 @@ html {
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
-  mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
   transition:
     grid-template-columns var(--tabs-dur) var(--tabs-ease),
     opacity var(--tabs-dur) var(--tabs-ease),
@@ -770,8 +770,9 @@ html {
 .nc-notif-seg[aria-selected="true"] .nc-notif-seg-label {
   grid-template-columns: 1fr;
   opacity: 1;
+  /* Padding généreux : le mot s'affiche en entier, net, sans fondu de bord. */
   padding-left: 6px;
-  padding-right: 2px;
+  padding-right: 6px;
 }
 .nc-notif-seg-label > span {
   min-width: 0;
