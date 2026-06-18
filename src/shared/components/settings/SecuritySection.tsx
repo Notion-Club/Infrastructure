@@ -418,11 +418,14 @@ function GoogleIdentityBlock({
   // localement après une dissociation réussie pour que le CTA se mette à jour
   // immédiatement (la prop `googleIdentity`, elle, ne se rafraîchit qu'au
   // prochain fetch de session côté parent). Resynchronisé si la prop change
-  // (ex. retour de l'OAuth de liaison).
+  // via le pattern React « ajuster l'état pendant le rendu » (pas d'effet →
+  // respecte la règle react-hooks/set-state-in-effect du repo).
   const [linked, setLinked] = useState<AuthIdentity | null>(googleIdentity);
-  useEffect(() => {
+  const [syncedFrom, setSyncedFrom] = useState(googleIdentity);
+  if (syncedFrom !== googleIdentity) {
+    setSyncedFrom(googleIdentity);
     setLinked(googleIdentity);
-  }, [googleIdentity]);
+  }
 
   async function linkGoogle() {
     if (pending) return;

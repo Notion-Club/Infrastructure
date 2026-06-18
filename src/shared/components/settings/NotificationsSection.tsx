@@ -66,6 +66,15 @@ const CHANNELS: ChannelMeta[] = [
   { key: "push", label: "Push", Icon: Smartphone },
 ];
 
+// Fusion visuelle In-App + Push : on n'affiche qu'UN seul canal, celui de la
+// notification push (colonne « Push »). Les notifications in-app, elles,
+// restent toujours activées par défaut → on masque la colonne In-App mais le
+// schéma Supabase continue d'écrire les lignes `in_app` (forcées à true, cf.
+// withInAppAlwaysOn + handleSave). Le canal push reste pilotable normalement.
+const VISIBLE_CHANNELS: ChannelMeta[] = CHANNELS.filter(
+  (c) => c.key !== "in_app",
+);
+
 type PreferenceMap = NotificationSettings["preferences"];
 type ChannelMap = NotificationSettings["channels"];
 
@@ -80,6 +89,20 @@ function buildDefaults(): NotificationSettings {
   };
 }
 
+// Normalise un jeu de préférences pour que le canal in-app soit toujours
+// activé (objectif produit : les notifications in-app restent toujours ON).
+// Appliqué au chargement initial ; le forçage est aussi répété à
+// l'enregistrement pour les lignes envoyées à Supabase.
+function withInAppAlwaysOn(s: NotificationSettings): NotificationSettings {
+  const preferences = Object.fromEntries(
+    Object.entries(s.preferences).map(([cat, chans]) => [
+      cat,
+      { ...chans, in_app: true },
+    ]),
+  ) as PreferenceMap;
+  return { preferences, channels: { ...s.channels, in_app: true } };
+}
+
 type NotificationsSectionProps = {
   userOffer: UserOffer;
   isMocked: boolean;
@@ -91,7 +114,7 @@ export function NotificationsSection({
   isMocked,
   initialSettings,
 }: NotificationsSectionProps) {
-  const initial = initialSettings ?? buildDefaults();
+  const initial = withInAppAlwaysOn(initialSettings ?? buildDefaults());
   const [channels, setChannels] = useState<ChannelMap>(initial.channels);
   const [prefs, setPrefs] = useState<PreferenceMap>(initial.preferences);
   const [saving, setSaving] = useState(false);
@@ -186,16 +209,18 @@ export function NotificationsSection({
         return;
       }
 
+      // in_app forcé à true : la colonne est fusionnée dans Push côté UI, mais
+      // on continue d'écrire les lignes in_app sur Supabase (toujours activées).
       const preferences = visibleCategories.flatMap((cat) =>
         NOTIFICATION_CHANNELS.map((ch) => ({
           category: cat.key,
           channel: ch,
-          enabled: prefs[cat.key][ch],
+          enabled: ch === "in_app" ? true : prefs[cat.key][ch],
         })),
       );
       const channelRows = NOTIFICATION_CHANNELS.map((ch) => ({
         channel: ch,
-        enabled: channels[ch],
+        enabled: ch === "in_app" ? true : channels[ch],
       }));
 
       const result = await updateNotificationSettingsAction({
@@ -341,7 +366,7 @@ function NotificationsMatrix({
         >
           Type
         </div>
-        {CHANNELS.map(({ key, label, Icon }) => (
+        {VISIBLE_CHANNELS.map(({ key, label, Icon }) => (
           <div key={key} role="columnheader">
             <ChannelHeaderButton
               label={label}
@@ -384,7 +409,7 @@ function NotificationsMatrix({
           >
             {cat.label}
           </div>
-          {CHANNELS.map(({ key, label: chLabel }) => {
+          {VISIBLE_CHANNELS.map(({ key, label: chLabel }) => {
             const channelOff = !channels[key];
             const checked = prefs[cat.key][key] && channels[key];
             return (
