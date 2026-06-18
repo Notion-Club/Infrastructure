@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { LoaderCircle, X } from "lucide-react";
+import { Download, X } from "lucide-react";
 
-// Modale « Mes paiements » — ouverte depuis la section Facturation. Le contenu
-// provient de GET /api/payments/me (base Notion `Paiements` reliée au membre).
-// On reprend exactement le rendu de l'ancienne section Paiements, déplacé ici.
+// Modale « Mes paiements » — contenu chargé depuis GET /api/payments/me
+// (base Notion « Paiements »). Titre animé (shimmer pendant le chargement,
+// puis flip vers un titre statique), tableau responsive + skeleton.
 
 type Payment = {
   notionId: string;
@@ -17,6 +17,7 @@ type Payment = {
   source: string | null;
   status: string | null;
   statusCategory: "paid" | "due" | "refused" | "unknown";
+  invoiceUrl?: string | null;
 };
 
 const STATUS_STYLE: Record<
@@ -28,14 +29,6 @@ const STATUS_STYLE: Record<
   refused: { bg: "rgba(224,98,90,0.10)", fg: "#b3433b", border: "rgba(224,98,90,0.25)" },
   unknown: { bg: "rgba(82,82,91,0.08)", fg: "#52525b", border: "rgba(82,82,91,0.20)" },
 };
-
-function sourceStyle(source: string | null): { bg: string; fg: string; border: string } {
-  if (source === "Stripe")
-    return { bg: "rgba(138,108,242,0.10)", fg: "#6b4dd1", border: "rgba(138,108,242,0.25)" };
-  if (source === "Virement bancaire")
-    return { bg: "rgba(39,174,142,0.08)", fg: "#16805f", border: "rgba(39,174,142,0.22)" };
-  return { bg: "rgba(82,82,91,0.08)", fg: "#52525b", border: "rgba(82,82,91,0.20)" };
-}
 
 function formatEur(amount: number | null): string {
   if (amount === null) return "—";
@@ -51,12 +44,174 @@ function formatDate(iso: string | null): string {
   try {
     return new Date(iso).toLocaleDateString("fr-FR", {
       day: "numeric",
-      month: "long",
+      month: "short",
       year: "numeric",
     });
   } catch {
     return iso;
   }
+}
+
+const TITLE_LOADING = "Nous cherchons tes paiements";
+const TITLE_DONE = "Tes paiements au Notion Club";
+
+// Titre animé : shimmer pendant le chargement, puis flip (text-swap) vers le
+// titre statique une fois les paiements chargés. Réutilise .t-text-swap +
+// .t-shimmer (cf. transcript coaching).
+function PaymentsTitle({ loading }: { loading: boolean }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const prev = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const setText = (t: string) => {
+      el.textContent = t;
+      el.setAttribute("data-text", t);
+    };
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Initialisation au montage.
+    if (prev.current === null) {
+      setText(loading ? TITLE_LOADING : TITLE_DONE);
+      el.classList.toggle("t-shimmer", loading);
+      prev.current = loading;
+      return;
+    }
+    if (prev.current === loading) return;
+    prev.current = loading;
+
+    if (loading) {
+      setText(TITLE_LOADING);
+      el.classList.add("t-shimmer");
+      return;
+    }
+
+    // Chargement terminé → flip vers le titre statique, arrêt du shimmer.
+    if (reduce) {
+      setText(TITLE_DONE);
+      el.classList.remove("t-shimmer");
+      return;
+    }
+    el.classList.add("is-exit");
+    const t = window.setTimeout(() => {
+      setText(TITLE_DONE);
+      el.classList.remove("t-shimmer");
+      el.classList.add("is-enter-start");
+      void el.offsetWidth;
+      el.classList.remove("is-enter-start");
+    }, 160);
+    return () => window.clearTimeout(t);
+  }, [loading]);
+
+  return (
+    <span
+      ref={ref}
+      className="t-text-swap nc-payments-title"
+      data-text=""
+      aria-live="polite"
+    />
+  );
+}
+
+function StatusBadge({ p }: { p: Payment }) {
+  if (!p.status) return null;
+  const s = STATUS_STYLE[p.statusCategory];
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "3px 9px",
+        borderRadius: 9999,
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: "0.02em",
+        color: s.fg,
+        background: s.bg,
+        border: `1px solid ${s.border}`,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {p.status}
+    </span>
+  );
+}
+
+function DownloadButton({ url }: { url: string | null | undefined }) {
+  if (url) {
+    return (
+      <a
+        className="nc-pay-dl-btn"
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Télécharger la facture"
+        aria-label="Télécharger la facture"
+        data-fb-label="Bouton Télécharger facture · Modale paiements"
+      >
+        <Download size={15} />
+      </a>
+    );
+  }
+  return (
+    <span
+      className="nc-pay-dl-btn"
+      aria-disabled="true"
+      title="Facture indisponible"
+      aria-label="Facture indisponible"
+    >
+      <Download size={15} />
+    </span>
+  );
+}
+
+function PaymentsSkeleton() {
+  return (
+    <div className="nc-pay-table" aria-hidden>
+      <div className="nc-pay-head">
+        <span>Titre</span>
+        <span>Date</span>
+        <span>Statut</span>
+        <span style={{ textAlign: "right" }}>Montant TTC</span>
+        <span />
+      </div>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div className="nc-pay-row" key={i}>
+          <span className="nc-pay-c-title">
+            <span
+              className="nc-skeleton"
+              style={{ display: "block", height: 12, width: "70%", borderRadius: 6 }}
+            />
+          </span>
+          <span className="nc-pay-c-date">
+            <span
+              className="nc-skeleton"
+              style={{ display: "block", height: 10, width: 64, borderRadius: 6 }}
+            />
+          </span>
+          <span className="nc-pay-c-meta">
+            <span
+              className="nc-skeleton"
+              style={{ display: "block", height: 18, width: 64, borderRadius: 9999 }}
+            />
+          </span>
+          <span className="nc-pay-c-amount">
+            <span
+              className="nc-skeleton"
+              style={{ display: "inline-block", height: 12, width: 60, borderRadius: 6 }}
+            />
+          </span>
+          <span className="nc-pay-c-dl">
+            <span
+              className="nc-skeleton"
+              style={{ display: "block", height: 32, width: 32, borderRadius: 8 }}
+            />
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function PaymentsModal({
@@ -68,7 +223,7 @@ export function PaymentsModal({
 }) {
   const [payments, setPayments] = useState<Payment[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Lock scroll + Escape tant que la modale est ouverte.
   useEffect(() => {
@@ -122,8 +277,6 @@ export function PaymentsModal({
     };
   }, [open]);
 
-  // `open` ne passe à true que côté client (clic utilisateur) → `document` est
-  // toujours disponible quand on rend le portail.
   if (!open) return null;
 
   return createPortal(
@@ -134,8 +287,11 @@ export function PaymentsModal({
       aria-modal="true"
       aria-label="Mes paiements"
     >
-      <div className="nc-modal-card" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
+      <div
+        className="nc-modal-card nc-modal-card--wide"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header — titre animé + fermeture */}
         <div
           style={{
             display: "flex",
@@ -147,27 +303,7 @@ export function PaymentsModal({
             flexShrink: 0,
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 17,
-                fontWeight: 700,
-                color: "var(--color-text-primary)",
-              }}
-            >
-              Mes paiements
-            </h2>
-            <p
-              style={{
-                margin: 0,
-                fontSize: 12.5,
-                color: "var(--color-text-muted)",
-              }}
-            >
-              Tous tes paiements sont centralisés ici.
-            </p>
-          </div>
+          <PaymentsTitle loading={loading} />
           <button
             type="button"
             onClick={onClose}
@@ -191,7 +327,7 @@ export function PaymentsModal({
           </button>
         </div>
 
-        {/* Body scrollable */}
+        {/* Body */}
         <div
           style={{
             flex: 1,
@@ -201,22 +337,7 @@ export function PaymentsModal({
             padding: 18,
           }}
         >
-          {loading && (
-            <div
-              style={{
-                padding: "28px 14px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 10,
-                fontSize: 13,
-                color: "var(--color-text-muted)",
-              }}
-            >
-              <LoaderCircle size={14} className="animate-spin" />
-              Chargement des paiements…
-            </div>
-          )}
+          {loading && <PaymentsSkeleton />}
 
           {!loading && error && (
             <div
@@ -248,136 +369,34 @@ export function PaymentsModal({
             </div>
           )}
 
-          {!loading && payments && payments.length > 0 && (
-            <ul
-              style={{
-                listStyle: "none",
-                padding: 0,
-                margin: 0,
-                border: "1px solid var(--color-border-default)",
-                borderRadius: 12,
-                overflow: "hidden",
-                background: "var(--color-surface-card)",
-              }}
-            >
-              {payments.map((p, idx) => {
-                const statusS = STATUS_STYLE[p.statusCategory];
-                const sourceS = sourceStyle(p.source);
-                return (
-                  <li
-                    key={p.notionId}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 14,
-                      padding: "14px 14px",
-                      borderBottom:
-                        idx === payments.length - 1
-                          ? "none"
-                          : "1px solid var(--color-border-default)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 3,
-                        flex: 1,
-                        minWidth: 0,
-                      }}
-                    >
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "var(--color-text-primary)",
-                        }}
-                      >
-                        {formatDate(p.paymentDate)}
-                      </p>
-                      {p.label && (
-                        <p
-                          style={{
-                            margin: 0,
-                            fontSize: 12,
-                            color: "var(--color-text-muted)",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {p.label}
-                        </p>
-                      )}
-                    </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        flexShrink: 0,
-                        flexWrap: "wrap",
-                        justifyContent: "flex-end",
-                      }}
-                    >
-                      {p.source && (
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            padding: "3px 9px",
-                            borderRadius: 9999,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            letterSpacing: "0.02em",
-                            color: sourceS.fg,
-                            background: sourceS.bg,
-                            border: `1px solid ${sourceS.border}`,
-                          }}
-                        >
-                          {p.source}
-                        </span>
-                      )}
-                      {p.status && (
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            padding: "3px 9px",
-                            borderRadius: 9999,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            letterSpacing: "0.02em",
-                            color: statusS.fg,
-                            background: statusS.bg,
-                            border: `1px solid ${statusS.border}`,
-                          }}
-                        >
-                          {p.status}
-                        </span>
-                      )}
-                    </div>
-
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: 14,
-                        fontWeight: 700,
-                        color: "var(--color-text-primary)",
-                        fontVariantNumeric: "tabular-nums",
-                        flexShrink: 0,
-                        minWidth: 90,
-                        textAlign: "right",
-                      }}
-                    >
-                      {formatEur(p.amount)}
-                    </p>
-                  </li>
-                );
-              })}
-            </ul>
+          {!loading && !error && payments && payments.length > 0 && (
+            <div className="nc-pay-table">
+              <div className="nc-pay-head">
+                <span>Titre</span>
+                <span>Date</span>
+                <span>Statut</span>
+                <span style={{ textAlign: "right" }}>Montant TTC</span>
+                <span />
+              </div>
+              {payments.map((p) => (
+                <div className="nc-pay-row" key={p.notionId}>
+                  <span className="nc-pay-c-title" title={p.label}>
+                    {p.label || "Paiement"}
+                  </span>
+                  <span className="nc-pay-c-date">{formatDate(p.paymentDate)}</span>
+                  <span className="nc-pay-c-meta">
+                    <span className="nc-pay-meta-date">
+                      {formatDate(p.paymentDate)}
+                    </span>
+                    <StatusBadge p={p} />
+                  </span>
+                  <span className="nc-pay-c-amount">{formatEur(p.amount)}</span>
+                  <span className="nc-pay-c-dl">
+                    <DownloadButton url={p.invoiceUrl} />
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

@@ -1457,6 +1457,9 @@ html {
 .nc-modal-card--sm {
   max-width: 420px;
 }
+.nc-modal-card--wide {
+  max-width: 680px;
+}
 
 /* Encadré-bouton « Voir mes paiements → » (section Facturation). Carte pleine
    largeur, imposante, alignée sur la DA : surface raised, bordure, radius.
@@ -1551,6 +1554,168 @@ html {
   .nc-modal-card {
     animation: none;
   }
+}
+
+/* Case à cocher « Je facture en tant qu'entreprise ». En dark, la case non
+   cochée prend la surface basse (plus sombre que la carte) pour mieux ressortir. */
+.nc-billing-check {
+  background: var(--color-surface-card);
+}
+.nc-billing-check[data-checked="true"] {
+  background: var(--color-brand);
+}
+.dark .nc-billing-check[data-checked="false"] {
+  background: var(--color-surface-raised);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Modale Paiements — titre animé (shimmer → flip) + tableau responsive.
+   ────────────────────────────────────────────────────────────── */
+/* Titre : réutilise .t-text-swap + .t-shimmer (cf. transcript coaching),
+   typographie de titre de modale. Le shimmer (classe ajoutée pendant le
+   chargement) s'arrête quand on retire .t-shimmer. */
+.nc-payments-title {
+  --text-swap-dur: 160ms;
+  --text-swap-translate-y: 5px;
+  --text-swap-blur: 2px;
+  --text-swap-ease: ease-in-out;
+  --shimmer-dur: 1900ms;
+  --shimmer-band: 360%;
+  --shimmer-base: var(--color-text-secondary);
+  --shimmer-highlight: var(--color-brand);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+/* Tableau des paiements. Mobile : 2 lignes par item (titre + montant, puis
+   date · statut · download) — aucun scroll horizontal. Desktop : vraie grille
+   5 colonnes avec en-tête. */
+.nc-pay-table {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nc-pay-head {
+  display: none;
+}
+.nc-pay-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "title  amount"
+    "meta   dl";
+  column-gap: 12px;
+  row-gap: 4px;
+  align-items: center;
+  padding: 14px 12px;
+  border-radius: 12px;
+}
+.nc-pay-row + .nc-pay-row {
+  border-top: 1px solid var(--color-border-default);
+  border-radius: 0;
+}
+.nc-pay-c-title {
+  grid-area: title;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nc-pay-c-amount {
+  grid-area: amount;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.nc-pay-c-meta {
+  grid-area: meta;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.nc-pay-c-dl {
+  grid-area: dl;
+  justify-self: end;
+}
+.nc-pay-c-date {
+  display: none;
+}
+@media (min-width: 768px) {
+  .nc-pay-table {
+    gap: 0;
+  }
+  .nc-pay-head,
+  .nc-pay-row {
+    grid-template-columns: 1fr 132px 112px 116px 40px;
+    grid-template-areas: "title date status amount dl";
+    column-gap: 12px;
+    row-gap: 0;
+  }
+  .nc-pay-head {
+    display: grid;
+    align-items: center;
+    padding: 0 12px 8px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    border-bottom: 1px solid var(--color-border-default);
+  }
+  .nc-pay-head > :last-child,
+  .nc-pay-c-amount {
+    text-align: right;
+  }
+  .nc-pay-row {
+    padding: 12px;
+  }
+  .nc-pay-c-date {
+    grid-area: date;
+    display: block;
+    font-size: 12.5px;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+  }
+  /* Sur desktop, la date est dans sa colonne → on la retire du méta mobile. */
+  .nc-pay-c-meta {
+    grid-area: status;
+  }
+  .nc-pay-c-meta .nc-pay-meta-date {
+    display: none;
+  }
+}
+/* Bouton download de facture. */
+.nc-pay-dl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.nc-pay-dl-btn:hover {
+  color: var(--color-brand);
+  border-color: rgba(224, 98, 90, 0.35);
+}
+.nc-pay-dl-btn[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
 }
 
 .nc-input {
