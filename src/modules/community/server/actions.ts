@@ -1390,7 +1390,9 @@ export async function createConversationAction(
     };
   }
 
-  revalidatePath("/communaute");
+  // Pas de revalidatePath("/communaute") : la nouvelle conversation est
+  // injectée dans le state client (et reçue en Realtime côté pair). Un
+  // revalidate ici re-rendrait inutilement le Server Component communauté.
   return { ok: true, conversationId: data.id, alreadyExists: false };
 }
 
@@ -1485,7 +1487,11 @@ export async function sendMessageAction(
     });
   }
 
-  revalidatePath("/communaute");
+  // Pas de revalidatePath("/communaute") : c'est ce qui causait les "refresh
+  // bizarres" à chaque envoi (re-render du Server Component → ré-injection de
+  // initialConversations). Le message sortant est géré par l'optimistic +
+  // re-fetch local de la conv ; le message entrant arrive en Realtime chez le
+  // destinataire (mig. 039 + useConversationsRealtime).
   return { ok: true, messageId: data.id };
 }
 
@@ -1555,7 +1561,10 @@ export async function markConversationReadAction(
     return { ok: false, code: "unknown", message: error.message };
   }
 
-  revalidatePath("/communaute");
+  // Pas de revalidatePath("/communaute") : markRead est appelé à CHAQUE
+  // ouverture de conversation. Le re-render serveur associé était une source
+  // majeure de jank. Le compteur unread est déjà remis à 0 côté client
+  // (openConversation) et la liste se met à jour en Realtime.
   return { ok: true };
 }
 

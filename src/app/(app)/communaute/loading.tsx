@@ -4,15 +4,18 @@ const pulse: React.CSSProperties = {
   borderRadius: "var(--nc-radius-xs)",
 };
 
-// Mirrors communaute/page.tsx: maxWidth 840, padding px-4 pt-[96px] pb-[100px]
-// md:px-10 md:pt-[148px] md:pb-10. Structure: tabs + tag filters + post cards.
+// Aligné sur communaute/layout.tsx : maxWidth 840, padding px-4 pt-[96px]
+// pb-[100px] md:px-10 md:pt-[88px] md:pb-6 (mêmes valeurs que le <main> du
+// layout, sinon saut de ~60px skeleton→contenu). Ne s'affiche plus qu'au
+// PREMIER chargement de /communaute (le layout étant ensuite préservé, les
+// navigations internes feed↔messages ne redéclenchent plus ce fallback).
 export default function CommunauteLoading() {
   return (
     <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
         <main style={{ position: "relative", zIndex: 1 }}>
           <div
             style={{ maxWidth: 840, margin: "0 auto" }}
-            className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10"
+            className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[88px] md:pb-6"
           >
             {/* Tab bar skeleton — Feed | Messages */}
             <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>

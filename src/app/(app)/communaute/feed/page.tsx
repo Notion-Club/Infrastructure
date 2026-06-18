@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { CommunityShell } from "../CommunityShell";
 
 export const metadata: Metadata = {
   title: "Communauté — Notion Club",
 };
 
-// /communaute/feed — onglet feed du module communauté.
+// Marqueur de route. Le rendu (feed) vit dans communaute/layout.tsx, qui monte
+// le shell persistant CommunityPage (lequel dérive la vue de usePathname()).
 export default function CommunauteFeedPage() {
-  return <CommunityShell tab="feed" />;
+  return null;
 }

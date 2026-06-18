@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useRef, useTransition, useCallback, useLayoutEffect } from "react";
 import { MessageCircle, Users, SquarePen } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import type { PostTag } from "../types/post.types";
 import { useDevRoleToggle } from "../hooks/useDevRoleToggle";
 import { useCurrentUser } from "../hooks/useCurrentUser";
@@ -14,7 +14,6 @@ import { FeedErrorState } from "../components/feed/FeedErrorState";
 import { PostComposerModal } from "../components/post-composer/PostComposerModal";
 import { MessagesLayout } from "../components/messages/MessagesLayout";
 import { DevRoleToggle } from "../components/dev/DevRoleToggle";
-import { GradualBlurOverlay } from "@/shared/components/GradualBlurOverlay";
 import { ImageLightboxRoot } from "../components/shared/ImageLightboxRoot";
 import { CommunityRestrictedPage } from "./community-restricted-page";
 import { createPostAction } from "../server/actions";
@@ -27,24 +26,33 @@ type TagFilter = PostTag | "all";
 const COMMUNITY_TABS: Tab[] = ["feed", "messages"];
 
 interface CommunityPageProps {
-  // Onglet actif, dérivé de l'URL (/communaute/feed vs /communaute/messages).
-  activeTab?: Tab;
-  // Username de la conversation à ouvrir (route /messages/<username>). null
-  // sur /messages (liste sans conversation ouverte).
-  conversationUsername?: string | null;
   initialPosts: Post[];
   initialConversations: Conversation[];
 }
 
 export function CommunityPage({
-  activeTab = "feed",
-  conversationUsername,
   initialPosts,
   initialConversations,
 }: CommunityPageProps) {
   const { role, setRole, feedState, setFeedState } = useDevRoleToggle();
   const currentUser = useCurrentUser(role);
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Vue active + conversation ouverte dérivées de l'URL (le layout partagé
+  // garde ce composant monté entre les sous-routes ; on lit donc l'URL via
+  // usePathname plutôt que via des props injectées par chaque page).
+  //
+  // ANTI-FREEZE #156 : conversationUsername DOIT être une string mémoïsée
+  // stable. L'effet de résolution de MessagesLayout dépend de [conversationUsername] ;
+  // une nouvelle référence à chaque render le relancerait → boucle infinie.
+  const activeTab: Tab = pathname.startsWith("/communaute/messages")
+    ? "messages"
+    : "feed";
+  const conversationUsername = useMemo(() => {
+    const m = pathname.match(/^\/communaute\/messages\/(.+)$/);
+    return m ? decodeURIComponent(m[1]!) : null;
+  }, [pathname]);
 
   // Restore scroll position saved before navigating into a post detail
   useEffect(() => {
