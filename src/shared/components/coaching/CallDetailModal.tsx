@@ -239,7 +239,7 @@ export function CallDetailModal({
   // pour piloter l'opacité des voiles de flou. Recalcule au scroll, au resize
   // et quand le contenu change de hauteur (chargement de la transcription).
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !shouldRender) return;
     const el = scrollRef.current;
     if (!el) return;
     const update = () => {
@@ -249,19 +249,27 @@ export function CallDetailModal({
         prev.top === top && prev.bottom === bottom ? prev : { top, bottom },
       );
     };
-    const raf = requestAnimationFrame(update);
+    // Double rAF : on mesure APRÈS que le contenu de l'onglet soit posé (sinon
+    // scrollHeight est encore stale au 1er affichage → les voiles de flou ne
+    // s'activaient qu'après un aller-retour d'onglet). `shouldRender` est dans
+    // les deps pour relancer la mesure dès que le corps scrollable est monté.
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(update);
+    });
     el.addEventListener("scroll", update, { passive: true });
     const ro = new ResizeObserver(update);
     ro.observe(el);
     if (el.firstElementChild) ro.observe(el.firstElementChild);
     window.addEventListener("resize", update);
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
       el.removeEventListener("scroll", update);
       ro.disconnect();
       window.removeEventListener("resize", update);
     };
-  }, [isOpen, tab]);
+  }, [isOpen, tab, shouldRender]);
 
   if (!shouldRender || !mounted) return null;
 

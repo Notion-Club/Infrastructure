@@ -19,6 +19,7 @@ import {
 import { SettingsCard } from "./SettingsCard";
 import { CountrySelect } from "./CountrySelect";
 import { PaymentsModal } from "./PaymentsModal";
+import { InvoicePreview } from "./InvoicePreview";
 import type { CompanyEmbed, ProfileRow } from "./types";
 
 // ============================================================================
@@ -370,9 +371,20 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
         data-fb-label="Bouton Voir mes paiements · Section facturation"
         className="nc-payments-cta"
       >
-        <span>Voir mes paiements</span>
-        <span aria-hidden style={{ fontSize: 16, lineHeight: 1 }}>
-          →
+        <span className="nc-payments-cta__text">
+          <span className="nc-payments-cta__title">
+            Voir mes paiements
+            <span aria-hidden style={{ fontSize: 20, lineHeight: 1 }}>
+              →
+            </span>
+          </span>
+          <span className="nc-payments-cta__sub">
+            Factures, reçus et historique de tes règlements.
+          </span>
+        </span>
+        {/* Aperçu de facture (skeleton) — desktop uniquement. */}
+        <span className="nc-payments-cta__preview">
+          <InvoicePreview />
         </span>
       </button>
 

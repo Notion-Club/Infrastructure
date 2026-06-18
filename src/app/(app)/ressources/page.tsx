@@ -34,9 +34,9 @@ export default async function RessourcesPage() {
                 </p>
                 <h1
                   style={{
-                    fontSize: 'clamp(42px, 6vw, 64px)',
+                    fontSize: 'clamp(32px, 4vw, 44px)',
                     fontWeight: 700,
-                    letterSpacing: '-0.03em',
+                    letterSpacing: '-0.025em',
                     color: 'var(--color-text-primary)',
                     margin: 0,
                     lineHeight: 1.1,

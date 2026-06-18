@@ -1459,38 +1459,57 @@ html {
 }
 
 /* Encadré-bouton « Voir mes paiements → » (section Facturation). Carte pleine
-   largeur alignée sur la DA : surface raised, bordure, radius, et lift au hover
-   avec une bordure teintée brand. */
+   largeur, imposante, alignée sur la DA : surface raised, bordure, radius.
+   AUCUNE animation de survol. Texte à gauche, aperçu de facture (skeleton) à
+   droite (desktop). */
 .nc-payments-cta {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 14px 16px;
-  border-radius: 14px;
+  gap: 20px;
+  padding: 22px 24px;
+  min-height: 132px;
+  border-radius: 18px;
   border: 1px solid var(--color-border-default);
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
-  font-size: 14px;
-  font-weight: 600;
   cursor: pointer;
-  transition:
-    transform var(--nc-duration-fast) var(--nc-ease),
-    border-color var(--nc-duration-fast) ease,
-    box-shadow var(--nc-duration-fast) ease;
+  text-align: left;
+  overflow: hidden;
 }
-.nc-payments-cta:hover {
-  transform: translateY(-1px);
-  border-color: rgba(224, 98, 90, 0.4);
-  box-shadow: 0 6px 18px -10px rgba(224, 98, 90, 0.5);
+.nc-payments-cta__text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
-@media (prefers-reduced-motion: reduce) {
-  .nc-payments-cta {
-    transition: none;
-  }
-  .nc-payments-cta:hover {
-    transform: none;
+.nc-payments-cta__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+.nc-payments-cta__sub {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+/* Aperçu de facture : masqué sur mobile (place insuffisante), visible en
+   desktop, légèrement incliné pour l'effet « document qui dépasse ». */
+.nc-payments-cta__preview {
+  display: none;
+  flex-shrink: 0;
+}
+@media (min-width: 768px) {
+  .nc-payments-cta__preview {
+    display: block;
+    margin: -6px -10px -6px 0;
+    transform: rotate(-2deg);
   }
 }
 @media (prefers-reduced-motion: reduce) {
