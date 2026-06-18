@@ -16,7 +16,7 @@ export default function PrivacyPage() {
         maxWidth: 720,
         margin: "0 auto",
         padding: "48px 24px 96px",
-        fontFamily: "var(--font-sf-pro, -apple-system, BlinkMacSystemFont, sans-serif)",
+        fontFamily: "var(--font-sf-pro-display, -apple-system, BlinkMacSystemFont, sans-serif)",
         lineHeight: 1.6,
         color: "#0f172a",
       }}

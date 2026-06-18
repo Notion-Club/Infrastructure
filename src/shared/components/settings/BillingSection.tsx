@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { updateBillingAction, SIRET_LENGTH } from "@/modules/settings";
 import { SettingsCard } from "./SettingsCard";
 import { CountrySelect } from "./CountrySelect";
+import { PaymentsModal } from "./PaymentsModal";
 import type { CompanyEmbed, ProfileRow } from "./types";
 
 // ============================================================================
@@ -78,6 +79,7 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
   const [country, setCountry] = useState(initial.country);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
+  const [paymentsOpen, setPaymentsOpen] = useState(false);
 
   const errors = useMemo(() => {
     const e: Partial<Record<"companyName" | "siret" | "vat", string>> = {};
@@ -307,6 +309,22 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
           </div>
         )}
       </form>
+
+      {/* Accès aux paiements — encadré-bouton design (DS) sous les champs de
+          facturation. Ouvre la modale qui charge les paiements (API Notion). */}
+      <button
+        type="button"
+        onClick={() => setPaymentsOpen(true)}
+        data-fb-label="Bouton Voir mes paiements · Section facturation"
+        className="nc-payments-cta"
+      >
+        <span>Voir mes paiements</span>
+        <span aria-hidden style={{ fontSize: 16, lineHeight: 1 }}>
+          →
+        </span>
+      </button>
+
+      <PaymentsModal open={paymentsOpen} onClose={() => setPaymentsOpen(false)} />
     </SettingsCard>
   );
 }

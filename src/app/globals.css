@@ -1385,6 +1385,97 @@ html {
   }
 }
 
+/* Lignes du tableau de notifications — en dark, chaque ligne a un fond
+   distinct du fond de l'encadré (#3D3A39) pour mieux ressortir. Light mode
+   inchangé (lignes transparentes sur la carte). */
+.dark .nc-notif-row {
+  background: #3d3a39;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Modale générique (portail) — réutilisée par la modale Paiements et le
+   dialogue de confirmation d'abandon. Centrée, voile flou + carte DA.
+   ────────────────────────────────────────────────────────────── */
+@keyframes nc-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.nc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: nc-overlay-in var(--nc-duration-normal) var(--nc-ease) both;
+}
+.nc-modal-card {
+  width: 100%;
+  max-width: 560px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-default);
+  border-radius: 24px;
+  box-shadow: var(--nc-shadow-2);
+  overflow: hidden;
+  animation: nc-modal-in var(--nc-duration-normal) var(--nc-ease) both;
+}
+.nc-modal-card--sm {
+  max-width: 420px;
+}
+
+/* Encadré-bouton « Voir mes paiements → » (section Facturation). Carte pleine
+   largeur alignée sur la DA : surface raised, bordure, radius, et lift au hover
+   avec une bordure teintée brand. */
+.nc-payments-cta {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform var(--nc-duration-fast) var(--nc-ease),
+    border-color var(--nc-duration-fast) ease,
+    box-shadow var(--nc-duration-fast) ease;
+}
+.nc-payments-cta:hover {
+  transform: translateY(-1px);
+  border-color: rgba(224, 98, 90, 0.4);
+  box-shadow: 0 6px 18px -10px rgba(224, 98, 90, 0.5);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-payments-cta {
+    transition: none;
+  }
+  .nc-payments-cta:hover {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-modal-overlay,
+  .nc-modal-card {
+    animation: none;
+  }
+}
+
 .nc-input {
   width: 100%;
   padding: 12px 16px;

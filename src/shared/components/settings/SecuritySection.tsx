@@ -7,7 +7,10 @@ import { toast } from "sonner";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import { GoogleLogo } from "@/shared/components/ui/GoogleButton";
 import { GoogleButton } from "@/shared/components/ui/GoogleButton";
-import { updatePasswordWithReauthAction } from "@/modules/settings";
+import {
+  updatePasswordWithReauthAction,
+  linkGoogleIdentityAction,
+} from "@/modules/settings";
 import { SettingsCard, SettingsDivider } from "./SettingsCard";
 import type { AuthIdentity, AuthUserShape } from "./types";
 
@@ -434,18 +437,24 @@ function GoogleIdentityBlock({
     try {
       if (isMocked) {
         toast.info("Connectez-vous pour associer un compte Google.");
+        setPending(false);
         return;
       }
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.linkIdentity({ provider: "google" });
-      if (error) throw error;
+      // Server action : initialise le flow OAuth (PKCE) et redirige vers Google
+      // avec redirectTo=/auth/callback?next=/settings → retour sur /settings
+      // (et non /login). En cas de succès, la fonction redirige (ne revient
+      // jamais ici) ; sinon elle renvoie une erreur à afficher.
+      const result = await linkGoogleIdentityAction();
+      if (result && !result.ok) {
+        toast.error(result.message);
+        setPending(false);
+      }
     } catch (err) {
-      const message =
+      toast.error(
         err instanceof Error
           ? err.message
-          : "Impossible de connecter le compte Google";
-      toast.error(message);
-    } finally {
+          : "Impossible de connecter le compte Google",
+      );
       setPending(false);
     }
   }

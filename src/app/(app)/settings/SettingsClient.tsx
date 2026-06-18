@@ -6,7 +6,6 @@ import { LoaderCircle } from "lucide-react";
 import { ProfileRecapCard } from "@/shared/components/settings/ProfileRecapCard";
 import { AccountSection } from "@/shared/components/settings/AccountSection";
 import { SecuritySection } from "@/shared/components/settings/SecuritySection";
-import { SubscriptionSection } from "@/shared/components/settings/SubscriptionSection";
 import { NotificationsSection } from "@/shared/components/settings/NotificationsSection";
 import { BillingSection } from "@/shared/components/settings/BillingSection";
 import { DangerZone } from "@/shared/components/settings/DangerZone";
@@ -164,7 +163,6 @@ export function SettingsClient({
                   isMocked={state.isMocked}
                 />
                 <SecuritySection user={state.user} isMocked={state.isMocked} />
-                <SubscriptionSection />
                 <BillingSection
                   profile={state.profile}
                   company={state.company}

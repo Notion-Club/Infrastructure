@@ -10,7 +10,8 @@ import {
   type ReactNode,
 } from "react";
 
-import { ProfileEditor } from "./ProfileEditor";
+import { ProfileEditor, type ProfileCloseGuard } from "./ProfileEditor";
+import { ConfirmDialog } from "@/shared/components/ui/ConfirmDialog";
 
 // ============================================================================
 // ProfileModalProvider (#128) — ouvre l'éditeur de profil public depuis
@@ -56,6 +57,10 @@ export function ProfileModalProvider({ children }: { children: ReactNode }) {
   const [visible, setVisible] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafRef = useRef<number | null>(null);
+  // Garde-fou « modifications non enregistrées » exposé par ProfileEditor.
+  const closeGuardRef = useRef<ProfileCloseGuard | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmSaving, setConfirmSaving] = useState(false);
 
   const open = useCallback(() => {
     if (closeTimer.current) {
@@ -80,6 +85,40 @@ export function ProfileModalProvider({ children }: { children: ReactNode }) {
     }, CLOSE_ANIM_MS);
   }, []);
 
+  // Demande de fermeture : si l'éditeur a des modifications non enregistrées,
+  // on ouvre le dialogue de confirmation au lieu de fermer directement.
+  const requestClose = useCallback(() => {
+    if (closeGuardRef.current?.isDirty()) {
+      setConfirmOpen(true);
+      return;
+    }
+    close();
+  }, [close]);
+
+  // Abandonner les modifications → fermeture immédiate.
+  const discardChanges = useCallback(() => {
+    setConfirmOpen(false);
+    close();
+  }, [close]);
+
+  // Enregistrer puis fermer ; on garde le dialogue ouvert si la sauvegarde
+  // échoue (erreur de validation / serveur).
+  const saveAndClose = useCallback(async () => {
+    const guard = closeGuardRef.current;
+    if (!guard) {
+      setConfirmOpen(false);
+      close();
+      return;
+    }
+    setConfirmSaving(true);
+    const ok = await guard.requestSave();
+    setConfirmSaving(false);
+    if (ok) {
+      setConfirmOpen(false);
+      close();
+    }
+  }, [close]);
+
   // `isOpen` exposé au reste de l'app = intention d'ouverture (visible),
   // pas la présence transitoire pendant l'animation de fermeture.
   const isOpen = visible;
@@ -89,7 +128,9 @@ export function ProfileModalProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!mounted) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
+      // Escape passe par le garde-fou (confirme l'abandon si modifs en cours).
+      // Si le dialogue de confirmation est déjà ouvert, c'est lui qui gère Escape.
+      if (e.key === "Escape" && !confirmOpen) requestClose();
     }
     document.addEventListener("keydown", onKey);
     const previousOverflow = document.body.style.overflow;
@@ -98,7 +139,7 @@ export function ProfileModalProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previousOverflow;
     };
-  }, [mounted, close]);
+  }, [mounted, confirmOpen, requestClose]);
 
   // Nettoyage des timers / frames au démontage du provider.
   useEffect(() => {
@@ -132,21 +173,34 @@ export function ProfileModalProvider({ children }: { children: ReactNode }) {
         >
           {/* Backdrop — fond de page flouté visible (surtout sur le quart
               supérieur du sheet mobile). Clic = fermeture (descente). */}
-          <div className="nc-profile-backdrop" onClick={close} aria-hidden />
+          <div className="nc-profile-backdrop" onClick={requestClose} aria-hidden />
           <div className="nc-profile-panel" data-fb-label="Éditeur de profil">
             {/* Poignée d'attrape (mobile) — clic = fermeture vers le bas. */}
             <div
               className="nc-profile-grabber"
-              onClick={close}
+              onClick={requestClose}
               role="button"
               tabIndex={-1}
               aria-label="Fermer"
               data-fb-label="Poignée · Éditeur de profil"
             />
-            <ProfileEditor onClose={close} />
+            <ProfileEditor onClose={requestClose} closeGuardRef={closeGuardRef} />
           </div>
         </div>
       )}
+
+      {/* Confirmation d'abandon des modifications non enregistrées. */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Modifications non enregistrées"
+        description="Tu as des modifications non enregistrées dans ton profil. Veux-tu les enregistrer avant de fermer ?"
+        confirmLabel={confirmSaving ? "Enregistrement…" : "Enregistrer"}
+        onConfirm={saveAndClose}
+        secondaryLabel="Annuler les modifications"
+        onSecondary={discardChanges}
+        onDismiss={() => setConfirmOpen(false)}
+        busy={confirmSaving}
+      />
     </ProfileModalContext.Provider>
   );
 }

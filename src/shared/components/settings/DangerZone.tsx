@@ -38,7 +38,7 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
     <SettingsCard
       title="Zone de danger"
       icon="/icons-notion/no_lightgray.svg"
-      description="Déconnecte-toi de cet appareil, ou supprime définitivement ton compte. Toutes les données identifiantes seront anonymisées et tes accès révoqués."
+      description="Déconecte-toi de cet appareil ou supprime définitvement ton compte. Toutes tes données seront supprimées"
       tone="danger"
       fbLabel="Zone de danger · Réglages"
     >
