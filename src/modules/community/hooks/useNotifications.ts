@@ -7,6 +7,7 @@ import {
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  markNotificationAsUnread,
 } from "../server/notifications";
 import type { Notification } from "../types/notification.types";
 
@@ -36,6 +37,7 @@ export interface UseNotificationsResult {
   loading: boolean;
   markAsRead: (id: string) => void;
   markAllRead: () => void;
+  markAsUnread: (id: string) => void;
 }
 
 export function useNotifications(): UseNotificationsResult {
@@ -138,5 +140,14 @@ export function useNotifications(): UseNotificationsResult {
     void markAllNotificationsAsRead();
   }, []);
 
-  return { notifications, unreadCount, loading, markAsRead, markAllRead };
+  // Repasse une notif en non lue (optimistic). Elle quitte "Lues" et
+  // réapparaît dans "Non-lues" (le badge se réincrémente).
+  const markAsUnread = useCallback((id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: false } : n)),
+    );
+    void markNotificationAsUnread(id);
+  }, []);
+
+  return { notifications, unreadCount, loading, markAsRead, markAllRead, markAsUnread };
 }

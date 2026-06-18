@@ -45,7 +45,6 @@ export function FormationBackLink() {
         cursor: "pointer",
         width: "fit-content",
         transition: "all 150ms ease",
-        font: "inherit",
       }}
       className="hover:bg-[#eaeaea] hover:text-[var(--color-text-primary)]"
     >

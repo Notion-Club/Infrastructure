@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Settings, UserRound } from "lucide-react";
 
-import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
+import { AppearanceSection } from "@/shared/components/settings/AppearanceSection";
 import { NotificationPopover } from "@/modules/community/components/notifications/NotificationPopover";
 import { useProfileModal } from "@/shared/components/profile/ProfileModalProvider";
 import {
@@ -123,27 +123,14 @@ export function MobileTopActions() {
               position: "absolute",
               top: "calc(100% + 8px)",
               right: 0,
-              minWidth: 220,
+              minWidth: 248,
               borderRadius: 16,
               overflow: "hidden",
               zIndex: 60,
               padding: 6,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                padding: "8px 10px",
-              }}
-            >
-              <span style={{ fontSize: 14, color: "var(--color-text-primary)" }}>
-                Mode sombre
-              </span>
-              <ThemeToggle />
-            </div>
+            <AppearanceSection />
             <div
               style={{
                 height: 1,

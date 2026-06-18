@@ -169,3 +169,31 @@ export async function markAllNotificationsAsRead(): Promise<{ ok: boolean }> {
   }
   return { ok: true };
 }
+
+// ----------------------------------------------------------------------------
+// markNotificationAsUnread — repasse une notif lue en non lue (bouton cloche)
+// ----------------------------------------------------------------------------
+// Remet read_at à NULL : la notif quitte "Lues" et réapparaît dans "Non-lues"
+// (et re-compte dans le badge). RLS update_self borne au user courant. no-op
+// si déjà non lue.
+export async function markNotificationAsUnread(
+  id: string,
+): Promise<{ ok: boolean }> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false };
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: null })
+    .eq("id", id)
+    .not("read_at", "is", null); // no-op si déjà non lue
+
+  if (error) {
+    console.error("[markNotificationAsUnread] failed:", error.message);
+    return { ok: false };
+  }
+  return { ok: true };
+}
