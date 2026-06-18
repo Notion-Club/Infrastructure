@@ -15,7 +15,6 @@ export const MOCK_PROFILE: ProfileRow = {
   bio: null,
   phone: "+33 6 12 34 56 78",
   communication_email: null,
-  notion_email: "theo.notion@notionclub.fr",
   billing_type: "individual",
   billing_company_id: null,
   billing_name: null,

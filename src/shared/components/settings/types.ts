@@ -9,7 +9,6 @@ export type ProfileRow = {
   bio: string | null;
   phone: string | null;
   communication_email: string | null;
-  notion_email: string | null;
   // Facturation (OPS-129) — adresse INDIVIDUELLE + type + lien entreprise.
   billing_type: "individual" | "company" | null;
   billing_company_id: string | null;

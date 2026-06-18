@@ -72,7 +72,7 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
         const { data: profileRow } = await supabase
           .from("profiles")
           .select(
-            "id, avatar_url, avatar_color, display_name, first_name, last_name, username, bio, phone, communication_email, notion_email",
+            "id, avatar_url, avatar_color, display_name, first_name, last_name, username, bio, phone, communication_email",
           )
           .eq("id", authUser.id)
           .maybeSingle<ProfileRow>();
@@ -87,7 +87,6 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
           bio: null,
           phone: null,
           communication_email: null,
-          notion_email: null,
           // Champs facturation (OPS-129) — non édités ici, valeurs par défaut.
           billing_type: "individual",
           billing_company_id: null,

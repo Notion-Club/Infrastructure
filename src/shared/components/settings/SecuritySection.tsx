@@ -414,6 +414,18 @@ function GoogleIdentityBlock({
 }) {
   const [pending, setPending] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  // État local du lien Google : initialisé depuis la prop, mais piloté
+  // localement après une dissociation réussie pour que le CTA se mette à jour
+  // immédiatement (la prop `googleIdentity`, elle, ne se rafraîchit qu'au
+  // prochain fetch de session côté parent). Resynchronisé si la prop change
+  // via le pattern React « ajuster l'état pendant le rendu » (pas d'effet →
+  // respecte la règle react-hooks/set-state-in-effect du repo).
+  const [linked, setLinked] = useState<AuthIdentity | null>(googleIdentity);
+  const [syncedFrom, setSyncedFrom] = useState(googleIdentity);
+  if (syncedFrom !== googleIdentity) {
+    setSyncedFrom(googleIdentity);
+    setLinked(googleIdentity);
+  }
 
   async function linkGoogle() {
     if (pending) return;
@@ -438,7 +450,7 @@ function GoogleIdentityBlock({
   }
 
   async function unlinkGoogle() {
-    if (!googleIdentity || pending) return;
+    if (!linked || pending) return;
     if (!hasOtherIdentity && !confirming) {
       setConfirming(true);
       return;
@@ -451,9 +463,12 @@ function GoogleIdentityBlock({
       }
       const supabase = createSupabaseBrowserClient();
       const { error } = await supabase.auth.unlinkIdentity(
-        googleIdentity as Parameters<typeof supabase.auth.unlinkIdentity>[0],
+        linked as Parameters<typeof supabase.auth.unlinkIdentity>[0],
       );
       if (error) throw error;
+      // MAJ immédiate du front : on bascule l'état local → le CTA « Connecter
+      // avec Google » réapparaît avec son animation de reveal.
+      setLinked(null);
       toast.success("Compte Google dissocié");
     } catch (err) {
       const message =
@@ -467,9 +482,11 @@ function GoogleIdentityBlock({
     }
   }
 
-  if (!googleIdentity) {
+  if (!linked) {
     return (
       <div
+        key="google-unlinked"
+        className="nc-cta-reveal"
         data-fb-label="Bloc Google · Section sécurité"
         style={{ display: "flex", flexDirection: "column", gap: 10 }}
       >
@@ -492,10 +509,12 @@ function GoogleIdentityBlock({
     );
   }
 
-  const googleEmail = getGoogleEmail(googleIdentity);
+  const googleEmail = getGoogleEmail(linked);
 
   return (
     <div
+      key="google-linked"
+      className="nc-cta-reveal"
       data-fb-label="Bloc Google · Section sécurité"
       style={{ display: "flex", flexDirection: "column", gap: 10 }}
     >

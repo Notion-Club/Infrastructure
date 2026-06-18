@@ -35,6 +35,17 @@ function digits(v: string): string {
   return v.replace(/\D/g, "");
 }
 
+// Met en forme le SIRET selon le placeholder « 123 456 789 00012 » :
+// groupes de 3-3-3-5 chiffres séparés par des espaces, plafonné à 14 chiffres.
+// La saisie et le stockage restent normalisés (validation + RPC strippent les
+// non-chiffres), c'est purement l'affichage du champ qui est espacé.
+function formatSiret(v: string): string {
+  const d = digits(v).slice(0, SIRET_LENGTH);
+  return [d.slice(0, 3), d.slice(3, 6), d.slice(6, 9), d.slice(9, 14)]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function BillingSection({ profile, company, isMocked }: BillingSectionProps) {
   const defaultName = [profile.first_name, profile.last_name]
     .filter(Boolean)
@@ -47,7 +58,7 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
       isCompany,
       billingName: profile.billing_name ?? "",
       companyName: company?.name ?? "",
-      siret: company?.siret ?? "",
+      siret: formatSiret(company?.siret ?? ""),
       vat: company?.vat_number ?? "",
       line1: (isCompany ? company?.address_line1 : profile.billing_address_line1) ?? "",
       line2: (isCompany ? company?.address_line2 : profile.billing_address_line2) ?? "",
@@ -189,7 +200,7 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
                 id="siret"
                 label="SIRET"
                 value={siret}
-                onChange={setSiret}
+                onChange={(v) => setSiret(formatSiret(v))}
                 onBlur={() => setTouched((p) => ({ ...p, siret: true }))}
                 error={visibleErrors.siret}
                 placeholder="123 456 789 00012"

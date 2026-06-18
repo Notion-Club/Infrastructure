@@ -12,7 +12,7 @@ import type { ProfileRow } from "./types";
 
 // ============================================================================
 // AccountSection (#128) — « Réglages compte » : informations PRIVÉES de
-// connexion et de facturation (email de login, email Notion, téléphone).
+// connexion et de facturation (email de login, téléphone).
 //
 // Le profil PUBLIC (photo, nom d'affichage, username, prénom/nom, bio) vit
 // désormais dans l'éditeur de profil (ProfileEditor), accessible depuis le
@@ -22,7 +22,7 @@ import type { ProfileRow } from "./types";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-type FieldErrors = Partial<Record<"email" | "notion_email", string>>;
+type FieldErrors = Partial<Record<"email", string>>;
 
 type AccountSectionProps = {
   profile: ProfileRow;
@@ -36,23 +36,14 @@ export function AccountSection({
   isMocked,
 }: AccountSectionProps) {
   const initial = useMemo(() => {
-    const notionEmail = profile.notion_email ?? "";
     return {
       email: accountEmail,
       phone: parsePhone(profile.phone),
-      notion_email: notionEmail,
-      use_separate_notion_email:
-        notionEmail.trim().length > 0 &&
-        notionEmail.trim().toLowerCase() !== accountEmail.trim().toLowerCase(),
     };
   }, [profile, accountEmail]);
 
   const [email, setEmail] = useState(initial.email);
   const [phone, setPhone] = useState<PhoneValue>(initial.phone);
-  const [notionEmail, setNotionEmail] = useState(initial.notion_email);
-  const [useSeparateNotion, setUseSeparateNotion] = useState(
-    initial.use_separate_notion_email,
-  );
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
 
@@ -61,17 +52,11 @@ export function AccountSection({
     if (email.trim().length === 0) e.email = "L'email est requis.";
     else if (!EMAIL_REGEX.test(email.trim()))
       e.email = "Format d'email invalide.";
-    if (useSeparateNotion) {
-      const n = notionEmail.trim();
-      if (n.length === 0) e.notion_email = "Email Notion requis.";
-      else if (!EMAIL_REGEX.test(n)) e.notion_email = "Format d'email invalide.";
-    }
     return e;
-  }, [email, notionEmail, useSeparateNotion]);
+  }, [email]);
   const hasErrors = Object.keys(errors).length > 0;
   const visibleErrors: FieldErrors = {
     ...(touched.email ? { email: errors.email } : {}),
-    ...(touched.notion_email ? { notion_email: errors.notion_email } : {}),
   };
 
   const hasChanges = useMemo(() => {
@@ -81,16 +66,14 @@ export function AccountSection({
       phone.national.trim() !== initial.phone.national.trim()
     )
       return true;
-    if (useSeparateNotion !== initial.use_separate_notion_email) return true;
-    if (useSeparateNotion && notionEmail !== initial.notion_email) return true;
     return false;
-  }, [email, phone, notionEmail, useSeparateNotion, initial]);
+  }, [email, phone, initial]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!hasChanges || saving) return;
     if (hasErrors) {
-      setTouched({ email: true, notion_email: true });
+      setTouched({ email: true });
       return;
     }
     setSaving(true);
@@ -101,20 +84,14 @@ export function AccountSection({
       }
 
       const phoneText = formatPhone(phone) || null;
-      const resolvedNotionEmail = useSeparateNotion
-        ? notionEmail.trim() || null
-        : null;
 
       const accountFieldsChanged =
         phone.countryCode !== initial.phone.countryCode ||
-        phone.national.trim() !== initial.phone.national.trim() ||
-        useSeparateNotion !== initial.use_separate_notion_email ||
-        (useSeparateNotion && notionEmail !== initial.notion_email);
+        phone.national.trim() !== initial.phone.national.trim();
 
       if (accountFieldsChanged) {
         const result = await updateProfileAction({
           phone: phoneText,
-          notion_email: resolvedNotionEmail,
         });
         if (!result.ok) {
           toast.error(result.message);
@@ -158,23 +135,11 @@ export function AccountSection({
         style={{ display: "flex", flexDirection: "column", gap: 16 }}
       >
         <EmailField
-          platformEmail={email}
-          notionEmail={notionEmail}
-          useSeparateNotionEmail={useSeparateNotion}
-          platformEmailError={visibleErrors.email}
-          notionEmailError={visibleErrors.notion_email}
-          onPlatformEmailChange={setEmail}
-          onNotionEmailChange={setNotionEmail}
-          onPlatformEmailBlur={() => setTouched((p) => ({ ...p, email: true }))}
-          onNotionEmailBlur={() =>
-            setTouched((p) => ({ ...p, notion_email: true }))
-          }
-          onToggleSeparateNotion={(enabled) => {
-            setUseSeparateNotion(enabled);
-            setNotionEmail((prev) =>
-              enabled ? prev || initial.notion_email : "",
-            );
-          }}
+          label="Ton mail"
+          value={email}
+          error={visibleErrors.email}
+          onChange={setEmail}
+          onBlur={() => setTouched((p) => ({ ...p, email: true }))}
         />
 
         <PhoneField

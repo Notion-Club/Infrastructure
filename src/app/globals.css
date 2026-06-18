@@ -1333,13 +1333,13 @@ html {
  *   distribués sur la ligne (plus de grand vide central).
  */
 .nc-notif-grid {
-  grid-template-columns: minmax(0, 1fr) repeat(4, 52px);
+  grid-template-columns: minmax(0, 1fr) repeat(3, 52px);
   gap: 3px;
 }
 
 @media (min-width: 768px) {
   .nc-notif-grid {
-    grid-template-columns: minmax(0, 1fr) repeat(4, 88px);
+    grid-template-columns: minmax(0, 1fr) repeat(3, 88px);
     gap: 8px;
   }
 }
@@ -1399,6 +1399,49 @@ html {
    ────────────────────────────────────────────────────────────── */
 .nc-pw-modal {
   background: var(--color-surface-card);
+}
+
+/* Dark mode — inversion des surfaces du modal mot de passe.
+   Par défaut : conteneur = surface-card (clair), champs = surface-raised
+   (sombre). On inverse : le conteneur prend la surface basse (raised) et les
+   trois champs (ancien / nouveau / confirmation) prennent la surface haute
+   (card), la même que le fond visible du modal lorsque le menu est fermé.
+   Résultat : les inputs ressortent en clair sur un cadre plus sombre.
+   Override scopé à `.nc-pw-modal` → les autres `.nc-input` du repo ne bougent pas. */
+.dark .nc-pw-modal {
+  background: var(--color-surface-raised);
+}
+.dark .nc-pw-modal .nc-input {
+  background: var(--color-surface-card);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   CTA Google (section sécurité) — révélation au swap connecté ↔ déconnecté.
+   Les deux états sont mutuellement exclusifs (un seul monté à la fois) : on
+   joue donc le motion de transitions-dev 07-panel-reveal (translateY +
+   opacity + cross-blur 2px) en animation d'ENTRÉE, rejouée via `key` React à
+   chaque changement d'état. Quand l'utilisateur dissocie Google, le bouton
+   « Connecter avec Google » réapparaît avec ce reveal.
+   ────────────────────────────────────────────────────────────── */
+@keyframes nc-cta-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+.nc-cta-reveal {
+  animation: nc-cta-reveal var(--nc-duration-normal) var(--nc-ease) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-cta-reveal {
+    animation: none;
+  }
 }
 
 /* ──────────────────────────────────────────────────────────────

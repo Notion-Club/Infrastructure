@@ -239,7 +239,7 @@ export async function updatePasswordWithReauthAction(
 // ============================================================================
 // updateProfileAction — édition du profile depuis /settings
 // ============================================================================
-// Champs édités : display_name, first_name, last_name, phone, notion_email.
+// Champs édités : display_name, first_name, last_name, phone.
 // L'email auth (login) est géré séparément via updateAccountEmailAction.
 //
 // Sécurité :
