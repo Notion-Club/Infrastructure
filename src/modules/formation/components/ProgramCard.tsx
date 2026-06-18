@@ -22,7 +22,7 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
   return (
     <article
       data-fb-label={`Carte programme « ${program.name} » · Liste des programmes`}
-      className="transition-transform duration-200 hover:-translate-y-0.5"
+      className="nc-card-shimmer transition-transform duration-200 hover:-translate-y-0.5"
       style={{
         background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",

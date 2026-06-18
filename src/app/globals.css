@@ -1449,6 +1449,52 @@ html.dark .nc-lt-scrim {
   background: var(--color-surface-card);
 }
 
+/* OPS-79 — shimmer doux qui glisse sur les contours extérieurs d'une carte
+   tant qu'elle est sélectionnée (survol / focus interne). Bordure conic-gradient
+   animée (réutilise --nc-shine-angle / nc-shine-rotate), masquée pour ne peindre
+   que le périmètre (technique mask-composite : exclude). pointer-events:none →
+   ne gêne ni le clic de la carte ni son CTA. */
+.nc-card-shimmer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  --nc-shine-angle: 0deg;
+  background: conic-gradient(
+    from var(--nc-shine-angle),
+    rgba(224, 98, 90, 0) 0%,
+    rgba(224, 98, 90, 0) 62%,
+    rgba(224, 98, 90, 0.85) 80%,
+    rgba(224, 98, 90, 0) 98%,
+    rgba(224, 98, 90, 0) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 280ms var(--nc-ease);
+  pointer-events: none;
+  z-index: 3;
+}
+.nc-card-shimmer:hover::before,
+.nc-card-shimmer:focus-within::before {
+  opacity: 1;
+  animation: nc-shine-rotate 2.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nc-card-shimmer:hover::before,
+  .nc-card-shimmer:focus-within::before {
+    animation: none;
+  }
+}
+
 /* Apparition douce (croix de fermeture, etc.) */
 .nc-fade-in {
   animation: nc-pop-overlay-in 260ms var(--nc-ease) both;
