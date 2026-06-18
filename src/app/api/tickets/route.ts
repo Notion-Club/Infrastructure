@@ -2,11 +2,16 @@
 // Variables d'env : NOTION_API_TOKEN (token de l'intégration NotionClub).
 // NOTION_DATABASE_ID en override optionnel — sinon fallback sur la base roadmap.
 import { NextRequest, NextResponse } from "next/server";
+import { isRequestAdmin } from "@/shared/lib/auth/requireAdmin";
 
 const CORS = { "Content-Type": "application/json" };
 
 // Base "ticket roadmap" jointe par l'administrateur.
 const FEEDBACK_DATABASE_ID = "c4209ec9-5e2b-4968-88c8-43e6c4672eda";
+
+// UUID v4 Notion (avec ou sans tirets).
+const UUID_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+const stripDashes = (s: string) => s.replace(/-/g, "").toLowerCase();
 
 interface NotionRichText {
   text: { content: string };
@@ -33,6 +38,12 @@ function str(arr?: NotionRichText[]): string {
 }
 
 export async function GET() {
+  // Garde admin : cette route expose le backlog interne (URLs, user-agents,
+  // contenus) — réservée aux administrateurs.
+  if (!(await isRequestAdmin())) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 403, headers: CORS });
+  }
+
   const token = process.env.NOTION_API_TOKEN;
   const dbId  = process.env.NOTION_DATABASE_ID ?? FEEDBACK_DATABASE_ID;
 
@@ -97,19 +108,49 @@ export async function GET() {
 }
 
 export async function DELETE(request: NextRequest) {
+  // Garde admin : archivage destructif via le token Notion privilégié — réservé
+  // aux administrateurs (sinon, suppression publique de n'importe quelle page).
+  if (!(await isRequestAdmin())) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 403, headers: CORS });
+  }
+
   const { searchParams } = new URL(request.url);
   const pageId = searchParams.get("id");
 
   if (!pageId) {
     return NextResponse.json({ error: "ID manquant" }, { status: 400, headers: CORS });
   }
+  // Valider le format UUID pour éviter toute injection dans l'URL Notion.
+  if (!UUID_RE.test(pageId)) {
+    return NextResponse.json({ error: "ID invalide" }, { status: 400, headers: CORS });
+  }
 
   const token = process.env.NOTION_API_TOKEN;
+  const dbId  = process.env.NOTION_DATABASE_ID ?? FEEDBACK_DATABASE_ID;
   if (!token) {
     return NextResponse.json({ error: "Configuration manquante (NOTION_API_TOKEN)" }, { status: 500, headers: CORS });
   }
 
   try {
+    // Défense en profondeur : vérifier que la page appartient bien à la base
+    // feedback/roadmap AVANT d'archiver — interdit d'archiver une page Membre,
+    // Paiement, Cours… via cette route même pour un admin.
+    const pageRes = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+      headers: { Authorization: `Bearer ${token}`, "Notion-Version": "2022-06-28" },
+      cache: "no-store",
+    });
+    if (!pageRes.ok) {
+      return NextResponse.json({ error: "Page introuvable" }, { status: 404, headers: CORS });
+    }
+    const page = await pageRes.json().catch(() => null);
+    const parentDb: string | undefined = page?.parent?.database_id;
+    if (!parentDb || stripDashes(parentDb) !== stripDashes(dbId)) {
+      return NextResponse.json(
+        { error: "Cette page n'appartient pas à la base de tickets." },
+        { status: 403, headers: CORS },
+      );
+    }
+
     const res = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
       method: "PATCH",
       headers: {

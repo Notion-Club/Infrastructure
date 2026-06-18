@@ -4,6 +4,7 @@
 // Variables d'env requises : NOTION_API_TOKEN.
 // NOTION_DATABASE_ID en override optionnel — sinon fallback sur la base roadmap.
 import { NextResponse } from "next/server";
+import { isRequestAdmin } from "@/shared/lib/auth/requireAdmin";
 
 const CORS = { "Content-Type": "application/json" };
 
@@ -30,6 +31,11 @@ interface NotionDatabaseSchema {
 export const revalidate = 60; // schéma stable, on garde une copie 60s
 
 export async function GET() {
+  // Garde admin : expose le schéma de la base Notion roadmap (réservé admin).
+  if (!(await isRequestAdmin())) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 403, headers: CORS });
+  }
+
   const token = process.env.NOTION_API_TOKEN;
   const dbId = process.env.NOTION_DATABASE_ID ?? FEEDBACK_DATABASE_ID;
 

@@ -2,16 +2,12 @@
 // Variables d'env requises : NOTION_API_TOKEN (token de l'intégration NotionClub).
 // NOTION_DATABASE_ID en override optionnel — sinon fallback sur la base roadmap.
 import { NextRequest, NextResponse } from "next/server";
+import { isRequestAdmin } from "@/shared/lib/auth/requireAdmin";
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: CORS });
-}
+// Plus de CORS cross-origin : le widget de feedback est same-origin. Autoriser
+// `Access-Control-Allow-Origin: *` permettait à n'importe quel site tiers de
+// forger des soumissions (spam Notion) depuis le navigateur d'un visiteur.
+const CORS = { "Content-Type": "application/json" };
 
 interface FeedbackItem {
   element: string;
@@ -88,6 +84,12 @@ function buildPageBody(fb: FeedbackItem) {
 
 export async function POST(request: NextRequest) {
   const headers = { ...CORS, "Content-Type": "application/json" };
+
+  // Garde admin : seul un administrateur authentifié peut écrire dans la base
+  // Notion roadmap (le widget de feedback n'est monté que pour les admins).
+  if (!(await isRequestAdmin())) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 403, headers });
+  }
 
   let body: { sessionId?: string; feedbacks?: FeedbackItem[] };
   try {
