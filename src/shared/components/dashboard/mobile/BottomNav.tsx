@@ -27,6 +27,23 @@ export function BottomNav() {
   const pillRef        = useRef<HTMLDivElement>(null);
   const lastClickedRef = useRef<number>(-1);
 
+  // pathname courant exposé via ref : permet aux listeners resize /
+  // orientationchange (montés une seule fois) de recalculer l'index actif
+  // sans recréer l'effet — donc sans re-planifier de snap à chaque navigation.
+  // La ref est tenue à jour dans le useLayoutEffect ci-dessous (jamais pendant
+  // le render — interdit par react-hooks/refs).
+  const pathnameRef = useRef(pathname);
+
+  const activeIdx = useCallback(
+    () =>
+      NAV_ITEMS.findIndex(
+        ({ href }) =>
+          pathnameRef.current === href ||
+          pathnameRef.current.startsWith(href + "/"),
+      ),
+    [],
+  );
+
   // Pattern du snippet Transitions.dev — animate=false : snap (reflow trick),
   // animate=true : glissement via la CSS transition de .nc-nav-pill.
   const moveTo = useCallback((idx: number, animate: boolean) => {
@@ -55,33 +72,32 @@ export function BottomNav() {
   // Si l'utilisateur vient de cliquer sur cet item, l'animation CSS est déjà
   // en cours — on ne snappe pas pour ne pas l'interrompre.
   useLayoutEffect(() => {
-    const idx = NAV_ITEMS.findIndex(
-      ({ href }) => pathname === href || pathname.startsWith(href + "/"),
-    );
+    pathnameRef.current = pathname;
+    const idx = activeIdx();
     if (lastClickedRef.current === idx) {
       lastClickedRef.current = -1;
       return;
     }
     lastClickedRef.current = -1;
     moveTo(idx, false);
-  }, [pathname, moveTo]);
+  }, [pathname, moveTo, activeIdx]);
 
-  // Premier chargement : la pill est mesurée une seule fois (layout-effect
-  // ci-dessus), mais les largeurs des items bougent ENCORE après ce premier
-  // paint — la police SF Pro Display est en `display: swap` (cf. fonts.ts),
-  // elle remplace le fallback système une fois téléchargée, et la safe-area
-  // iOS ne se résout qu'après la première frame en PWA standalone. Sans
-  // re-mesure, la pill garde des `offsetLeft/offsetWidth` périmés → elle
-  // « saute » / se désaligne au 1ᵉʳ chargement. On re-snappe (sans animation)
-  // sur ces évènements. Aucun impact sur l'animation de clic : ces snaps ne
-  // se déclenchent qu'au montage / changement de layout, pas pendant un clic.
+  // Re-mesure de la pill APRÈS le 1ᵉʳ paint : les largeurs des items bougent
+  // encore une fois le premier rendu commité — la police SF Pro Display est en
+  // `display: swap` (cf. fonts.ts), elle remplace le fallback système une fois
+  // téléchargée, et la safe-area iOS ne se résout qu'après la première frame en
+  // PWA standalone. Sans re-mesure, la pill garde des `offsetLeft/offsetWidth`
+  // périmés → elle « saute » / se désaligne au 1ᵉʳ chargement.
+  //
+  // ⚠️ Cet effet est volontairement MONTÉ UNE SEULE FOIS (deps sans `pathname`).
+  // S'il se ré-exécutait à chaque navigation, le `requestAnimationFrame(snap)`
+  // ci-dessous ferait un `moveTo(false)` ~1 frame après un clic — ce qui coupe
+  // la transition CSS en cours et fait SAUTER la bulle au lieu de la faire
+  // glisser. Les navigations sont déjà gérées par le `useLayoutEffect` plus
+  // haut (qui respecte le garde `lastClickedRef`). Les listeners resize /
+  // orientationchange relisent le pathname courant via `activeIdx()` (ref).
   useEffect(() => {
-    const snap = () => {
-      const idx = NAV_ITEMS.findIndex(
-        ({ href }) => pathname === href || pathname.startsWith(href + "/"),
-      );
-      moveTo(idx, false);
-    };
+    const snap = () => moveTo(activeIdx(), false);
     const raf = requestAnimationFrame(snap);
     window.addEventListener("resize", snap);
     window.addEventListener("orientationchange", snap);
@@ -97,7 +113,7 @@ export function BottomNav() {
       window.removeEventListener("resize", snap);
       window.removeEventListener("orientationchange", snap);
     };
-  }, [pathname, moveTo]);
+  }, [moveTo, activeIdx]);
 
   return (
     <nav
