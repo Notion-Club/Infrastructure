@@ -384,7 +384,7 @@ function NotificationsMatrix({
         <div
           key={cat.key}
           role="row"
-          className="nc-notif-grid"
+          className="nc-notif-grid nc-notif-row"
           style={{
             ...baseGrid,
             borderBottom:
