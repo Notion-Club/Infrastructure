@@ -393,6 +393,64 @@ html {
   }
 }
 
+/* ── Skeleton de l'éditeur de profil ──────────────────────────────
+   Brique grise pulsante, gabarit identique au formulaire (cf.
+   ProfileEditorSkeleton) → le sheet s'ouvre à sa taille finale, plus de
+   « saut » entre l'état de chargement et le contenu.
+   Cross-fade repris du skill transitions-dev (14-skeleton-reveal). */
+.nc-skeleton {
+  background: var(--color-border-default);
+  animation: nc-skeleton-pulse 1.4s var(--nc-ease) infinite;
+}
+@keyframes nc-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.nc-profile-skelwrap {
+  position: relative;
+}
+.nc-profile-skel,
+.nc-profile-content {
+  transition:
+    opacity var(--nc-duration-slow) ease-in-out,
+    filter var(--nc-duration-slow) ease-in-out;
+}
+/* Tant qu'il n'y a pas de contenu monté, le skeleton reste en flux normal et
+   définit la hauteur. Dès que le contenu est là, le skeleton passe en overlay
+   absolu pour le cross-fade (le contenu prend le relais sur la hauteur). */
+.nc-profile-skelwrap[data-has-content="true"] .nc-profile-skel {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.nc-profile-content {
+  opacity: 0;
+  filter: blur(2px);
+}
+.nc-profile-skelwrap[data-revealed="true"] .nc-profile-skel {
+  opacity: 0;
+  filter: blur(2px);
+}
+.nc-profile-skelwrap[data-revealed="true"] .nc-profile-content {
+  opacity: 1;
+  filter: blur(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-skeleton {
+    animation: none !important;
+  }
+  .nc-profile-skel,
+  .nc-profile-content {
+    transition: none !important;
+  }
+}
+
 /* ── Desktop : modale centrée (scale + fade) ── */
 @media (min-width: 768px) {
   .nc-profile-panel {
