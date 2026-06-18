@@ -214,7 +214,7 @@ export function CommunityPage({
 
       {/* Global container card */}
       <div
-        className="md:flex md:flex-col md:flex-1 md:min-h-0"
+        className="flex flex-col flex-1 min-h-0"
         data-fb-label="Encadré principal · Communauté"
         style={{
           background: "var(--color-surface-raised)",
@@ -226,7 +226,7 @@ export function CommunityPage({
       >
         {/* iOS-style pill switcher — full width, sticky header */}
         <div
-          className="md:shrink-0"
+          className="shrink-0"
           data-fb-label="Switcher feed/messages · Communauté"
           style={{
             padding: "12px 16px",
@@ -336,7 +336,7 @@ export function CommunityPage({
         {activeTab === "feed" ? (
           <>
             {/* Tag filters + new post — sticky header */}
-            <div className="md:shrink-0" style={{ padding: "16px 16px 12px" }}>
+            <div className="shrink-0" style={{ padding: "16px 16px 12px" }}>
               <FeedTagFilters
                 active={activeTag}
                 onChange={setActiveTag}
@@ -348,7 +348,7 @@ export function CommunityPage({
             {/* Post list — the only vertically scrollable zone */}
             <div
               ref={scrollRef}
-              className="md:flex-1 md:min-h-0 md:overflow-y-auto"
+              className="flex-1 min-h-0 overflow-y-auto"
               data-fb-label="Liste · Feed"
               style={{ padding: "0 16px 16px" }}
             >
@@ -366,7 +366,7 @@ export function CommunityPage({
             </div>
           </>
         ) : (
-          <div className="md:flex-1 md:min-h-0 md:overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-hidden">
             <MessagesLayout
               currentUser={currentUser}
               devRole={role}

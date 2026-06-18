@@ -9,6 +9,7 @@ import {
 import FeedbackWidgetLoader from "@/shared/components/feedback-widget/FeedbackWidgetLoader";
 import { Topbar } from "@/shared/components/dashboard/Topbar";
 import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
+import { MobileBrandLogo } from "@/shared/components/dashboard/mobile/MobileBrandLogo";
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { DevToolboxProvider } from "@/shared/components/dev/DevToolbox";
 import { AdminPushRegistrar } from "@/shared/components/dev/admin-push/AdminPushRegistrar";
@@ -82,8 +83,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <AdminPushRegistrar />
           <Topbar />
           <div className="md:hidden">
+            {/* Zones de flou permanentes (toutes les pages connectées) :
+                frosted en haut (status bar iOS) + fondu en bas (sous la
+                BottomNav). Décoratives, pointer-events:none → ne capturent
+                jamais le tap. Toute nouvelle page hérite de l'effet. */}
+            <div className="nc-mobile-top-fade" aria-hidden />
+            <MobileBrandLogo />
             <MobileTopActions />
             <BottomNav />
+            <div className="nc-mobile-bottom-fade" aria-hidden />
           </div>
           {children}
           <FeedbackWidgetLoader />

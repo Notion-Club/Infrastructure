@@ -308,11 +308,10 @@ export function CallDetailModal({
       >
         <div
           data-fb-label="Fenêtre détail · Modale détail"
-          className={`t-modal ${stateClass}`}
+          className={`t-modal nc-call-modal ${stateClass}`}
           style={{
             width: "100%",
             maxWidth: 820,
-            maxHeight: "88vh",
             background: "var(--color-surface-card)",
             borderRadius: 12,
             boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
