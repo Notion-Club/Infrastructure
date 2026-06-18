@@ -1408,11 +1408,12 @@ html {
   }
 }
 
-/* Lignes du tableau de notifications — en dark, chaque ligne a un fond
-   distinct du fond de l'encadré (#3D3A39) pour mieux ressortir. Light mode
-   inchangé (lignes transparentes sur la carte). */
+/* Lignes du tableau de notifications — en dark, on recule légèrement les
+   lignes sur la surface basse (raised, plus sombre que la carte) pour un
+   contraste discret et propre, plutôt qu'un gris clair qui paraissait cassé.
+   Light mode inchangé (lignes transparentes sur la carte). */
 .dark .nc-notif-row {
-  background: #3d3a39;
+  background: var(--color-surface-raised);
 }
 
 /* ──────────────────────────────────────────────────────────────

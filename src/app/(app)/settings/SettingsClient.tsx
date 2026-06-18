@@ -9,6 +9,10 @@ import { SecuritySection } from "@/shared/components/settings/SecuritySection";
 import { NotificationsSection } from "@/shared/components/settings/NotificationsSection";
 import { BillingSection } from "@/shared/components/settings/BillingSection";
 import { DangerZone } from "@/shared/components/settings/DangerZone";
+import {
+  SettingsCard,
+  SettingsDivider,
+} from "@/shared/components/settings/SettingsCard";
 import type {
   AuthIdentity,
   AuthUserShape,
@@ -147,12 +151,22 @@ export function SettingsClient({
                     Mode démo — connectez-vous pour enregistrer vos modifications.
                   </div>
                 )}
-                <AccountSection
-                  profile={state.profile}
-                  accountEmail={state.user.email}
-                  isMocked={state.isMocked}
-                />
-                <SecuritySection user={state.user} isMocked={state.isMocked} />
+                {/* « Mes informations » et « Sécurité » fusionnés dans un seul
+                    encadré, séparés par un filet, via le mode `embedded`. */}
+                <SettingsCard fbLabel="Compte & sécurité · Réglages">
+                  <AccountSection
+                    profile={state.profile}
+                    accountEmail={state.user.email}
+                    isMocked={state.isMocked}
+                    embedded
+                  />
+                  <SettingsDivider />
+                  <SecuritySection
+                    user={state.user}
+                    isMocked={state.isMocked}
+                    embedded
+                  />
+                </SettingsCard>
                 <BillingSection
                   profile={state.profile}
                   company={state.company}

@@ -23,6 +23,7 @@ import type { AuthIdentity, AuthUserShape } from "./types";
 type SecuritySectionProps = {
   user: AuthUserShape;
   isMocked: boolean;
+  embedded?: boolean;
 };
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -31,7 +32,11 @@ const MIN_PASSWORD_LENGTH = 8;
 const NOTION_LOGO_SRC =
   "https://res.cloudinary.com/dceobxyts/image/upload/v1776790487/Logo_Notion_fgou5g.png";
 
-export function SecuritySection({ user, isMocked }: SecuritySectionProps) {
+export function SecuritySection({
+  user,
+  isMocked,
+  embedded = false,
+}: SecuritySectionProps) {
   const { emailIdentity, googleIdentity } = useMemo(() => {
     const list = user.identities ?? [];
     return {
@@ -46,6 +51,7 @@ export function SecuritySection({ user, isMocked }: SecuritySectionProps) {
       icon="/icons-notion/key-antique_lightgray.svg"
       description="Gère tes méthodes de connexion au Notion Club"
       fbLabel="Section sécurité · Réglages"
+      embedded={embedded}
     >
       {emailIdentity && (
         <>
