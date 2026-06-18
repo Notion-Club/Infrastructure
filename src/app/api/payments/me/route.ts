@@ -59,6 +59,19 @@ interface NotionDateProp {
   date: { start: string | null } | null;
 }
 
+// Propriété « Facture » : soit un champ Files (PDF uploadé / lien externe),
+// soit un champ URL. On lit les deux formes de façon permissive.
+interface NotionFilesProp {
+  files?: Array<{
+    file?: { url?: string };
+    external?: { url?: string };
+    name?: string;
+  }>;
+}
+interface NotionUrlProp {
+  url: string | null;
+}
+
 interface PaymentPage {
   id: string;
   url?: string;
@@ -70,7 +83,16 @@ interface PaymentPage {
     "Date de Paiement"?: NotionDateProp;
     Source?: NotionSelectProp;
     Statut?: NotionSelectProp;
+    Facture?: NotionFilesProp & NotionUrlProp;
   };
+}
+
+// Extrait l'URL de la facture depuis la propriété Notion « Facture »
+// (Files → file.url / external.url, sinon URL).
+function readInvoiceUrl(prop?: NotionFilesProp & NotionUrlProp): string | null {
+  if (!prop) return null;
+  const f = prop.files?.[0];
+  return f?.file?.url ?? f?.external?.url ?? prop.url ?? null;
 }
 
 function readTitle(prop?: NotionTitleProp): string {
@@ -185,6 +207,9 @@ export async function GET() {
         source: p.properties.Source?.select?.name ?? null,
         status: statutRaw,
         statusCategory: mapStatut(statutRaw),
+        // URL de la facture (propriété Notion « Facture ») — ouverte dans un
+        // nouvel onglet via le bouton download du tableau.
+        invoiceUrl: readInvoiceUrl(p.properties.Facture),
       };
     });
 

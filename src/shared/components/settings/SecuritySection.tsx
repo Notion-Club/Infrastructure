@@ -17,7 +17,7 @@ import {
   updatePasswordWithReauthAction,
   linkGoogleIdentityAction,
 } from "@/modules/settings";
-import { SettingsCard, SettingsDivider } from "./SettingsCard";
+import { SettingsCard } from "./SettingsCard";
 import type { AuthIdentity, AuthUserShape } from "./types";
 
 type SecuritySectionProps = {
@@ -49,12 +49,7 @@ export function SecuritySection({
       fbLabel="Section sécurité · Réglages"
       embedded={embedded}
     >
-      {emailIdentity && (
-        <>
-          <PasswordChangeBlock isMocked={isMocked} />
-          <SettingsDivider />
-        </>
-      )}
+      {emailIdentity && <PasswordChangeBlock isMocked={isMocked} />}
       <GoogleIdentityBlock
         googleIdentity={googleIdentity}
         hasOtherIdentity={Boolean(emailIdentity)}

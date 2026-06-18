@@ -201,9 +201,9 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
 
   return (
     <SettingsCard
-      title="Informations de facturation"
+      title="Facturation"
       icon="/icons-notion/receipt_lightgray.svg"
-      description="Ce sont ces informations qu'on utilise pour émettre tes factures"
+      description="Édite tes informations et télécharge tes factures"
       fbLabel="Section facturation · Réglages"
     >
       <form
@@ -529,6 +529,8 @@ function BillingCheckbox({
     >
       <span
         aria-hidden
+        className="nc-billing-check"
+        data-checked={checked ? "true" : "false"}
         style={{
           width: 18,
           height: 18,
@@ -536,7 +538,6 @@ function BillingCheckbox({
           border: checked
             ? "1.5px solid var(--color-brand)"
             : "1.5px solid var(--color-border-default)",
-          background: checked ? "var(--color-brand)" : "var(--color-surface-card)",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
