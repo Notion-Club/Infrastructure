@@ -2439,3 +2439,86 @@ html.dark .nc-lt-scrim {
     margin-left: auto;
   }
 }
+
+/* ===========================================================================
+   Chrome mobile global (toutes les pages connectées) — cf. (app)/layout.tsx
+   1) Logo Notion Club fixe en haut à gauche (pendant des trois cercles).
+   2) Zones de flou permanentes : frosted en haut (status bar iOS) + fondu en
+      bas (sous la BottomNav). Décoratives → pointer-events:none.
+   =========================================================================== */
+
+/* Logo mobile : aligné verticalement sur les cercles 38px de MobileTopActions
+   (même offset top, mêmes safe-areas). z-index 41 = au-dessus du frosted (39)
+   et au niveau des cercles (40). */
+.nc-mobile-logo {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: 16px;
+  z-index: 41;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  /* Couche GPU dédiée → la position fixed ne tremble pas pendant le scroll
+     iOS (même garde que MobileTopActions). */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+@media (max-width: 767px) {
+  /* Frosted haut : floute la zone de statut (heure / batterie) et ancre
+     visuellement le logo + les trois cercles. Le flou s'estompe vers le bas
+     via un masque pour ne pas couper net le contenu qui défile dessous. */
+  .nc-mobile-top-fade {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(env(safe-area-inset-top, 0px) + 64px);
+    z-index: 39;
+    pointer-events: none;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: linear-gradient(
+      to bottom,
+      var(--color-surface-page) 0,
+      color-mix(in srgb, var(--color-surface-page) 55%, transparent) 60%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0, #000 55%, transparent 100%);
+  }
+
+  /* Fondu bas : le contenu se dissout sous la BottomNav (z-50). z-index 44 =
+     sous la nav (50) et sous le FAB feed (45), au-dessus du contenu. */
+  .nc-mobile-bottom-fade {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(env(safe-area-inset-bottom, 0px) + 96px);
+    z-index: 44;
+    pointer-events: none;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background: linear-gradient(
+      to top,
+      var(--color-surface-page) 0,
+      color-mix(in srgb, var(--color-surface-page) 55%, transparent) 55%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(to top, #000 0, #000 50%, transparent 100%);
+    mask-image: linear-gradient(to top, #000 0, #000 50%, transparent 100%);
+  }
+}
+
+/* Modale détail d'appel coaching (plan d'action + transcription). Sur mobile,
+   on raccourcit légèrement la fenêtre (88vh → 82dvh) pour qu'elle respire
+   au-dessus de la BottomNav ; le contenu scrolle déjà en interne. */
+.nc-call-modal {
+  max-height: 88vh;
+}
+@media (max-width: 767px) {
+  .nc-call-modal {
+    max-height: 82dvh;
+  }
+}
