@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useTransition } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useTransition } from "react";
 import { ArrowLeft, Loader2, Search } from "lucide-react";
 import type { Conversation, Message } from "../../types/conversation.types";
 import type { User } from "../../types/user.types";
@@ -74,27 +74,68 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
     currentUser.id,
   );
 
-  // Reset complet quand on change de conv ou que les messages DB sont
-  // rechargés via router.refresh().
-  useEffect(() => {
-    setOptimisticMessages([]);
-    setReplyContext(null);
-    setOlderMessages([]);
-    setHasMore(conversation.hasMore ?? false);
-    setSearchOpen(false);
-    setHighlightedId(null);
-    setLockedMessageId(null);
-  }, [conversation.id, conversation.messages, conversation.hasMore]);
+  // Pas de reset effect : ConversationThread est monté avec key={conv.id} par
+  // MessagesLayout → changer de conversation REMONTE le composant, ce qui
+  // réinitialise naturellement tout l'état local (optimistic, olderMessages,
+  // recherche, reply, highlight). Avantages : pas de setState-in-effect (règle
+  // du repo), et un re-fetch de la conv courante (envoi, realtime) ne vide PLUS
+  // l'historique paginé ni la recherche (le composant n'est pas remonté tant
+  // que conv.id ne change pas). Les messages serveur à jour sont pris via le
+  // merge dédupliqué ci-dessous.
 
-  const messages = [...olderMessages, ...conversation.messages, ...optimisticMessages];
+  // Merge older (pagination) + serveur + optimistic, DÉDUPLIQUÉ PAR ID. La
+  // dédup est essentielle : un re-fetch serveur ou un event realtime peut
+  // ramener un message déjà présent en optimistic → sans dédup, double bulle.
+  const messages = useMemo<Message[]>(() => {
+    const seen = new Set<string>();
+    const out: Message[] = [];
+    for (const m of [...olderMessages, ...conversation.messages, ...optimisticMessages]) {
+      if (seen.has(m.id)) continue;
+      seen.add(m.id);
+      out.push(m);
+    }
+    return out;
+  }, [olderMessages, conversation.messages, optimisticMessages]);
 
-  // Auto-scroll bottom UNIQUEMENT pour les nouveaux messages (en bas) ou
-  // quand le typing indicator apparaît, pas pour les messages chargés par
-  // pagination (en haut). On garde un compteur dédié `newestCount` pour
-  // distinguer les deux cas.
+  // Saut INSTANTANÉ tout en bas à l'OUVERTURE d'une conversation (changement
+  // d'id). useLayoutEffect + double rAF : on attend que les bulles soient
+  // peintes avant de mesurer scrollHeight (sinon on s'ancre trop haut). Pas de
+  // 'smooth' ici : il est interruptible par les reflows (images, re-renders)
+  // → c'est exactement ce qui ancrait au milieu de la conversation.
+  const openJumpRafRef = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const jump = () => {
+      const c = scrollRef.current;
+      if (c) c.scrollTop = c.scrollHeight;
+    };
+    const id1 = requestAnimationFrame(() => {
+      openJumpRafRef.current = requestAnimationFrame(jump);
+    });
+    openJumpRafRef.current = id1;
+    return () => {
+      if (openJumpRafRef.current) cancelAnimationFrame(openJumpRafRef.current);
+    };
+  }, [conversation.id]);
+
+  // Auto-scroll SMOOTH pour un NOUVEAU message en bas (ou l'apparition du
+  // typing indicator), UNIQUEMENT si l'utilisateur est déjà proche du bas —
+  // sinon on n'arrache pas quelqu'un qui lit l'historique vers le bas.
+  // Le composant étant remonté par key={conv.id}, prevNewestRef démarre à la
+  // valeur du 1er render : pas de smooth parasite par-dessus le jump instantané
+  // d'ouverture (increased=false au mount).
   const newestCount = conversation.messages.length + optimisticMessages.length;
+  const prevNewestRef = useRef(newestCount);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollRef.current;
+    if (el) {
+      const increased = newestCount > prevNewestRef.current;
+      const nearBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+      if ((increased || otherIsTyping) && nearBottom) {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+    prevNewestRef.current = newestCount;
   }, [newestCount, otherIsTyping]);
 
   async function handleLoadOlder() {

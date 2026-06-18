@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
-import { CommunityShell } from "../CommunityShell";
 
 export const metadata: Metadata = {
   title: "Messages — Communauté — Notion Club",
 };
 
-// /communaute/messages — onglet messages (liste des conversations, aucune
-// conversation ouverte).
+// Marqueur de route. Le rendu (messages) vit dans communaute/layout.tsx.
 export default function CommunauteMessagesPage() {
-  return <CommunityShell tab="messages" />;
+  return null;
 }

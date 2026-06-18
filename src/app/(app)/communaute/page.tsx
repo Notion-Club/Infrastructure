@@ -1,8 +1,10 @@
-import { redirect } from "next/navigation";
-
-// /communaute n'affiche rien en propre : on redirige vers l'onglet feed pour
-// que l'URL soit toujours explicite (/communaute/feed). Les anciens liens
-// /communaute continuent donc de fonctionner.
+// Marqueur de route pour /communaute (sans sous-segment). Le rendu vit dans
+// communaute/layout.tsx ; sans sous-segment, CommunityPage affiche le feed par
+// défaut (usePathname() ne matche pas /messages). On ne redirige PLUS vers
+// /communaute/feed : un redirect serveur ajoutait un hop (307) + un flash de
+// loading.tsx à chaque entrée. /communaute affiche donc directement le feed,
+// et le switcher/les liens explicites (/communaute/feed, /communaute/messages)
+// restent disponibles.
 export default function CommunautePage() {
-  redirect("/communaute/feed");
+  return null;
 }
