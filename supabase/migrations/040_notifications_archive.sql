@@ -1,4 +1,6 @@
--- Migration 039 — Brique Community — archivage des notifications in-app
+-- Migration 040 — Brique Community — archivage des notifications in-app
+-- (renumérotée 039 → 040 : 039 est déjà pris par 039_messages_realtime.sql,
+--  collision de version refusée par le runner Supabase)
 --
 -- Date    : 2026-06-18
 -- Auteur  : Notion Club Infra
