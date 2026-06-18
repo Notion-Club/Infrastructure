@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LoaderCircle } from "lucide-react";
+import { SettingsSkeleton } from "@/shared/components/settings/SettingsSkeleton";
 
 import { ProfileRecapCard } from "@/shared/components/settings/ProfileRecapCard";
 import { AccountSection } from "@/shared/components/settings/AccountSection";
@@ -123,17 +123,7 @@ export function SettingsClient({
             className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-12"
           >
             {state.status === "loading" ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "80px 0",
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                <LoaderCircle size={20} className="animate-spin" />
-              </div>
+              <SettingsSkeleton />
             ) : (
               <ContentEnter
                 style={{ display: "flex", flexDirection: "column", gap: 20 }}
