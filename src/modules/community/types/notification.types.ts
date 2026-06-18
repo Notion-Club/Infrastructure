@@ -21,5 +21,7 @@ export interface Notification {
   postId?: string;
   conversationId?: string;
   read: boolean;
+  /** true si le destinataire a archivé la notif (masquée du feed). */
+  archived: boolean;
   createdAt: string;
 }

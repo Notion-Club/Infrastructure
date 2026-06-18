@@ -7,6 +7,7 @@ import {
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  archiveNotification,
 } from "../server/notifications";
 import type { Notification } from "../types/notification.types";
 
@@ -36,6 +37,7 @@ export interface UseNotificationsResult {
   loading: boolean;
   markAsRead: (id: string) => void;
   markAllRead: () => void;
+  archive: (id: string) => void;
 }
 
 export function useNotifications(): UseNotificationsResult {
@@ -138,5 +140,13 @@ export function useNotifications(): UseNotificationsResult {
     void markAllNotificationsAsRead();
   }, []);
 
-  return { notifications, unreadCount, loading, markAsRead, markAllRead };
+  // Archivage : la notif sort du feed (tous onglets). Optimistic — on la retire
+  // immédiatement du state local, puis on persiste. Le re-fetch Realtime
+  // déclenché par l'UPDATE confirmera (la query exclut déjà les archivées).
+  const archive = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    void archiveNotification(id);
+  }, []);
+
+  return { notifications, unreadCount, loading, markAsRead, markAllRead, archive };
 }
