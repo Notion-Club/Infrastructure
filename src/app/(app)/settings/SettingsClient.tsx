@@ -8,7 +8,6 @@ import { AccountSection } from "@/shared/components/settings/AccountSection";
 import { SecuritySection } from "@/shared/components/settings/SecuritySection";
 import { SubscriptionSection } from "@/shared/components/settings/SubscriptionSection";
 import { NotificationsSection } from "@/shared/components/settings/NotificationsSection";
-import { AppearanceSection } from "@/shared/components/settings/AppearanceSection";
 import { DangerZone } from "@/shared/components/settings/DangerZone";
 import type {
   AuthIdentity,
@@ -153,13 +152,10 @@ export function SettingsClient({
                   isMocked={state.isMocked}
                   initialSettings={initialNotificationSettings ?? null}
                 />
-                <div
-                  className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start"
-                  style={{ width: "100%" }}
-                >
-                  <AppearanceSection />
-                  <DangerZone isMocked={state.isMocked} />
-                </div>
+                {/* #81 — La section « Apparence » a été retirée des réglages :
+                    le thème se règle désormais uniquement depuis le menu
+                    utilisateur (dropdown Topbar / MobileTopActions). */}
+                <DangerZone isMocked={state.isMocked} />
               </ContentEnter>
             )}
           </div>

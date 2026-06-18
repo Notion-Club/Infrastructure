@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExternalLink, LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 
 import { SettingsCard } from "./SettingsCard";
 
@@ -13,7 +13,6 @@ import { SettingsCard } from "./SettingsCard";
 // matching, certains paiements anciens ne l'ont pas en base.
 type Payment = {
   notionId: string;
-  notionUrl: string | null;
   label: string;
   amount: number | null;
   amountHt?: number | null;
@@ -140,6 +139,10 @@ export function SubscriptionSection() {
     };
   }, []);
 
+  // #85 — quand il n'y a aucun paiement, l'encadré passe en pointillés (état
+  // vide) ; dès qu'il y a au moins une ligne, il garde sa bordure pleine.
+  const isEmpty = !loading && !error && !!payments && payments.length === 0;
+
   return (
     <SettingsCard
       title="Échéances de paiement"
@@ -148,10 +151,10 @@ export function SubscriptionSection() {
     >
       <div
         style={{
-          border: "1px solid var(--color-border-default)",
+          border: `1px ${isEmpty ? "dashed" : "solid"} var(--color-border-default)`,
           borderRadius: 12,
           overflow: "hidden",
-          background: "var(--color-surface-card)",
+          background: isEmpty ? "transparent" : "var(--color-surface-card)",
         }}
       >
         {loading && (
@@ -319,30 +322,8 @@ export function SubscriptionSection() {
                     {formatEur(p.amount)}
                   </p>
 
-                  {/* Lien Notion */}
-                  {p.notionUrl && (
-                    <a
-                      href={p.notionUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Voir le paiement sur Notion"
-                      aria-label="Voir le paiement sur Notion"
-                      data-fb-label="Lien Notion paiement · Section abonnement"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: 28,
-                        height: 28,
-                        borderRadius: 8,
-                        color: "var(--color-text-muted)",
-                        flexShrink: 0,
-                      }}
-                      className="hover:bg-[var(--color-surface-raised)]"
-                    >
-                      <ExternalLink size={13} />
-                    </a>
-                  )}
+                  {/* #132 — aucun lien vers Notion ici : Notion est le back-end
+                      et ne doit jamais apparaître dans l'interface utilisateur. */}
                 </li>
               );
             })}
