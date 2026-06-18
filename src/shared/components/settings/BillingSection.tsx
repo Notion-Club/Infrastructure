@@ -56,7 +56,6 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
     const isCompany = profile.billing_type === "company";
     return {
       isCompany,
-      billingName: profile.billing_name ?? "",
       companyName: company?.name ?? "",
       siret: formatSiret(company?.siret ?? ""),
       vat: company?.vat_number ?? "",
@@ -69,7 +68,6 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
   }, [profile, company]);
 
   const [isCompany, setIsCompany] = useState(initial.isCompany);
-  const [billingName, setBillingName] = useState(initial.billingName);
   const [companyName, setCompanyName] = useState(initial.companyName);
   const [siret, setSiret] = useState(initial.siret);
   const [vat, setVat] = useState(initial.vat);
@@ -113,10 +111,12 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
         vat !== initial.vat
       );
     }
-    return billingName !== initial.billingName;
+    // Le nom de facturation (particulier) est un miroir du profil, non éditable
+    // ici → il ne déclenche pas de changement. Les champs adresse/pays sont
+    // déjà couverts plus haut.
+    return false;
   }, [
     isCompany,
-    billingName,
     companyName,
     siret,
     vat,
@@ -143,7 +143,7 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
       }
       const result = await updateBillingAction({
         billing_type: isCompany ? "company" : "individual",
-        billing_name: isCompany ? null : billingName,
+        billing_name: isCompany ? null : defaultName || null,
         address_line1: line1,
         address_line2: line2,
         postal_code: postalCode,
@@ -225,10 +225,11 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
           <Field
             id="billing-name"
             label="Nom pour la facturation"
-            value={billingName}
-            onChange={setBillingName}
-            placeholder={defaultName || "Prénom Nom"}
-            hint="Laissez vide pour utiliser votre prénom et nom."
+            value={defaultName}
+            onChange={() => {}}
+            readOnly
+            placeholder="Prénom Nom"
+            hint="Synchronisé avec ton prénom et ton nom — modifiable depuis ton profil."
           />
         </Collapse>
 
@@ -322,6 +323,7 @@ function Field({
   hint,
   optional,
   inputMode,
+  readOnly,
 }: {
   id: string;
   label: string;
@@ -333,6 +335,7 @@ function Field({
   hint?: string;
   optional?: boolean;
   inputMode?: "numeric" | "text";
+  readOnly?: boolean;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -357,10 +360,16 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
+        readOnly={readOnly}
         aria-invalid={error ? true : undefined}
         className="nc-input"
         placeholder={placeholder}
-        style={{ borderColor: error ? "var(--color-brand)" : undefined }}
+        style={{
+          borderColor: error ? "var(--color-brand)" : undefined,
+          ...(readOnly
+            ? { color: "var(--color-text-muted)", cursor: "default" }
+            : {}),
+        }}
       />
       {error && (
         <p
