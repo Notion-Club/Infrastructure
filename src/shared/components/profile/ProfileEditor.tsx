@@ -55,6 +55,11 @@ type LoadState =
 export function ProfileEditor({ onClose }: { onClose: () => void }) {
   const { updateIdentity } = useProfileIdentityContext();
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  // Reveal skeleton → contenu (cf. skill transitions-dev 14-skeleton-reveal).
+  // `revealed` déclenche le cross-fade ; `showSkel` garde le skeleton monté le
+  // temps de l'animation avant de le retirer.
+  const [revealed, setRevealed] = useState(false);
+  const [showSkel, setShowSkel] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,6 +121,19 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
+  // Quand les données arrivent : on déclenche le reveal à la frame suivante
+  // (pour que le contenu parte bien de opacity:0/blur), puis on démonte le
+  // skeleton une fois le cross-fade terminé.
+  useEffect(() => {
+    if (state.status !== "ready") return;
+    const raf = requestAnimationFrame(() => setRevealed(true));
+    const timer = setTimeout(() => setShowSkel(false), REVEAL_MS);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
+  }, [state.status]);
+
   return (
     <>
       <EditorHeader onClose={onClose} />
@@ -135,36 +153,140 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
           }}
           className="md:px-8"
         >
-          {state.status === "loading" ? (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "80px 0",
-                color: "var(--color-text-muted)",
-              }}
-            >
-              <LoaderCircle size={20} className="animate-spin" />
-            </div>
-          ) : (
-            <EditorBody
-              profile={state.profile}
-              email={state.email}
-              isMocked={state.isMocked}
-              onProfilePatch={(patch) =>
-                setState((prev) =>
-                  prev.status === "ready"
-                    ? { ...prev, profile: { ...prev.profile, ...patch } }
-                    : prev,
-                )
-              }
-              updateIdentity={updateIdentity}
-            />
-          )}
+          {/* Skeleton (gabarit identique au formulaire) ↔ contenu réel.
+              Tant que le contenu n'est pas monté, le skeleton est en flux
+              normal et fixe la hauteur du sheet → aucun saut à l'arrivée des
+              données. */}
+          <div
+            className="nc-profile-skelwrap"
+            data-has-content={state.status === "ready" ? "true" : "false"}
+            data-revealed={revealed ? "true" : "false"}
+          >
+            {state.status === "ready" && (
+              <div className="nc-profile-content">
+                <EditorBody
+                  profile={state.profile}
+                  email={state.email}
+                  isMocked={state.isMocked}
+                  onProfilePatch={(patch) =>
+                    setState((prev) =>
+                      prev.status === "ready"
+                        ? { ...prev, profile: { ...prev.profile, ...patch } }
+                        : prev,
+                    )
+                  }
+                  updateIdentity={updateIdentity}
+                />
+              </div>
+            )}
+            {showSkel && (
+              <div className="nc-profile-skel">
+                <ProfileEditorSkeleton />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>
+  );
+}
+
+// Durée du cross-fade skeleton → contenu. Synchro avec --nc-duration-slow
+// (.nc-profile-skel / .nc-profile-content dans globals.css).
+const REVEAL_MS = 320;
+
+// ============================================================================
+// ProfileEditorSkeleton — réplique EXACTE du gabarit d'EditorBody (mêmes
+// wrappers, mêmes gaps, mêmes hauteurs de champs). Comme les hauteurs du
+// formulaire sont constantes (indépendantes des données), le sheet s'ouvre
+// directement à sa taille finale, sans le « saut » de l'ancien spinner.
+// ============================================================================
+function SkeletonBar({
+  w = "100%",
+  h,
+  r = 8,
+  style,
+}: {
+  w?: number | string;
+  h: number;
+  r?: number | string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      className="nc-skeleton"
+      style={{ width: w, height: h, borderRadius: r, ...style }}
+    />
+  );
+}
+
+function SkeletonField({ labelW }: { labelW: number }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <SkeletonBar w={labelW} h={13} r={6} />
+      <SkeletonBar h={46} r={12} />
+    </div>
+  );
+}
+
+function ProfileEditorSkeleton() {
+  return (
+    <div
+      aria-hidden
+      style={{ display: "flex", flexDirection: "column", gap: 18 }}
+    >
+      {/* Hero — avatar + pill nom d'affichage. */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          padding: "8px 0 12px",
+        }}
+      >
+        <SkeletonBar w={124} h={124} r="50%" />
+        <SkeletonBar w={220} h={40} r={9999} style={{ marginTop: -6 }} />
+      </div>
+
+      {/* Prénom / Nom — grille 2 colonnes. */}
+      <div
+        style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}
+      >
+        <SkeletonField labelW={56} />
+        <SkeletonField labelW={96} />
+      </div>
+
+      {/* Nom d'utilisateur + texte d'aide (2 lignes). */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <SkeletonBar w={110} h={13} r={6} />
+        <SkeletonBar h={46} r={12} />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            marginTop: 2,
+          }}
+        >
+          <SkeletonBar h={11} r={6} />
+          <SkeletonBar w="62%" h={11} r={6} />
+        </div>
+      </div>
+
+      {/* Bio — label + zone de texte + compteur. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <SkeletonBar w={28} h={13} r={6} />
+        <SkeletonBar h={92} r={12} />
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <SkeletonBar w={56} h={12} r={6} />
+        </div>
+      </div>
+
+      {/* Bouton Enregistrer. */}
+      <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 4 }}>
+        <SkeletonBar w={132} h={44} r={9999} />
+      </div>
+    </div>
   );
 }
 
@@ -409,15 +531,7 @@ function EditorBody({
         error={visibleErrors.bio}
       />
 
-      <div
-        style={{
-          position: "sticky",
-          bottom: 0,
-          display: "flex",
-          justifyContent: "flex-end",
-          paddingTop: 4,
-        }}
-      >
+      <div className="nc-profile-save-row">
         <button
           type="submit"
           disabled={!hasChanges || saving}
