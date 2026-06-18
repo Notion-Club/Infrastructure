@@ -167,7 +167,7 @@ export function AdminPushDevCard() {
           ? `${result.recipients} membres`
           : "1 membre";
       toast.success(
-        `Push envoyée à ${recipientsLabel} — ${result.sent} OK, ${result.expired} expiré, ${result.failed} échec.`,
+        `Push envoyée à ${recipientsLabel} : ${result.sent} OK, ${result.expired} expiré, ${result.failed} échec.`,
       );
     });
   }

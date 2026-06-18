@@ -4,7 +4,7 @@ import Image from "next/image";
 import { UpdatePasswordForm } from "@/modules/auth";
 
 export const metadata = {
-  title: "Nouveau mot de passe — Notion Club",
+  title: "Nouveau mot de passe · Notion Club",
 };
 
 const LOGO_SRC =

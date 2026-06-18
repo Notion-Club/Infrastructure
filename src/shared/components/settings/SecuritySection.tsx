@@ -28,10 +28,6 @@ type SecuritySectionProps = {
 
 const MIN_PASSWORD_LENGTH = 8;
 
-// Logo Notion (Cloudinary, déjà autorisé dans next.config.ts via /dceobxyts/**).
-const NOTION_LOGO_SRC =
-  "https://res.cloudinary.com/dceobxyts/image/upload/v1776790487/Logo_Notion_fgou5g.png";
-
 export function SecuritySection({
   user,
   isMocked,
@@ -512,22 +508,11 @@ function GoogleIdentityBlock({
 
   return (
     <div
-      data-fb-label="Bloc Intégrations · Section sécurité"
+      data-fb-label="Bloc Google · Section sécurité"
       style={{ display: "flex", flexDirection: "column", gap: 10 }}
     >
-      <h3
-        style={{
-          margin: 0,
-          fontSize: 14,
-          fontWeight: 600,
-          color: "var(--color-text-primary)",
-        }}
-      >
-        Intégrations
-      </h3>
-
-      {/* Google — bouton de connexion (non lié) ou carte connectée. Le `key`
-          rejoue l'animation de reveal au basculement. */}
+      {/* Connexion Google : méthode d'authentification, placée sous le bloc
+          mot de passe (le `key` rejoue l'animation de reveal au basculement). */}
       {!linked ? (
         <div key="google-unlinked" className="nc-cta-reveal">
           <GoogleButton
@@ -617,49 +602,13 @@ function GoogleIdentityBlock({
           </div>
         </div>
       )}
-
-      {/* Notion — intégration OAuth2 à venir. Même design de carte ; à la place
-          du bouton d'action, un badge non cliquable « Prochaine fonctionnalité »
-          (rouge signature + texte blanc + shimmer). */}
-      <IntegrationCard
-        logo={
-          <img
-            src={NOTION_LOGO_SRC}
-            alt="Notion"
-            width={20}
-            height={20}
-            style={{ display: "block", borderRadius: 4 }}
-          />
-        }
-        title="Connexion avec Notion"
-        action={
-          <span
-            className="nc-btn-shine"
-            aria-disabled="true"
-            data-fb-label="Badge Notion à venir · Section sécurité"
-            style={{
-              padding: "8px 14px",
-              borderRadius: 9999,
-              background: "var(--color-brand)",
-              color: "#ffffff",
-              fontSize: 13,
-              fontWeight: 600,
-              whiteSpace: "nowrap",
-              cursor: "default",
-              userSelect: "none",
-            }}
-          >
-            Prochaine fonctionnalité
-          </span>
-        }
-      />
     </div>
   );
 }
 
 // Carte d'intégration générique (logo + titre + sous-titre optionnel + action
 // à droite). Reprend le design de l'ancienne carte Google connectée.
-function IntegrationCard({
+export function IntegrationCard({
   logo,
   title,
   subtitle,

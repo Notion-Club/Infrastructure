@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Conditions d'utilisation — Notion Club",
+  title: "Conditions d'utilisation · Notion Club",
   description:
     "Conditions générales d'utilisation de la plateforme Notion Club.",
 };

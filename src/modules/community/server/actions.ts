@@ -1944,7 +1944,7 @@ export async function forwardMessageAction(
     return {
       ok: false,
       code: "unknown",
-      message: "Aucun transfert n'a abouti — vérifie les destinataires.",
+      message: "Aucun transfert n'a abouti. Vérifie les destinataires.",
     };
   }
 

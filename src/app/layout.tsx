@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 // correspondants depuis ce bloc.
 export const metadata: Metadata = {
   title: "Notion Club",
-  description: "Plateforme de delivery — Notion Club.",
+  description: "Plateforme de delivery · Notion Club.",
   manifest: "/manifest.webmanifest",
   applicationName: "Notion Club",
   appleWebApp: {

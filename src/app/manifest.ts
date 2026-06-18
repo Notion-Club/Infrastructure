@@ -16,7 +16,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Notion Club",
     short_name: "Notion Club",
     description:
-      "Plateforme de delivery Notion Club — formation, communauté, coaching.",
+      "Plateforme de delivery Notion Club : formation, communauté, coaching.",
     start_url: "/dashboard",
     scope: "/",
     display: "standalone",

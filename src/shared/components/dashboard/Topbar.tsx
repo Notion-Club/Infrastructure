@@ -170,7 +170,7 @@ export function Topbar() {
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <Link
             href="/dashboard"
-            aria-label="Notion Club — retour à l'accueil"
+            aria-label="Notion Club, retour à l'accueil"
             data-fb-label="Logo Notion Club · Barre de navigation"
             style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}
           >

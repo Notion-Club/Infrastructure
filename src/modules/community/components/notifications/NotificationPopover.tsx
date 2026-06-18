@@ -41,11 +41,11 @@ const EXIT_MS = 300;
 const EMPTY_COPY: Record<TabKey, { title: string; sub: string }> = {
   unread: {
     title: "Aucune notification non lue",
-    sub: "Tu es à jour — rien de nouveau à lire.",
+    sub: "Rien de nouveau à lire.",
   },
   read: {
     title: "Aucune notification lue",
-    sub: "Les notifications que tu lis apparaîtront ici.",
+    sub: "Ce que tu auras lu apparaîtra ici.",
   },
   all: {
     title: "Aucune notification pour le moment",
@@ -469,7 +469,7 @@ export function NotificationPopover({
                         type="button"
                         onClick={(e) => handleMarkRead(e, n)}
                         aria-label="Archiver"
-                        title="Archiver — marquer comme lu"
+                        title="Archiver, marquer comme lu"
                         data-fb-label="Bouton Archiver · Carte notification"
                         className="nc-notif-action"
                       >

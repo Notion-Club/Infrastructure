@@ -9,6 +9,7 @@ import { SecuritySection } from "@/shared/components/settings/SecuritySection";
 import { NotificationsSection } from "@/shared/components/settings/NotificationsSection";
 import { BillingSection } from "@/shared/components/settings/BillingSection";
 import { DangerZone } from "@/shared/components/settings/DangerZone";
+import { IntegrationsSection } from "@/shared/components/settings/IntegrationsSection";
 import {
   SettingsCard,
   SettingsDivider,
@@ -148,7 +149,7 @@ export function SettingsClient({
                       lineHeight: 1.5,
                     }}
                   >
-                    Mode démo — connectez-vous pour enregistrer vos modifications.
+                    Mode démo. Connecte-toi pour enregistrer tes modifications.
                   </div>
                 )}
                 {/* « Mes informations » et « Sécurité » fusionnés dans un seul
@@ -167,6 +168,7 @@ export function SettingsClient({
                     embedded
                   />
                 </SettingsCard>
+                <IntegrationsSection />
                 <BillingSection
                   profile={state.profile}
                   company={state.company}
