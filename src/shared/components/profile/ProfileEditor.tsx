@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type MutableRefObject,
+} from "react";
 import { LoaderCircle, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,6 +31,14 @@ import { MOCK_AUTH_USER, MOCK_PROFILE } from "@/shared/lib/settings/mock-data";
 // d'identité (updateIdentity) pour que la Topbar / Mobile se rafraîchissent
 // sans reload.
 // ============================================================================
+
+// Garde-fou de fermeture exposé par l'éditeur au ProfileModalProvider :
+// `isDirty()` → y a-t-il des modifications non enregistrées ? `requestSave()`
+// → enregistre et renvoie true si OK (la modale peut alors se fermer).
+export type ProfileCloseGuard = {
+  isDirty: () => boolean;
+  requestSave: () => Promise<boolean>;
+};
 
 const USERNAME_REGEX = /^[a-z0-9][a-z0-9_-]{1,28}[a-z0-9]$/;
 
@@ -52,7 +67,13 @@ type LoadState =
       isMocked: boolean;
     };
 
-export function ProfileEditor({ onClose }: { onClose: () => void }) {
+export function ProfileEditor({
+  onClose,
+  closeGuardRef,
+}: {
+  onClose: () => void;
+  closeGuardRef?: MutableRefObject<ProfileCloseGuard | null>;
+}) {
   const { updateIdentity } = useProfileIdentityContext();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   // Reveal skeleton → contenu (cf. skill transitions-dev 14-skeleton-reveal).
@@ -167,6 +188,7 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
                   profile={state.profile}
                   email={state.email}
                   isMocked={state.isMocked}
+                  closeGuardRef={closeGuardRef}
                   onProfilePatch={(patch) =>
                     setState((prev) =>
                       prev.status === "ready"
@@ -355,6 +377,7 @@ type EditorBodyProps = {
   profile: ProfileRow;
   email: string;
   isMocked: boolean;
+  closeGuardRef?: MutableRefObject<ProfileCloseGuard | null>;
   onProfilePatch: (patch: Partial<ProfileRow>) => void;
   updateIdentity: (patch: {
     username?: string | null;
@@ -370,6 +393,7 @@ function EditorBody({
   profile,
   email,
   isMocked,
+  closeGuardRef,
   onProfilePatch,
   updateIdentity,
 }: EditorBodyProps) {
@@ -426,12 +450,16 @@ function EditorBody({
     toast.success("Nom d'affichage mis à jour");
   }
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!hasChanges || saving) return;
+  // Sauvegarde réutilisable : renvoie true si le profil est enregistré (ou
+  // n'a aucune modification) → la modale peut se fermer. false si erreur de
+  // validation/serveur → on garde l'éditeur (et le dialogue de confirmation)
+  // ouvert. Utilisée par le submit du formulaire ET par le garde-fou de
+  // fermeture (bouton « Enregistrer » du dialogue d'abandon).
+  const doSave = useCallback(async (): Promise<boolean> => {
+    if (!hasChanges) return true;
     if (hasErrors) {
       setTouched({ username: true, bio: true });
-      return;
+      return false;
     }
     setSaving(true);
     try {
@@ -443,7 +471,7 @@ function EditorBody({
           last_name: lastName || null,
           bio: bio || null,
         });
-        return;
+        return true;
       }
       const result = await updateProfileAction({
         username,
@@ -455,7 +483,7 @@ function EditorBody({
         if (result.code === "username_taken")
           setTouched((p) => ({ ...p, username: true }));
         toast.error(result.message);
-        return;
+        return false;
       }
       onProfilePatch({
         username: username.trim().toLowerCase(),
@@ -469,14 +497,45 @@ function EditorBody({
         lastName: lastName || null,
       });
       toast.success("Profil mis à jour");
+      return true;
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Erreur lors de l'enregistrement",
       );
+      return false;
     } finally {
       setSaving(false);
     }
+  }, [
+    hasChanges,
+    hasErrors,
+    isMocked,
+    username,
+    firstName,
+    lastName,
+    bio,
+    onProfilePatch,
+    updateIdentity,
+  ]);
+
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!hasChanges || saving) return;
+    void doSave();
   }
+
+  // Enregistre le garde-fou de fermeture auprès du provider à chaque rendu
+  // utile (assignation de ref → pas de setState, conforme à la règle ESLint).
+  useEffect(() => {
+    if (!closeGuardRef) return;
+    closeGuardRef.current = {
+      isDirty: () => hasChanges && !saving,
+      requestSave: doSave,
+    };
+    return () => {
+      closeGuardRef.current = null;
+    };
+  }, [closeGuardRef, hasChanges, saving, doSave]);
 
   return (
     <form
