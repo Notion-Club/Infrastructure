@@ -12,8 +12,8 @@ import { Check, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { updateBillingAction, SIRET_LENGTH } from "@/modules/settings";
-import { COUNTRIES } from "@/shared/lib/settings/countries";
 import { SettingsCard } from "./SettingsCard";
+import { CountrySelect } from "./CountrySelect";
 import type { CompanyEmbed, ProfileRow } from "./types";
 
 // ============================================================================
@@ -253,28 +253,13 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
               placeholder="Paris"
             />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label
-              htmlFor="billing-country"
-              style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-secondary)" }}
-            >
-              Pays
-            </label>
-            <select
-              id="billing-country"
-              data-fb-label="Champ Pays · Section facturation"
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              className="nc-input"
-              style={{ cursor: "pointer" }}
-            >
-              {COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.flag} {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <CountrySelect
+            id="billing-country"
+            label="Pays"
+            value={country}
+            onChange={setCountry}
+            fbLabel="Champ Pays · Section facturation"
+          />
         </div>
 
         {hasChanges && (
