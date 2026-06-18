@@ -16,6 +16,14 @@ export const MOCK_PROFILE: ProfileRow = {
   phone: "+33 6 12 34 56 78",
   communication_email: null,
   notion_email: "theo.notion@notionclub.fr",
+  billing_type: "individual",
+  billing_company_id: null,
+  billing_name: null,
+  billing_address_line1: null,
+  billing_address_line2: null,
+  billing_postal_code: null,
+  billing_city: null,
+  billing_country: "FR",
 };
 
 export const MOCK_AUTH_USER: AuthUserShape = {

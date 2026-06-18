@@ -269,3 +269,81 @@ export const notificationSettingsUpdateSchema = z.object({
 export type NotificationSettingsUpdateInput = z.infer<
   typeof notificationSettingsUpdateSchema
 >;
+
+// ============================================================================
+// Billing — informations de facturation (OPS-129)
+// ============================================================================
+// Adresse de facturation + type (particulier / entreprise). En mode
+// entreprise, les champs société (raison sociale, SIRET, TVA) sont persistés
+// dans la table `companies` (jamais sur le contact), via la RPC
+// `save_billing_details`. Tous les champs texte sont normalisés (trim → null).
+
+const optionalText = (max: number) =>
+  trimmedOrNull.pipe(z.string().max(max, `${max} caractères maximum`).nullable());
+
+// SIRET français = 14 chiffres. On normalise (retire tout non-chiffre) puis on
+// valide la longueur si renseigné. Null accepté (étranger / non communiqué).
+export const SIRET_LENGTH = 14;
+const siretField = z
+  .string()
+  .transform((v) => v.replace(/\D/g, ""))
+  .transform((v) => (v.length === 0 ? null : v))
+  .nullable()
+  .superRefine((v, ctx) => {
+    if (v !== null && v.length !== SIRET_LENGTH) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Le SIRET doit contenir ${SIRET_LENGTH} chiffres.`,
+      });
+    }
+  });
+
+// TVA intracommunautaire — format permissif (membres potentiellement étrangers) :
+// 2 lettres pays + 2 à 13 caractères alphanumériques. Null accepté.
+export const VAT_REGEX = /^[A-Z]{2}[A-Z0-9]{2,13}$/;
+const vatField = z
+  .string()
+  .transform((v) => v.trim().toUpperCase())
+  .transform((v) => (v.length === 0 ? null : v))
+  .nullable()
+  .superRefine((v, ctx) => {
+    if (v !== null && !VAT_REGEX.test(v)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Numéro de TVA invalide (ex. FR12345678901).",
+      });
+    }
+  });
+
+// Code pays ISO 3166-1 alpha-2 ; défaut FR si absent / invalide.
+const countryField = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .pipe(z.string().regex(/^[A-Z]{2}$/, "Code pays invalide"))
+  .catch("FR");
+
+export const billingUpdateSchema = z
+  .object({
+    billing_type: z.enum(["individual", "company"]),
+    billing_name: optionalText(80).optional(),
+    address_line1: optionalText(120).optional(),
+    address_line2: optionalText(120).optional(),
+    postal_code: optionalText(16).optional(),
+    city: optionalText(80).optional(),
+    country: countryField.optional(),
+    company_name: optionalText(120).optional(),
+    siret: siretField.optional(),
+    vat_number: vatField.optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.billing_type === "company" && !data.company_name) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["company_name"],
+        message: "Raison sociale requise.",
+      });
+    }
+  });
+
+export type BillingUpdateInput = z.infer<typeof billingUpdateSchema>;

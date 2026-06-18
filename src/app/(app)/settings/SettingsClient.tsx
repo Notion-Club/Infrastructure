@@ -8,10 +8,12 @@ import { AccountSection } from "@/shared/components/settings/AccountSection";
 import { SecuritySection } from "@/shared/components/settings/SecuritySection";
 import { SubscriptionSection } from "@/shared/components/settings/SubscriptionSection";
 import { NotificationsSection } from "@/shared/components/settings/NotificationsSection";
+import { BillingSection } from "@/shared/components/settings/BillingSection";
 import { DangerZone } from "@/shared/components/settings/DangerZone";
 import type {
   AuthIdentity,
   AuthUserShape,
+  CompanyEmbed,
   ProfileRow,
 } from "@/shared/components/settings/types";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
@@ -28,6 +30,7 @@ type LoadState =
   | {
       status: "ready";
       profile: ProfileRow;
+      company: CompanyEmbed | null;
       user: AuthUserShape;
       isMocked: boolean;
     };
@@ -52,10 +55,10 @@ export function SettingsClient({
         const { data: profileRow } = await supabase
           .from("profiles")
           .select(
-            "id, avatar_url, avatar_color, display_name, first_name, last_name, username, bio, phone, communication_email, notion_email",
+            "id, avatar_url, avatar_color, display_name, first_name, last_name, username, bio, phone, communication_email, notion_email, billing_type, billing_company_id, billing_name, billing_address_line1, billing_address_line2, billing_postal_code, billing_city, billing_country, company:billing_company_id ( name, siret, vat_number, address_line1, address_line2, postal_code, city, country )",
           )
           .eq("id", authUser.id)
-          .maybeSingle<ProfileRow>();
+          .maybeSingle<ProfileRow & { company: CompanyEmbed | CompanyEmbed[] | null }>();
         const profile: ProfileRow = profileRow ?? {
           id: authUser.id,
           avatar_url: null,
@@ -68,18 +71,34 @@ export function SettingsClient({
           phone: null,
           communication_email: null,
           notion_email: null,
+          billing_type: "individual",
+          billing_company_id: null,
+          billing_name: null,
+          billing_address_line1: null,
+          billing_address_line2: null,
+          billing_postal_code: null,
+          billing_city: null,
+          billing_country: null,
         };
+        // L'embed PostgREST peut renvoyer un objet ou un tableau selon
+        // l'inférence de relation — on normalise en objet unique ou null.
+        const embedded = profileRow?.company ?? null;
+        const company: CompanyEmbed | null = Array.isArray(embedded)
+          ? (embedded[0] ?? null)
+          : embedded;
         const user: AuthUserShape = {
           id: authUser.id,
           email: authUser.email ?? "",
           identities: (authUser.identities ?? []) as AuthIdentity[],
         };
-        if (!cancelled) setState({ status: "ready", profile, user, isMocked: false });
+        if (!cancelled)
+          setState({ status: "ready", profile, company, user, isMocked: false });
       } catch {
         if (!cancelled)
           setState({
             status: "ready",
             profile: MOCK_PROFILE,
+            company: null,
             user: MOCK_AUTH_USER,
             isMocked: true,
           });
@@ -147,6 +166,11 @@ export function SettingsClient({
                 />
                 <SecuritySection user={state.user} isMocked={state.isMocked} />
                 <SubscriptionSection />
+                <BillingSection
+                  profile={state.profile}
+                  company={state.company}
+                  isMocked={state.isMocked}
+                />
                 <NotificationsSection
                   userOffer={MOCK_USER_OFFER}
                   isMocked={state.isMocked}

@@ -15,6 +15,7 @@ import {
   NOTIFICATION_CHANNELS,
   accountEmailChangeSchema,
   avatarColorChangeSchema,
+  billingUpdateSchema,
   deleteAccountSchema,
   isAllowedAvatarMime,
   notificationSettingsUpdateSchema,
@@ -22,6 +23,7 @@ import {
   profileUpdateSchema,
   type AccountEmailChangeInput,
   type AvatarColorChangeInput,
+  type BillingUpdateInput,
   type DeleteAccountInput,
   type NotificationCategory,
   type NotificationChannel,
@@ -291,6 +293,78 @@ export async function updateProfileAction(
   }
 
   return { ok: true };
+}
+
+// ============================================================================
+// updateBillingAction — informations de facturation (OPS-129)
+// ============================================================================
+// Particulier : adresse stockée sur le profil. Entreprise : raison sociale /
+// SIRET / TVA / adresse persistés dans la table `companies` (jamais sur le
+// contact) + lien profiles.billing_company_id. Tout est fait atomiquement par
+// la RPC SECURITY DEFINER `save_billing_details` (scope strict auth.uid()).
+export type BillingUpdateResult =
+  | { ok: true; companyId: string | null }
+  | {
+      ok: false;
+      code: "validation" | "not_authenticated" | "unknown";
+      message: string;
+    };
+
+export async function updateBillingAction(
+  input: BillingUpdateInput,
+): Promise<BillingUpdateResult> {
+  const parsed = billingUpdateSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "validation",
+      message: parsed.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      message: "Tu dois être connecté pour modifier tes informations de facturation.",
+    };
+  }
+
+  const d = parsed.data;
+  const { data, error } = await supabase.rpc("save_billing_details", {
+    p_billing_type: d.billing_type,
+    p_billing_name: d.billing_name ?? null,
+    p_address_line1: d.address_line1 ?? null,
+    p_address_line2: d.address_line2 ?? null,
+    p_postal_code: d.postal_code ?? null,
+    p_city: d.city ?? null,
+    p_country: d.country ?? "FR",
+    p_company_name: d.company_name ?? null,
+    p_siret: d.siret ?? null,
+    p_vat_number: d.vat_number ?? null,
+  });
+
+  if (error) {
+    const raw = error.message ?? "";
+    if (raw.includes("company_name_required")) {
+      return { ok: false, code: "validation", message: "Raison sociale requise." };
+    }
+    if (raw.includes("not_authenticated") || raw.includes("no_profile")) {
+      return {
+        ok: false,
+        code: "not_authenticated",
+        message: "Session invalide. Reconnecte-toi puis réessaie.",
+      };
+    }
+    console.error("[updateBilling] failed:", raw);
+    return { ok: false, code: "unknown", message: "Impossible d'enregistrer la facturation." };
+  }
+
+  return { ok: true, companyId: (data as string | null) ?? null };
 }
 
 // ============================================================================
