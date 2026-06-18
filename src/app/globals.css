@@ -1463,13 +1463,14 @@ html {
    AUCUNE animation de survol. Texte à gauche, aperçu de facture (skeleton) à
    droite (desktop). */
 .nc-payments-cta {
+  position: relative;
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 22px 24px;
-  min-height: 132px;
+  min-height: 80px;
+  /* padding-right réserve la zone de l'aperçu → le texte ne passe jamais
+     dessous, quelle que soit la longueur (mobile inclus). */
+  padding: 16px 132px 16px 18px;
   border-radius: 18px;
   border: 1px solid var(--color-border-default);
   background: var(--color-surface-raised);
@@ -1479,37 +1480,70 @@ html {
   overflow: hidden;
 }
 .nc-payments-cta__text {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 .nc-payments-cta__title {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-size: 19px;
+  gap: 8px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--color-text-primary);
 }
 .nc-payments-cta__sub {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 400;
   color: var(--color-text-muted);
-  line-height: 1.5;
+  line-height: 1.45;
 }
-/* Aperçu de facture : masqué sur mobile (place insuffisante), visible en
-   desktop, légèrement incliné pour l'effet « document qui dépasse ». */
+/* Aperçu de facture : fenêtre de clip à HAUTEUR FIXE (indépendante de la
+   hauteur du bouton) ancrée en haut à droite → seul le haut de la facture
+   reste visible, avec une marge. La facture (enfant) est mise à l'échelle et
+   ancrée en haut à droite ; le bas est coupé par la fenêtre. `pointer-events:
+   none` car tout le bouton est déjà cliquable. */
 .nc-payments-cta__preview {
-  display: none;
-  flex-shrink: 0;
+  position: absolute;
+  top: 12px;
+  right: 8px;
+  width: 120px;
+  height: 64px;
+  overflow: hidden;
+  border-radius: 10px;
+  pointer-events: none;
+  /* Fondu bas → la facture se fond dans le bouton (peek élégant) et le bas
+     (tableau Description/TVA/Total HT) disparaît en douceur. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
+}
+.nc-payments-cta__preview > * {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: scale(0.46);
+  transform-origin: top right;
 }
 @media (min-width: 768px) {
+  .nc-payments-cta {
+    min-height: 96px;
+    padding: 18px 232px 18px 24px;
+  }
+  .nc-payments-cta__title {
+    font-size: 18px;
+  }
   .nc-payments-cta__preview {
-    display: block;
-    margin: -6px -10px -6px 0;
-    transform: rotate(-2deg);
+    top: 16px;
+    right: 18px;
+    width: 208px;
+    height: 82px;
+  }
+  .nc-payments-cta__preview > * {
+    transform: scale(0.8);
   }
 }
 @media (prefers-reduced-motion: reduce) {
