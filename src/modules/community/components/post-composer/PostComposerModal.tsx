@@ -10,6 +10,7 @@ import { PostComposerTagSelect } from "./PostComposerTagSelect";
 import { PostComposerAdminFields } from "./PostComposerAdminFields";
 import { ImageLightbox } from "../shared/ImageLightbox";
 import { uploadPostMediaAction, deletePostMediaAction } from "../../server/actions";
+import { isContentEditableEmpty } from "../../utils/editor";
 import { useModalTransition } from "@/shared/lib/hooks/useModalTransition";
 import {
   POST_MEDIA_ALLOWED_MIME,
@@ -162,7 +163,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
         if (draft.bodyHtml && editorRef.current) {
           editorRef.current.innerHTML = draft.bodyHtml;
           setBodyHtml(draft.bodyHtml);
-          setEditorEmpty(editorRef.current.innerText.trim().length === 0);
+          setEditorEmpty(isContentEditableEmpty(editorRef.current));
           const video = detectVideoUrl(editorRef.current.innerText);
           if (video) setVideoPreview(video);
         }
@@ -207,7 +208,9 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
     const html = editorRef.current?.innerHTML ?? "";
     const text = editorRef.current?.innerText?.trim() ?? "";
     setBodyHtml(html);
-    setEditorEmpty(text.length === 0);
+    // Une puce / image insérée en premier ne doit plus laisser le placeholder
+    // visible par-dessus le contenu (OPS-88).
+    setEditorEmpty(isContentEditableEmpty(editorRef.current));
     const video = detectVideoUrl(text);
     setVideoPreview(video);
   }

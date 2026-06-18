@@ -12,6 +12,7 @@ import {
 } from "../../server/actions";
 import { ImageLightbox } from "../shared/ImageLightbox";
 import type { CommunityMember } from "../../server/queries";
+import { isContentEditableEmpty } from "../../utils/editor";
 import { UserAvatar } from "../shared/UserAvatar";
 
 // Type local minimal pour brancher CommunityMember sur UserAvatar (qui attend
@@ -158,9 +159,10 @@ export function CommentComposer({
   }, [replyingTo, replyingToUser, initialValue]);
 
   function syncEmpty() {
-    const text = editorRef.current?.innerText?.trim() ?? "";
-    setEditorEmpty(text.length === 0);
-    setVideoPreview(detectVideoUrl(text));
+    // Voir isContentEditableEmpty : une puce ou une image insérée en premier
+    // ne doit plus laisser le placeholder affiché par-dessus (OPS-88).
+    setEditorEmpty(isContentEditableEmpty(editorRef.current));
+    setVideoPreview(detectVideoUrl(editorRef.current?.innerText?.trim() ?? ""));
   }
 
   function handleInput() {
