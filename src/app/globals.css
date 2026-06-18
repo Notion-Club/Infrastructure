@@ -698,53 +698,50 @@ html {
   }
 }
 
-/* ── Tabs sliding (transitions.dev) — segmented control à pilule glissante ── */
-/* Référence : .agents/skills/transitions-dev/16-tabs-sliding.md. La pilule
-   tween entre les positions mesurées (offsetLeft/offsetWidth) écrites inline
-   par le composant ; le CSS possède la transition. Adapté aux tokens NC. */
+/* ── Notification segments — pastille icône qui s'étend au libellé actif ──── */
+/* Segmented control "expanding selected" : chaque catégorie est une pastille
+   icône ; l'active s'étend pour révéler son libellé via l'astuce
+   grid-template-columns 0fr → 1fr (anime la largeur jusqu'au contenu), avec
+   fondu + masque de bord droit. Piloté par aria-selected (état React). */
 :root {
-  --tabs-dur: 220ms;
+  --tabs-dur: 200ms;
   --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
-.t-tabs {
-  position: relative;
+.nc-notif-tabs {
   display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 9999px;
-  background: var(--color-surface-raised);
-}
-.t-tab {
-  position: relative;
-  z-index: 1;
-  flex: 1 1 0;
-  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 30px;
-  padding: 0 8px;
+}
+.nc-notif-seg {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 9px;
   appearance: none;
   border: 0;
-  background: transparent;
-  cursor: pointer;
   border-radius: 9999px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  transition: color var(--tabs-dur) var(--tabs-ease);
-}
-.t-tab:not([aria-selected="true"]):hover {
+  background: transparent;
   color: var(--color-text-secondary);
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    background var(--tabs-dur) var(--tabs-ease),
+    color var(--tabs-dur) var(--tabs-ease),
+    padding var(--tabs-dur) var(--tabs-ease);
 }
-.t-tab[aria-selected="true"] {
+.nc-notif-seg:not([aria-selected="true"]):hover {
+  background: rgba(0, 0, 0, 0.05);
   color: var(--color-text-primary);
 }
-/* Icône SVG masquée → recolorée par currentColor (suit l'état actif/inactif). */
-.t-tab-icon {
-  width: 14px;
-  height: 14px;
+.nc-notif-seg[aria-selected="true"] {
+  background: rgba(224, 98, 90, 0.1);
+  color: var(--color-brand);
+}
+/* Icône SVG posée en masque → recolorée par currentColor (suit l'état actif). */
+.nc-notif-seg-icon {
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
   background-color: currentColor;
   -webkit-mask-position: center;
@@ -754,26 +751,35 @@ html {
   -webkit-mask-size: contain;
   mask-size: contain;
 }
-.t-tabs-pill {
-  position: absolute;
-  top: 3px;
-  left: 0;
-  height: 30px;
-  width: 0;
-  background: var(--color-surface-card);
-  border-radius: 9999px;
-  box-shadow: var(--nc-shadow-3);
-  transform: translateX(0);
+/* Libellé : grille 0fr → 1fr pour animer la largeur jusqu'au contenu. */
+.nc-notif-seg-label {
+  display: grid;
+  grid-template-columns: 0fr;
+  opacity: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
   transition:
-    transform var(--tabs-dur) var(--tabs-ease),
-    width var(--tabs-dur) var(--tabs-ease);
-  will-change: transform, width;
-  z-index: 0;
-  pointer-events: none;
+    grid-template-columns var(--tabs-dur) var(--tabs-ease),
+    opacity var(--tabs-dur) var(--tabs-ease),
+    padding var(--tabs-dur) var(--tabs-ease);
+}
+.nc-notif-seg[aria-selected="true"] .nc-notif-seg-label {
+  grid-template-columns: 1fr;
+  opacity: 1;
+  padding-left: 6px;
+  padding-right: 2px;
+}
+.nc-notif-seg-label > span {
+  min-width: 0;
+  overflow: hidden;
 }
 @media (prefers-reduced-motion: reduce) {
-  .t-tabs-pill,
-  .t-tab {
+  .nc-notif-seg,
+  .nc-notif-seg-label {
     transition: none !important;
   }
 }

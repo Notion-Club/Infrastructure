@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
 import { Bell } from "lucide-react";
@@ -89,38 +83,6 @@ export function NotificationPopover({
   // Onglet actif + cartes en cours de sortie (collapse animé avant retrait).
   const [tab, setTab] = useState<TabKey>("unread");
   const [leaving, setLeaving] = useState<Set<string>>(new Set());
-
-  // Pilule glissante des onglets (transitions.dev — sliding tabs). On mesure
-  // offsetLeft/offsetWidth de l'onglet actif et on l'écrit inline ; le CSS
-  // possède le tween. `tween` reste false au 1ᵉʳ paint pour que la pilule
-  // SNAPPE sur sa position initiale au lieu de glisser depuis width:0.
-  const tabsBarRef = useRef<HTMLDivElement>(null);
-  const tabRefs = useRef<Partial<Record<TabKey, HTMLButtonElement | null>>>({});
-  const [pill, setPill] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
-  const [tween, setTween] = useState(false);
-
-  const measurePill = useCallback(() => {
-    const el = tabRefs.current[tab];
-    if (!el) return;
-    setPill({ left: el.offsetLeft, width: el.offsetWidth });
-  }, [tab]);
-
-  useLayoutEffect(() => {
-    if (!isMounted) return;
-    measurePill();
-  }, [isMounted, tab, measurePill]);
-
-  useEffect(() => {
-    if (!isMounted) return;
-    // tween reste false au tout 1ᵉʳ paint (snap), puis on l'active au frame
-    // suivant pour que les changements d'onglet ultérieurs glissent.
-    const id = requestAnimationFrame(() => setTween(true));
-    window.addEventListener("resize", measurePill);
-    return () => {
-      cancelAnimationFrame(id);
-      window.removeEventListener("resize", measurePill);
-    };
-  }, [isMounted, measurePill]);
 
   // Click-outside.
   useEffect(() => {
@@ -318,45 +280,36 @@ export function NotificationPopover({
               )}
             </div>
 
-            {/* Segmented control à pilule glissante (transitions.dev). */}
+            {/* Segments de catégorie : pastille icône qui s'étend au libellé
+                actif (grid 0fr → 1fr). */}
             <div
-              ref={tabsBarRef}
               role="tablist"
               aria-label="Filtre des notifications"
-              className="t-tabs"
+              className="nc-notif-tabs"
               style={{ margin: "0 16px 12px" }}
             >
-              <span
-                className="t-tabs-pill"
-                aria-hidden="true"
-                style={{
-                  transform: `translateX(${pill.left}px)`,
-                  width: pill.width,
-                  transition: tween ? undefined : "none",
-                }}
-              />
               {TABS.map((t) => (
                 <button
                   key={t.key}
-                  ref={(el) => {
-                    tabRefs.current[t.key] = el;
-                  }}
                   type="button"
                   role="tab"
                   aria-selected={tab === t.key}
+                  title={t.label}
                   onClick={() => setTab(t.key)}
                   data-fb-label={`Onglet ${t.label} · Popover notifications`}
-                  className="t-tab"
+                  className="nc-notif-seg"
                 >
                   <span
-                    className="t-tab-icon"
+                    className="nc-notif-seg-icon"
                     aria-hidden="true"
                     style={{
                       WebkitMaskImage: `url(${t.icon})`,
                       maskImage: `url(${t.icon})`,
                     }}
                   />
-                  {t.label}
+                  <span className="nc-notif-seg-label">
+                    <span>{t.label}</span>
+                  </span>
                 </button>
               ))}
             </div>
