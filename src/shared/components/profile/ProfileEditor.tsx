@@ -365,13 +365,6 @@ function EditorBody({
         onDisplayNameSave={handleDisplayNameSave}
       />
 
-      <UsernameField
-        value={username}
-        onChange={setUsername}
-        onBlur={() => setTouched((p) => ({ ...p, username: true }))}
-        error={visibleErrors.username}
-      />
-
       <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
         <TextField
           id="profile-first-name"
@@ -392,6 +385,13 @@ function EditorBody({
           fbLabel="Champ Nom · Éditeur de profil"
         />
       </div>
+
+      <UsernameField
+        value={username}
+        onChange={setUsername}
+        onBlur={() => setTouched((p) => ({ ...p, username: true }))}
+        error={visibleErrors.username}
+      />
 
       <BioField
         value={bio}
