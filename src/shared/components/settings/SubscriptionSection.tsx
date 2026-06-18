@@ -145,7 +145,7 @@ export function SubscriptionSection() {
 
   return (
     <SettingsCard
-      title="Échéances de paiement"
+      title="Paiements"
       description="Consultez l'historique de vos paiements en temps réel."
       fbLabel="Section abonnement · Réglages"
     >

@@ -380,7 +380,7 @@ export function NotificationPopover({
                     alignItems: "flex-start",
                     gap: 10,
                     padding: "12px 16px",
-                    background: n.read ? "transparent" : "#fef9f8",
+                    background: n.read ? "transparent" : "rgba(224,98,90,0.08)",
                     borderBottom: "1px solid var(--color-border-default)",
                     cursor: "pointer",
                     textAlign: "left",

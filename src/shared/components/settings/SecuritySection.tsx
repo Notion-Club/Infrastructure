@@ -38,7 +38,7 @@ export function SecuritySection({ user, isMocked }: SecuritySectionProps) {
   return (
     <SettingsCard
       title="Sécurité"
-      description="Gérez votre mot de passe et vos méthodes de connexion."
+      description="Gère tes méthodes de connexion au Notion Club"
       fbLabel="Section sécurité · Réglages"
     >
       {emailIdentity && (

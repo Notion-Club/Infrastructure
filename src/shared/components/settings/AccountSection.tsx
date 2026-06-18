@@ -149,8 +149,8 @@ export function AccountSection({
 
   return (
     <SettingsCard
-      title="Compte & connexion"
-      description="Informations privées de connexion et de facturation. Elles ne sont jamais affichées dans la communauté."
+      title="Mes informations"
+      description="C'est avec ces informations que tu te connectes au Notion Club"
       fbLabel="Section compte · Réglages"
     >
       <form
