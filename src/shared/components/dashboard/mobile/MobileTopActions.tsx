@@ -49,7 +49,10 @@ export function MobileTopActions() {
   return (
     <div
       style={{
-        position: "fixed",
+        // `position: absolute` (et non fixed) : les boutons restent ancrés en
+        // HAUT DE PAGE et défilent avec le contenu — ils ne suivent plus le
+        // scroll et ne survolent jamais le contenu scrollé.
+        position: "absolute",
         // `safe-area-inset-top` vaut ~44px en PWA standalone (status bar
         // iOS transparente grâce à `black-translucent`). Sans cet offset,
         // les boutons se retrouveraient sous l'heure iPhone.
@@ -59,9 +62,6 @@ export function MobileTopActions() {
         display: "flex",
         alignItems: "center",
         gap: 8,
-        // Force GPU layer so position:fixed isn't broken by ancestor filters.
-        transform: "translateZ(0)",
-        willChange: "transform",
       }}
     >
       {/* Toolbox « état dev » — visible seulement si la page a enregistré un

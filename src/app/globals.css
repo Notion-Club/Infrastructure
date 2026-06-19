@@ -2449,19 +2449,17 @@ html.dark .nc-lt-scrim {
 
 /* Logo mobile : aligné verticalement sur les cercles 38px de MobileTopActions
    (même offset top, mêmes safe-areas). z-index 41 = au-dessus du frosted (39)
-   et au niveau des cercles (40). */
+   et au niveau des cercles (40).
+   `position: absolute` (et non fixed) : le logo reste ancré en HAUT DE PAGE et
+   défile avec le contenu — il ne survole jamais le contenu scrollé. */
 .nc-mobile-logo {
-  position: fixed;
+  position: absolute;
   top: calc(12px + env(safe-area-inset-top, 0px));
   left: 16px;
   z-index: 41;
   height: 38px;
   display: inline-flex;
   align-items: center;
-  /* Couche GPU dédiée → la position fixed ne tremble pas pendant le scroll
-     iOS (même garde que MobileTopActions). */
-  transform: translateZ(0);
-  will-change: transform;
 }
 
 @media (max-width: 767px) {

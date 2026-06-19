@@ -82,6 +82,22 @@ export function BottomNav() {
     moveTo(idx, false);
   }, [pathname, moveTo, activeIdx]);
 
+  // Clic sur le logo Notion Club (MobileBrandLogo) → retour à l'accueil.
+  // Le logo est un composant séparé : il émet "nc:logo-home", on anime ici la
+  // pilule (slide) vers l'onglet Accueil exactement comme un clic d'onglet.
+  // lastClickedRef pré-positionné → le useLayoutEffect de navigation ne snappe
+  // pas par-dessus l'animation en cours.
+  useEffect(() => {
+    function onLogoHome() {
+      const idx = NAV_ITEMS.findIndex(({ href }) => href === "/dashboard");
+      if (idx < 0) return;
+      lastClickedRef.current = idx;
+      moveTo(idx, true);
+    }
+    window.addEventListener("nc:logo-home", onLogoHome);
+    return () => window.removeEventListener("nc:logo-home", onLogoHome);
+  }, [moveTo]);
+
   // Re-mesure de la pill APRÈS le 1ᵉʳ paint : les largeurs des items bougent
   // encore une fois le premier rendu commité — la police SF Pro Display est en
   // `display: swap` (cf. fonts.ts), elle remplace le fallback système une fois
