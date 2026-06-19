@@ -13,7 +13,7 @@ export default function FormationLayout({ children }: { children: ReactNode }) {
         <main style={{ position: "relative", zIndex: 1 }}>
           <div
             className="px-4 pt-[96px] pb-[120px] md:px-10 md:pt-[148px] md:pb-12"
-            style={{ maxWidth: 1100, margin: "0 auto" }}
+            style={{ maxWidth: 1000, margin: "0 auto" }}
           >
             {/* Transition leçon → leçon intégrée dans la colonne de contenu
                 (masque l'ancien cours, héberge le feedback, révèle le nouveau). */}

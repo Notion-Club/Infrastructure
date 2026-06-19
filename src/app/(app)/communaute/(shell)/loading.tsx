@@ -4,17 +4,31 @@ const pulse: React.CSSProperties = {
   borderRadius: "var(--nc-radius-xs)",
 };
 
-// Aligné sur communaute/layout.tsx : maxWidth 840, padding px-4 pt-[96px]
+// Aligné sur communaute/layout.tsx : maxWidth 1000, padding px-4 pt-[96px]
 // pb-[100px] md:px-10 md:pt-[88px] md:pb-6 (mêmes valeurs que le <main> du
-// layout, sinon saut de ~60px skeleton→contenu). Ne s'affiche plus qu'au
-// PREMIER chargement de /communaute (le layout étant ensuite préservé, les
+// layout, sinon saut skeleton→contenu). Ne s'affiche plus qu'au PREMIER
+// chargement de /communaute (le layout étant ensuite préservé, les
 // navigations internes feed↔messages ne redéclenchent plus ce fallback).
+//
+// ⚠️ PAS de `.nc-page-halo` ici : le layout fournit déjà le halo (fond +
+// ::before en dégradé radial `position: fixed`). Un second halo empilait un
+// 2ᵉ dégradé fixe plein écran pendant le swap loading→contenu → bande de
+// saturation + couture verticale visibles en haut de page. On garde juste le
+// fond opaque (zéro flash blanc), sans le pseudo-élément dupliqué.
 export default function CommunauteLoading() {
   return (
-    <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+    <div
+      style={{
+        minHeight: "100dvh",
+        backgroundColor: "var(--color-surface-page)",
+        // Parité avec `.nc-page-halo` (PWA standalone iOS) : sans ce padding,
+        // le skeleton remonterait de ~44px sous l'heure iPhone vs le contenu.
+        paddingTop: "env(safe-area-inset-top, 0px)",
+      }}
+    >
         <main style={{ position: "relative", zIndex: 1 }}>
           <div
-            style={{ maxWidth: 840, margin: "0 auto" }}
+            style={{ maxWidth: 1000, margin: "0 auto" }}
             className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[88px] md:pb-6"
           >
             {/* Tab bar skeleton — Feed | Messages */}

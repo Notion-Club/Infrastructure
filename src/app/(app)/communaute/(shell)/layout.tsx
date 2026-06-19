@@ -31,7 +31,7 @@ export default async function CommunauteLayout({
     <div className="nc-page-halo flex flex-col h-dvh overflow-hidden">
       <main
         className="flex flex-col flex-1 min-h-0 w-full mx-auto px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[88px] md:pb-6"
-        style={{ position: "relative", zIndex: 1, maxWidth: 840 }}
+        style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
       >
         <CommunityPage
           initialPosts={initialPosts}

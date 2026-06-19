@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Search } from "lucide-react";
 import { FormationWidget } from "@/shared/components/dashboard/widgets/FormationWidget";
 import { ProfilWidget } from "@/shared/components/dashboard/widgets/ProfilWidget";
-import { EmailVerifiedToast, LogoutButton } from "@/modules/auth";
+import { EmailVerifiedToast } from "@/modules/auth";
 import { EmailConfirmBanner } from "@/shared/components/dashboard/EmailConfirmBanner";
 import { ContentEnter } from "@/shared/components/motion/ContentEnter";
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
@@ -56,7 +56,7 @@ export default async function DashboardPage() {
       <main style={{ position: "relative", zIndex: 1 }}>
         <ContentEnter
           style={{
-            maxWidth: 840,
+            maxWidth: 1000,
             margin: "0 auto",
             display: "flex",
             flexDirection: "column",
@@ -187,40 +187,6 @@ export default async function DashboardPage() {
             <EmailConfirmBanner />
             <FormationWidget data={formationData} />
             <ProfilWidget data={profilData} />
-
-            {/* Placeholder zone future */}
-            <div
-              data-fb-label="Encadré « À venir » · Grille de widgets"
-              className="col-span-1 md:col-span-2"
-              style={{
-                border: "1.5px dashed var(--color-border-default)",
-                borderRadius: 16,
-                background: "transparent",
-                height: 80,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                fontSize: 13,
-                color: "var(--color-text-muted)",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 16,
-                  color: "var(--color-border-default)",
-                  lineHeight: 1,
-                }}
-              >
-                +
-              </span>
-              Communauté · Coaching · à venir
-            </div>
-          </div>
-
-          {/* Logout temporaire (OPS-15) — à déplacer dans le menu utilisateur du Topbar */}
-          <div className="flex justify-center pt-4">
-            <LogoutButton />
           </div>
         </ContentEnter>
       </main>

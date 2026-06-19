@@ -14,7 +14,7 @@ export default async function RessourcesPage() {
           <div className="px-4 pt-[96px] pb-[176px] md:px-10 md:pt-[148px] md:pb-[140px]">
             <div
               style={{
-                maxWidth: 1040,
+                maxWidth: 1000,
                 margin: '0 auto',
                 display: 'flex',
                 flexDirection: 'column',
