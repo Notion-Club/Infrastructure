@@ -14,7 +14,11 @@ export default async function RessourcesPage() {
           <div className="px-4 pt-[96px] pb-[176px] md:px-10 md:pt-[148px] md:pb-[140px]">
             <div
               style={{
-                maxWidth: 1000,
+                // Contenu aligné sur la barre de navigation (pill 920px). Ici le
+                // padding horizontal (px-10) est porté par le div PARENT et non
+                // par cet élément → on cible donc directement 920 (et non 1000
+                // comme les pages où padding+maxWidth sont sur le même élément).
+                maxWidth: 920,
                 margin: '0 auto',
                 display: 'flex',
                 flexDirection: 'column',

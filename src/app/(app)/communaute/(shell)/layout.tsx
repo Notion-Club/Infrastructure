@@ -17,15 +17,20 @@ import { CommunityPage } from "@/modules/community/routes/community-page";
 // Les pages enfants (feed/page, messages/page, messages/[username]/page) sont
 // réduites à des marqueurs `return null` : la vue active (feed/messages) et le
 // username de conversation sont dérivés de usePathname() dans CommunityPage.
-export default async function CommunauteLayout({
+export default function CommunauteLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [initialPosts, initialConversations] = await Promise.all([
-    listPosts(),
-    listConversations(),
-  ]);
+  // ⚠️ Layout NON bloquant : on ne `await` PAS ici. On crée les promesses et on
+  // les passe à CommunityPage, qui les consomme via `use()` dans des bornes
+  // <Suspense> INTERNES (liste de posts / messages / badge). Le cadre (halo +
+  // carte + switcher + filtres) rend donc instantanément ; seules les données
+  // streament. Plus de layout suspendu → plus de fallback plein écran
+  // ((app)/loading.tsx ou (shell)/loading.tsx) → plus de chargement « en deux
+  // parties » ni de bande de couleur.
+  const postsPromise = listPosts();
+  const conversationsPromise = listConversations();
 
   return (
     <div className="nc-page-halo flex flex-col h-dvh overflow-hidden">
@@ -34,8 +39,8 @@ export default async function CommunauteLayout({
         style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
       >
         <CommunityPage
-          initialPosts={initialPosts}
-          initialConversations={initialConversations}
+          postsPromise={postsPromise}
+          conversationsPromise={conversationsPromise}
         />
       </main>
       {/* children = pages-marqueurs (return null), requis par Next pour que la
