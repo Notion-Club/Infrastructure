@@ -27,7 +27,10 @@ import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import { DevToolboxButton } from "@/shared/components/dev/DevToolbox";
 import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
 
-type NavItem = { label: string; icon: LucideIcon; href: string };
+// iconSize : override optionnel — certaines icônes lucide (ex. graduation-cap,
+// glyphe large mais court) paraissent plus petites à taille égale ; on les
+// agrandit légèrement pour une présence visuelle homogène dans la nav.
+type NavItem = { label: string; icon: LucideIcon; href: string; iconSize?: number };
 
 const LOGO_LIGHT =
   "https://res.cloudinary.com/dceobxyts/image/upload/v1777034233/Notion_Club_-_Black_-_Sans_BG_hcvk9k.png";
@@ -36,7 +39,7 @@ const LOGO_DARK =
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Accueil", icon: Home, href: "/dashboard" },
-  { label: "Formation", icon: GraduationCap, href: "/formation" },
+  { label: "Formation", icon: GraduationCap, href: "/formation", iconSize: 18 },
   { label: "Communauté", icon: Users, href: "/communaute" },
   { label: "Coaching", icon: Calendar, href: "/coaching" },
   { label: "Ressources", icon: Library, href: "/ressources" },
@@ -211,7 +214,7 @@ export function Topbar() {
               }}
             />
 
-            {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
+            {NAV_ITEMS.map(({ label, icon: Icon, href, iconSize }, i) => {
               const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
               return (
                 <Link
@@ -237,7 +240,7 @@ export function Topbar() {
                   }}
                   className={!isActive ? "hover:bg-[var(--nc-nav-hover-bg)]" : ""}
                 >
-                  <Icon size={16} strokeWidth={isActive ? 2.5 : 2} style={{ flexShrink: 0 }} />
+                  <Icon size={iconSize ?? 16} strokeWidth={isActive ? 2.5 : 2} style={{ flexShrink: 0 }} />
                   {label}
                 </Link>
               );

@@ -2528,9 +2528,10 @@ html.dark .nc-lt-scrim {
 }
 
 /* Filtres de tags du feed (Général / Question / Présentation / Annonce).
-   Desktop : wrap classique (ils tiennent). Mobile : une seule ligne — rangée
-   de chips en nowrap, scroll horizontal discret (scrollbar masquée) si la
-   somme des chips dépasse la largeur d'écran. */
+   Desktop : wrap classique (ils tiennent, taille confortable). Mobile : une
+   seule ligne — chips PLUS PETITS qui se compressent pour tenir sur la largeur
+   de l'encadré (avec marge) SANS scroll horizontal → on gagne en hauteur utile
+   pour le feed. */
 .nc-feed-filters {
   display: flex;
   align-items: center;
@@ -2542,12 +2543,30 @@ html.dark .nc-lt-scrim {
     flex-wrap: nowrap;
     width: 100%;
     min-width: 0;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    gap: 5px;
   }
-  .nc-feed-filters::-webkit-scrollbar {
-    display: none;
+}
+
+/* Chip de filtre — dimensionnement responsive. Desktop : confortable
+   (min-width fixe, anti-layout-shift). Mobile : compact + `flex: 0 1 auto` +
+   `min-width: 0` → les chips rétrécissent pour tenir sur la largeur (ellipsis
+   si un label déborde), plutôt que de provoquer un scroll. */
+.nc-feed-chip {
+  flex: 0 0 auto;
+  min-width: 90px;
+  padding: 7px 14px;
+  font-size: 13px;
+}
+@media (max-width: 767px) {
+  .nc-feed-chip {
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: 5px 9px;
+    font-size: 11px;
+    /* Filet de sécurité <340px : ellipsis si un label déborde vraiment. Sur
+       les écrans courants (≥360px) les 4 chips tiennent en entier sans scroll. */
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 

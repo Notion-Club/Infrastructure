@@ -7,6 +7,7 @@ import {
   EyeOff,
   LockKeyholeOpen,
   LoaderCircle,
+  KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,7 +45,7 @@ export function SecuritySection({
   return (
     <SettingsCard
       title="Sécurité"
-      icon="/icons-notion/key-antique_lightgray.svg"
+      iconNode={<KeyRound size={20} strokeWidth={2} />}
       description="Gère tes méthodes de connexion au Notion Club"
       fbLabel="Section sécurité · Réglages"
       embedded={embedded}

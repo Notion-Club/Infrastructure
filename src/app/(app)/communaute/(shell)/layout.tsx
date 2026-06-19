@@ -35,7 +35,7 @@ export default function CommunauteLayout({
   return (
     <div className="nc-page-halo flex flex-col h-dvh overflow-hidden">
       <main
-        className="flex flex-col flex-1 min-h-0 w-full mx-auto px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[88px] md:pb-6"
+        className="flex flex-col flex-1 min-h-0 w-full mx-auto px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8"
         style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
       >
         <CommunityPage
