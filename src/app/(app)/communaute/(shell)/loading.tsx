@@ -19,7 +19,7 @@ const pulse: React.CSSProperties = {
 //     skeleton → rien n'« apparaît », aucune couture, aucun saut.
 //
 // Padding / maxWidth alignés sur le <main> du layout (px-4 pt-[64px] pb-[120px]
-// md:px-10 md:pt-[88px] md:pb-6, maxWidth 1000). PAS de `.nc-page-halo` : le
+// md:px-10 md:pt-[104px] md:pb-8, maxWidth 1000). PAS de `.nc-page-halo` : le
 // fond opaque `surface-page` suffit et évite d'empiler un 2ᵉ dégradé radial
 // fixe pendant le swap (sinon bande de saturation, cf. fix précédent).
 export default function CommunauteLoading() {
@@ -34,7 +34,7 @@ export default function CommunauteLoading() {
       }}
     >
       <main
-        className="flex flex-col flex-1 min-h-0 w-full mx-auto px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[88px] md:pb-6"
+        className="flex flex-col flex-1 min-h-0 w-full mx-auto px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8"
         style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
       >
         {/* Carte globale — calque le conteneur de CommunityPage */}

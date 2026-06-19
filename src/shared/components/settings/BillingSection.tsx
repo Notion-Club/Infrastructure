@@ -8,7 +8,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { Check, LoaderCircle } from "lucide-react";
+import { Check, LoaderCircle, ReceiptEuro } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -202,7 +202,7 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
   return (
     <SettingsCard
       title="Facturation"
-      icon="/icons-notion/receipt_lightgray.svg"
+      iconNode={<ReceiptEuro size={20} strokeWidth={2} />}
       description="Édite tes informations et télécharge tes factures"
       fbLabel="Section facturation · Réglages"
     >

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, LoaderCircle, LogOut, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Flag, LoaderCircle, LogOut, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -37,7 +37,7 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
   return (
     <SettingsCard
       title="Zone de danger"
-      icon="/icons-notion/no_lightgray.svg"
+      iconNode={<Flag size={20} strokeWidth={2} />}
       description="Déconecte-toi de cet appareil ou supprime définitvement ton compte. Toutes tes données seront supprimées"
       tone="danger"
       fbLabel="Zone de danger · Réglages"

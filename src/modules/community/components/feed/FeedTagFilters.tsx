@@ -42,24 +42,21 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
               onClick={() => onChange(f.value)}
               data-fb-label={`Filtre tag « ${f.label} » · Feed`}
               style={{
-                /* Fixed min-width prevents layout shift when font-weight changes ;
-                   flex:0 0 auto → les chips ne se compressent pas et restent sur
-                   une seule ligne (scroll horizontal sur mobile si débordement). */
-                flex: "0 0 auto",
-                minWidth: 90,
-                padding: "7px 14px",
+                // Dimensionnement (flex / min-width / padding / font-size) porté
+                // par `.nc-feed-chip` → responsive : desktop confortable, mobile
+                // compact (chips plus petits qui se compressent pour tenir sur la
+                // largeur de l'encadré SANS scroll horizontal). Cf. globals.css.
                 borderRadius: 9999,
                 border: isActive ? "1.5px solid var(--color-brand)" : "1px solid var(--color-border-default)",
                 background: isActive ? "rgba(224,98,90,0.08)" : "var(--color-surface-card)",
                 color: isActive ? "var(--color-brand)" : "var(--color-text-secondary)",
-                fontSize: 13,
                 fontWeight: 600,
                 cursor: "pointer",
                 transition: "background 180ms ease, border-color 180ms ease, color 180ms ease",
                 whiteSpace: "nowrap",
                 textAlign: "center",
               }}
-              className={!isActive ? "hover:bg-[var(--nc-nav-hover-bg)]" : ""}
+              className={`nc-feed-chip${!isActive ? " hover:bg-[var(--nc-nav-hover-bg)]" : ""}`}
             >
               {f.label}
             </button>

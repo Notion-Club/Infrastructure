@@ -9,11 +9,14 @@ type NavItem = {
   label: string;
   icon: LucideIcon;
   href: string;
+  // Override optionnel : graduation-cap paraît plus petit à taille égale → on
+  // l'agrandit pour une présence homogène avec les autres icônes.
+  iconSize?: number;
 };
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Accueil", icon: Home, href: "/dashboard" },
-  { label: "Formation", icon: GraduationCap, href: "/formation" },
+  { label: "Formation", icon: GraduationCap, href: "/formation", iconSize: 21 },
   { label: "Communauté", icon: Users, href: "/communaute" },
   { label: "Coaching", icon: Calendar, href: "/coaching" },
   { label: "Ressources", icon: Library, href: "/ressources" },
@@ -175,7 +178,7 @@ export function BottomNav() {
         }}
       />
 
-      {NAV_ITEMS.map(({ label, icon: Icon, href }, i) => {
+      {NAV_ITEMS.map(({ label, icon: Icon, href, iconSize }, i) => {
         const isActive     = pathname === href || pathname.startsWith(href + "/");
         const isCommunaute = href === "/communaute";
         return (
@@ -213,7 +216,7 @@ export function BottomNav() {
             }}
           >
             <Icon
-              size={19}
+              size={iconSize ?? 19}
               strokeWidth={isActive ? 2.5 : 2}
               style={{ color: "var(--color-text-primary)", flexShrink: 0 }}
             />
