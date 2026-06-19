@@ -20,7 +20,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
-import { X, Target, FileText, Copy, Check } from "lucide-react";
+import { X, Target, AudioLines, Copy, Check } from "lucide-react";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
 import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
 import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
@@ -438,7 +438,7 @@ export function CallDetailModal({
                   {
                     value: "transcript",
                     label: "Transcription",
-                    icon: <FileText size={15} />,
+                    icon: <AudioLines size={15} />,
                   },
                 ]}
               />

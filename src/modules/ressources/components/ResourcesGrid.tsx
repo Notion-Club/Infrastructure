@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, ListFilter, X } from 'lucide-react';
 import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceCard } from './ResourceCard';
@@ -336,7 +336,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               }}
               className={!hasActiveFilters ? 'hover:bg-[#eaeaea]' : 'hover:opacity-90'}
             >
-              <SlidersHorizontal size={13} />
+              <ListFilter size={13} />
               Filtres
               {hasActiveFilters && (
                 <span

@@ -1,3 +1,5 @@
+import { Blocks } from "lucide-react";
+
 import { SettingsCard } from "./SettingsCard";
 import { IntegrationCard } from "./SecuritySection";
 
@@ -15,7 +17,7 @@ export function IntegrationsSection({
   return (
     <SettingsCard
       title="Intégrations"
-      icon="/icons-notion/looped-square_lightgray.svg"
+      iconNode={<Blocks size={20} strokeWidth={2} />}
       description="Connecte tes outils au Notion Club."
       fbLabel="Section intégrations · Réglages"
       embedded={embedded}
