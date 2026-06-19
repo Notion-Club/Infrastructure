@@ -4,50 +4,107 @@ const pulse: React.CSSProperties = {
   borderRadius: "var(--nc-radius-xs)",
 };
 
-// Aligné sur communaute/layout.tsx : maxWidth 1000, padding px-4 pt-[64px]
-// pb-[100px] md:px-10 md:pt-[88px] md:pb-6 (mêmes valeurs que le <main> du
-// layout, sinon saut skeleton→contenu). Ne s'affiche plus qu'au PREMIER
-// chargement de /communaute (le layout étant ensuite préservé, les
-// navigations internes feed↔messages ne redéclenchent plus ce fallback).
+// Skeleton de chargement de /communaute (feed + messages).
 //
-// ⚠️ PAS de `.nc-page-halo` ici : le layout fournit déjà le halo (fond +
-// ::before en dégradé radial `position: fixed`). Un second halo empilait un
-// 2ᵉ dégradé fixe plein écran pendant le swap loading→contenu → bande de
-// saturation + couture verticale visibles en haut de page. On garde juste le
-// fond opaque (zéro flash blanc), sans le pseudo-élément dupliqué.
+// ⚠️ Ce skeleton CALQUE À L'IDENTIQUE la structure rendue par CommunityPage
+// (cf. community-page.tsx) : MÊME wrapper (flex/h-dvh/overflow-hidden), MÊME
+// grosse carte `surface-raised` arrondie, MÊME en-tête de switcher avec son
+// `borderBottom`, MÊME liste interne scrollable. C'est volontaire : le swap
+// skeleton → contenu devient PIXEL-ALIGNÉ.
+//   - Avant : le skeleton était une liste lâche (pills + cartes sans
+//     conteneur). Au chargement, la vraie carte apparaissait avec son
+//     `borderBottom` de switcher + ses bords → une « ligne » horizontale
+//     surgissait et la mise en page sautait en deux temps.
+//   - Maintenant : la carte (et son `borderBottom`) sont déjà présents dans le
+//     skeleton → rien n'« apparaît », aucune couture, aucun saut.
+//
+// Padding / maxWidth alignés sur le <main> du layout (px-4 pt-[64px] pb-[100px]
+// md:px-10 md:pt-[88px] md:pb-6, maxWidth 1000). PAS de `.nc-page-halo` : le
+// fond opaque `surface-page` suffit et évite d'empiler un 2ᵉ dégradé radial
+// fixe pendant le swap (sinon bande de saturation, cf. fix précédent).
 export default function CommunauteLoading() {
   return (
     <div
+      className="flex flex-col h-dvh overflow-hidden"
       style={{
-        minHeight: "100dvh",
         backgroundColor: "var(--color-surface-page)",
         // Parité avec `.nc-page-halo` (PWA standalone iOS) : sans ce padding,
         // le skeleton remonterait de ~44px sous l'heure iPhone vs le contenu.
         paddingTop: "env(safe-area-inset-top, 0px)",
       }}
     >
-        <main style={{ position: "relative", zIndex: 1 }}>
+      <main
+        className="flex flex-col flex-1 min-h-0 w-full mx-auto px-4 pt-[64px] pb-[100px] md:px-10 md:pt-[88px] md:pb-6"
+        style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
+      >
+        {/* Carte globale — calque le conteneur de CommunityPage */}
+        <div
+          className="flex flex-col flex-1 min-h-0"
+          style={{
+            background: "var(--color-surface-raised)",
+            border: "1px solid var(--color-border-default)",
+            borderRadius: 20,
+            boxShadow: "var(--nc-shadow-3)",
+            overflow: "hidden",
+          }}
+        >
+          {/* En-tête switcher (Feed | Messages) — MÊME borderBottom que le réel */}
           <div
-            style={{ maxWidth: 1000, margin: "0 auto" }}
-            className="px-4 pt-[64px] pb-[100px] md:px-10 md:pt-[88px] md:pb-6"
+            className="shrink-0"
+            style={{
+              padding: "12px 16px",
+              borderBottom: "1px solid var(--color-border-default)",
+              background: "var(--color-surface-card)",
+            }}
           >
-            {/* Tab bar skeleton — Feed | Messages */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-              <div style={{ ...pulse, height: 36, width: 80, borderRadius: 9999 }} />
-              <div style={{ ...pulse, height: 36, width: 100, borderRadius: 9999, animationDelay: "60ms" }} />
+            <div
+              style={{
+                display: "flex",
+                background: "var(--color-surface-raised)",
+                borderRadius: 10,
+                padding: 3,
+                gap: 2,
+              }}
+            >
+              {/* Placeholders blancs (surface-card) : visibles sur le conteneur
+                  segmenté surface-raised, comme l'onglet actif réel. */}
+              <div style={{ ...pulse, background: "var(--color-surface-card)", flex: 1, height: 34, borderRadius: 8 }} />
+              <div style={{ ...pulse, background: "var(--color-surface-card)", flex: 1, height: 34, borderRadius: 8, animationDelay: "60ms" }} />
             </div>
+          </div>
 
-            {/* Tag filter pills skeleton */}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
-              {[0, 60, 120, 180, 240].map((delay) => (
+          {/* Filtres de tags + bouton « Nouveau post » (desktop) */}
+          <div
+            className="shrink-0"
+            style={{
+              padding: "16px 16px 12px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+            }}
+          >
+            <div style={{ display: "flex", gap: 6 }}>
+              {/* Chips blancs (surface-card) : visibles sur le fond surface-raised
+                  de la carte, comme les vrais filtres de tags. */}
+              {[0, 60, 120].map((delay) => (
                 <div
                   key={delay}
-                  style={{ ...pulse, height: 30, width: 80 + delay * 0.2, borderRadius: 9999, animationDelay: `${delay}ms` }}
+                  style={{ ...pulse, background: "var(--color-surface-card)", height: 32, width: 90, borderRadius: 9999, animationDelay: `${delay}ms` }}
                 />
               ))}
             </div>
+            <div
+              className="hidden md:block"
+              style={{ ...pulse, background: "var(--color-surface-card)", height: 34, width: 130, borderRadius: 9999 }}
+            />
+          </div>
 
-            {/* Post cards skeleton */}
+          {/* Liste de posts — zone scrollable interne (overflow-y uniquement) */}
+          <div
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+            style={{ padding: "0 16px 16px" }}
+          >
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {Array.from({ length: 4 }, (_, i) => (
                 <div
@@ -60,10 +117,9 @@ export default function CommunauteLoading() {
                     display: "flex",
                     flexDirection: "column",
                     gap: 10,
-                    animationDelay: `${i * 60}ms`,
                   }}
                 >
-                  {/* Avatar + author + date */}
+                  {/* Avatar + auteur + date */}
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ ...pulse, width: 36, height: 36, borderRadius: "50%", flexShrink: 0, animationDelay: `${i * 60}ms` }} />
                     <div style={{ display: "flex", flexDirection: "column", gap: 5, flex: 1 }}>
@@ -72,14 +128,15 @@ export default function CommunauteLoading() {
                     </div>
                     <div style={{ ...pulse, height: 22, width: 64, borderRadius: 9999, animationDelay: `${i * 60 + 40}ms` }} />
                   </div>
-                  {/* Post body */}
+                  {/* Corps du post */}
                   <div style={{ ...pulse, height: 14, width: "90%", animationDelay: `${i * 60 + 60}ms` }} />
                   <div style={{ ...pulse, height: 14, width: "70%", animationDelay: `${i * 60 + 80}ms` }} />
                 </div>
               ))}
             </div>
           </div>
-        </main>
+        </div>
+      </main>
     </div>
   );
 }
