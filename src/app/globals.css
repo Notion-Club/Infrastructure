@@ -2522,3 +2522,27 @@ html.dark .nc-lt-scrim {
     max-height: 82dvh;
   }
 }
+
+/* Filtres de tags du feed (Général / Question / Présentation / Annonce).
+   Desktop : wrap classique (ils tiennent). Mobile : une seule ligne — rangée
+   de chips en nowrap, scroll horizontal discret (scrollbar masquée) si la
+   somme des chips dépasse la largeur d'écran. */
+.nc-feed-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+@media (max-width: 767px) {
+  .nc-feed-filters {
+    flex-wrap: nowrap;
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .nc-feed-filters::-webkit-scrollbar {
+    display: none;
+  }
+}

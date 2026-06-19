@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef, useTransition, useCallback, useLayoutEffect } from "react";
+import { useMemo, useState, useEffect, useRef, useTransition, useCallback, useLayoutEffect, startTransition } from "react";
 import { MessageCircle, Users, SquarePen } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter, usePathname } from "next/navigation";
@@ -280,7 +280,16 @@ export function CommunityPage({
                     moveTabTo(i, true);
                     // L'URL est la source de vérité : on navigue, le re-render
                     // de la route remonte CommunityPage avec le bon activeTab.
-                    router.push(value === "feed" ? "/communaute/feed" : "/communaute/messages");
+                    //
+                    // startTransition : la navigation (montage/démontage de
+                    // MessagesLayout ↔ feed, lourd sur le thread principal) est
+                    // marquée non-urgente → React n'interrompt plus l'animation
+                    // de glisse de la pilule, qui devient fluide comme le
+                    // switcher des CoachingTabs (qui, lui, ne fait qu'un
+                    // setState local au clic).
+                    startTransition(() => {
+                      router.push(value === "feed" ? "/communaute/feed" : "/communaute/messages");
+                    });
                   }}
                   style={{
                     flex: 1,

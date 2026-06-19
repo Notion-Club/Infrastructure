@@ -32,7 +32,7 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
         flexWrap: "wrap",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+      <div className="nc-feed-filters">
         {filters.map((f) => {
           const isActive = active === f.value;
           return (
@@ -42,7 +42,10 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
               onClick={() => onChange(f.value)}
               data-fb-label={`Filtre tag « ${f.label} » · Feed`}
               style={{
-                /* Fixed min-width prevents layout shift when font-weight changes */
+                /* Fixed min-width prevents layout shift when font-weight changes ;
+                   flex:0 0 auto → les chips ne se compressent pas et restent sur
+                   une seule ligne (scroll horizontal sur mobile si débordement). */
+                flex: "0 0 auto",
                 minWidth: 90,
                 padding: "7px 14px",
                 borderRadius: 9999,
