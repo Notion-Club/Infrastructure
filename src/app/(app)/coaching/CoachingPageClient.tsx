@@ -519,7 +519,7 @@ export default function CoachingPageClient({
         >
           {/* Contenu principal */}
           <div
-            className="px-4 pt-[80px] pb-[88px] md:px-10 md:pt-[104px] md:pb-8 w-full md:flex md:flex-col md:min-h-0"
+            className="px-4 pt-[64px] pb-[88px] md:px-10 md:pt-[104px] md:pb-8 w-full md:flex md:flex-col md:min-h-0"
             style={{ maxWidth: 1000, margin: "0 auto" }}
           >
             {/* Encadré global unique — Slot 1 (bannière) + Slot 2 (historique) */}

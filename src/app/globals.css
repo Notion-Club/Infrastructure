@@ -2466,24 +2466,30 @@ html.dark .nc-lt-scrim {
   /* Frosted haut : floute la zone de statut (heure / batterie) et ancre
      visuellement le logo + les trois cercles. Le flou s'estompe vers le bas
      via un masque pour ne pas couper net le contenu qui défile dessous. */
+  /* z-index 42 = AU-DESSUS du logo (41) et des trois cercles (40), eux en
+     `position: absolute` (ils défilent avec la page). Ainsi, quand on scrolle,
+     le logo + les cercles remontent et se DISSOLVENT sous ce flou frosted au
+     lieu de le « précéder » crispés. Le dégradé/masque garde le bas transparent
+     pour que les éléments restent nets à leur position de repos (12px) et ne se
+     floutent qu'en remontant vers le haut de l'écran. */
   .nc-mobile-top-fade {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: calc(env(safe-area-inset-top, 0px) + 64px);
-    z-index: 39;
+    height: calc(env(safe-area-inset-top, 0px) + 60px);
+    z-index: 42;
     pointer-events: none;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     background: linear-gradient(
       to bottom,
       var(--color-surface-page) 0,
-      color-mix(in srgb, var(--color-surface-page) 55%, transparent) 60%,
+      color-mix(in srgb, var(--color-surface-page) 50%, transparent) 45%,
       transparent 100%
     );
-    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 55%, transparent 100%);
-    mask-image: linear-gradient(to bottom, #000 0, #000 55%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 28%, transparent 72%);
+    mask-image: linear-gradient(to bottom, #000 0, #000 28%, transparent 72%);
   }
 
   /* Fondu bas : le contenu se dissout sous la BottomNav (z-50). z-index 44 =
@@ -2543,4 +2549,23 @@ html.dark .nc-lt-scrim {
   .nc-feed-filters::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* ===========================================================================
+   Règle systématique — bouton/contrôle posé SUR une carte (surface-card)
+   ---------------------------------------------------------------------------
+   La 1ʳᵉ couleur de surface du nuancier (`--color-surface-card`) sert de fond
+   aux cartes (posts, modales, panneaux). Un bouton posé PAR-DESSUS ne doit
+   jamais reprendre cette même couleur (effet ton-sur-ton, surtout en dark où
+   les nuances sont proches : carte #2a2725 vs bouton #2a2725).
+   → Il utilise `--color-surface-raised`, le cran de surface adjacent, qui
+     contraste dans les DEUX thèmes (light : #f5f5f5 sur #fff ; dark : #201d1b
+     sur #2a2725). Même logique que les boutons « Se déconnecter » (DangerZone)
+     et « Annuler les modifications » (ConfirmDialog).
+   Utiliser `.nc-btn-on-card` (ou `background: var(--color-surface-raised)`) sur
+   tout bouton rendu au-dessus d'une carte. Pattern à généraliser, pas à
+   recréer au cas par cas.
+   =========================================================================== */
+.nc-btn-on-card {
+  background: var(--color-surface-raised);
 }
