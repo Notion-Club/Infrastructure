@@ -166,7 +166,9 @@ function ReactionPill({ reaction, compact, onReact, allReactions }: ReactionPill
           cursor: "pointer",
           padding: compact ? "2px 7px" : "3px 9px",
           borderRadius: 9999,
-          background: userReacted ? "rgba(224,98,90,0.08)" : "var(--color-surface-card)",
+          // Pastille posée sur une carte (surface-card) → surface-raised hors
+          // état « réagi » pour contraster (jamais ton-sur-ton en dark).
+          background: userReacted ? "rgba(224,98,90,0.08)" : "var(--color-surface-raised)",
           border: `1px solid ${userReacted ? "rgba(224,98,90,0.25)" : "var(--color-border-default)"}`,
           transition: "background 150ms ease, border-color 150ms ease",
           userSelect: "none",
@@ -295,7 +297,8 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
               cursor: "pointer",
               padding: compact ? "2px 9px" : "3px 11px",
               borderRadius: 9999,
-              background: userHasReacted ? "rgba(224,98,90,0.08)" : "var(--color-surface-card)",
+              // Idem : surface-raised hors état « réagi » pour contraster sur la carte.
+              background: userHasReacted ? "rgba(224,98,90,0.08)" : "var(--color-surface-raised)",
               border: `1px solid ${userHasReacted ? "rgba(224,98,90,0.25)" : "var(--color-border-default)"}`,
               transition: "border-color 150ms ease, background 150ms ease",
               userSelect: "none",

@@ -42,13 +42,16 @@ export function ReactionPicker({
           padding: "5px 10px",
           borderRadius: 9999,
           border: "1px solid var(--color-border-default)",
-          background: "transparent",
+          // Bouton posé sur une carte (surface-card) → fond surface-raised pour
+          // contraster (jamais ton-sur-ton, light comme dark). Pattern
+          // systématique `.nc-btn-on-card` (cf. globals.css / DangerZone).
+          background: "var(--color-surface-raised)",
           fontSize: 13,
           color: "var(--color-text-secondary)",
           cursor: "pointer",
           transition: "background 150ms ease, border-color 150ms ease",
         }}
-        className="hover:bg-[var(--nc-nav-hover-bg)] hover:border-[rgba(0,0,0,0.15)]"
+        className="nc-btn-on-card hover:border-[rgba(0,0,0,0.15)]"
       >
         <SmilePlus size={14} />
         {label}

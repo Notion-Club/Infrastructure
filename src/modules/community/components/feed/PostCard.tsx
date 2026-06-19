@@ -264,7 +264,8 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
               background: "transparent",
               cursor: "zoom-in",
               marginTop: 4,
-              display: "inline-block",
+              display: "block",
+              maxWidth: "100%",
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -272,7 +273,10 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
               src={postData.imageUrl}
               alt=""
               style={{
-                maxWidth: 380,
+                // `min(380px, 100%)` : plafonné à 380px sur grand écran mais
+                // jamais plus large que la carte (sinon l'image débordait à
+                // droite sur mobile, le conteneur étant < 380px).
+                maxWidth: "min(380px, 100%)",
                 maxHeight: 320,
                 borderRadius: 10,
                 border: "1px solid var(--color-border-default)",

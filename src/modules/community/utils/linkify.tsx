@@ -101,7 +101,8 @@ export function linkify(text: string): ReactNode[] {
             border: "none",
             background: "transparent",
             cursor: "zoom-in",
-            display: "inline-block",
+            display: "block",
+            maxWidth: "100%",
             marginTop: 6,
           }}
         >
@@ -110,7 +111,8 @@ export function linkify(text: string): ReactNode[] {
             src={finalHref}
             alt=""
             style={{
-              maxWidth: 320,
+              // Plafonné à 320px mais jamais plus large que le conteneur du post.
+              maxWidth: "min(320px, 100%)",
               maxHeight: 320,
               borderRadius: 10,
               border: "1px solid var(--color-border-default)",

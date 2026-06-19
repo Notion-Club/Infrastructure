@@ -247,7 +247,8 @@ export function CommunityPostDetailPage({
               border: "none",
               background: "transparent",
               cursor: "zoom-in",
-              display: "inline-block",
+              display: "block",
+              maxWidth: "100%",
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -255,7 +256,8 @@ export function CommunityPostDetailPage({
               src={postData.imageUrl}
               alt=""
               style={{
-                maxWidth: 520,
+                // Plafonné à 520px mais jamais plus large que la carte.
+                maxWidth: "min(520px, 100%)",
                 maxHeight: 420,
                 borderRadius: 12,
                 border: "1px solid var(--color-border-default)",
