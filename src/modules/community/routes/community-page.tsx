@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect, useRef, useTransition, useCallback, useLayoutEffect, startTransition } from "react";
-import { MessageCircle, Users, SquarePen } from "lucide-react";
+import { MessageCircle, MessagesSquare, SquarePen } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter, usePathname } from "next/navigation";
 import type { PostTag } from "../types/post.types";
@@ -263,7 +263,7 @@ export function CommunityPage({
 
             {(
               [
-                { value: "feed" as Tab, label: "Feed", icon: Users, badge: 0 },
+                { value: "feed" as Tab, label: "Feed", icon: MessagesSquare, badge: 0 },
                 { value: "messages" as Tab, label: "Messages", icon: MessageCircle, badge: initialConversations.reduce((s, c) => s + c.unreadCount, 0) },
               ]
             ).map(({ value, label, icon: Icon, badge }, i) => {

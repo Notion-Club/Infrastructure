@@ -6,11 +6,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
-  BookOpen,
+  GraduationCap,
   Users,
   Calendar,
   Library,
-  UserRound,
+  CircleUserRound,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -36,7 +36,7 @@ const LOGO_DARK =
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Accueil", icon: Home, href: "/dashboard" },
-  { label: "Formation", icon: BookOpen, href: "/formation" },
+  { label: "Formation", icon: GraduationCap, href: "/formation" },
   { label: "Communauté", icon: Users, href: "/communaute" },
   { label: "Coaching", icon: Calendar, href: "/coaching" },
   { label: "Ressources", icon: Library, href: "/ressources" },
@@ -338,7 +338,7 @@ export function Topbar() {
                 }}
                 className="hover:bg-[var(--color-surface-raised)]"
               >
-                <UserRound size={16} style={{ color: "var(--color-text-muted)" }} />
+                <CircleUserRound size={16} style={{ color: "var(--color-text-muted)" }} />
                 Profil
               </button>
               <Link

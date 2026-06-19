@@ -10,6 +10,10 @@ type SettingsCardProps = {
    *  gauche du titre de section. Rendue via mask → recolorée sur la couleur du
    *  titre (texte par défaut, brand en zone de danger). */
   icon?: string;
+  /** Icône lucide (ReactNode) — alternative à `icon`. Recolorée sur la couleur
+   *  du titre via `currentColor`. Prioritaire sur `icon` si les deux sont
+   *  fournis. */
+  iconNode?: ReactNode;
   /** Quand true, ne rend PAS le cadre (bordure/fond/ombre) : juste l'en-tête +
    *  le contenu, pour être imbriqué dans un cadre parent (ex. fusion de deux
    *  sections sous un seul encadré). */
@@ -23,6 +27,7 @@ export function SettingsCard({
   tone = "default",
   fbLabel,
   icon,
+  iconNode,
   embedded = false,
 }: SettingsCardProps) {
   const isDanger = tone === "danger";
@@ -33,7 +38,20 @@ export function SettingsCard({
   const header = title ? (
     <header style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        {icon && (
+        {iconNode ? (
+          // Icône lucide : recolorée sur la couleur du titre via currentColor.
+          <span
+            aria-hidden
+            style={{
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              color: titleColor,
+            }}
+          >
+            {iconNode}
+          </span>
+        ) : icon ? (
           <span
             aria-hidden
             style={{
@@ -53,7 +71,7 @@ export function SettingsCard({
               maskSize: "contain",
             }}
           />
-        )}
+        ) : null}
         <h2
           data-fb-label="Titre section · Réglages"
           style={{

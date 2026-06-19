@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Settings, UserRound } from "lucide-react";
+import { Settings, CircleUserRound } from "lucide-react";
 
 import { AppearanceSection } from "@/shared/components/settings/AppearanceSection";
 import { NotificationPopover } from "@/modules/community/components/notifications/NotificationPopover";
@@ -163,7 +163,7 @@ export function MobileTopActions() {
               }}
               className="hover:bg-[var(--color-surface-raised)]"
             >
-              <UserRound size={16} style={{ color: "var(--color-text-muted)" }} />
+              <CircleUserRound size={16} style={{ color: "var(--color-text-muted)" }} />
               Profil
             </button>
             <Link
