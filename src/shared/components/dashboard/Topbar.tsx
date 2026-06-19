@@ -172,6 +172,14 @@ export function Topbar() {
             href="/dashboard"
             aria-label="Notion Club, retour à l'accueil"
             data-fb-label="Logo Notion Club · Barre de navigation"
+            onClick={() => {
+              // Le logo pointe sur /dashboard = onglet « Accueil » (index 0).
+              // On déclenche la même animation que les onglets (slide de la
+              // pilule) au lieu de laisser le useLayoutEffect faire un snap
+              // instantané au changement de route → plus de saccade.
+              lastClickedRef.current = 0;
+              moveTo(0, true);
+            }}
             style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}
           >
             <Image

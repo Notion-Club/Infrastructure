@@ -357,7 +357,7 @@ export function CommunityPage({
             {/* Post list — the only vertically scrollable zone */}
             <div
               ref={scrollRef}
-              className="flex-1 min-h-0 overflow-y-auto"
+              className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
               data-fb-label="Liste · Feed"
               style={{ padding: "0 16px 16px" }}
             >

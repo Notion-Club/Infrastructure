@@ -4,7 +4,7 @@ const pulse: React.CSSProperties = {
   borderRadius: "var(--nc-radius-xs)",
 };
 
-// Aligné sur communaute/layout.tsx : maxWidth 1000, padding px-4 pt-[96px]
+// Aligné sur communaute/layout.tsx : maxWidth 1000, padding px-4 pt-[64px]
 // pb-[100px] md:px-10 md:pt-[88px] md:pb-6 (mêmes valeurs que le <main> du
 // layout, sinon saut skeleton→contenu). Ne s'affiche plus qu'au PREMIER
 // chargement de /communaute (le layout étant ensuite préservé, les
@@ -29,7 +29,7 @@ export default function CommunauteLoading() {
         <main style={{ position: "relative", zIndex: 1 }}>
           <div
             style={{ maxWidth: 1000, margin: "0 auto" }}
-            className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[88px] md:pb-6"
+            className="px-4 pt-[64px] pb-[100px] md:px-10 md:pt-[88px] md:pb-6"
           >
             {/* Tab bar skeleton — Feed | Messages */}
             <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>

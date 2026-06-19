@@ -24,14 +24,21 @@ export function MobileBrandLogo() {
       aria-label="Notion Club, retour à l'accueil"
       data-fb-label="Logo Notion Club · Barre de navigation mobile"
       className="nc-mobile-logo"
+      onClick={() => {
+        // Prévient la BottomNav qu'on revient à l'accueil par le logo : elle
+        // anime alors sa pilule (slide) au lieu de la « snapper » sèchement
+        // au changement de route — même fluidité qu'un clic sur l'onglet
+        // Accueil. (cf. listener "nc:logo-home" dans BottomNav.)
+        window.dispatchEvent(new CustomEvent("nc:logo-home"));
+      }}
     >
       <Image
         src={theme === "dark" ? LOGO_DARK : LOGO_LIGHT}
         alt="Notion Club"
-        width={120}
-        height={40}
+        width={140}
+        height={48}
         priority
-        style={{ height: 26, width: "auto", display: "block" }}
+        style={{ height: 36, width: "auto", display: "block" }}
       />
     </Link>
   );
