@@ -404,7 +404,15 @@ export function MessagesLayout({
         style={{
           ...containerStyle,
           background: "var(--color-surface-card)",
-          height: "calc(100dvh - 200px)",
+          // Embedded (cas réel : monté dans la carte Communauté) → on remplit
+          // le parent flex (`flex-1 min-h-0` de MessagesContent) plutôt qu'une
+          // hauteur 100dvh codée en dur. L'ancien `calc(100dvh - 200px)`
+          // ignorait le padding du <main> (pt-64/pb-120), la hauteur du switcher
+          // et le dvh dynamique de Safari iOS : le conteneur dépassait le bas de
+          // la carte (overflow:hidden) et masquait le MessageComposer sous la
+          // BottomNav. En `height: 100%`, la flex-chain calcule la vraie place
+          // dispo et le composer reste visible. Fallback non-embedded conservé.
+          height: embedded ? "100%" : "calc(100dvh - 200px)",
         }}
       >
         {mobileView === "list" ? (

@@ -235,6 +235,10 @@ export function MessageComposer({
       style={{
         borderTop: "1px solid var(--color-border-default)",
         background: "var(--color-surface-card)",
+        // Jamais compressé par le flex parent (ConversationThread) : la zone
+        // des messages (flex:1) absorbe seule la place restante. Garantit que
+        // la barre d'écriture reste visible même quand l'espace est serré.
+        flexShrink: 0,
       }}
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
       onDragLeave={() => setDragging(false)}

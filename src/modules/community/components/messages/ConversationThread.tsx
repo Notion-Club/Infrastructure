@@ -97,25 +97,61 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
     return out;
   }, [olderMessages, conversation.messages, optimisticMessages]);
 
-  // Saut INSTANTANÉ tout en bas à l'OUVERTURE d'une conversation (changement
-  // d'id). useLayoutEffect + double rAF : on attend que les bulles soient
-  // peintes avant de mesurer scrollHeight (sinon on s'ancre trop haut). Pas de
-  // 'smooth' ici : il est interruptible par les reflows (images, re-renders)
-  // → c'est exactement ce qui ancrait au milieu de la conversation.
-  const openJumpRafRef = useRef<number | null>(null);
+  // Ancrage INSTANTANÉ tout en bas à l'OUVERTURE d'une conversation.
+  //
+  // Le thread est monté avec key={conv.id} → chaque conversation REMONTE le
+  // composant, donc didInitialAnchorRef repart naturellement à false.
+  //
+  // Bug corrigé : à l'ouverture d'une conv non encore chargée, le 1ᵉʳ render se
+  // fait avec messages=[] (skeleton). Les vraies bulles arrivent APRÈS, via
+  // getConversationAction côté parent, SANS remonter le composant. L'ancien
+  // effet (dep [conversation.id]) ne sautait qu'une fois, sur le vide, et ne se
+  // rejouait jamais quand les bulles arrivaient → on restait ancré au milieu.
+  //
+  // Ici on attend la 1ʳᵉ population réelle (messageCount > 0) pour ancrer, puis
+  // on verrouille : les messages suivants sont gérés par l'auto-scroll
+  // « near bottom » ci-dessous, sans jamais arracher l'utilisateur qui lit
+  // l'historique. Pas de 'smooth' (interruptible par les reflows = ancrage au
+  // milieu). On ré-ancre après le frame suivant ET après le chargement des
+  // images encore en vol (sinon scrollHeight grandit après coup).
+  const messageCount = messages.length;
+  const didInitialAnchorRef = useRef(false);
   useLayoutEffect(() => {
-    const jump = () => {
-      const c = scrollRef.current;
-      if (c) c.scrollTop = c.scrollHeight;
+    if (didInitialAnchorRef.current) return;
+    if (messageCount === 0) return; // encore en skeleton / chargement
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const anchorBottom = () => {
+      const el = scrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
     };
-    const id1 = requestAnimationFrame(() => {
-      openJumpRafRef.current = requestAnimationFrame(jump);
+
+    // 1) Ancrage immédiat (post-layout, pré-paint → aucun flash).
+    anchorBottom();
+    // 2) Nouvelle passe au frame suivant : couvre les reflows tardifs
+    //    (swap police SF Pro, mesure des hauteurs de bulles).
+    const raf = requestAnimationFrame(anchorBottom);
+    // 3) Ré-ancrage après chargement des images encore en vol — sinon
+    //    scrollHeight grandit après coup et on se retrouve ancré trop haut.
+    const pendingImgs = Array.from(container.querySelectorAll("img")).filter(
+      (img) => !img.complete,
+    );
+    const onImgSettled = () => anchorBottom();
+    pendingImgs.forEach((img) => {
+      img.addEventListener("load", onImgSettled, { once: true });
+      img.addEventListener("error", onImgSettled, { once: true });
     });
-    openJumpRafRef.current = id1;
+
+    didInitialAnchorRef.current = true;
     return () => {
-      if (openJumpRafRef.current) cancelAnimationFrame(openJumpRafRef.current);
+      cancelAnimationFrame(raf);
+      pendingImgs.forEach((img) => {
+        img.removeEventListener("load", onImgSettled);
+        img.removeEventListener("error", onImgSettled);
+      });
     };
-  }, [conversation.id]);
+  }, [conversation.id, messageCount]);
 
   // Auto-scroll SMOOTH pour un NOUVEAU message en bas (ou l'apparition du
   // typing indicator), UNIQUEMENT si l'utilisateur est déjà proche du bas —
