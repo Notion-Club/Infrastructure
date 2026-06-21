@@ -1,6 +1,13 @@
--- Migration 040 — Brique Community — archivage des notifications in-app
--- (renumérotée 039 → 040 : 039 est déjà pris par 039_messages_realtime.sql,
---  collision de version refusée par le runner Supabase)
+-- Migration 039b — Brique Community — archivage des notifications in-app
+-- (renumérotée 040 → 039b : le préfixe 040 était déjà pris par
+--  040_billing_companies.sql → deux fichiers en version 040 = duplicate key
+--  sur schema_migrations au runner. Le suffixe « b » donne un préfixe unique
+--  qui se classe entre 039_messages_realtime et 040_billing_companies — ce qui
+--  reflète l'ordre d'application réel en prod : notifications_archive (13:37)
+--  avant billing_companies (16:59) le 2026-06-18.)
+--  NB : déjà appliquée en prod sous le name « notifications_archive » (version
+--  timestamp via apply_migration) — ce renommage est purement de l'hygiène repo
+--  et ne change rien à l'état de la base.
 --
 -- Date    : 2026-06-18
 -- Auteur  : Notion Club Infra
