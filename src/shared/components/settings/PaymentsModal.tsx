@@ -1,55 +1,29 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Download, X } from "lucide-react";
+import { ChevronRight, Download, X } from "lucide-react";
+
+import { InvoicePreviewModal } from "./InvoicePreviewModal";
+import {
+  type Payment,
+  STATUS_STYLE,
+  formatDate,
+  formatEur,
+} from "./paymentsShared";
 
 // Modale « Mes paiements » — contenu chargé depuis GET /api/payments/me
 // (base Notion « Paiements »). Titre animé (shimmer pendant le chargement,
 // puis flip vers un titre statique), tableau responsive + skeleton.
+//
+// Chaque ligne est cliquable → ouvre la modale d'aperçu de facture
+// (InvoicePreviewModal). L'état d'ouverture est porté par le param d'URL
+// `?invoice={notionId}` (deep-link + bouton retour natif) via l'History API.
 
-type Payment = {
-  notionId: string;
-  label: string;
-  amount: number | null;
-  amountHt?: number | null;
-  paymentDate: string | null;
-  source: string | null;
-  status: string | null;
-  statusCategory: "paid" | "due" | "refused" | "unknown";
-  invoiceUrl?: string | null;
-};
-
-const STATUS_STYLE: Record<
-  Payment["statusCategory"],
-  { bg: string; fg: string; border: string }
-> = {
-  paid: { bg: "rgba(39,174,142,0.10)", fg: "#16805f", border: "rgba(39,174,142,0.25)" },
-  due: { bg: "rgba(91,141,239,0.10)", fg: "#2d5bb3", border: "rgba(91,141,239,0.25)" },
-  refused: { bg: "rgba(224,98,90,0.10)", fg: "#b3433b", border: "rgba(224,98,90,0.25)" },
-  unknown: { bg: "rgba(82,82,91,0.08)", fg: "#52525b", border: "rgba(82,82,91,0.20)" },
-};
-
-function formatEur(amount: number | null): string {
-  if (amount === null) return "—";
-  return amount.toLocaleString("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-  });
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString("fr-FR", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
+// Lit l'ID de facture courant dans l'URL (?invoice=…). null hors navigateur.
+function readInvoiceParam(): string | null {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search).get("invoice");
 }
 
 const TITLE_LOADING = "Nous cherchons tes paiements";
@@ -138,17 +112,19 @@ function StatusBadge({ p }: { p: Payment }) {
   );
 }
 
-function DownloadButton({ url }: { url: string | null | undefined }) {
-  if (url) {
+// Téléchargement direct (action secondaire) — transite par la route proxy
+// /api/payments/invoice/[id]?download=1 (jamais l'URL Notion brute, cf. #132).
+// stopPropagation : un clic sur le download n'ouvre pas l'aperçu de la ligne.
+function DownloadButton({ payment }: { payment: Payment }) {
+  if (payment.invoiceUrl) {
     return (
       <a
         className="nc-pay-dl-btn"
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
+        href={`/api/payments/invoice/${payment.notionId}?download=1`}
         title="Télécharger la facture"
         aria-label="Télécharger la facture"
         data-fb-label="Bouton Télécharger facture · Modale paiements"
+        onClick={(e) => e.stopPropagation()}
       >
         <Download size={15} />
       </a>
@@ -224,6 +200,52 @@ export function PaymentsModal({
   const [payments, setPayments] = useState<Payment[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // ID Notion de la facture dont l'aperçu est ouvert (miroir de ?invoice=).
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  // Vrai si c'est NOUS qui avons poussé l'entrée d'historique (clic), pour
+  // savoir si fermer = back() natif (notre push) ou replaceState (deep-link).
+  const didPushRef = useRef(false);
+
+  // Synchronise previewId avec l'URL : init à l'ouverture + bouton retour natif.
+  useEffect(() => {
+    if (!open) return;
+    const sync = () => setPreviewId(readInvoiceParam());
+    sync();
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, [open]);
+
+  // À la fermeture totale de la modale, on nettoie un éventuel ?invoice= résiduel.
+  useEffect(() => {
+    if (open) return;
+    didPushRef.current = false;
+    if (readInvoiceParam()) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("invoice");
+      window.history.replaceState(null, "", url);
+    }
+  }, [open]);
+
+  const openPreview = useCallback((id: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("invoice", id);
+    window.history.pushState(null, "", url);
+    didPushRef.current = true;
+    setPreviewId(id);
+  }, []);
+
+  const closePreview = useCallback(() => {
+    if (didPushRef.current) {
+      // Notre push → on le défait : back() déclenche popstate qui remet à null.
+      didPushRef.current = false;
+      window.history.back();
+    } else if (readInvoiceParam()) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("invoice");
+      window.history.replaceState(null, "", url);
+    }
+    setPreviewId(null);
+  }, []);
 
   // Lock scroll + Escape tant que la modale est ouverte.
   useEffect(() => {
@@ -279,7 +301,15 @@ export function PaymentsModal({
 
   if (!open) return null;
 
-  return createPortal(
+  // Paiement dont l'aperçu est ouvert (résolu depuis l'ID d'URL + la liste).
+  const previewPayment =
+    previewId && payments
+      ? payments.find((p) => p.notionId === previewId) ?? null
+      : null;
+
+  return (
+    <>
+      {createPortal(
     <div
       className="nc-modal-overlay"
       onClick={onClose}
@@ -379,7 +409,21 @@ export function PaymentsModal({
                 <span />
               </div>
               {payments.map((p) => (
-                <div className="nc-pay-row" key={p.notionId}>
+                <div
+                  className="nc-pay-row nc-pay-row--clickable"
+                  key={p.notionId}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Voir la facture — ${p.label || "Paiement"}`}
+                  data-fb-label="Ligne paiement (aperçu facture) · Modale paiements"
+                  onClick={() => openPreview(p.notionId)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openPreview(p.notionId);
+                    }
+                  }}
+                >
                   <span className="nc-pay-c-title" title={p.label}>
                     {p.label || "Paiement"}
                   </span>
@@ -392,7 +436,12 @@ export function PaymentsModal({
                   </span>
                   <span className="nc-pay-c-amount">{formatEur(p.amount)}</span>
                   <span className="nc-pay-c-dl">
-                    <DownloadButton url={p.invoiceUrl} />
+                    <DownloadButton payment={p} />
+                    <ChevronRight
+                      size={16}
+                      className="nc-pay-chevron"
+                      aria-hidden
+                    />
                   </span>
                 </div>
               ))}
@@ -401,6 +450,9 @@ export function PaymentsModal({
         </div>
       </div>
     </div>,
-    document.body,
+        document.body,
+      )}
+      <InvoicePreviewModal payment={previewPayment} onClose={closePreview} />
+    </>
   );
 }
