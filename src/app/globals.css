@@ -1754,92 +1754,205 @@ html {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Modale d'aperçu de facture (au-dessus de la modale Paiements).
+   RÈGLE DA (à respecter partout) — contraste des boutons en modale, dark mode.
+   Le fond d'une carte de modale est `--color-surface-card`. En dark, un bouton
+   qui réutilise CETTE MÊME surface devient invisible (croix de fermeture,
+   bouton secondaire « Ouvrir », etc.). Donc TOUT bouton à l'intérieur d'une
+   modale doit ressortir : on remonte d'un cran (surface-raised) + bordure plus
+   claire. Poser `.nc-modal-btn` (forme libre) ou `.nc-modal-icon-btn` (icône
+   ronde) sur le bouton. Ne JAMAIS laisser un bouton de modale sur
+   surface-card en dark.
    ────────────────────────────────────────────────────────────── */
-.nc-invoice-overlay {
-  /* > nc-modal-overlay (220) : l'aperçu se superpose à la liste. */
-  z-index: 240;
+.nc-modal-btn {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
 }
-.nc-invoice-modal-card {
-  max-width: 460px;
-  /* Entrée « papier qui se présente » : montée + léger scale. */
-  animation: nc-invoice-rise var(--nc-duration-slow) var(--nc-ease) both;
-}
-@keyframes nc-invoice-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-.nc-invoice-modal-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--color-border-default);
-  flex-shrink: 0;
-}
-.nc-invoice-modal-title {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+.dark .nc-modal-btn {
+  background: var(--color-surface-raised);
+  border-color: rgba(255, 255, 255, 0.16);
   color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.nc-invoice-modal-sub {
-  margin-top: 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 12.5px;
-  color: var(--color-text-muted);
+.dark .nc-modal-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
-.nc-invoice-modal-close {
+
+/* Bouton icône rond de modale (fermer, retour) — applique la règle ci-dessus. */
+.nc-modal-icon-btn {
   width: 36px;
   height: 36px;
   border-radius: 9999px;
-  border: 1px solid var(--color-border-default);
-  background: var(--color-surface-card);
-  color: var(--color-text-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
+  /* Ombre légère : sépare le bouton du papier blanc de la facture (light mode)
+     où fond bouton et fond papier sont tous deux blancs. */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: background 150ms var(--nc-ease), color 150ms var(--nc-ease),
+    border-color 150ms var(--nc-ease);
 }
-/* « Surface bureau » sur laquelle repose le papier de la facture. */
-.nc-invoice-stage {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+.nc-modal-icon-btn:hover {
+  color: var(--color-brand);
+  border-color: rgba(224, 98, 90, 0.35);
+}
+.dark .nc-modal-icon-btn {
+  background: var(--color-surface-raised);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--color-text-primary);
+}
+.dark .nc-modal-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-brand);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Modale Paiements — carte à 2 pages (liste ↔ détail facture) qui se
+   redimensionne. La carte n'a PAS de padding : chaque page gère le sien.
+   ────────────────────────────────────────────────────────────── */
+.nc-pay-card {
+  max-width: 92vw;
+  /* La hauteur est portée par le slide interne ; pas de flex/max-height ici. */
+  height: auto;
+}
+.nc-pay-slide {
+  width: 100%;
+}
+/* La page INACTIVE est rognée à la hauteur du conteneur → elle n'ajoute pas de
+   scroll fantôme quand l'autre page est plus courte. */
+.nc-pay-slide[data-page="1"] .t-page[data-page-id="2"],
+.nc-pay-slide[data-page="2"] .t-page[data-page-id="1"] {
+  max-height: 100%;
+  overflow: hidden;
+}
+
+/* En-tête de la page liste (titre animé + fermeture). */
+.nc-pay-list__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--color-border-default);
+}
+.nc-pay-list__body {
+  padding: 18px;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Détail de la facture (page 2) — aperçu fondu en haut + propriétés Notion.
+   Aucune séparation d'arrière-plan : tout vit sur la surface de la carte.
+   ────────────────────────────────────────────────────────────── */
+.nc-invoice-detail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+/* Contrôles flottants (retour / fermer), sur la même surface — pas de bande. */
+.nc-invoice-topbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.nc-invoice-topbar > * {
+  pointer-events: auto;
+}
+
+/* Aperçu papier — le bas se fond en flou (dégradé) dans la surface du panneau,
+   à partir de ~ la ligne Description/TVA/HT. */
+.nc-invoice-hero {
+  position: relative;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  padding: 28px 18px;
-  background:
-    radial-gradient(120% 80% at 50% 0%, rgba(224, 98, 90, 0.06), transparent 60%),
-    var(--color-surface-raised);
+  padding: 8px 18px 0;
 }
-.nc-invoice-paper {
+.nc-invoice-hero__paper {
   filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.12));
 }
-.nc-invoice-modal-foot {
+.nc-invoice-hero__veil {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  /* Flou progressif appliqué à partir de ~48 % de la hauteur (ligne du tableau). */
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 46%, #000 72%);
+  mask-image: linear-gradient(to bottom, transparent 46%, #000 72%);
+  /* Et fondu de couleur vers la surface de la carte tout en bas. */
+  background: linear-gradient(
+    to bottom,
+    transparent 44%,
+    var(--color-surface-card) 92%
+  );
+}
+
+/* Propriétés du paiement — disposition « page Notion » (clé icône | valeur). */
+.nc-invoice-props {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 16px 8px;
+}
+.nc-invoice-prop {
+  display: grid;
+  grid-template-columns: 168px 1fr;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  transition: background 150ms var(--nc-ease);
+}
+.nc-invoice-prop:hover {
+  background: var(--color-surface-raised);
+}
+.nc-invoice-prop__key {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.nc-invoice-prop__key svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.nc-invoice-prop__val {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.nc-invoice-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Pied — actions (Ouvrir / Télécharger). */
+.nc-invoice-foot {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
   align-items: center;
-  padding: 14px 18px;
-  border-top: 1px solid var(--color-border-default);
-  flex-shrink: 0;
+  padding: 12px 18px 18px;
 }
 .nc-invoice-open,
 .nc-invoice-download {
@@ -1853,13 +1966,9 @@ html {
   cursor: pointer;
   text-decoration: none;
   transition: color 150ms var(--nc-ease), border-color 150ms var(--nc-ease),
-    filter 150ms var(--nc-ease);
+    background 150ms var(--nc-ease), filter 150ms var(--nc-ease);
 }
-.nc-invoice-open {
-  border: 1px solid var(--color-border-default);
-  background: var(--color-surface-card);
-  color: var(--color-text-secondary);
-}
+/* « Ouvrir » = bouton secondaire → contraste géré par .nc-modal-btn (dark inclus). */
 .nc-invoice-open:hover {
   color: var(--color-brand);
   border-color: rgba(224, 98, 90, 0.35);
@@ -1876,11 +1985,6 @@ html {
 .nc-invoice-unavailable {
   font-size: 13px;
   color: var(--color-text-muted);
-}
-@media (prefers-reduced-motion: reduce) {
-  .nc-invoice-modal-card {
-    animation: none;
-  }
 }
 
 .nc-input {
