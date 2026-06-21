@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronRight, Download, X } from "lucide-react";
 
-import { InvoicePreviewModal } from "./InvoicePreviewModal";
+import { InvoiceDetail } from "./InvoiceDetail";
 import {
   type Payment,
   STATUS_STYLE,
@@ -16,9 +16,15 @@ import {
 // (base Notion « Paiements »). Titre animé (shimmer pendant le chargement,
 // puis flip vers un titre statique), tableau responsive + skeleton.
 //
-// Chaque ligne est cliquable → ouvre la modale d'aperçu de facture
-// (InvoicePreviewModal). L'état d'ouverture est porté par le param d'URL
-// `?invoice={notionId}` (deep-link + bouton retour natif) via l'History API.
+// Navigation INTERNE (pas de pop-up au-dessus d'un pop-up) : clic sur une ligne
+// → la même carte glisse de la liste (page 1) vers le détail de la facture
+// (page 2, InvoiceDetail) via le pattern transitions.dev « page side-by-side »,
+// et la carte se redimensionne (largeur + hauteur animées). L'état est porté par
+// le param d'URL `?invoice={notionId}` (deep-link + bouton retour natif).
+
+// Largeurs de la carte selon la page affichée (px ; bornées à 92vw en mobile).
+const CARD_W_LIST = 680;
+const CARD_W_DETAIL = 480;
 
 // Lit l'ID de facture courant dans l'URL (?invoice=…). null hors navigateur.
 function readInvoiceParam(): string | null {
@@ -206,6 +212,14 @@ export function PaymentsModal({
   // savoir si fermer = back() natif (notre push) ou replaceState (deep-link).
   const didPushRef = useRef(false);
 
+  // Slide liste ↔ détail (transitions.dev) + hauteur animée sur la page active.
+  const page1Ref = useRef<HTMLElement>(null);
+  const page2Ref = useRef<HTMLElement>(null);
+  const [slideHeight, setSlideHeight] = useState<number | undefined>(undefined);
+  // Facture rendue en page 2 — conservée pendant l'animation de sortie (la carte
+  // glisse vers la liste) pour ne pas vider le détail en plein slide.
+  const [detailPayment, setDetailPayment] = useState<Payment | null>(null);
+
   // Synchronise previewId avec l'URL : init à l'ouverture + bouton retour natif.
   useEffect(() => {
     if (!open) return;
@@ -247,11 +261,14 @@ export function PaymentsModal({
     setPreviewId(null);
   }, []);
 
-  // Lock scroll + Escape tant que la modale est ouverte.
+  // Lock scroll + Escape : sur le détail, Escape revient à la liste ; sur la
+  // liste, Escape ferme la modale.
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      if (readInvoiceParam()) closePreview();
+      else onClose();
     }
     document.addEventListener("keydown", onKey);
     const previous = document.body.style.overflow;
@@ -260,7 +277,7 @@ export function PaymentsModal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previous;
     };
-  }, [open, onClose]);
+  }, [open, onClose, closePreview]);
 
   // Charge les paiements à chaque ouverture.
   useEffect(() => {
@@ -299,17 +316,49 @@ export function PaymentsModal({
     };
   }, [open]);
 
+  // Hauteur animée : la carte épouse la page active (sans saut), mesurée sur la
+  // section correspondante. Recalcul quand le contenu change (chargement, page).
+  useEffect(() => {
+    if (!open) return;
+    const el = previewId ? page2Ref.current : page1Ref.current;
+    if (!el) return;
+    // Borné à 86vh : au-delà, c'est le slide (overflow-y auto) qui scrolle au
+    // lieu de laisser le contenu déborder de la carte.
+    const update = () =>
+      setSlideHeight(
+        Math.min(el.offsetHeight, Math.round(window.innerHeight * 0.86)),
+      );
+    const raf = requestAnimationFrame(update);
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [open, previewId, payments, loading, error]);
+
+  // Garde la facture affichée en page 2 à jour quand un ?invoice= est résolu.
+  // On NE remet PAS à null quand previewId disparaît : le détail reste visible
+  // pendant le slide de sortie vers la liste. setState déféré (rAF) pour la
+  // règle react-hooks/set-state-in-effect.
+  useEffect(() => {
+    const p =
+      previewId && payments
+        ? payments.find((x) => x.notionId === previewId) ?? null
+        : null;
+    if (!p) return;
+    const raf = requestAnimationFrame(() => setDetailPayment(p));
+    return () => cancelAnimationFrame(raf);
+  }, [previewId, payments]);
+
   if (!open) return null;
 
-  // Paiement dont l'aperçu est ouvert (résolu depuis l'ID d'URL + la liste).
-  const previewPayment =
-    previewId && payments
-      ? payments.find((p) => p.notionId === previewId) ?? null
-      : null;
+  // Page active : détail dès qu'un ?invoice= est présent (même en cours de
+  // chargement). detailPayment (state) garde la dernière facture pendant la
+  // sortie pour que le slide ne se vide pas.
+  const page = previewId ? 2 : 1;
 
-  return (
-    <>
-      {createPortal(
+  return createPortal(
     <div
       className="nc-modal-overlay"
       onClick={onClose}
@@ -318,141 +367,139 @@ export function PaymentsModal({
       aria-label="Mes paiements"
     >
       <div
-        className="nc-modal-card nc-modal-card--wide"
+        className="nc-modal-card nc-pay-card"
         onClick={(e) => e.stopPropagation()}
+        style={{
+          width: page === 2 ? CARD_W_DETAIL : CARD_W_LIST,
+          maxWidth: "92vw",
+          transition: "width 280ms var(--nc-ease)",
+        }}
       >
-        {/* Header — titre animé + fermeture */}
+        {/* Slide liste ↔ détail — la hauteur épouse la page active. */}
         <div
+          className="t-page-slide nc-pay-slide"
+          data-page={page}
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            padding: "16px 18px",
-            borderBottom: "1px solid var(--color-border-default)",
-            flexShrink: 0,
-          }}
-        >
-          <PaymentsTitle loading={loading} />
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer"
-            data-fb-label="Fermer · Modale paiements"
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 9999,
-              border: "1px solid var(--color-border-default)",
-              background: "var(--color-surface-card)",
-              color: "var(--color-text-secondary)",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              flexShrink: 0,
-            }}
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div
-          style={{
-            flex: 1,
-            minHeight: 0,
+            height: slideHeight,
+            maxHeight: "86vh",
             overflowY: "auto",
+            overflowX: "hidden",
             WebkitOverflowScrolling: "touch",
-            padding: 18,
+            transition: "height 280ms var(--nc-ease)",
           }}
         >
-          {loading && <PaymentsSkeleton />}
-
-          {!loading && error && (
-            <div
-              style={{
-                padding: "16px 14px",
-                fontSize: 13,
-                color: "#b3433b",
-                background: "rgba(224,98,90,0.05)",
-                borderRadius: 12,
-                lineHeight: 1.5,
-              }}
-            >
-              {error}
+          {/* ── Page 1 — liste des paiements ── */}
+          <section ref={page1Ref} className="t-page" data-page-id="1">
+            <div className="nc-pay-list__head">
+              <PaymentsTitle loading={loading} />
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Fermer"
+                data-fb-label="Fermer · Modale paiements"
+                className="nc-modal-icon-btn"
+              >
+                <X size={16} />
+              </button>
             </div>
-          )}
 
-          {!loading && !error && payments && payments.length === 0 && (
-            <div
-              style={{
-                padding: "28px 14px",
-                fontSize: 13,
-                color: "var(--color-text-muted)",
-                textAlign: "center",
-                border: "1px dashed var(--color-border-default)",
-                borderRadius: 12,
-              }}
-            >
-              Aucun paiement enregistré pour le moment.
-            </div>
-          )}
+            <div className="nc-pay-list__body">
+              {loading && <PaymentsSkeleton />}
 
-          {!loading && !error && payments && payments.length > 0 && (
-            <div className="nc-pay-table">
-              <div className="nc-pay-head">
-                <span>Titre</span>
-                <span>Date</span>
-                <span>Statut</span>
-                <span style={{ textAlign: "right" }}>Montant TTC</span>
-                <span />
-              </div>
-              {payments.map((p) => (
+              {!loading && error && (
                 <div
-                  className="nc-pay-row nc-pay-row--clickable"
-                  key={p.notionId}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Voir la facture — ${p.label || "Paiement"}`}
-                  data-fb-label="Ligne paiement (aperçu facture) · Modale paiements"
-                  onClick={() => openPreview(p.notionId)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      openPreview(p.notionId);
-                    }
+                  style={{
+                    padding: "16px 14px",
+                    fontSize: 13,
+                    color: "#b3433b",
+                    background: "rgba(224,98,90,0.05)",
+                    borderRadius: 12,
+                    lineHeight: 1.5,
                   }}
                 >
-                  <span className="nc-pay-c-title" title={p.label}>
-                    {p.label || "Paiement"}
-                  </span>
-                  <span className="nc-pay-c-date">{formatDate(p.paymentDate)}</span>
-                  <span className="nc-pay-c-meta">
-                    <span className="nc-pay-meta-date">
-                      {formatDate(p.paymentDate)}
-                    </span>
-                    <StatusBadge p={p} />
-                  </span>
-                  <span className="nc-pay-c-amount">{formatEur(p.amount)}</span>
-                  <span className="nc-pay-c-dl">
-                    <DownloadButton payment={p} />
-                    <ChevronRight
-                      size={16}
-                      className="nc-pay-chevron"
-                      aria-hidden
-                    />
-                  </span>
+                  {error}
                 </div>
-              ))}
+              )}
+
+              {!loading && !error && payments && payments.length === 0 && (
+                <div
+                  style={{
+                    padding: "28px 14px",
+                    fontSize: 13,
+                    color: "var(--color-text-muted)",
+                    textAlign: "center",
+                    border: "1px dashed var(--color-border-default)",
+                    borderRadius: 12,
+                  }}
+                >
+                  Aucun paiement enregistré pour le moment.
+                </div>
+              )}
+
+              {!loading && !error && payments && payments.length > 0 && (
+                <div className="nc-pay-table">
+                  <div className="nc-pay-head">
+                    <span>Titre</span>
+                    <span>Date</span>
+                    <span>Statut</span>
+                    <span style={{ textAlign: "right" }}>Montant TTC</span>
+                    <span />
+                  </div>
+                  {payments.map((p) => (
+                    <div
+                      className="nc-pay-row nc-pay-row--clickable"
+                      key={p.notionId}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Voir la facture — ${p.label || "Paiement"}`}
+                      data-fb-label="Ligne paiement (aperçu facture) · Modale paiements"
+                      onClick={() => openPreview(p.notionId)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openPreview(p.notionId);
+                        }
+                      }}
+                    >
+                      <span className="nc-pay-c-title" title={p.label}>
+                        {p.label || "Paiement"}
+                      </span>
+                      <span className="nc-pay-c-date">
+                        {formatDate(p.paymentDate)}
+                      </span>
+                      <span className="nc-pay-c-meta">
+                        <span className="nc-pay-meta-date">
+                          {formatDate(p.paymentDate)}
+                        </span>
+                        <StatusBadge p={p} />
+                      </span>
+                      <span className="nc-pay-c-amount">{formatEur(p.amount)}</span>
+                      <span className="nc-pay-c-dl">
+                        <DownloadButton payment={p} />
+                        <ChevronRight
+                          size={16}
+                          className="nc-pay-chevron"
+                          aria-hidden
+                        />
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </section>
+
+          {/* ── Page 2 — détail de la facture (même carte, pas un pop-up) ── */}
+          <section ref={page2Ref} className="t-page" data-page-id="2">
+            <InvoiceDetail
+              payment={detailPayment}
+              onBack={closePreview}
+              onClose={onClose}
+            />
+          </section>
         </div>
       </div>
     </div>,
-        document.body,
-      )}
-      <InvoicePreviewModal payment={previewPayment} onClose={closePreview} />
-    </>
+    document.body,
   );
 }
