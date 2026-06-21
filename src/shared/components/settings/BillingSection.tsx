@@ -85,6 +85,16 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
   const [saving, setSaving] = useState(false);
   const [paymentsOpen, setPaymentsOpen] = useState(false);
 
+  // Deep-link : si l'URL porte ?invoice=…, on ouvre la modale Paiements (qui
+  // ouvrira elle-même l'aperçu de la facture correspondante). setState déféré
+  // (hors corps synchrone de l'effet) pour la règle react-hooks/set-state-in-effect.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!new URLSearchParams(window.location.search).get("invoice")) return;
+    const t = setTimeout(() => setPaymentsOpen(true), 0);
+    return () => clearTimeout(t);
+  }, []);
+
   const errors = useMemo(() => {
     const e: Partial<Record<"companyName" | "siret" | "vat", string>> = {};
     if (isCompany) {
