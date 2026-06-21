@@ -27,40 +27,23 @@
 import { NextResponse } from "next/server";
 
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import {
+  getPage,
+  getRelationIds,
+  getTitle,
+  NotionError,
+  type NotionPropertyValue,
+} from "@/shared/lib/notion/client";
 
 export const dynamic = "force-dynamic";
 
 // DB Paiements (même défaut que /api/payments/me). Override staging via env.
 const PAYMENTS_DATABASE_ID = "2a1bad05-6a95-80cc-b34d-c3bc28ad2d1d";
 
-// ───────────────────────────────────────────────────────────────────────────
-// Types Notion partiels (on reste permissif : base éditée à la main par l'admin).
-
-interface NotionFilesProp {
-  files?: Array<{
-    file?: { url?: string };
-    external?: { url?: string };
-    name?: string;
-  }>;
-}
-interface NotionUrlProp {
-  url?: string | null;
-}
-interface NotionTitleProp {
-  title?: Array<{ plain_text?: string; text?: { content?: string } }>;
-}
-interface NotionRelationProp {
-  relation?: Array<{ id?: string }>;
-}
-
-interface NotionPage {
-  parent?: { database_id?: string };
-  properties?: {
-    Nom?: NotionTitleProp;
-    Membre?: NotionRelationProp;
-    Facture?: NotionFilesProp & NotionUrlProp;
-  };
-}
+// Délai max pour récupérer le PDF en amont (S3 / lien externe). Au-delà, on
+// abandonne plutôt que de bloquer la fonction serverless. Le timeout couvre la
+// connexion + les en-têtes ; une fois le stream démarré, on le laisse couler.
+const UPSTREAM_TIMEOUT_MS = 15_000;
 
 // Normalise un ID Notion pour comparaison (32 hex, sans tirets, minuscule).
 function normId(id: string | null | undefined): string {
@@ -68,16 +51,12 @@ function normId(id: string | null | undefined): string {
 }
 
 // Extrait l'URL de la facture (Files → file.url / external.url, sinon URL).
-// Identique à readInvoiceUrl de /api/payments/me — re-résolue à chaque requête.
-function readInvoiceUrl(prop?: NotionFilesProp & NotionUrlProp): string | null {
+// Ordre identique à readInvoiceUrl de /api/payments/me : on sert exactement la
+// même URL que celle résolue dans la liste — re-résolue à chaque requête.
+function readInvoiceUrl(prop?: NotionPropertyValue): string | null {
   if (!prop) return null;
   const f = prop.files?.[0];
   return f?.file?.url ?? f?.external?.url ?? prop.url ?? null;
-}
-
-function readTitle(prop?: NotionTitleProp): string {
-  const first = prop?.title?.[0];
-  return first?.plain_text ?? first?.text?.content ?? "";
 }
 
 // Nom de fichier ASCII sûr pour Content-Disposition (fallback). Le nom complet
@@ -111,18 +90,9 @@ export async function GET(
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
-  const token = process.env.NOTION_API_TOKEN;
-  if (!token) {
-    return NextResponse.json(
-      { error: "Configuration serveur manquante (NOTION_API_TOKEN)" },
-      { status: 500 },
-    );
-  }
-
   // Garde-fou format : un ID de page Notion = 32 hex (avec ou sans tirets).
   // Rejeter tout le reste avant tout appel réseau (anti-SSRF / garbage).
-  const pageId = normId(id);
-  if (!/^[0-9a-f]{32}$/.test(pageId)) return notFound();
+  if (!/^[0-9a-f]{32}$/.test(normId(id))) return notFound();
 
   // ── 2a. Membre courant — lecture directe du profil (pas de side-effect).
   // On NE crée PAS de page Notion ici (route lecture seule) : sans
@@ -137,22 +107,15 @@ export async function GET(
   if (!memberPageId) return notFound();
 
   // ── 2b. Résolution de la page Notion + contrôle d'ownership ──────────────
-  let page: NotionPage;
+  // getPage() = wrapper partagé (retry 429, NotionError, normalisation d'ID).
+  let page;
   try {
-    const pageRes = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Notion-Version": "2022-06-28",
-      },
-      cache: "no-store",
-    });
-    // Notion renvoie 404 (object_not_found) si la page n'existe pas / n'est pas
-    // partagée avec l'intégration → 404 neutre côté client.
-    if (!pageRes.ok) return notFound();
-    page = (await pageRes.json()) as NotionPage;
+    page = await getPage(id);
   } catch (err) {
+    // Page inexistante / non partagée avec l'intégration → 404 neutre.
+    if (err instanceof NotionError && err.status === 404) return notFound();
     console.error("[payments/invoice] notion page fetch error:", err);
-    return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
+    return NextResponse.json({ error: "Erreur interne" }, { status: 502 });
   }
 
   // Défense en profondeur : la page DOIT appartenir à la DB Paiements. Empêche
@@ -164,8 +127,8 @@ export async function GET(
 
   // Le cœur anti-IDOR : la relation « Membre » du paiement doit contenir la
   // page Membre du user courant. Sinon → 404 (on ne révèle rien).
-  const ownsInvoice = (page.properties?.Membre?.relation ?? []).some(
-    (r) => normId(r.id) === memberPageId,
+  const ownsInvoice = getRelationIds(page, "Membre").some(
+    (relId) => normId(relId) === memberPageId,
   );
   if (!ownsInvoice) return notFound();
 
@@ -173,17 +136,40 @@ export async function GET(
   const invoiceUrl = readInvoiceUrl(page.properties?.Facture);
   if (!invoiceUrl) return notFound();
 
+  // Garde-fou SSRF : on ne proxy que du http(s). L'URL vient d'une propriété
+  // éditée à la main côté admin (CRM de confiance) mais on refuse tout schéma
+  // exotique (file:, data:, etc.) par principe.
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(invoiceUrl);
+  } catch {
+    return notFound();
+  }
+  if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
+    return notFound();
+  }
+
   // ── 4. Proxy/stream — l'URL Notion ne fuite jamais côté client ───────────
+  // Timeout sur l'établissement de la réponse uniquement : une fois les
+  // en-têtes reçus, on stream le corps sans limite de durée.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
   let upstream: Response;
   try {
-    upstream = await fetch(invoiceUrl, { cache: "no-store" });
+    upstream = await fetch(parsedUrl, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
   } catch (err) {
+    clearTimeout(timeout);
     console.error("[payments/invoice] upstream fetch error:", err);
     return NextResponse.json(
       { error: "Facture momentanément indisponible" },
       { status: 502 },
     );
   }
+  clearTimeout(timeout);
+
   if (!upstream.ok || !upstream.body) {
     return NextResponse.json(
       { error: "Facture momentanément indisponible" },
@@ -191,9 +177,8 @@ export async function GET(
     );
   }
 
-  const download =
-    new URL(request.url).searchParams.get("download") === "1";
-  const label = readTitle(page.properties?.Nom) || "facture";
+  const download = new URL(request.url).searchParams.get("download") === "1";
+  const label = getTitle(page, "Nom") || "facture";
   const ascii = asciiFilename(label);
   const utf8 = encodeURIComponent(`${label}.pdf`);
 

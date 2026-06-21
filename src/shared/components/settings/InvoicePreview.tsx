@@ -1,8 +1,24 @@
-// Aperçu de facture (décoratif) affiché à droite du bouton « Voir mes
-// paiements ». Reprend le design system de la facture du projet sales-invoice
-// (papier blanc, en-tête logo + « Facture », parties Émetteur/Client, tableau,
-// totaux). Les valeurs autrefois remplies par des inputs (numéro, dates, client,
-// montants) sont remplacées par des barres de skeleton.
+// Aperçu de facture affiché à droite du bouton « Voir mes paiements » (mode
+// décoratif, valeurs en skeleton) ET dans la modale d'aperçu (mode rempli avec
+// les vraies données du paiement). Reprend le design system de la facture du
+// projet sales-invoice (papier blanc, en-tête logo + « Facture », parties
+// Émetteur/Client, tableau, totaux).
+//
+// Sans props → 100 % skeleton + aria-hidden (usage CTA, inchangé).
+// Avec props (description / date / montants) → les vraies valeurs remplacent les
+// skeletons correspondants ; le reste (n° de facture, client) reste en skeleton
+// car non disponible côté client.
+
+import { formatEur } from "./paymentsShared";
+
+type InvoicePreviewProps = {
+  description?: string;
+  date?: string;
+  amountHt?: number | null;
+  amountTtc?: number | null;
+  // false → composant lisible (modale) : on retire aria-hidden.
+  decorative?: boolean;
+};
 
 const PAPER = "#ffffff";
 const INK = "#010101";
@@ -34,10 +50,31 @@ function Skel({
   );
 }
 
-export function InvoicePreview() {
+// Montant réel (texte sombre, chiffres tabulaires) si fourni, sinon skeleton.
+// Fonction au niveau module (appelée, pas montée comme composant) pour éviter
+// la re-création de composant à chaque rendu.
+function renderMoney(value: number | null | undefined, w: number) {
+  return value != null ? (
+    <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatEur(value)}</span>
+  ) : (
+    <Skel w={w} h={6} />
+  );
+}
+
+export function InvoicePreview({
+  description,
+  date,
+  amountHt,
+  amountTtc,
+  decorative = true,
+}: InvoicePreviewProps = {}) {
+  // Valeur réelle (texte sombre) si fournie, sinon barre de skeleton.
+  const tva =
+    amountTtc != null && amountHt != null ? amountTtc - amountHt : null;
+
   return (
     <div
-      aria-hidden
+      aria-hidden={decorative ? true : undefined}
       style={{
         width: 260,
         flexShrink: 0,
@@ -78,7 +115,11 @@ export function InvoicePreview() {
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
-          <Skel w={44} h={6} />
+          {date ? (
+            <span style={{ fontSize: 9, color: MUTED }}>{date}</span>
+          ) : (
+            <Skel w={44} h={6} />
+          )}
           <Skel w={36} h={6} />
         </div>
       </div>
@@ -160,10 +201,18 @@ export function InvoicePreview() {
             borderBottom: `1px solid ${LINE}`,
           }}
         >
-          <span>Formation Notion Club</span>
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {description || "Formation Notion Club"}
+          </span>
           <span>20 %</span>
           <span style={{ textAlign: "right" }}>
-            <Skel w={32} h={6} />
+            {renderMoney(amountHt, 32)}
           </span>
         </div>
       </div>
@@ -172,11 +221,11 @@ export function InvoicePreview() {
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
         <div style={{ display: "flex", gap: 28, fontSize: 9, color: MUTED, alignItems: "center" }}>
           <span>Total HT</span>
-          <Skel w={40} h={6} />
+          {renderMoney(amountHt, 40)}
         </div>
         <div style={{ display: "flex", gap: 28, fontSize: 9, color: MUTED, alignItems: "center" }}>
           <span>TVA 20 %</span>
-          <Skel w={40} h={6} />
+          {renderMoney(tva, 40)}
         </div>
         <div
           style={{
@@ -191,7 +240,13 @@ export function InvoicePreview() {
           }}
         >
           <span>Total TTC</span>
-          <Skel w={48} h={8} />
+          {amountTtc != null ? (
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>
+              {formatEur(amountTtc)}
+            </span>
+          ) : (
+            <Skel w={48} h={8} />
+          )}
         </div>
       </div>
     </div>

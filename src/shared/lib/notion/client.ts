@@ -161,6 +161,14 @@ export type NotionPage = {
   id: string;
   archived: boolean;
   in_trash?: boolean;
+  // `parent` permet de vérifier qu'une page appartient bien à la DB attendue
+  // (défense en profondeur côté routes sensibles, cf. /api/payments/invoice).
+  parent?: {
+    type?: string;
+    database_id?: string;
+    page_id?: string;
+    workspace?: boolean;
+  };
   created_time: string;
   last_edited_time: string;
   properties: Record<string, NotionPropertyValue>;
