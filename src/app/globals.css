@@ -3,6 +3,7 @@
 
 html {
   scroll-behavior: smooth;
+  background-color: var(--color-surface-page);
 }
 
 @custom-variant dark (&:is(.dark *));
