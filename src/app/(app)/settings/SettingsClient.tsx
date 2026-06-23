@@ -115,7 +115,7 @@ export function SettingsClient({
 
   return (
     <>
-      <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+      <div className="nc-page-halo" style={{ minHeight: "100lvh" }}>
         <main style={{ position: "relative", zIndex: 1 }}>
           <div
             style={{

@@ -8,7 +8,7 @@ const pulse: React.CSSProperties = {
 // historique). maxWidth 1100, paddings responsive identiques à la page client.
 export default function CoachingLoading() {
   return (
-    <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+    <div className="nc-page-halo" style={{ minHeight: "100lvh" }}>
       <main style={{ position: "relative", zIndex: 1 }}>
         <div
           className="px-4 pt-[80px] pb-[88px] md:px-10 md:pt-[104px] md:pb-8"

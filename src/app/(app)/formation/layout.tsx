@@ -9,7 +9,7 @@ import { FormationToasts, LessonTransition } from "@/modules/formation";
 export default function FormationLayout({ children }: { children: ReactNode }) {
   return (
     <>
-      <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+      <div className="nc-page-halo" style={{ minHeight: "100lvh" }}>
         <main style={{ position: "relative", zIndex: 1 }}>
           <div
             className="px-4 pt-[96px] pb-[120px] md:px-10 md:pt-[148px] md:pb-12"

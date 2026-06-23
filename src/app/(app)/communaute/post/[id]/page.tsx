@@ -23,7 +23,7 @@ export default async function PostDetailPage({ params }: Props) {
   const comments = await listCommentsForPost(id);
 
   return (
-    <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+    <div className="nc-page-halo" style={{ minHeight: "100lvh" }}>
         <main style={{ position: "relative", zIndex: 1 }}>
           <div
             style={{ maxWidth: 840, margin: "0 auto" }}

@@ -8,7 +8,7 @@ const pulse: React.CSSProperties = {
 // or for routes that don't have a dedicated loading.tsx.
 export default function AppLoading() {
   return (
-    <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+    <div className="nc-page-halo" style={{ minHeight: "100lvh" }}>
         <main style={{ position: "relative", zIndex: 1 }}>
           <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

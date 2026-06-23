@@ -511,7 +511,7 @@ export default function CoachingPageClient({
           grandit pas avec le nombre d'appels). Sur mobile : flux naturel. */}
       <div
         className="nc-page-halo md:flex md:flex-col"
-        style={{ minHeight: "100dvh" }}
+        style={{ minHeight: "100lvh" }}
       >
         <main
           className="md:flex md:flex-1 md:min-h-0"

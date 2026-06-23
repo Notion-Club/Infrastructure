@@ -5,7 +5,7 @@ import { SettingsSkeleton } from "@/shared/components/settings/SettingsSkeleton"
 // ProfileRecapCard + cartes de section). Plus de molette de chargement.
 export default function SettingsLoading() {
   return (
-    <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+    <div className="nc-page-halo" style={{ minHeight: "100lvh" }}>
       <main style={{ position: "relative", zIndex: 1 }}>
         <div
           style={{ maxWidth: 680, margin: "0 auto" }}

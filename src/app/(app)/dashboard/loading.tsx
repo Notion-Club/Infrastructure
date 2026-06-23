@@ -6,7 +6,7 @@ const pulse: React.CSSProperties = {
 
 export default function DashboardLoading() {
   return (
-    <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
+    <div className="nc-page-halo" style={{ minHeight: "100lvh" }}>
         <main style={{ position: "relative", zIndex: 1 }}>
           <div
             style={{

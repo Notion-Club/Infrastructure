@@ -11,7 +11,7 @@ const LOGO_SRC =
 
 export default function ResetPasswordPage() {
   return (
-    <main className="nc-page-halo relative flex min-h-[100dvh] flex-col">
+    <main className="nc-page-halo relative flex min-h-[100lvh] flex-col">
       <div className="relative z-[1] mx-auto flex w-full max-w-[520px] flex-1 flex-col items-center justify-center gap-10 px-4 py-16">
         <header className="flex flex-col items-center gap-8">
           <Image
