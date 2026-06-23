@@ -49,7 +49,13 @@ interface MorphMenuProps {
    */
   openWidth?: number;
   openHeight?: number;
-  /** Rayon du bouton fermé (px ou keyword). Défaut : pastille ronde. */
+  /**
+   * Rayon du bouton fermé (px ou keyword). Si omis : moitié de la taille
+   * MESURÉE du déclencheur → cercle/pilule parfaitement ronde exprimée en px
+   * RÉEL, proche du rayon ouvert. Crucial : ne JAMAIS partir d'un 9999px, sinon
+   * l'ease rebondissante du border-radius dépasse sa cible jusqu'à 0 → coins
+   * carrés visibles en milieu d'animation (la source part de 40px, pas 9999).
+   */
   closedRadius?: number | string;
   /** z-index posé sur l'ancre — le morph doit flotter au-dessus du contenu. */
   zIndex?: number;
@@ -72,7 +78,7 @@ export function MorphMenu({
   origin = "top-right",
   openWidth,
   openHeight,
-  closedRadius = "9999px",
+  closedRadius,
   zIndex,
   triggerContent,
   triggerStyle,
@@ -183,11 +189,22 @@ export function MorphMenu({
     ...anchorStyle,
   };
 
+  // Rayon fermé : explicite si fourni, sinon moitié de la taille mesurée du
+  // déclencheur (cercle/pilule parfaitement rond, en px RÉEL proche du rayon
+  // ouvert → l'overshoot de l'ease rebondissante reste positif, jamais carré).
+  const rClosed =
+    closedRadius != null
+      ? typeof closedRadius === "number"
+        ? `${closedRadius}px`
+        : closedRadius
+      : closed
+        ? `${Math.min(closed.w, closed.h) / 2}px`
+        : "9999px";
+
   const morphVars: CSSProperties = {
     ...(resolvedW != null ? { ["--morph-open-w" as string]: `${resolvedW}px` } : {}),
     ...(resolvedH != null ? { ["--morph-open-h" as string]: `${resolvedH}px` } : {}),
-    ["--morph-r-closed" as string]:
-      typeof closedRadius === "number" ? `${closedRadius}px` : closedRadius,
+    ["--morph-r-closed" as string]: rClosed,
     ...closedVars,
   };
 
