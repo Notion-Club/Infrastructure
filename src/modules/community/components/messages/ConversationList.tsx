@@ -30,6 +30,9 @@ export function ConversationList({
 }: ConversationListProps) {
   const [query, setQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
+  // Point d'origine du morph : centre du bouton « + » au moment du clic, pour
+  // que la modale grandisse depuis le bouton (option hybride : fond + morph).
+  const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null);
 
   const filtered = query
     ? conversations.filter((c) =>
@@ -65,7 +68,11 @@ export function ConversationList({
           </span>
           <button
             type="button"
-            onClick={() => setShowModal(true)}
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setOrigin({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+              setShowModal(true);
+            }}
             data-fb-label="Bouton Nouvelle conversation · Liste conversations"
             style={{
               width: 30, height: 30, borderRadius: "50%",
@@ -119,6 +126,7 @@ export function ConversationList({
       {showModal && (
         <NewConversationModal
           currentUser={currentUser}
+          origin={origin}
           onClose={() => setShowModal(false)}
           onSelect={(userId) => {
             onNewConversation(userId);

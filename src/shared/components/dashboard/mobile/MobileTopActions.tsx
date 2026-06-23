@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect, useTransition } from "react";
+import { useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Settings, CircleUserRound } from "lucide-react";
 
 import { AppearanceSection } from "@/shared/components/settings/AppearanceSection";
+import { MorphMenu } from "@/shared/components/MorphMenu";
 import { NotificationPopover } from "@/modules/community/components/notifications/NotificationPopover";
 import { useProfileModal } from "@/shared/components/profile/ProfileModalProvider";
 import {
@@ -17,9 +18,7 @@ import { DevToolboxButton } from "@/shared/components/dev/DevToolbox";
 
 export function MobileTopActions() {
   const router = useRouter();
-  const [avatarOpen, setAvatarOpen] = useState(false);
   const [signingOut, startSignOut] = useTransition();
-  const avatarRef = useRef<HTMLDivElement>(null);
   const { open: openProfileModal } = useProfileModal();
   const { identity } = useProfileIdentityContext();
   const initials = computeIdentityInitials(identity);
@@ -34,17 +33,6 @@ export function MobileTopActions() {
       router.refresh();
     });
   }
-
-  useEffect(() => {
-    if (!avatarOpen) return;
-    function onClickOutside(e: MouseEvent) {
-      if (avatarRef.current && !avatarRef.current.contains(e.target as Node)) {
-        setAvatarOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [avatarOpen]);
 
   return (
     <div
@@ -71,65 +59,42 @@ export function MobileTopActions() {
       {/* Notifications — données réelles via useNotifications */}
       <NotificationPopover buttonClassName="nc-mobile-action-btn" variant="mobile" />
 
-      {/* Avatar + dropdown */}
-      <div ref={avatarRef} style={{ position: "relative" }}>
-        <button
-          type="button"
-          aria-label="Menu compte"
-          onClick={() => setAvatarOpen((o) => !o)}
-          data-fb-label="Avatar compte · Barre de navigation"
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: "50%",
-            background: avatarUrl ? "transparent" : avatarColor,
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 13,
-            fontWeight: 700,
-            letterSpacing: "0.02em",
-            border: "none",
-            cursor: "pointer",
-            flexShrink: 0,
-            overflow: "hidden",
-            padding: 0,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
-          }}
-        >
-          {avatarUrl ? (
+      {/* Avatar + dropdown morph */}
+      <MorphMenu
+        origin="top-right"
+        openWidth={248}
+        openHeight={212}
+        ariaLabel="Menu compte"
+        triggerFbLabel="Avatar compte · Barre de navigation"
+        panelFbLabel="Menu compte · Barre de navigation"
+        triggerStyle={{
+          width: 38,
+          height: 38,
+          borderRadius: "50%",
+          background: avatarUrl ? "transparent" : avatarColor,
+          color: "white",
+          fontSize: 13,
+          fontWeight: 700,
+          letterSpacing: "0.02em",
+          overflow: "hidden",
+          padding: 0,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
+        }}
+        triggerContent={
+          avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={avatarUrl}
               alt=""
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
           ) : (
             initials
-          )}
-        </button>
-
-        {avatarOpen && (
-          <div
-            role="menu"
-            data-fb-label="Menu compte · Barre de navigation"
-            className="nc-dropdown-panel"
-            style={{
-              position: "absolute",
-              top: "calc(100% + 8px)",
-              right: 0,
-              minWidth: 248,
-              borderRadius: 16,
-              overflow: "hidden",
-              zIndex: 60,
-              padding: 6,
-            }}
-          >
+          )
+        }
+      >
+        {(close) => (
+          <div style={{ width: "100%", height: "100%", padding: 6 }}>
             <AppearanceSection />
             <div
               style={{
@@ -142,7 +107,7 @@ export function MobileTopActions() {
               type="button"
               role="menuitem"
               onClick={() => {
-                setAvatarOpen(false);
+                close();
                 openProfileModal();
               }}
               data-fb-label="Bouton « Profil » · Menu compte"
@@ -169,7 +134,7 @@ export function MobileTopActions() {
             <Link
               href="/settings"
               role="menuitem"
-              onClick={() => setAvatarOpen(false)}
+              onClick={() => close()}
               data-fb-label="Lien « Réglages » · Menu compte"
               style={{
                 display: "flex",
@@ -214,7 +179,7 @@ export function MobileTopActions() {
             </button>
           </div>
         )}
-      </div>
+      </MorphMenu>
     </div>
   );
 }

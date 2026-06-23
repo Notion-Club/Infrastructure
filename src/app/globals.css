@@ -877,6 +877,194 @@ html {
   }
 }
 
+/* ── Morph (transitions.dev «Plus to menu») — le déclencheur SE TRANSFORME en
+   panneau ───────────────────────────────────────────────────────────────────
+   Le déclencheur et le panneau vivent dans UN conteneur (.t-morph) qui grandit
+   physiquement : largeur / hauteur / rayon s'animent de la taille du bouton
+   fermé jusqu'à la taille du panneau ouvert. L'icône se fond + glisse + floute
+   en sortant ; le contenu se fond + glisse + floute en entrant. Ease
+   rebondissante à l'ouverture, douce à la fermeture (deux durées distinctes).
+
+   Pilotage : `data-open="true|false"` + `data-origin` sur .t-morph.
+   Dimensions FERMÉES (--morph-closed-w/-h) posées en JS (mesure du déclencheur,
+   gère aussi bien une pastille icône qu'une pilule texte de largeur variable) ;
+   dimensions OUVERTES (--morph-open-w/-h) posées en inline par instance.
+   Voir MorphMenu.tsx + .agents/skills/transitions-dev/05-menu-dropdown.md. */
+:root {
+  --morph-open-dur: 340ms;
+  --morph-close-dur: 240ms;
+  --morph-ease: cubic-bezier(0.34, 1.25, 0.64, 1);
+  --morph-close-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --morph-r-open: 16px;
+  --morph-fade-dur: 190ms;
+  --morph-slide: 16px;
+  --morph-scale: 0.97;
+  --morph-blur: 3px;
+}
+
+/* Ancre en flux : réserve la place du déclencheur fermé, ne grandit jamais —
+   le .t-morph absolu grandit PAR-DESSUS sans pousser la mise en page. Contient
+   la boîte de clip (.t-morph) ET le déclencheur (.t-morph-trigger) en FRÈRES :
+   le déclencheur est hors de la boîte à overflow:hidden pour que ses fioritures
+   débordantes (badge non lu en -2px, ombre portée) ne soient jamais rognées. */
+.t-morph-anchor {
+  position: relative;
+  width: var(--morph-closed-w, 40px);
+  height: var(--morph-closed-h, 40px);
+  flex: none;
+}
+
+/* Conteneur qui morphe. Fermé : boîte de clip transparente à la taille du
+   déclencheur. Ouvert : surface (fond + bordure + ombre) à la taille du
+   panneau. La bordure reste présente (transparente fermée) pour éviter tout
+   saut de 1px à l'ouverture. */
+.t-morph {
+  position: absolute;
+  width: var(--morph-closed-w, 40px);
+  height: var(--morph-closed-h, 40px);
+  border-radius: var(--morph-r-closed, 9999px);
+  border: 1px solid transparent;
+  background: transparent;
+  overflow: hidden;
+  box-shadow: 0 0 0 0 transparent;
+  transition:
+    width var(--morph-close-dur) var(--morph-close-ease),
+    height var(--morph-close-dur) var(--morph-close-ease),
+    border-radius var(--morph-close-dur) var(--morph-close-ease),
+    border-color var(--morph-close-dur) var(--morph-close-ease),
+    background-color var(--morph-close-dur) var(--morph-close-ease),
+    box-shadow var(--morph-close-dur) var(--morph-close-ease);
+  will-change: width, height;
+}
+.t-morph[data-open="true"] {
+  width: var(--morph-open-w, 280px);
+  height: var(--morph-open-h, 320px);
+  border-radius: var(--morph-r-open);
+  border-color: var(--color-border-default);
+  background: var(--color-surface-card);
+  box-shadow: var(--nc-shadow-2);
+  transition:
+    width var(--morph-open-dur) var(--morph-ease),
+    height var(--morph-open-dur) var(--morph-ease),
+    border-radius var(--morph-open-dur) var(--morph-ease),
+    border-color var(--morph-open-dur) var(--morph-ease),
+    background-color var(--morph-open-dur) var(--morph-ease),
+    box-shadow var(--morph-open-dur) var(--morph-ease);
+}
+
+/* Coin ancré : la croissance part de ce coin (= position du déclencheur). */
+.t-morph[data-origin="top-left"] { top: 0; left: 0; }
+.t-morph[data-origin="top-right"] { top: 0; right: 0; }
+.t-morph[data-origin="bottom-left"] { bottom: 0; left: 0; }
+.t-morph[data-origin="bottom-right"] { bottom: 0; right: 0; }
+
+/* Déclencheur — FRÈRE de .t-morph (hors clip), au-dessus, posé au coin ancré
+   via le data-origin de l'ancre. Pas de taille forcée : il dicte la taille
+   fermée mesurée en JS (pastille icône OU pilule texte de largeur variable). */
+.t-morph-trigger {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  z-index: 2;
+  transition:
+    opacity var(--morph-fade-dur) var(--morph-close-ease),
+    transform var(--morph-fade-dur) var(--morph-close-ease),
+    filter var(--morph-fade-dur) var(--morph-close-ease);
+}
+.t-morph-anchor[data-origin^="top"] > .t-morph-trigger { top: 0; }
+.t-morph-anchor[data-origin^="bottom"] > .t-morph-trigger { bottom: 0; }
+.t-morph-anchor[data-origin$="left"] > .t-morph-trigger { left: 0; }
+.t-morph-anchor[data-origin$="right"] > .t-morph-trigger { right: 0; }
+/* Combinateur de frère : quand la boîte est ouverte, le déclencheur (qui la
+   suit dans le DOM) se fond + glisse + floute en sortant. */
+.t-morph[data-open="true"] ~ .t-morph-trigger {
+  opacity: 0;
+  transform: scale(0.9);
+  filter: blur(var(--morph-blur));
+  pointer-events: none;
+}
+
+/* Panneau — figé à la taille ouverte, ancré au même coin que la croissance pour
+   ne pas glisser pendant la révélation. Entre en fondu + glissé + flou. */
+.t-morph-panel {
+  position: absolute;
+  width: var(--morph-open-w, 280px);
+  height: var(--morph-open-h, 320px);
+  opacity: 0;
+  transform: translateY(calc(-1 * var(--morph-slide))) scale(var(--morph-scale));
+  filter: blur(var(--morph-blur));
+  pointer-events: none;
+  transition:
+    opacity var(--morph-fade-dur) var(--morph-close-ease),
+    transform var(--morph-fade-dur) var(--morph-close-ease),
+    filter var(--morph-fade-dur) var(--morph-close-ease);
+}
+.t-morph[data-origin^="top"] .t-morph-panel { top: 0; }
+.t-morph[data-origin^="bottom"] .t-morph-panel { bottom: 0; }
+.t-morph[data-origin$="left"] .t-morph-panel { left: 0; }
+.t-morph[data-origin$="right"] .t-morph-panel { right: 0; }
+.t-morph[data-origin^="bottom"] .t-morph-panel {
+  transform: translateY(var(--morph-slide)) scale(var(--morph-scale));
+}
+.t-morph[data-open="true"] .t-morph-panel {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  pointer-events: auto;
+  /* léger retard pour laisser la croissance s'amorcer avant le contenu */
+  transition:
+    opacity var(--morph-open-dur) var(--morph-close-ease) 70ms,
+    transform var(--morph-open-dur) var(--morph-ease) 70ms,
+    filter var(--morph-open-dur) var(--morph-close-ease) 70ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-morph,
+  .t-morph-trigger,
+  .t-morph-panel {
+    transition: none !important;
+  }
+}
+
+/* ── Modal morph (composers) — variante de .t-modal qui GRANDIT depuis le
+   déclencheur ─────────────────────────────────────────────────────────────
+   Garde le backdrop (.t-modal parent gère l'overlay) mais remplace le
+   scale-fade centré par une croissance origin-aware : le panneau part petit
+   depuis la position du bouton (--morph-mx/--morph-my mesurés en JS) avec
+   l'ease rebondissante, puis le contenu se révèle. */
+.t-modal-morph {
+  transform-origin: var(--morph-mx, 50%) var(--morph-my, 50%);
+  transform: scale(var(--morph-scale)) translateY(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--morph-open-dur) var(--morph-ease),
+    opacity var(--morph-fade-dur) var(--morph-close-ease);
+  will-change: transform, opacity;
+}
+.t-modal-morph.is-open {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.t-modal-morph.is-closing {
+  transform: scale(var(--morph-scale)) translateY(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--morph-close-dur) var(--morph-close-ease),
+    opacity var(--morph-fade-dur) var(--morph-close-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-modal-morph {
+    transition: none !important;
+  }
+}
+
 /* ── Notification segments — pastille icône qui s'étend au libellé actif ──── */
 /* Segmented control "expanding selected" : chaque catégorie est une pastille
    icône ; l'active s'étend pour révéler son libellé via l'astuce
