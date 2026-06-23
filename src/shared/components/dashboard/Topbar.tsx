@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useLayoutEffect, useCallback, useTransition } from "react";
+import { useRef, useLayoutEffect, useCallback, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -25,7 +25,7 @@ import {
 } from "@/shared/components/identity/ProfileIdentityProvider";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import { DevToolboxButton } from "@/shared/components/dev/DevToolbox";
-import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
+import { MorphMenu } from "@/shared/components/MorphMenu";
 
 // iconSize : override optionnel — certaines icônes lucide (ex. graduation-cap,
 // glyphe large mais court) paraissent plus petites à taille égale ; on les
@@ -61,15 +61,7 @@ const SEPARATOR = (
 export function Topbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const {
-    isOpen: avatarOpen,
-    isMounted: avatarMounted,
-    stateClass: avatarStateClass,
-    close: closeAvatar,
-    toggle: toggleAvatar,
-  } = useDropdownTransition();
   const [signingOut, startSignOut] = useTransition();
-  const avatarRef = useRef<HTMLDivElement>(null);
 
   // Logout via browser client : signOut() côté client invalide la session
   // et purge les cookies, puis on redirige hard pour que le layout (app)/
@@ -82,17 +74,6 @@ export function Topbar() {
       router.refresh();
     });
   }
-
-  useEffect(() => {
-    if (!avatarOpen) return;
-    function onClickOutside(e: MouseEvent) {
-      if (avatarRef.current && !avatarRef.current.contains(e.target as Node)) {
-        closeAvatar();
-      }
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [avatarOpen, closeAvatar]);
 
   const { theme } = useTheme();
   const { open: openProfileModal } = useProfileModal();
@@ -257,142 +238,121 @@ export function Topbar() {
           {/* Cloche + popover notifications (données réelles via useNotifications) */}
           <NotificationPopover buttonClassName="hover:bg-[rgba(0,0,0,0.04)]" />
 
-          {/* Avatar + dropdown */}
-          <div ref={avatarRef} style={{ position: "relative" }}>
-          <button
-            type="button"
-            aria-label="Menu compte"
-            onClick={() => toggleAvatar()}
-            data-fb-label="Avatar compte · Barre de navigation"
-            style={{
+          {/* Avatar + dropdown morph */}
+          <MorphMenu
+            origin="top-right"
+            openWidth={248}
+            openHeight={212}
+            ariaLabel="Menu compte"
+            triggerFbLabel="Avatar compte · Barre de navigation"
+            panelFbLabel="Menu compte · Barre de navigation"
+            triggerClassName="hover:opacity-85"
+            triggerStyle={{
               width: 36,
               height: 36,
               borderRadius: "50%",
               background: avatarUrl ? "transparent" : avatarColor,
               color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
               fontSize: 12,
               fontWeight: 700,
               letterSpacing: "0.02em",
-              border: "none",
-              cursor: "pointer",
-              flexShrink: 0,
-              transition: "opacity 150ms ease",
               overflow: "hidden",
               padding: 0,
             }}
-            className="hover:opacity-85"
+            triggerContent={
+              avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                initials
+              )
+            }
           >
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarUrl}
-                alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            ) : (
-              initials
+            {(close) => (
+              <div style={{ width: "100%", height: "100%", padding: 6 }}>
+                <AppearanceSection />
+                <div style={{ height: 1, background: "var(--color-border-default)", margin: "4px 0" }} />
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    close();
+                    openProfileModal();
+                  }}
+                  data-fb-label="Bouton « Profil » · Menu compte"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "10px 10px",
+                    fontSize: 14,
+                    color: "var(--color-text-primary)",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    borderRadius: 10,
+                    transition: "background 150ms ease",
+                  }}
+                  className="hover:bg-[var(--color-surface-raised)]"
+                >
+                  <CircleUserRound size={16} style={{ color: "var(--color-text-muted)" }} />
+                  Profil
+                </button>
+                <Link
+                  href="/settings"
+                  role="menuitem"
+                  onClick={() => close()}
+                  data-fb-label="Lien « Réglages » · Menu compte"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 10px",
+                    fontSize: 14,
+                    color: "var(--color-text-primary)",
+                    textDecoration: "none",
+                    borderRadius: 10,
+                    transition: "background 150ms ease",
+                  }}
+                  className="hover:bg-[var(--color-surface-raised)]"
+                >
+                  <Settings size={16} style={{ color: "var(--color-text-muted)" }} />
+                  Réglages
+                </Link>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleSignOut}
+                  disabled={signingOut}
+                  data-fb-label="Bouton « Se déconnecter » · Menu compte"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "10px 10px",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: "var(--color-brand)",
+                    background: "transparent",
+                    border: "none",
+                    cursor: signingOut ? "wait" : "pointer",
+                    opacity: signingOut ? 0.6 : 1,
+                    borderRadius: 10,
+                    transition: "background 150ms ease",
+                  }}
+                  className="hover:bg-[var(--color-surface-raised)]"
+                >
+                  {signingOut ? "Déconnexion…" : "Se déconnecter"}
+                </button>
+              </div>
             )}
-          </button>
-
-          {avatarMounted && (
-            <div
-              role="menu"
-              data-fb-label="Menu compte · Barre de navigation"
-              className={`nc-dropdown-panel t-dropdown ${avatarStateClass}`}
-              data-origin="top-right"
-              style={{
-                position: "absolute",
-                top: "calc(100% + 10px)",
-                right: 0,
-                minWidth: 248,
-                borderRadius: 16,
-                overflow: "hidden",
-                zIndex: 60,
-                padding: 6,
-              }}
-            >
-              <AppearanceSection />
-              <div style={{ height: 1, background: "var(--color-border-default)", margin: "4px 0" }} />
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  closeAvatar();
-                  openProfileModal();
-                }}
-                data-fb-label="Bouton « Profil » · Menu compte"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "10px 10px",
-                  fontSize: 14,
-                  color: "var(--color-text-primary)",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  borderRadius: 10,
-                  transition: "background 150ms ease",
-                }}
-                className="hover:bg-[var(--color-surface-raised)]"
-              >
-                <CircleUserRound size={16} style={{ color: "var(--color-text-muted)" }} />
-                Profil
-              </button>
-              <Link
-                href="/settings"
-                role="menuitem"
-                onClick={() => closeAvatar()}
-                data-fb-label="Lien « Réglages » · Menu compte"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 10px",
-                  fontSize: 14,
-                  color: "var(--color-text-primary)",
-                  textDecoration: "none",
-                  borderRadius: 10,
-                  transition: "background 150ms ease",
-                }}
-                className="hover:bg-[var(--color-surface-raised)]"
-              >
-                <Settings size={16} style={{ color: "var(--color-text-muted)" }} />
-                Réglages
-              </Link>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={handleSignOut}
-                disabled={signingOut}
-                data-fb-label="Bouton « Se déconnecter » · Menu compte"
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "10px 10px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: "var(--color-brand)",
-                  background: "transparent",
-                  border: "none",
-                  cursor: signingOut ? "wait" : "pointer",
-                  opacity: signingOut ? 0.6 : 1,
-                  borderRadius: 10,
-                  transition: "background 150ms ease",
-                }}
-                className="hover:bg-[var(--color-surface-raised)]"
-              >
-                {signingOut ? "Déconnexion…" : "Se déconnecter"}
-              </button>
-            </div>
-          )}
-        </div>{/* fin avatarRef */}
+          </MorphMenu>
         </div>{/* fin groupe droite */}
       </div>{/* fin pill */}
     </header>
