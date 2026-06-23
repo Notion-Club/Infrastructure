@@ -11,8 +11,15 @@
 //
 // Quand l'état n'a jamais d'appel à venir (formation finie, accompagnement
 // expiré), on masque le switcher et on n'affiche que la grille des passés.
+//
+// Disposition : le switcher (ou le label de section) reste FIXE en tête ;
+// seuls les items défilent en dessous, dans une zone scrollable bordée de
+// voiles de flou haut/bas (même pattern que les onglets Plan d'actions /
+// Transcription de la modale détail). L'état vide « à venir » et le skeleton
+// de synchro ne scrollent pas : ils remplissent la hauteur dispo et sont
+// clippés pour ne jamais dépasser l'encadré.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { History } from "lucide-react";
 import { ClockArrowRight } from "@/shared/components/icons/ClockArrowRight";
 import type { CallCardData } from "@/shared/lib/mock/coaching";
@@ -57,6 +64,105 @@ function sectionLabel(text: string) {
     >
       {text}
     </h2>
+  );
+}
+
+// Corps scrollable + voiles de flou haut/bas, scroll-aware (repris du pattern
+// des onglets Plan d'actions / Transcription de CallDetailModal). Les voiles ne
+// s'affichent que lorsqu'il reste du contenu masqué de ce côté ; ils estompent
+// les items qui entrent et sortent de la zone de défilement.
+function ScrollArea({ children }: { children: ReactNode }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ top: false, bottom: false });
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => {
+      const top = el.scrollTop > 6;
+      const bottom = el.scrollTop + el.clientHeight < el.scrollHeight - 6;
+      setEdges((prev) =>
+        prev.top === top && prev.bottom === bottom ? prev : { top, bottom },
+      );
+    };
+    // Double rAF : mesure APRÈS la pose du contenu (sinon scrollHeight stale au
+    // 1er affichage → voiles inactifs jusqu'à un scroll).
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(update);
+    });
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    window.addEventListener("resize", update);
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div ref={scrollRef} style={{ overflowY: "auto", flex: 1 }}>
+        {children}
+      </div>
+
+      {/* Voile haut — visible quand du contenu déborde au-dessus. */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 36,
+          zIndex: 4,
+          pointerEvents: "none",
+          opacity: edges.top ? 1 : 0,
+          transition: "opacity 260ms var(--nc-ease)",
+          backdropFilter: "blur(2px)",
+          WebkitBackdropFilter: "blur(2px)",
+          maskImage:
+            "linear-gradient(to bottom, black 0%, rgba(0,0,0,0.55) 50%, transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, black 0%, rgba(0,0,0,0.55) 50%, transparent 100%)",
+        }}
+      />
+
+      {/* Voile bas — visible quand du contenu déborde en dessous. */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 36,
+          zIndex: 4,
+          pointerEvents: "none",
+          opacity: edges.bottom ? 1 : 0,
+          transition: "opacity 260ms var(--nc-ease)",
+          backdropFilter: "blur(2px)",
+          WebkitBackdropFilter: "blur(2px)",
+          maskImage:
+            "linear-gradient(to top, black 0%, rgba(0,0,0,0.55) 50%, transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to top, black 0%, rgba(0,0,0,0.55) 50%, transparent 100%)",
+        }}
+      />
+    </div>
   );
 }
 
@@ -179,19 +285,30 @@ export function CoachingHistory({
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [pastCalls]);
 
-  // Sans vue « à venir » : grille des passés seule.
+  // Sans vue « à venir » : label de section fixe + grille des passés scrollable.
   if (!showUpcoming) {
     return (
-      <div data-fb-label="Historique appels · Coaching">
-        {sectionLabel("Tes appels passés")}
-        <PastGrid calls={contentPastCalls} archived={archived} />
+      <div
+        className="flex flex-col flex-1 min-h-0"
+        data-fb-label="Historique appels · Coaching"
+      >
+        <div style={{ flexShrink: 0 }}>{sectionLabel("Tes appels passés")}</div>
+        <ScrollArea>
+          <PastGrid calls={contentPastCalls} archived={archived} />
+        </ScrollArea>
       </div>
     );
   }
 
+  const showEmptyOrLoading = view === "upcoming" && upcomingCalls.length === 0;
+
   return (
-    <div data-fb-label="Historique appels · Coaching">
-      <div style={{ marginBottom: 16 }}>
+    <div
+      className="flex flex-col flex-1 min-h-0"
+      data-fb-label="Historique appels · Coaching"
+    >
+      {/* Switcher FIXE — ne défile jamais avec les items. */}
+      <div style={{ flexShrink: 0, marginBottom: 16 }}>
         <CoachingTabs<HistoryView>
           ariaLabel="Vues de l'historique des appels"
           active={view}
@@ -211,21 +328,29 @@ export function CoachingHistory({
         />
       </div>
 
-      {view === "past" ? (
-        <PastGrid calls={contentPastCalls} archived={archived} />
-      ) : upcomingCalls.length === 0 ? (
-        // Réservation en cours de synchro → skeleton shimmer au lieu de l'état
-        // vide « aucun appel », le temps que le nouvel appel arrive.
-        bookingPending ? (
-          <LoadingCallTiles />
-        ) : (
-          <UpcomingEmptyState eligible={eligible} />
-        )
+      {showEmptyOrLoading ? (
+        // NON scrollable : remplit la hauteur dispo et clippe le contenu (le
+        // preview skeleton ne dépasse jamais l'encadré).
+        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+          {bookingPending ? (
+            <LoadingCallTiles />
+          ) : (
+            <UpcomingEmptyState eligible={eligible} />
+          )}
+        </div>
       ) : (
-        <AnimatedUpcomingGrid
-          calls={upcomingCalls}
-          onReschedule={onReschedule}
-        />
+        // Liste scrollable sous le switcher fixe, bordée de voiles de flou.
+        // `key={view}` → re-mesure des voiles à chaque changement d'onglet.
+        <ScrollArea key={view}>
+          {view === "past" ? (
+            <PastGrid calls={contentPastCalls} archived={archived} />
+          ) : (
+            <AnimatedUpcomingGrid
+              calls={upcomingCalls}
+              onReschedule={onReschedule}
+            />
+          )}
+        </ScrollArea>
       )}
     </div>
   );

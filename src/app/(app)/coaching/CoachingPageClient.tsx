@@ -545,9 +545,12 @@ export default function CoachingPageClient({
                 />
               </div>
 
-              {/* Slot 2 — Historique / teaser / état vide (scroll interne) */}
+              {/* Slot 2 — Historique / teaser / état vide. Conteneur à hauteur
+                  bornée (flex col), SANS scroll global : chaque variante gère
+                  son propre débordement (CoachingHistory scrolle ses items sous
+                  un switcher fixe ; l'état vide reste fixe et clippé). */}
               <div
-                className="flex-1 min-h-0 overflow-y-auto"
+                className="flex-1 min-h-0 flex flex-col overflow-hidden"
                 style={{ padding: "20px 10px 8px" }}
               >
                 {slot2}
