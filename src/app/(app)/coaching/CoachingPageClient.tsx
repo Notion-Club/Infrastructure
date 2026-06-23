@@ -506,25 +506,25 @@ export default function CoachingPageClient({
 
   return (
     <>
-      {/* Hauteur fixe sur desktop : l'encadré occupe l'espace dispo sous la
-          topbar et le Slot 2 scrolle en interne (la taille de l'encadré ne
-          grandit pas avec le nombre d'appels). Sur mobile : flux naturel. */}
-      <div
-        className="nc-page-halo md:flex md:flex-col"
-        style={{ minHeight: "100lvh" }}
-      >
+      {/* Shell à hauteur fixe, aligné sur /communaute : h-dvh + overflow-hidden
+          → la page elle-même ne scrolle pas (la BottomNav ne chevauche plus
+          l'encadré). L'encadré occupe l'espace dispo sous la topbar /
+          MobileHeader et au-dessus de la nav (pb-[120px] mobile, pb-8 desktop) ;
+          seul le Slot 2 scrolle en interne (sa taille ne grandit pas avec le
+          nombre d'appels). */}
+      <div className="nc-page-halo flex flex-col h-dvh overflow-hidden">
         <main
-          className="md:flex md:flex-1 md:min-h-0"
+          className="flex flex-col flex-1 min-h-0"
           style={{ position: "relative", zIndex: 1 }}
         >
           {/* Contenu principal */}
           <div
-            className="px-4 pt-[64px] pb-[88px] md:px-10 md:pt-[104px] md:pb-8 w-full md:flex md:flex-col md:min-h-0"
+            className="px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8 w-full flex flex-col flex-1 min-h-0"
             style={{ maxWidth: 1000, margin: "0 auto" }}
           >
             {/* Encadré global unique — Slot 1 (bannière) + Slot 2 (historique) */}
             <div
-              className="nc-mode-in md:flex md:flex-col md:flex-1 md:min-h-0"
+              className="nc-mode-in flex flex-col flex-1 min-h-0"
               data-fb-label="Encadré global · Coaching"
               style={{
                 background: "var(--color-surface-card)",
@@ -547,7 +547,7 @@ export default function CoachingPageClient({
 
               {/* Slot 2 — Historique / teaser / état vide (scroll interne) */}
               <div
-                className="md:flex-1 md:min-h-0 md:overflow-y-auto"
+                className="flex-1 min-h-0 overflow-y-auto"
                 style={{ padding: "20px 10px 8px" }}
               >
                 {slot2}
