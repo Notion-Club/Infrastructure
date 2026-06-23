@@ -315,7 +315,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
             <MorphMenu
               origin={alignRight ? 'top-right' : 'top-left'}
               openWidth={240}
-              openHeight={300}
+              zIndex={30}
               ariaLabel="Filtres"
               triggerFbLabel="Bouton Filtres · Grille des ressources"
               panelFbLabel="Modale filtres · Grille des ressources"
@@ -360,7 +360,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               }
             >
               {(close) => (
-                <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+                <div style={{ width: '100%' }}>
                   {/* Accordion header */}
                   <button
                     type="button"

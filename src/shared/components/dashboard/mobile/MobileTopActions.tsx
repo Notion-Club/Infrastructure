@@ -62,8 +62,7 @@ export function MobileTopActions() {
       {/* Avatar + dropdown morph */}
       <MorphMenu
         origin="top-right"
-        openWidth={248}
-        openHeight={212}
+        zIndex={60}
         ariaLabel="Menu compte"
         triggerFbLabel="Avatar compte · Barre de navigation"
         panelFbLabel="Menu compte · Barre de navigation"
@@ -94,7 +93,7 @@ export function MobileTopActions() {
         }
       >
         {(close) => (
-          <div style={{ width: "100%", height: "100%", padding: 6 }}>
+          <div style={{ padding: 6 }}>
             <AppearanceSection />
             <div
               style={{

@@ -241,8 +241,7 @@ export function Topbar() {
           {/* Avatar + dropdown morph */}
           <MorphMenu
             origin="top-right"
-            openWidth={248}
-            openHeight={212}
+            zIndex={60}
             ariaLabel="Menu compte"
             triggerFbLabel="Avatar compte · Barre de navigation"
             panelFbLabel="Menu compte · Barre de navigation"
@@ -273,7 +272,7 @@ export function Topbar() {
             }
           >
             {(close) => (
-              <div style={{ width: "100%", height: "100%", padding: 6 }}>
+              <div style={{ padding: 6 }}>
                 <AppearanceSection />
                 <div style={{ height: 1, background: "var(--color-border-default)", margin: "4px 0" }} />
                 <button

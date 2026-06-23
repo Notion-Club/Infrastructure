@@ -107,11 +107,14 @@ export function PostComposerModal({ currentUser, origin, onClose, onPublish, ini
   const isAdmin = currentUser.role === "admin" || currentUser.role === "mentor";
 
   useLayoutEffect(() => {
-    if (!origin || !panelRef.current) return;
-    const rect = panelRef.current.getBoundingClientRect();
+    const el = panelRef.current;
+    if (!origin || !el) return;
+    // offsetLeft/offsetTop = position de mise en page (NON affectée par le
+    // transform scale en cours, contrairement à getBoundingClientRect) →
+    // origine locale exacte. offsetParent = l'overlay fixed (viewport 0,0).
     setOriginVars({
-      ["--morph-mx" as string]: `${origin.x - rect.left}px`,
-      ["--morph-my" as string]: `${origin.y - rect.top}px`,
+      ["--morph-mx" as string]: `${origin.x - el.offsetLeft}px`,
+      ["--morph-my" as string]: `${origin.y - el.offsetTop}px`,
     });
   }, [origin]);
   const isEditMode = !!initialPost;

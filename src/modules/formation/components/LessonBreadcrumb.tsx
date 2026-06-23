@@ -58,7 +58,7 @@ export function LessonBreadcrumb({
     <MorphMenu
       origin="top-left"
       openWidth={320}
-      openHeight={420}
+      zIndex={50}
       closedRadius={10}
       ariaLabel={`Parcourir la formation, leçon ${courseName}`}
       triggerFbLabel="Déclencheur fil d'ariane · Fil d'ariane leçon"
@@ -100,7 +100,7 @@ export function LessonBreadcrumb({
         </>
       )}
     >
-      <div style={{ width: "100%", height: "100%", padding: 8, overflow: "hidden" }}>
+      <div style={{ width: "100%", padding: 8 }}>
         {/* Vue d'ensemble du programme */}
         <button
           type="button"

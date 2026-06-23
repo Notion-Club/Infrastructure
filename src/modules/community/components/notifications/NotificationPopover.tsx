@@ -149,6 +149,7 @@ export function NotificationPopover({
       origin="top-right"
       openWidth={360}
       openHeight={480}
+      zIndex={200}
       ariaLabel={unread > 0 ? `${unread} notifications` : "Notifications"}
       triggerFbLabel="Bouton Notifications · Communauté"
       panelFbLabel="Popover notifications · Communauté"

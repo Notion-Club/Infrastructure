@@ -1036,9 +1036,15 @@ html {
    scale-fade centré par une croissance origin-aware : le panneau part petit
    depuis la position du bouton (--morph-mx/--morph-my mesurés en JS) avec
    l'ease rebondissante, puis le contenu se révèle. */
+:root {
+  /* Échelle de départ du morph modal : nettement plus marquée que le
+     --morph-scale des dropdowns (qui n'est qu'un micro cross-fade) pour que la
+     croissance « depuis le bouton » soit franchement visible. */
+  --morph-modal-scale: 0.7;
+}
 .t-modal-morph {
   transform-origin: var(--morph-mx, 50%) var(--morph-my, 50%);
-  transform: scale(var(--morph-scale)) translateY(8px);
+  transform: scale(var(--morph-modal-scale));
   opacity: 0;
   pointer-events: none;
   transition:
@@ -1047,12 +1053,12 @@ html {
   will-change: transform, opacity;
 }
 .t-modal-morph.is-open {
-  transform: scale(1) translateY(0);
+  transform: scale(1);
   opacity: 1;
   pointer-events: auto;
 }
 .t-modal-morph.is-closing {
-  transform: scale(var(--morph-scale)) translateY(8px);
+  transform: scale(var(--morph-modal-scale));
   opacity: 0;
   pointer-events: none;
   transition:

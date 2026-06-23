@@ -41,11 +41,18 @@ function readCloseDuration(): number {
 interface MorphMenuProps {
   /** Coin d'où part la croissance (= position du déclencheur). */
   origin?: MorphOrigin;
-  /** Largeur / hauteur du panneau ouvert (px). */
-  openWidth: number;
-  openHeight: number;
+  /**
+   * Largeur / hauteur du panneau ouvert (px). Si omis, la dimension est
+   * MESURÉE sur le contenu naturel du panneau (max-content) → le morph colle
+   * exactement aux dimensions du pop-up d'origine, sans rognage ni espace vide.
+   * On fixe typiquement la largeur (design) et on laisse la hauteur se mesurer.
+   */
+  openWidth?: number;
+  openHeight?: number;
   /** Rayon du bouton fermé (px ou keyword). Défaut : pastille ronde. */
   closedRadius?: number | string;
+  /** z-index posé sur l'ancre — le morph doit flotter au-dessus du contenu. */
+  zIndex?: number;
   /** Contenu du déclencheur — reçoit l'état ouvert pour piloter un chevron, etc. */
   triggerContent: ReactNode | ((open: boolean) => ReactNode);
   triggerStyle?: CSSProperties;
@@ -66,6 +73,7 @@ export function MorphMenu({
   openWidth,
   openHeight,
   closedRadius = "9999px",
+  zIndex,
   triggerContent,
   triggerStyle,
   triggerClassName,
@@ -78,12 +86,17 @@ export function MorphMenu({
 }: MorphMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const [phase, setPhase] = useState<MorphPhase>("closed");
   const [closed, setClosed] = useState<{ w: number; h: number } | null>(null);
+  // Taille naturelle mesurée du panneau, pour les axes laissés en auto.
+  const [measured, setMeasured] = useState<{ w: number; h: number } | null>(null);
 
   const open = phase === "open";
   const mounted = phase !== "closed";
+  const autoW = openWidth == null;
+  const autoH = openHeight == null;
 
   // Pas d'effet de bord dans les updaters (double-invoqués en StrictMode) :
   // ils ne font que basculer la phase. Le démontage différé est géré par
@@ -120,6 +133,25 @@ export function MorphMenu({
     return () => ro.disconnect();
   }, []);
 
+  // Mesure de la taille OUVERTE naturelle, pour les axes laissés en auto.
+  // L'axe auto rend le panneau en `max-content` → offsetWidth/Height = taille
+  // réelle du contenu, qu'on reporte sur la boîte (--morph-open-w/-h). RO pour
+  // suivre les changements de contenu (accordéon des filtres, etc.).
+  useLayoutEffect(() => {
+    if (!mounted || (!autoW && !autoH)) return;
+    const el = panelRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      if (w > 0 && h > 0) setMeasured({ w, h });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [mounted, autoW, autoH]);
+
   // Click-outside + Escape.
   useEffect(() => {
     if (!open) return;
@@ -137,17 +169,33 @@ export function MorphMenu({
     };
   }, [open, close]);
 
+  // Dimensions ouvertes de la boîte : valeur fixe si fournie, sinon mesurée.
+  const resolvedW = openWidth != null ? openWidth : measured?.w;
+  const resolvedH = openHeight != null ? openHeight : measured?.h;
+
+  const closedVars = closed
+    ? { ["--morph-closed-w" as string]: `${closed.w}px`, ["--morph-closed-h" as string]: `${closed.h}px` }
+    : {};
+
   const anchorVars: CSSProperties = {
-    ...(closed ? { ["--morph-closed-w" as string]: `${closed.w}px`, ["--morph-closed-h" as string]: `${closed.h}px` } : {}),
+    ...(zIndex != null ? { zIndex } : {}),
+    ...closedVars,
     ...anchorStyle,
   };
 
   const morphVars: CSSProperties = {
-    ["--morph-open-w" as string]: `${openWidth}px`,
-    ["--morph-open-h" as string]: `${openHeight}px`,
+    ...(resolvedW != null ? { ["--morph-open-w" as string]: `${resolvedW}px` } : {}),
+    ...(resolvedH != null ? { ["--morph-open-h" as string]: `${resolvedH}px` } : {}),
     ["--morph-r-closed" as string]:
       typeof closedRadius === "number" ? `${closedRadius}px` : closedRadius,
-    ...(closed ? { ["--morph-closed-w" as string]: `${closed.w}px`, ["--morph-closed-h" as string]: `${closed.h}px` } : {}),
+    ...closedVars,
+  };
+
+  // L'axe auto rend le panneau en max-content (taille naturelle à mesurer) ;
+  // l'axe fixe suit la variable CSS --morph-open-*.
+  const panelStyle: CSSProperties = {
+    ...(autoW ? { width: "max-content" } : {}),
+    ...(autoH ? { height: "max-content" } : {}),
   };
 
   return (
@@ -155,7 +203,13 @@ export function MorphMenu({
       {/* Boîte de clip qui morphe — contient uniquement le panneau (clippé). */}
       <div className="t-morph" data-open={open ? "true" : "false"} data-origin={origin} style={morphVars}>
         {mounted && (
-          <div className="t-morph-panel" role={panelRole} data-fb-label={panelFbLabel}>
+          <div
+            ref={panelRef}
+            className="t-morph-panel"
+            role={panelRole}
+            data-fb-label={panelFbLabel}
+            style={panelStyle}
+          >
             {typeof children === "function" ? children(close) : children}
           </div>
         )}
