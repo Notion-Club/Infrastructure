@@ -891,15 +891,17 @@ html {
    dimensions OUVERTES (--morph-open-w/-h) posées en inline par instance.
    Voir MorphMenu.tsx + .agents/skills/transitions-dev/05-menu-dropdown.md. */
 :root {
-  --morph-open-dur: 340ms;
-  --morph-close-dur: 240ms;
+  /* Valeurs alignées 1:1 sur le fichier source transitions.dev. */
+  --morph-open-dur: 350ms;
+  --morph-close-dur: 250ms;
   --morph-ease: cubic-bezier(0.34, 1.25, 0.64, 1);
   --morph-close-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --morph-r-open: 16px;
-  --morph-fade-dur: 190ms;
-  --morph-slide: 16px;
+  --morph-r-open: 20px;
+  --morph-fade-dur: 200ms;
+  --morph-slide: 40px;
   --morph-scale: 0.97;
-  --morph-blur: 3px;
+  --morph-blur: 2px;
+  --morph-gap: 10px; /* marge entre le déclencheur et le panneau (dropdown) */
 }
 
 /* Ancre en flux : réserve la place du déclencheur fermé, ne grandit jamais —
@@ -952,15 +954,18 @@ html {
     box-shadow var(--morph-open-dur) var(--morph-ease);
 }
 
-/* Coin ancré : la croissance part de ce coin (= position du déclencheur). */
-.t-morph[data-origin="top-left"] { top: 0; left: 0; }
-.t-morph[data-origin="top-right"] { top: 0; right: 0; }
-.t-morph[data-origin="bottom-left"] { bottom: 0; left: 0; }
-.t-morph[data-origin="bottom-right"] { bottom: 0; right: 0; }
+/* Coin ancré : SOUS le déclencheur (dropdown), aligné sur son bord, avec une
+   marge (--morph-gap). Le coin ancré reste fixe → la boîte grandit en s'éloignant
+   du déclencheur (top-right → vers le bas-gauche). Plus jamais par-dessus. */
+.t-morph[data-origin="top-left"] { top: calc(100% + var(--morph-gap)); left: 0; }
+.t-morph[data-origin="top-right"] { top: calc(100% + var(--morph-gap)); right: 0; }
+.t-morph[data-origin="bottom-left"] { bottom: calc(100% + var(--morph-gap)); left: 0; }
+.t-morph[data-origin="bottom-right"] { bottom: calc(100% + var(--morph-gap)); right: 0; }
 
-/* Déclencheur — FRÈRE de .t-morph (hors clip), au-dessus, posé au coin ancré
-   via le data-origin de l'ancre. Pas de taille forcée : il dicte la taille
-   fermée mesurée en JS (pastille icône OU pilule texte de largeur variable). */
+/* Déclencheur — FRÈRE de .t-morph, PERSISTANT : il reste visible et cliquable
+   quand le menu est ouvert (le menu s'ouvre EN-DESSOUS, ne le recouvre pas).
+   Posé au coin de l'ancre via son data-origin. Pas de taille forcée : il dicte
+   la taille fermée mesurée en JS (pastille icône OU pilule texte). */
 .t-morph-trigger {
   position: absolute;
   display: inline-flex;
@@ -970,56 +975,35 @@ html {
   background: transparent;
   cursor: pointer;
   z-index: 2;
-  transition:
-    opacity var(--morph-fade-dur) var(--morph-close-ease),
-    transform var(--morph-fade-dur) var(--morph-close-ease),
-    filter var(--morph-fade-dur) var(--morph-close-ease);
 }
 .t-morph-anchor[data-origin^="top"] > .t-morph-trigger { top: 0; }
 .t-morph-anchor[data-origin^="bottom"] > .t-morph-trigger { bottom: 0; }
 .t-morph-anchor[data-origin$="left"] > .t-morph-trigger { left: 0; }
 .t-morph-anchor[data-origin$="right"] > .t-morph-trigger { right: 0; }
-/* Combinateur de frère : quand la boîte est ouverte, le déclencheur (qui la
-   suit dans le DOM) se fond + glisse + floute en sortant. */
-.t-morph[data-open="true"] ~ .t-morph-trigger {
-  opacity: 0;
-  transform: scale(0.9);
-  filter: blur(var(--morph-blur));
-  pointer-events: none;
-}
 
-/* Panneau — figé à la taille ouverte, ancré au même coin que la croissance pour
-   ne pas glisser pendant la révélation. Entre en fondu + glissé + flou. */
+/* Menu — REMPLIT la boîte (inset:0) → il grandit AVEC elle, donc il accompagne
+   le rebond de la croissance (cohésion = sensation immersive de la source, au
+   lieu d'un contenu figé déconnecté). Entre en glissé HORIZONTAL (translateX) +
+   scale + flou. EXACTEMENT le timing source : le `transform` suit --morph-open-dur
+   (glisse pendant toute la croissance), l'opacité + le flou suivent --morph-fade-dur
+   (fondu plus court). Aucun délai. */
 .t-morph-panel {
   position: absolute;
-  width: var(--morph-open-w, 280px);
-  height: var(--morph-open-h, 320px);
+  inset: 0;
   opacity: 0;
-  transform: translateY(calc(-1 * var(--morph-slide))) scale(var(--morph-scale));
+  transform: translateX(var(--morph-slide)) scale(var(--morph-scale));
   filter: blur(var(--morph-blur));
   pointer-events: none;
   transition:
     opacity var(--morph-fade-dur) var(--morph-close-ease),
-    transform var(--morph-fade-dur) var(--morph-close-ease),
+    transform var(--morph-open-dur) var(--morph-close-ease),
     filter var(--morph-fade-dur) var(--morph-close-ease);
-}
-.t-morph[data-origin^="top"] .t-morph-panel { top: 0; }
-.t-morph[data-origin^="bottom"] .t-morph-panel { bottom: 0; }
-.t-morph[data-origin$="left"] .t-morph-panel { left: 0; }
-.t-morph[data-origin$="right"] .t-morph-panel { right: 0; }
-.t-morph[data-origin^="bottom"] .t-morph-panel {
-  transform: translateY(var(--morph-slide)) scale(var(--morph-scale));
 }
 .t-morph[data-open="true"] .t-morph-panel {
   opacity: 1;
-  transform: none;
-  filter: none;
+  transform: translateX(0) scale(1);
+  filter: blur(0);
   pointer-events: auto;
-  /* léger retard pour laisser la croissance s'amorcer avant le contenu */
-  transition:
-    opacity var(--morph-open-dur) var(--morph-close-ease) 70ms,
-    transform var(--morph-open-dur) var(--morph-ease) 70ms,
-    filter var(--morph-open-dur) var(--morph-close-ease) 70ms;
 }
 
 @media (prefers-reduced-motion: reduce) {

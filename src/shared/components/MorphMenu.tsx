@@ -92,7 +92,7 @@ export function MorphMenu({
 }: MorphMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const [phase, setPhase] = useState<MorphPhase>("closed");
   const [closed, setClosed] = useState<{ w: number; h: number } | null>(null);
@@ -139,24 +139,20 @@ export function MorphMenu({
     return () => ro.disconnect();
   }, []);
 
-  // Mesure de la taille OUVERTE naturelle, pour les axes laissés en auto.
-  // L'axe auto rend le panneau en `max-content` → offsetWidth/Height = taille
-  // réelle du contenu, qu'on reporte sur la boîte (--morph-open-w/-h). RO pour
-  // suivre les changements de contenu (accordéon des filtres, etc.).
+  // Mesure UNE fois la taille naturelle du contenu (rendu en max-content sur les
+  // axes auto) au montage du panneau, puis le contenu passe en 100% pour REMPLIR
+  // la boîte → il grandit avec elle (cohésion du rebond, sensation source).
+  // `measured` est remis à null à la fermeture → chaque ouverture remesure si le
+  // contenu a changé. Pas de ResizeObserver ici : une fois le contenu en 100%, il
+  // bouclerait sur la taille de la boîte en cours d'animation.
   useLayoutEffect(() => {
-    if (!mounted || (!autoW && !autoH)) return;
-    const el = panelRef.current;
+    if (!mounted || (!autoW && !autoH) || measured) return;
+    const el = contentRef.current;
     if (!el) return;
-    const measure = () => {
-      const w = el.offsetWidth;
-      const h = el.offsetHeight;
-      if (w > 0 && h > 0) setMeasured({ w, h });
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [mounted, autoW, autoH]);
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    if (w > 0 && h > 0) setMeasured({ w, h });
+  }, [mounted, autoW, autoH, measured]);
 
   // Click-outside + Escape.
   useEffect(() => {
@@ -208,26 +204,24 @@ export function MorphMenu({
     ...closedVars,
   };
 
-  // L'axe auto rend le panneau en max-content (taille naturelle à mesurer) ;
-  // l'axe fixe suit la variable CSS --morph-open-*.
-  const panelStyle: CSSProperties = {
-    ...(autoW ? { width: "max-content" } : {}),
-    ...(autoH ? { height: "max-content" } : {}),
+  // Contenu : max-content sur les axes auto TANT QUE non mesuré (pour lire la
+  // taille naturelle), puis 100% pour remplir la boîte et accompagner sa
+  // croissance. Les axes fixes restent en 100% (boîte = valeur fournie).
+  const contentStyle: CSSProperties = {
+    width: autoW ? (measured ? "100%" : "max-content") : "100%",
+    height: autoH ? (measured ? "100%" : "max-content") : "100%",
   };
 
   return (
     <div ref={rootRef} className="t-morph-anchor" data-origin={origin} style={anchorVars}>
-      {/* Boîte de clip qui morphe — contient uniquement le panneau (clippé). */}
+      {/* Boîte de clip qui morphe (sous le déclencheur) — clippe le menu. */}
       <div className="t-morph" data-open={open ? "true" : "false"} data-origin={origin} style={morphVars}>
         {mounted && (
-          <div
-            ref={panelRef}
-            className="t-morph-panel"
-            role={panelRole}
-            data-fb-label={panelFbLabel}
-            style={panelStyle}
-          >
-            {typeof children === "function" ? children(close) : children}
+          <div className="t-morph-panel" role={panelRole} data-fb-label={panelFbLabel}>
+            {/* Le contenu remplit le panneau (inset:0) → grandit avec la boîte. */}
+            <div ref={contentRef} style={contentStyle}>
+              {typeof children === "function" ? children(close) : children}
+            </div>
           </div>
         )}
       </div>

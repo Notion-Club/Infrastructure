@@ -315,6 +315,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
             <MorphMenu
               origin={alignRight ? 'top-right' : 'top-left'}
               openWidth={240}
+              openHeight={296}
               zIndex={30}
               ariaLabel="Filtres"
               triggerFbLabel="Bouton Filtres · Grille des ressources"
