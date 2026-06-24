@@ -4,7 +4,10 @@
 // les formations selon les capabilities de l'utilisateur. La progression est
 // jointe par profile_id = utilisateur courant.
 
+import { cache } from "react";
+
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import { getAuthUserId } from "@/shared/lib/supabase/cached";
 import type {
   CourseRow,
   FormationAccessMode,
@@ -50,14 +53,6 @@ type ProgressRow = {
   last_accessed_at: string;
 };
 
-async function getUserId(): Promise<string | null> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user?.id ?? null;
-}
-
 // Map notion_formation_id → access_mode (config). Lue séparément car
 // formation_access n'a pas de FK vers formations (clé par notion id).
 async function getAccessModeMap(): Promise<Map<string, FormationAccessMode>> {
@@ -80,9 +75,13 @@ function courseHref(programSlug: string, moduleSlug: string, courseSlug: string)
 }
 
 // ─── Index : programmes accessibles + progression agrégée ───────────────
-export async function getAccessiblePrograms(): Promise<ProgramSummary[]> {
+// Mémoïsé (cache()) : le dashboard appelle getDashboardFormationData ET
+// getDashboardProfilData au même rendu, qui dérivent toutes deux de cette
+// fonction. Sans cache, ~6 requêtes DB étaient jouées DEUX fois. Le cache est
+// scoping par requête → pas de stale entre utilisateurs.
+const getAccessibleProgramsImpl = async (): Promise<ProgramSummary[]> => {
   const supabase = await createSupabaseServerClient();
-  const userId = await getUserId();
+  const userId = await getAuthUserId();
 
   const { data: formations } = await supabase
     .from("formations")
@@ -177,14 +176,16 @@ export async function getAccessiblePrograms(): Promise<ProgramSummary[]> {
       nextCourseLabel: resumeCourse && completed < total ? resumeCourse.name : null,
     } satisfies ProgramSummary;
   });
-}
+};
+
+export const getAccessiblePrograms = cache(getAccessibleProgramsImpl);
 
 // ─── Page programme : modules + cours + progression ─────────────────────
 export async function getProgramDetail(
   programSlug: string,
 ): Promise<ProgramDetail | null> {
   const supabase = await createSupabaseServerClient();
-  const userId = await getUserId();
+  const userId = await getAuthUserId();
 
   const { data: formation } = await supabase
     .from("formations")
@@ -293,7 +294,7 @@ export async function getLessonView(
   | { ok: false; reason: "not_found" | "no_capability" | "drip_locked"; redirectTo: string }
 > {
   const supabase = await createSupabaseServerClient();
-  const userId = await getUserId();
+  const userId = await getAuthUserId();
 
   const { data: formation } = await supabase
     .from("formations")
