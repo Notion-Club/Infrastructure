@@ -1,41 +1,18 @@
-// Fallback racine — couvre la résolution du layout `(app)` (vérification
-// auth Supabase + lecture profil), qui est un Server Component async SANS
-// frontière Suspense au-dessus de lui. Sans ce fichier, le navigateur ne
-// reçoit RIEN tant que l'auth n'est pas résolue → écran blanc au cold start
-// (cf. ouverture PWA iOS).
+import { DashboardSkeleton } from "@/shared/components/dashboard/DashboardSkeleton";
+
+// Fallback racine — couvre la résolution du layout `(app)` (vérification auth
+// Supabase + lecture profil), un Server Component async SANS frontière Suspense
+// au-dessus de lui. Sans ce fichier, le navigateur ne reçoit rien tant que
+// l'auth n'est pas résolue → écran vide au cold start (cf. PWA iOS).
 //
-// Volontairement neutre (fond de marque + halo, pas de skeleton spécifique à
-// une page) car il s'applique à toutes les routes. Sur iOS, il prend le
-// relais du splash screen (même fond `--color-surface-page`) → transition
-// sans flash blanc. Le skeleton détaillé du dashboard reste géré par
-// `(app)/loading.tsx`, qui couvre le chargement des données de page une fois
-// le layout résolu.
+// On reproduit la homepage (chrome Topbar/BottomNav + greeting + search +
+// cartes widgets) plutôt qu'un spinner : la transition vers la page réelle est
+// sans saut. Le fond suit `var(--color-surface-page)` (clair #f5f2f2 / sombre
+// #141211), exactement comme in-app — la classe `.dark` est posée avant le 1er
+// paint par le script inline du root layout.
 //
-// `100lvh` (et non `dvh`) évite le re-measure de viewport iOS standalone au
-// premier paint.
+// `withChrome` : le layout (app) n'a pas encore monté la Topbar / BottomNav à
+// ce stade, donc on en dessine un squelette ici.
 export default function RootLoading() {
-  return (
-    <div
-      className="nc-page-halo"
-      style={{
-        minHeight: "100lvh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-      aria-label="Chargement"
-      role="status"
-    >
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 9999,
-          border: "3px solid var(--color-border-default)",
-          borderTopColor: "var(--color-brand)",
-          animation: "nc-spin 0.8s linear infinite",
-        }}
-      />
-    </div>
-  );
+  return <DashboardSkeleton withChrome />;
 }

@@ -6,6 +6,7 @@ import { ProfilWidget } from "@/shared/components/dashboard/widgets/ProfilWidget
 import { EmailVerifiedToast } from "@/modules/auth";
 import { EmailConfirmBanner } from "@/shared/components/dashboard/EmailConfirmBanner";
 import { ContentEnter } from "@/shared/components/motion/ContentEnter";
+import { WidgetCardSkeleton } from "@/shared/components/dashboard/DashboardSkeleton";
 import { getAuthUser, getCurrentProfile } from "@/shared/lib/supabase/cached";
 import {
   getDashboardFormationData,
@@ -35,22 +36,6 @@ async function getGreetingFirstName(): Promise<string> {
   if (profile?.display_name) return profile.display_name;
   if (user.email) return user.email.split("@")[0];
   return "à toi";
-}
-
-// Carte squelette d'un widget pendant le stream — reprend les dimensions des
-// vrais widgets (cf. dashboard/loading.tsx).
-function WidgetSkeleton({ delay = 0 }: { delay?: number }) {
-  return (
-    <div
-      style={{
-        height: 220,
-        borderRadius: 16,
-        background: "var(--color-surface-raised)",
-        animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
-        animationDelay: `${delay}ms`,
-      }}
-    />
-  );
 }
 
 // Bloc widgets — isolé dans sa propre frontière Suspense pour STREAMER
@@ -214,8 +199,8 @@ export default async function DashboardPage() {
             <Suspense
               fallback={
                 <>
-                  <WidgetSkeleton />
-                  <WidgetSkeleton delay={80} />
+                  <WidgetCardSkeleton />
+                  <WidgetCardSkeleton delay={80} />
                 </>
               }
             >
