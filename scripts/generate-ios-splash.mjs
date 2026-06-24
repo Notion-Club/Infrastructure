@@ -1,164 +1,71 @@
-// Génère les splash screens iOS (apple-touch-startup-image) — light + dark —
-// pour supprimer l'écran blanc au démarrage de la PWA en mode standalone.
+// Génère les splash screens iOS (apple-touch-startup-image) — light + dark.
 //
-// iOS n'affiche RIEN pendant le boot du webview + le chargement réseau s'il
-// n'y a pas de `apple-touch-startup-image` à la bonne dimension exacte du
-// device. On génère donc un PNG par device (résolution physique exacte),
-// fond de marque + logo centré (coins arrondis façon icône iOS).
+// IMPORTANT : sur iOS standalone, cette image STATIQUE est affichée pendant
+// TOUT le chargement réseau au lancement (le squelette React ne s'affiche
+// qu'après sa disparition). On peint donc ici directement l'aspect de la
+// homepage en cours de chargement : fond exact (var surface-page), halo rouge
+// de coin (uniquement en light, comme .nc-page-halo::before — supprimé en dark),
+// et squelette du contenu (greeting + barre de recherche + 2 cartes widgets).
+// → l'écran de lancement iOS devient indiscernable de la homepage qui suit.
 //
-// 100 % pur Node (zlib uniquement) — pas de dépendance image (sharp /
-// ImageMagick indisponibles dans l'env de build). Le logo source
-// (public/icons/icon-512.png, RGB 8-bit non-entrelacé) est décodé,
-// downscalé une fois en box-filter, puis composé sur chaque canvas.
+// 100 % pur Node (zlib uniquement). Chaque image matche la résolution physique
+// EXACTE d'un device (sinon iOS retombe sur du blanc).
 //
 // Usage : `node scripts/generate-ios-splash.mjs`
-// Sortie : public/splash/*.png  (+ liste des <link> à coller dans layout.tsx,
-//          imprimée sur stdout pour vérification).
 
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { deflateSync, inflateSync } from "node:zlib";
+import { writeFileSync, mkdirSync } from "node:fs";
+import { deflateSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
-const SRC_LOGO = join(ROOT, "public/icons/icon-512.png");
-const OUT_DIR = join(ROOT, "public/splash");
+const OUT_DIR = join(__dirname, "..", "public/splash");
 
-// Fond aligné sur les tokens design (globals.css / manifest).
-const BG = {
-  light: [245, 242, 242], // #f5f2f2 — --color-surface-page
-  dark: [20, 18, 17], // #141211 — fond dark theme
+// Tokens design (globals.css). En clair, les cartes sont blanches sur fond
+// pinkish ; en sombre, surfaces warm near-black, sans halo.
+const THEME = {
+  light: {
+    bg: [245, 242, 242], // --color-surface-page #f5f2f2
+    bar: [228, 223, 223], // skeleton (≈ surface-raised, assombri pour visibilité)
+    card: [255, 255, 255], // --color-surface-card
+    cardInner: [233, 229, 229], // blocs internes des cartes
+    border: [229, 231, 235], // --color-border-default
+    halo: true,
+  },
+  dark: {
+    bg: [20, 18, 17], // #141211
+    bar: [38, 34, 31], // ≈ surface-raised #201d1b éclairci
+    card: [42, 39, 37], // --color-surface-card #2a2725
+    cardInner: [51, 47, 44], // blocs internes
+    border: [51, 46, 43], // --color-border-default #332e2b
+    halo: false,
+  },
 };
 
-// Taille cible du logo une fois composé (px physiques). 256 reste lisible
-// sans dominer l'écran sur le plus petit device (750px de large).
-const LOGO_SIZE = 256;
-// Rayon des coins arrondis du logo (≈ ratio d'icône iOS : 22,5 %).
-const LOGO_RADIUS = Math.round(LOGO_SIZE * 0.225);
-
-// Devices iPhone courants : [label, largeur logique, hauteur logique, dpr].
-// La dimension physique (logique × dpr) DOIT matcher exactement pour qu'iOS
-// retienne l'image — sinon il retombe sur du blanc.
-const DEVICES = [
-  ["iPhone SE/8/7/6s", 375, 667, 2],
-  ["iPhone 8+/7+/6+", 414, 736, 3],
-  ["iPhone X/XS/11Pro/12mini/13mini", 375, 812, 3],
-  ["iPhone XR/11", 414, 896, 2],
-  ["iPhone XSMax/11ProMax", 414, 896, 3],
-  ["iPhone 12/13/14/12Pro/13Pro", 390, 844, 3],
-  ["iPhone 14Pro/15/15Pro/16", 393, 852, 3],
-  ["iPhone 16Pro", 402, 874, 3],
-  ["iPhone 12-14ProMax/14Plus", 428, 926, 3],
-  ["iPhone 15/16 Plus & ProMax", 430, 932, 3],
-  ["iPhone 16ProMax", 440, 956, 3],
+// Brand pour le halo rouge (rgba 224,99,90), alphas par coin (cf. CSS).
+const BRAND = [224, 99, 90];
+const CORNERS = [
+  { ax: 0, ay: 0, a: 0.28 },
+  { ax: 1, ay: 0, a: 0.24 },
+  { ax: 0, ay: 1, a: 0.22 },
+  { ax: 1, ay: 1, a: 0.26 },
 ];
 
-// ─── Décodage PNG (RGB, 8-bit, non-entrelacé, color type 2) ───────────────
-function decodePNG(buf) {
-  let off = 8; // skip signature
-  let width = 0,
-    height = 0,
-    colorType = 0;
-  const idat = [];
-  while (off < buf.length) {
-    const len = buf.readUInt32BE(off);
-    const type = buf.toString("ascii", off + 4, off + 8);
-    if (type === "IHDR") {
-      width = buf.readUInt32BE(off + 8);
-      height = buf.readUInt32BE(off + 12);
-      colorType = buf[off + 17];
-    } else if (type === "IDAT") {
-      idat.push(buf.subarray(off + 8, off + 8 + len));
-    } else if (type === "IEND") {
-      break;
-    }
-    off += 12 + len;
-  }
-  const channels = colorType === 6 ? 4 : 3;
-  const raw = inflateSync(Buffer.concat(idat));
-  const stride = width * channels;
-  const out = Buffer.alloc(height * stride);
-  const paeth = (a, b, c) => {
-    const p = a + b - c;
-    const pa = Math.abs(p - a),
-      pb = Math.abs(p - b),
-      pc = Math.abs(p - c);
-    return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
-  };
-  let pos = 0;
-  for (let y = 0; y < height; y++) {
-    const ft = raw[pos++];
-    for (let x = 0; x < stride; x++) {
-      const v = raw[pos++];
-      const a = x >= channels ? out[y * stride + x - channels] : 0;
-      const up = y > 0 ? out[(y - 1) * stride + x] : 0;
-      const ul =
-        x >= channels && y > 0 ? out[(y - 1) * stride + x - channels] : 0;
-      let r;
-      switch (ft) {
-        case 0:
-          r = v;
-          break;
-        case 1:
-          r = v + a;
-          break;
-        case 2:
-          r = v + up;
-          break;
-        case 3:
-          r = v + ((a + up) >> 1);
-          break;
-        case 4:
-          r = v + paeth(a, up, ul);
-          break;
-        default:
-          throw new Error("filtre PNG inconnu: " + ft);
-      }
-      out[y * stride + x] = r & 255;
-    }
-  }
-  // Normalise en RGB (drop alpha si présent).
-  if (channels === 3) return { width, height, data: out };
-  const rgb = Buffer.alloc(width * height * 3);
-  for (let i = 0, j = 0; i < out.length; i += 4, j += 3) {
-    rgb[j] = out[i];
-    rgb[j + 1] = out[i + 1];
-    rgb[j + 2] = out[i + 2];
-  }
-  return { width, height, data: rgb };
-}
-
-// ─── Downscale box-filter (moyenne de bloc) RGB ───────────────────────────
-function downscale(src, sw, sh, dw, dh) {
-  const dst = Buffer.alloc(dw * dh * 3);
-  for (let dy = 0; dy < dh; dy++) {
-    const sy0 = Math.floor((dy * sh) / dh);
-    const sy1 = Math.max(sy0 + 1, Math.floor(((dy + 1) * sh) / dh));
-    for (let dx = 0; dx < dw; dx++) {
-      const sx0 = Math.floor((dx * sw) / dw);
-      const sx1 = Math.max(sx0 + 1, Math.floor(((dx + 1) * sw) / dw));
-      let r = 0,
-        g = 0,
-        b = 0,
-        n = 0;
-      for (let sy = sy0; sy < sy1; sy++) {
-        for (let sx = sx0; sx < sx1; sx++) {
-          const i = (sy * sw + sx) * 3;
-          r += src[i];
-          g += src[i + 1];
-          b += src[i + 2];
-          n++;
-        }
-      }
-      const j = (dy * dw + dx) * 3;
-      dst[j] = Math.round(r / n);
-      dst[j + 1] = Math.round(g / n);
-      dst[j + 2] = Math.round(b / n);
-    }
-  }
-  return dst;
-}
+// [largeur logique, hauteur logique, dpr] — DOIT rester synchro avec
+// iosSplashLinks.ts.
+const DEVICES = [
+  [375, 667, 2],
+  [414, 736, 3],
+  [375, 812, 3],
+  [414, 896, 2],
+  [414, 896, 3],
+  [390, 844, 3],
+  [393, 852, 3],
+  [402, 874, 3],
+  [428, 926, 3],
+  [430, 932, 3],
+  [440, 956, 3],
+];
 
 // ─── Encodage PNG (RGB 8-bit, filtre 0) ───────────────────────────────────
 function crc32(buf) {
@@ -181,14 +88,14 @@ function encodePNG(width, height, rgb) {
   const stride = width * 3;
   const raw = Buffer.alloc(height * (stride + 1));
   for (let y = 0; y < height; y++) {
-    raw[y * (stride + 1)] = 0; // filtre None
+    raw[y * (stride + 1)] = 0;
     rgb.copy(raw, y * (stride + 1) + 1, y * stride, y * stride + stride);
   }
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8; // bit depth
-  ihdr[9] = 2; // color type RGB
+  ihdr[8] = 8;
+  ihdr[9] = 2;
   const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   return Buffer.concat([
     sig,
@@ -198,80 +105,152 @@ function encodePNG(width, height, rgb) {
   ]);
 }
 
-// ─── Composition d'un splash ──────────────────────────────────────────────
-function makeSplash(pxW, pxH, bg, logo, logoSize) {
-  const canvas = Buffer.alloc(pxW * pxH * 3);
-  for (let i = 0; i < pxW * pxH; i++) {
-    canvas[i * 3] = bg[0];
-    canvas[i * 3 + 1] = bg[1];
-    canvas[i * 3 + 2] = bg[2];
+// ─── Primitives de dessin (canvas RGB physique) ───────────────────────────
+function makeCanvas(W, H, bg) {
+  const buf = Buffer.alloc(W * H * 3);
+  for (let i = 0; i < W * H; i++) {
+    buf[i * 3] = bg[0];
+    buf[i * 3 + 1] = bg[1];
+    buf[i * 3 + 2] = bg[2];
   }
-  const ox = Math.round((pxW - logoSize) / 2);
-  const oy = Math.round((pxH - logoSize) / 2);
-  const rr = LOGO_RADIUS;
-  const inRounded = (x, y) => {
-    // Garde uniquement les pixels dans le rect aux coins arrondis.
+  return buf;
+}
+
+// Halo radial rouge dans les coins (blend alpha, falloff doux).
+function paintHalo(buf, W, H) {
+  const diag = Math.sqrt(W * W + H * H);
+  const radius = diag * 0.42;
+  for (const { ax, ay, a } of CORNERS) {
+    const cx = ax * (W - 1);
+    const cy = ay * (H - 1);
+    const minX = Math.max(0, Math.floor(cx - radius));
+    const maxX = Math.min(W - 1, Math.ceil(cx + radius));
+    const minY = Math.max(0, Math.floor(cy - radius));
+    const maxY = Math.min(H - 1, Math.ceil(cy + radius));
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const dx = x - cx;
+        const dy = y - cy;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d >= radius) continue;
+        const tt = 1 - d / radius;
+        const alpha = a * tt * tt;
+        const i = (y * W + x) * 3;
+        buf[i] = Math.round(buf[i] * (1 - alpha) + BRAND[0] * alpha);
+        buf[i + 1] = Math.round(buf[i + 1] * (1 - alpha) + BRAND[1] * alpha);
+        buf[i + 2] = Math.round(buf[i + 2] * (1 - alpha) + BRAND[2] * alpha);
+      }
+    }
+  }
+}
+
+// Rectangle à coins arrondis, avec bordure optionnelle.
+function fillRoundRect(buf, W, H, x, y, w, h, r, color, border) {
+  x = Math.round(x);
+  y = Math.round(y);
+  w = Math.round(w);
+  h = Math.round(h);
+  r = Math.min(r, Math.floor(w / 2), Math.floor(h / 2));
+  const bw = border ? Math.max(1, Math.round(W / 900)) : 0;
+  // classe un pixel local : -1 dehors, 0 intérieur plein, 1 anneau de coin
+  const region = (px, py) => {
     let cx = -1,
       cy = -1;
-    if (x < rr && y < rr) {
-      cx = rr;
-      cy = rr;
-    } else if (x >= logoSize - rr && y < rr) {
-      cx = logoSize - rr - 1;
-      cy = rr;
-    } else if (x < rr && y >= logoSize - rr) {
-      cx = rr;
-      cy = logoSize - rr - 1;
-    } else if (x >= logoSize - rr && y >= logoSize - rr) {
-      cx = logoSize - rr - 1;
-      cy = logoSize - rr - 1;
+    if (px < r && py < r) {
+      cx = r;
+      cy = r;
+    } else if (px >= w - r && py < r) {
+      cx = w - r - 1;
+      cy = r;
+    } else if (px < r && py >= h - r) {
+      cx = r;
+      cy = h - r - 1;
+    } else if (px >= w - r && py >= h - r) {
+      cx = w - r - 1;
+      cy = h - r - 1;
     }
-    if (cx < 0) return true;
-    const dx = x - cx,
-      dy = y - cy;
-    return dx * dx + dy * dy <= rr * rr;
+    if (cx < 0) return 0;
+    const dx = px - cx;
+    const dy = py - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist <= r - bw - 0.5) return 0;
+    if (dist <= r) return 1;
+    return -1;
   };
-  for (let y = 0; y < logoSize; y++) {
-    for (let x = 0; x < logoSize; x++) {
-      if (!inRounded(x, y)) continue;
-      const sj = (y * logoSize + x) * 3;
-      const dj = ((oy + y) * pxW + (ox + x)) * 3;
-      canvas[dj] = logo[sj];
-      canvas[dj + 1] = logo[sj + 1];
-      canvas[dj + 2] = logo[sj + 2];
+  for (let py = 0; py < h; py++) {
+    const gy = y + py;
+    if (gy < 0 || gy >= H) continue;
+    for (let px = 0; px < w; px++) {
+      const gx = x + px;
+      if (gx < 0 || gx >= W) continue;
+      const rg = region(px, py);
+      if (rg === -1) continue;
+      const onStraightEdge =
+        border && (px < bw || px >= w - bw || py < bw || py >= h - bw);
+      const c = border && (rg === 1 || onStraightEdge) ? border : color;
+      const i = (gy * W + gx) * 3;
+      buf[i] = c[0];
+      buf[i + 1] = c[1];
+      buf[i + 2] = c[2];
     }
   }
-  return encodePNG(pxW, pxH, canvas);
+}
+
+// ─── Squelette homepage (mobile : widgets empilés) ────────────────────────
+function paintSkeleton(buf, W, H, lw, dpr, t) {
+  const px = (v) => v * dpr; // CSS px → physique
+  const padX = px(16); // px-4
+  // Sur device, le contenu démarre à safe-area-inset-top (~47px notch) + pt-96.
+  // On approxime pour aligner le squelette du splash avec la vraie homepage.
+  const top = px(132);
+  const contentW = W - padX * 2;
+
+  let cy = top;
+  // Greeting (gros titre)
+  fillRoundRect(buf, W, H, padX, cy, contentW * 0.62, px(44), px(14), t.bar);
+  cy += px(44) + px(16);
+  // Barre de recherche (pill)
+  fillRoundRect(buf, W, H, padX, cy, contentW, px(40), px(20), t.bar);
+  cy += px(40) + px(24);
+
+  // 2 cartes widgets empilées (comme la home mobile)
+  const cardH = px(190);
+  for (let card = 0; card < 2; card++) {
+    fillRoundRect(buf, W, H, padX, cy, contentW, cardH, px(16), t.card, t.border);
+    const ip = px(20); // padding interne
+    let iy = cy + ip;
+    const iw = contentW - ip * 2;
+    fillRoundRect(buf, W, H, padX + ip, iy, px(110), px(11), px(5), t.cardInner);
+    iy += px(11) + px(14);
+    fillRoundRect(buf, W, H, padX + ip, iy, iw * 0.8, px(15), px(6), t.cardInner);
+    iy += px(15) + px(8);
+    fillRoundRect(buf, W, H, padX + ip, iy, iw * 0.55, px(13), px(6), t.cardInner);
+    iy += px(13) + px(16);
+    fillRoundRect(buf, W, H, padX + ip, iy, iw, px(8), px(4), t.cardInner);
+    iy += px(8) + px(16);
+    fillRoundRect(buf, W, H, padX + ip, iy, px(116), px(32), px(16), t.cardInner);
+    cy += cardH + px(16);
+  }
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────
 mkdirSync(OUT_DIR, { recursive: true });
-const srcPng = decodePNG(readFileSync(SRC_LOGO));
-const logo = downscale(
-  srcPng.data,
-  srcPng.width,
-  srcPng.height,
-  LOGO_SIZE,
-  LOGO_SIZE,
-);
-
-const links = [];
+let count = 0;
 for (const scheme of ["light", "dark"]) {
-  for (const [, lw, lh, dpr] of DEVICES) {
-    const pxW = lw * dpr;
-    const pxH = lh * dpr;
-    const file = `apple-splash-${scheme}-${pxW}-${pxH}.png`;
+  const t = THEME[scheme];
+  for (const [lw, lh, dpr] of DEVICES) {
+    const W = lw * dpr;
+    const H = lh * dpr;
+    const buf = makeCanvas(W, H, t.bg);
+    if (t.halo) paintHalo(buf, W, H);
+    paintSkeleton(buf, W, H, lw, dpr, t);
     writeFileSync(
-      join(OUT_DIR, file),
-      makeSplash(pxW, pxH, BG[scheme], logo, LOGO_SIZE),
+      join(OUT_DIR, `apple-splash-${scheme}-${W}-${H}.png`),
+      encodePNG(W, H, buf),
     );
-    const media = `(prefers-color-scheme: ${scheme}) and (device-width: ${lw}px) and (device-height: ${lh}px) and (-webkit-device-pixel-ratio: ${dpr}) and (orientation: portrait)`;
-    links.push(
-      `        <link rel="apple-touch-startup-image" media="${media}" href="/splash/${file}" />`,
-    );
+    count++;
   }
 }
-
-writeFileSync(join(OUT_DIR, "links.html"), links.join("\n") + "\n");
-console.log(`Généré ${DEVICES.length * 2} splash screens dans public/splash/`);
-console.log("Link tags écrits dans public/splash/links.html");
+console.log(
+  `Généré ${count} splash screens (skeleton homepage) dans public/splash/`,
+);
