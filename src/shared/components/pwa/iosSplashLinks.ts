@@ -5,11 +5,19 @@
 // device (largeur logique × dpr) ET la media query. Sinon : écran blanc
 // pendant tout le boot + chargement réseau.
 //
-// Les PNG sont générés par `scripts/generate-ios-splash.mjs` (fond de marque
-// + logo centré). Cette liste DOIT rester synchronisée avec le tableau
-// DEVICES de ce script. Light + dark sont fournis et sélectionnés par iOS via
-// `prefers-color-scheme` (le seul signal de thème disponible avant l'exécution
-// du JS — la préférence next-themes en localStorage n'est pas encore lue).
+// SÉLECTION LIGHT / DARK — format éprouvé (cf. pwa-asset-generator) :
+//   • Image CLAIRE (défaut) : media SANS `prefers-color-scheme` → matche dès que
+//     les dimensions correspondent.
+//   • Image SOMBRE : media identique + `and (prefers-color-scheme: dark)`,
+//     émise APRÈS la claire.
+// En dark mode, les DEUX matchent les dimensions ; iOS retient la dernière
+// déclarée qui matche → la sombre. En light mode, seule la claire matche.
+// (Un couple light/dark mutuellement exclusif via `prefers-color-scheme: light`
+// n'est PAS fiable sur iOS : il retombe sur la 1ʳᵉ image aux bonnes dimensions,
+// donc toujours la claire — c'était le bug.)
+//
+// Les PNG sont générés par `scripts/generate-ios-splash.mjs`. Cette liste DOIT
+// rester synchronisée avec le tableau DEVICES de ce script.
 
 // [largeur logique, hauteur logique, dpr]
 const DEVICES: ReadonlyArray<readonly [number, number, number]> = [
@@ -31,15 +39,19 @@ export interface IosSplashLink {
   href: string;
 }
 
-export const IOS_SPLASH_LINKS: IosSplashLink[] = (
-  ["light", "dark"] as const
-).flatMap((scheme) =>
-  DEVICES.map(([lw, lh, dpr]) => {
-    const pxW = lw * dpr;
-    const pxH = lh * dpr;
-    return {
-      media: `(prefers-color-scheme: ${scheme}) and (device-width: ${lw}px) and (device-height: ${lh}px) and (-webkit-device-pixel-ratio: ${dpr}) and (orientation: portrait)`,
-      href: `/splash/apple-splash-${scheme}-${pxW}-${pxH}.png`,
-    };
-  }),
-);
+function dims(lw: number, lh: number, dpr: number): string {
+  return `(device-width: ${lw}px) and (device-height: ${lh}px) and (-webkit-device-pixel-ratio: ${dpr}) and (orientation: portrait)`;
+}
+
+// Ordre important : claires (défaut) d'abord, sombres ensuite — iOS retient la
+// dernière media query qui matche.
+export const IOS_SPLASH_LINKS: IosSplashLink[] = [
+  ...DEVICES.map(([lw, lh, dpr]) => ({
+    media: dims(lw, lh, dpr),
+    href: `/splash/apple-splash-light-${lw * dpr}-${lh * dpr}.png`,
+  })),
+  ...DEVICES.map(([lw, lh, dpr]) => ({
+    media: `${dims(lw, lh, dpr)} and (prefers-color-scheme: dark)`,
+    href: `/splash/apple-splash-dark-${lw * dpr}-${lh * dpr}.png`,
+  })),
+];
