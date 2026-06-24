@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { X, Search } from "lucide-react";
 import type { User } from "../../types/user.types";
 import { listMembersAction } from "../../server/actions";
@@ -10,8 +10,6 @@ import { useModalTransition } from "@/shared/lib/hooks/useModalTransition";
 
 interface NewConversationModalProps {
   currentUser: User;
-  /** Centre du bouton déclencheur (viewport px) → origine du morph. */
-  origin?: { x: number; y: number } | null;
   onClose: () => void;
   onSelect: (userId: string) => void;
 }
@@ -33,13 +31,8 @@ function memberAsUserShape(m: CommunityMember): User {
   };
 }
 
-export function NewConversationModal({ currentUser, origin, onClose, onSelect }: NewConversationModalProps) {
+export function NewConversationModal({ currentUser, onClose, onSelect }: NewConversationModalProps) {
   const { stateClass, overlayOpen, requestClose } = useModalTransition();
-  const panelRef = useRef<HTMLDivElement>(null);
-  // Origine du morph convertie en coordonnées locales au panneau (le panneau est
-  // centré ; transform-origin peut pointer hors de sa boîte → croissance depuis
-  // le bouton). Sans origine, fallback centre via le défaut CSS.
-  const [originVars, setOriginVars] = useState<CSSProperties>({});
   const [query, setQuery] = useState("");
   // Liste réelle des membres tirée via Server Action. La RLS two-silo
   // (mig. 024) tranchera côté serveur si l'utilisateur clique sur un
@@ -57,15 +50,6 @@ export function NewConversationModal({ currentUser, origin, onClose, onSelect }:
       cancelled = true;
     };
   }, [currentUser.id]);
-
-  useLayoutEffect(() => {
-    if (!origin || !panelRef.current) return;
-    const rect = panelRef.current.getBoundingClientRect();
-    setOriginVars({
-      ["--morph-mx" as string]: `${origin.x - rect.left}px`,
-      ["--morph-my" as string]: `${origin.y - rect.top}px`,
-    });
-  }, [origin]);
 
   const filtered = query
     ? members.filter((m) => m.name.toLowerCase().includes(query.toLowerCase()))
@@ -88,9 +72,8 @@ export function NewConversationModal({ currentUser, origin, onClose, onSelect }:
       onClick={(e) => { if (e.target === e.currentTarget) requestClose(onClose); }}
     >
       <div
-        ref={panelRef}
         data-fb-label="Modale Nouvelle conversation · Communauté"
-        className={`t-modal-morph ${stateClass}`}
+        className={`t-modal ${stateClass}`}
         role="dialog"
         aria-modal="true"
         style={{
@@ -99,7 +82,6 @@ export function NewConversationModal({ currentUser, origin, onClose, onSelect }:
           width: "100%",
           maxWidth: 440,
           overflow: "hidden",
-          ...originVars,
         }}
       >
         {/* Header */}

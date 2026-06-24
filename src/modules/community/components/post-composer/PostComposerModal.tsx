@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useRef, useCallback, type CSSProperties } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X, Image as ImageIcon, Link, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -88,8 +88,6 @@ function detectVideoUrl(text: string): { type: "youtube" | "loom" | "tella"; src
 
 interface PostComposerModalProps {
   currentUser: User;
-  /** Centre du bouton déclencheur (viewport px) → origine du morph. */
-  origin?: { x: number; y: number } | null;
   onClose: () => void;
   onPublish: (post: Partial<Post>) => void;
   initialPost?: Partial<Post>;
@@ -98,22 +96,9 @@ interface PostComposerModalProps {
   publishing?: boolean;
 }
 
-export function PostComposerModal({ currentUser, origin, onClose, onPublish, initialPost, publishing = false }: PostComposerModalProps) {
+export function PostComposerModal({ currentUser, onClose, onPublish, initialPost, publishing = false }: PostComposerModalProps) {
   const { stateClass, overlayOpen, requestClose } = useModalTransition();
-  const panelRef = useRef<HTMLDivElement>(null);
-  // Origine du morph en coordonnées locales au panneau centré (cf.
-  // NewConversationModal) → la modale grandit depuis le bouton déclencheur.
-  const [originVars, setOriginVars] = useState<CSSProperties>({});
   const isAdmin = currentUser.role === "admin" || currentUser.role === "mentor";
-
-  useLayoutEffect(() => {
-    if (!origin || !panelRef.current) return;
-    const rect = panelRef.current.getBoundingClientRect();
-    setOriginVars({
-      ["--morph-mx" as string]: `${origin.x - rect.left}px`,
-      ["--morph-my" as string]: `${origin.y - rect.top}px`,
-    });
-  }, [origin]);
   const isEditMode = !!initialPost;
 
   const [title, setTitle] = useState(initialPost?.title ?? "");
@@ -431,11 +416,10 @@ export function PostComposerModal({ currentUser, origin, onClose, onPublish, ini
       )}
 
       <div
-        ref={panelRef}
         data-fb-label="Composer de post · Communauté"
         role="dialog"
         aria-modal="true"
-        className={`t-modal-morph ${stateClass} md:max-h-[80dvh]`}
+        className={`t-modal ${stateClass} md:max-h-[80dvh]`}
         style={{
           background: "var(--color-surface-card)",
           borderRadius: 20,
@@ -445,7 +429,6 @@ export function PostComposerModal({ currentUser, origin, onClose, onPublish, ini
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",
-          ...originVars,
         }}
       >
         {/* Header */}
