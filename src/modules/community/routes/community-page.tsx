@@ -159,9 +159,6 @@ export function CommunityPage({
   }, [moveTabTo]);
 
   const [showComposer, setShowComposer] = useState(false);
-  // Origine du morph du composer : centre du bouton déclencheur (inline desktop
-  // ou FAB mobile) capturé au clic.
-  const [composerOrigin, setComposerOrigin] = useState<{ x: number; y: number } | null>(null);
   // Optimistic posts ajoutés côté client juste après publication. À chaque
   // router.refresh() post-create, le Server Component recharge les posts
   // (nouvelle promesse) et l'optimistic est dédoublonné par id côté FeedList.
@@ -342,10 +339,7 @@ export function CommunityPage({
               <FeedTagFilters
                 active={activeTag}
                 onChange={setActiveTag}
-                onNewPost={(origin) => {
-                  setComposerOrigin(origin);
-                  setShowComposer(true);
-                }}
+                onNewPost={() => setShowComposer(true)}
                 isAdmin={currentUser.role === "admin"}
               />
             </div>
@@ -379,11 +373,7 @@ export function CommunityPage({
       {activeTab === "feed" && (
         <button
           type="button"
-          onClick={(e) => {
-            const r = e.currentTarget.getBoundingClientRect();
-            setComposerOrigin({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-            setShowComposer(true);
-          }}
+          onClick={() => setShowComposer(true)}
           className="nc-feed-fab md:hidden"
           data-fb-label="Bouton Nouveau post · Feed"
           aria-label="Nouveau post"
@@ -395,7 +385,6 @@ export function CommunityPage({
       {showComposer && (
         <PostComposerModal
           currentUser={currentUser}
-          origin={composerOrigin}
           onClose={() => setShowComposer(false)}
           onPublish={handlePublish}
           publishing={publishing}

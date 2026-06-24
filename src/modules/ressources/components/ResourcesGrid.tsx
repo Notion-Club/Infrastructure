@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Search, ListFilter, X } from 'lucide-react';
-import { MorphMenu } from '@/shared/components/MorphMenu';
 import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceCard } from './ResourceCard';
@@ -86,6 +85,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchActive, setSearchActive] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [typeAccordionOpen, setTypeAccordionOpen] = useState(true);
   // Raccourci clavier affiché : ⌘ sur Mac, sinon « Ctrl ». Défaut Mac pour que
   // le 1er rendu client corresponde au SSR (pas de hydration mismatch) ; corrigé
@@ -95,6 +95,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   // hors du viewport (cas mobile : bouton trop à droite de l'écran).
   const [alignRight, setAlignRight] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  const filterBtnRef = useRef<HTMLButtonElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -142,20 +143,21 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     return () => document.removeEventListener('keydown', onKeyDown, true);
   }, []);
 
-  // Le morph (MorphMenu) gère ouverture/fermeture + click-outside ; ici on ne
-  // calcule que le coin d'ancrage : à droite quand l'ancrage gauche ferait
-  // déborder le panneau hors du viewport (cas mobile, bouton trop à droite).
-  // Recalculé au montage + au resize (indépendant de l'état ouvert).
   useEffect(() => {
+    if (!filterOpen) return;
     const DROPDOWN_WIDTH = 240;
-    function recompute() {
-      const rect = filterRef.current?.getBoundingClientRect();
-      if (rect) setAlignRight(rect.left + DROPDOWN_WIDTH > window.innerWidth - 12);
+    const rect = filterBtnRef.current?.getBoundingClientRect();
+    if (rect) {
+      setAlignRight(rect.left + DROPDOWN_WIDTH > window.innerWidth - 12);
     }
-    recompute();
-    window.addEventListener('resize', recompute);
-    return () => window.removeEventListener('resize', recompute);
-  }, []);
+    function onClickOutside(e: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setFilterOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [filterOpen]);
 
   const filteredItems = items.filter((item) => matchesFilters(item, primaryFilter, selectedTypes));
 
@@ -240,9 +242,8 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     const nextTypes = filter === 'Templates' ? new Set<ResourceMetierType>() : selectedTypes;
     setPrimaryFilter(filter);
     if (filter === 'Templates') {
-      // Le morph des filtres est démonté via `showTypeFilter` (Templates n'a
-      // pas de filtre type) → fermeture automatique, rien à faire ici.
       setSelectedTypes(new Set());
+      setFilterOpen(false);
     }
     animateTo(buildVisibleIds(searchQuery, filter, nextTypes), { mode: 'tab', direction: dir });
   }
@@ -309,19 +310,17 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           })}
         </div>
 
-        {/* Type filter morph */}
+        {/* Type filter button */}
         {showTypeFilter && (
-          <div ref={filterRef} style={{ display: 'inline-flex' }}>
-            <MorphMenu
-              origin={alignRight ? 'top-right' : 'top-left'}
-              openWidth={240}
-              openHeight={300}
-              ariaLabel="Filtres"
-              triggerFbLabel="Bouton Filtres · Grille des ressources"
-              panelFbLabel="Modale filtres · Grille des ressources"
-              panelRole="listbox"
-              triggerClassName={!hasActiveFilters ? 'hover:bg-[#eaeaea]' : 'hover:opacity-90'}
-              triggerStyle={{
+          <div ref={filterRef} style={{ position: 'relative' }}>
+            <button
+              ref={filterBtnRef}
+              type="button"
+              data-fb-label="Bouton Filtres · Grille des ressources"
+              onClick={() => setFilterOpen((o) => !o)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
                 gap: 6,
                 padding: '8px 14px',
                 borderRadius: 9999,
@@ -331,134 +330,150 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 background: hasActiveFilters ? 'var(--color-brand)' : 'var(--color-surface-card)',
                 border: '1px solid',
                 borderColor: hasActiveFilters ? 'var(--color-brand)' : 'var(--color-border-default)',
+                cursor: 'pointer',
+                transition: 'all 150ms ease',
                 whiteSpace: 'nowrap',
               }}
-              triggerContent={
-                <>
-                  <ListFilter size={13} />
-                  Filtres
-                  {hasActiveFilters && (
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 16,
-                        height: 16,
-                        borderRadius: '50%',
-                        background: 'var(--color-surface-card)',
-                        color: 'var(--color-brand)',
-                        fontSize: 9,
-                        fontWeight: 700,
-                        lineHeight: 1,
-                      }}
-                    >
-                      {selectedTypes.size}
-                    </span>
-                  )}
-                </>
-              }
+              className={!hasActiveFilters ? 'hover:bg-[#eaeaea]' : 'hover:opacity-90'}
             >
-              {(close) => (
-                <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
-                  {/* Accordion header */}
-                  <button
-                    type="button"
-                    onClick={() => setTypeAccordionOpen((o) => !o)}
+              <ListFilter size={13} />
+              Filtres
+              {hasActiveFilters && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-brand)',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    lineHeight: 1,
+                  }}
+                >
+                  {selectedTypes.size}
+                </span>
+              )}
+            </button>
+
+            {filterOpen && (
+              <div
+                data-fb-label="Modale filtres · Grille des ressources"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  left: alignRight ? 'auto' : 0,
+                  right: alignRight ? 0 : 'auto',
+                  minWidth: 220,
+                  maxWidth: 'calc(100vw - 24px)',
+                  background: 'var(--color-surface-card)',
+                  border: '1px solid var(--color-border-default)',
+                  borderRadius: 16,
+                  boxShadow: 'var(--nc-shadow-2)',
+                  zIndex: 20,
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Accordion header */}
+                <button
+                  type="button"
+                  onClick={() => setTypeAccordionOpen((o) => !o)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--color-text-primary)',
+                    borderBottom: typeAccordionOpen ? '1px solid var(--color-border-default)' : 'none',
+                  }}
+                >
+                  Type métier
+                  <span
                     style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '12px 14px',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: 'var(--color-text-primary)',
-                      borderBottom: typeAccordionOpen ? '1px solid var(--color-border-default)' : 'none',
+                      fontSize: 11,
+                      color: 'var(--color-text-muted)',
+                      transform: typeAccordionOpen ? 'rotate(180deg)' : 'none',
+                      transition: 'transform 150ms ease',
+                      display: 'inline-block',
                     }}
                   >
-                    Type métier
-                    <span
+                    ▾
+                  </span>
+                </button>
+
+                {typeAccordionOpen && (
+                  <div style={{ padding: '8px 0' }}>
+                    {METIER_TYPES.map((type) => {
+                      const checked = selectedTypes.has(type);
+                      return (
+                        <label
+                          key={type}
+                          data-fb-label={`Filtre « ${type} » · Grille des ressources`}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '8px 14px',
+                            cursor: 'pointer',
+                            fontSize: 13,
+                            color: 'var(--color-text-primary)',
+                          }}
+                          className="hover:bg-[var(--color-surface-raised)]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleType(type)}
+                            style={{ accentColor: 'var(--color-brand)', width: 14, height: 14 }}
+                          />
+                          {type}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {hasActiveFilters && (
+                  <div
+                    style={{
+                      borderTop: '1px solid var(--color-border-default)',
+                      padding: '8px 14px',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      data-fb-label="Bouton Réinitialiser filtres · Grille des ressources"
+                      onClick={() => {
+                        resetFilters();
+                        setFilterOpen(false);
+                      }}
                       style={{
-                        fontSize: 11,
-                        color: 'var(--color-text-muted)',
-                        transform: typeAccordionOpen ? 'rotate(180deg)' : 'none',
-                        transition: 'transform 150ms ease',
-                        display: 'inline-block',
+                        width: '100%',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: 'var(--color-brand)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '6px 0',
+                        textAlign: 'left',
                       }}
                     >
-                      ▾
-                    </span>
-                  </button>
-
-                  {typeAccordionOpen && (
-                    <div style={{ padding: '8px 0' }}>
-                      {METIER_TYPES.map((type) => {
-                        const checked = selectedTypes.has(type);
-                        return (
-                          <label
-                            key={type}
-                            data-fb-label={`Filtre « ${type} » · Grille des ressources`}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 10,
-                              padding: '8px 14px',
-                              cursor: 'pointer',
-                              fontSize: 13,
-                              color: 'var(--color-text-primary)',
-                            }}
-                            className="hover:bg-[var(--color-surface-raised)]"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleType(type)}
-                              style={{ accentColor: 'var(--color-brand)', width: 14, height: 14 }}
-                            />
-                            {type}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {hasActiveFilters && (
-                    <div
-                      style={{
-                        borderTop: '1px solid var(--color-border-default)',
-                        padding: '8px 14px',
-                      }}
-                    >
-                      <button
-                        type="button"
-                        data-fb-label="Bouton Réinitialiser filtres · Grille des ressources"
-                        onClick={() => {
-                          resetFilters();
-                          close();
-                        }}
-                        style={{
-                          width: '100%',
-                          fontSize: 13,
-                          fontWeight: 500,
-                          color: 'var(--color-brand)',
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: '6px 0',
-                          textAlign: 'left',
-                        }}
-                      >
-                        Réinitialiser
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </MorphMenu>
+                      Réinitialiser
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
         </div>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MorphMenu } from "@/shared/components/MorphMenu";
+import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
 import { Bell } from "lucide-react";
 import { useNotifications } from "../../hooks/useNotifications";
 import type { Notification } from "../../types/notification.types";
@@ -72,6 +72,7 @@ export function NotificationPopover({
 }: NotificationPopoverProps) {
   const isMobile = variant === "mobile";
   const router = useRouter();
+  const { isOpen, isMounted, stateClass, close, toggle } = useDropdownTransition();
   const {
     notifications: notifs,
     unreadCount: unread,
@@ -79,13 +80,21 @@ export function NotificationPopover({
     markAllRead,
     markAsUnread,
   } = useNotifications();
-  // Fonction de fermeture du morph, exposée par MorphMenu via render-prop ;
-  // stockée en ref pour rester appelable depuis les handlers de scope composant.
-  const closeRef = useRef<() => void>(() => {});
+  const ref = useRef<HTMLDivElement>(null);
 
   // Onglet actif + cartes en cours de sortie (collapse animé avant retrait).
   const [tab, setTab] = useState<TabKey>("unread");
   const [leaving, setLeaving] = useState<Set<string>>(new Set());
+
+  // Click-outside.
+  useEffect(() => {
+    if (!isOpen) return;
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
+    }
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [isOpen, close]);
 
   // Retire une carte avec collapse animé, puis applique le commit (mark read
   // depuis l'onglet Non-lues, ou archivage). On garde la carte montée le temps
@@ -111,7 +120,7 @@ export function NotificationPopover({
     } else if (n.postId) {
       router.push(`/communaute/post/${n.postId}`);
     }
-    closeRef.current();
+    close();
   }
 
   // Bouton "archiver" d'une notif non lue → la passe en lue. Depuis l'onglet
@@ -145,90 +154,105 @@ export function NotificationPopover({
   const empty = EMPTY_COPY[tab];
 
   return (
-    <MorphMenu
-      origin="top-right"
-      openWidth={360}
-      openHeight={480}
-      ariaLabel={unread > 0 ? `${unread} notifications` : "Notifications"}
-      triggerFbLabel="Bouton Notifications · Communauté"
-      panelFbLabel="Popover notifications · Communauté"
-      triggerClassName={buttonClassName}
-      triggerStyle={
-        isMobile
-          ? // Le look (taille, fond frosted, bordure, shadow) vient de la
-            // class nc-mobile-action-btn — on n'écrase que la couleur d'icône.
-            { color: "var(--color-text-secondary)" }
-          : {
-              width: 40,
-              height: 40,
-              borderRadius: "50%",
-              color: "var(--color-text-secondary)",
-            }
-      }
-      triggerContent={
-        <>
-          <Bell size={isMobile ? 16 : 18} />
-          {unread > 0 && (
-            <span
-              style={
-                isMobile
-                  ? {
-                      position: "absolute",
-                      top: -2,
-                      right: -2,
-                      minWidth: 17,
-                      height: 17,
-                      background: "var(--color-brand)",
-                      color: "white",
-                      borderRadius: 9999,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: "2px solid white",
-                      padding: "0 3px",
-                      lineHeight: 1,
-                    }
-                  : {
-                      position: "absolute",
-                      top: 2,
-                      right: 2,
-                      minWidth: 15,
-                      height: 15,
-                      background: "#e0625a",
-                      color: "white",
-                      borderRadius: 9999,
-                      fontSize: 9,
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: "1.5px solid white",
-                      padding: "0 3px",
-                      lineHeight: 1,
-                    }
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        aria-label={unread > 0 ? `${unread} notifications` : "Notifications"}
+        onClick={() => toggle()}
+        data-fb-label="Bouton Notifications · Communauté"
+        className={buttonClassName}
+        style={
+          isMobile
+            ? // Le look (taille, fond frosted, bordure, shadow) vient de la
+              // class nc-mobile-action-btn — on n'écrase que la couleur d'icône.
+              { color: "var(--color-text-secondary)" }
+            : {
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "var(--color-text-secondary)",
+                position: "relative",
+                flexShrink: 0,
+                transition: "background 150ms ease",
               }
-            >
-              {unread > 9 ? "9+" : unread}
-            </span>
-          )}
-        </>
-      }
-    >
-      {(close) => {
-        // Expose la fermeture aux handlers de scope composant (clic notif).
-        closeRef.current = close;
-        return (
+        }
+      >
+        <Bell size={isMobile ? 16 : 18} />
+        {unread > 0 && (
+          <span
+            style={
+              isMobile
+                ? {
+                    position: "absolute",
+                    top: -2,
+                    right: -2,
+                    minWidth: 17,
+                    height: 17,
+                    background: "var(--color-brand)",
+                    color: "white",
+                    borderRadius: 9999,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "2px solid white",
+                    padding: "0 3px",
+                    lineHeight: 1,
+                  }
+                : {
+                    position: "absolute",
+                    top: 2,
+                    right: 2,
+                    minWidth: 15,
+                    height: 15,
+                    background: "#e0625a",
+                    color: "white",
+                    borderRadius: 9999,
+                    fontSize: 9,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "1.5px solid white",
+                    padding: "0 3px",
+                    lineHeight: 1,
+                  }
+            }
+          >
+            {unread > 9 ? "9+" : unread}
+          </span>
+        )}
+      </button>
+
+      {isMounted && (
         <div
+          data-fb-label="Popover notifications · Communauté"
+          className={`t-dropdown ${stateClass}`}
+          data-origin="top-right"
           style={{
-            // La surface (fond/bordure/rayon/ombre) est portée par .t-morph ;
-            // ici on ne gère que la colonne flex header figé + liste scrollable.
-            width: "100%",
-            height: "100%",
+            position: "absolute",
+            top: "calc(100% + 10px)",
+            right: 0,
+            width: 360,
+            maxHeight: 480,
+            // Colonne flex : header figé (flex-shrink:0) + liste scrollable
+            // (flex:1). overflow:hidden sur le conteneur → seul le contenu sous
+            // la barre de séparation peut scroller, le haut reste verrouillé.
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
+            background: "var(--color-surface-card)",
+            border: "1px solid var(--color-border-default)",
+            borderRadius: 16,
+            boxShadow: "var(--nc-shadow-2)",
+            zIndex: 200,
           }}
         >
           {/* Header + onglets — figés en haut (ne scrollent jamais). */}
@@ -465,8 +489,7 @@ export function NotificationPopover({
             ))}
           </div>
         </div>
-        );
-      }}
-    </MorphMenu>
+      )}
+    </div>
   );
 }

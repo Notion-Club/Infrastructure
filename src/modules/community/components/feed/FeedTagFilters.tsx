@@ -14,9 +14,7 @@ const FILTERS: Array<{ value: TagFilter; label: string }> = [
 interface FeedTagFiltersProps {
   active: TagFilter;
   onChange: (tag: TagFilter) => void;
-  /** Reçoit le centre du bouton (viewport px) pour faire grandir le composer
-   *  depuis le déclencheur. */
-  onNewPost: (origin: { x: number; y: number } | null) => void;
+  onNewPost: () => void;
   isAdmin: boolean;
 }
 
@@ -70,10 +68,7 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
           (cf. nc-feed-fab dans CommunityPage) → masqué ici en < md. */}
       <button
         type="button"
-        onClick={(e) => {
-          const r = e.currentTarget.getBoundingClientRect();
-          onNewPost({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-        }}
+        onClick={onNewPost}
         data-fb-label="Bouton Nouveau post · Feed"
         className="nc-btn-shine hidden md:inline-flex"
         style={{
