@@ -214,7 +214,8 @@ export function MorphMenu({
 
   return (
     <div ref={rootRef} className="t-morph-anchor" data-origin={origin} style={anchorVars}>
-      {/* Boîte de clip qui morphe (sous le déclencheur) — clippe le menu. */}
+      {/* Boîte de clip qui morphe depuis l'empreinte du déclencheur — le recouvre
+          et le consomme en grandissant. Clippe le menu (overflow:hidden). */}
       <div className="t-morph" data-open={open ? "true" : "false"} data-origin={origin} style={morphVars}>
         {mounted && (
           <div className="t-morph-panel" role={panelRole} data-fb-label={panelFbLabel}>
