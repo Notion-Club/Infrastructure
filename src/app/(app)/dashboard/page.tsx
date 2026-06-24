@@ -6,7 +6,7 @@ import { ProfilWidget } from "@/shared/components/dashboard/widgets/ProfilWidget
 import { EmailVerifiedToast } from "@/modules/auth";
 import { EmailConfirmBanner } from "@/shared/components/dashboard/EmailConfirmBanner";
 import { ContentEnter } from "@/shared/components/motion/ContentEnter";
-import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import { getAuthUser, getCurrentProfile } from "@/shared/lib/supabase/cached";
 import {
   getDashboardFormationData,
   getDashboardProfilData,
@@ -23,17 +23,13 @@ export const metadata: Metadata = {
 //   4. "à toi" si pas de user connecté (la page n'est pas encore protégée
 //      par middleware, donc un visiteur anon peut tomber dessus)
 async function getGreetingFirstName(): Promise<string> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Réutilise les lectures mémoïsées (cache()) déjà effectuées par le layout —
+  // aucun getUser()/profiles supplémentaire n'est émis ici.
+  const [user, profile] = await Promise.all([
+    getAuthUser(),
+    getCurrentProfile(),
+  ]);
   if (!user) return "à toi";
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("first_name, display_name")
-    .eq("id", user.id)
-    .maybeSingle();
 
   if (profile?.first_name) return profile.first_name;
   if (profile?.display_name) return profile.display_name;
@@ -41,15 +37,45 @@ async function getGreetingFirstName(): Promise<string> {
   return "à toi";
 }
 
-export default async function DashboardPage() {
-  // 3 lectures indépendantes — on parallélise pour minimiser le TTFB.
-  // Les 2 dashboard queries renvoient null quand l'user n'a aucune formation
-  // accessible → le widget retourne null et le slot disparaît proprement.
-  const [firstName, formationData, profilData] = await Promise.all([
-    getGreetingFirstName(),
+// Carte squelette d'un widget pendant le stream — reprend les dimensions des
+// vrais widgets (cf. dashboard/loading.tsx).
+function WidgetSkeleton({ delay = 0 }: { delay?: number }) {
+  return (
+    <div
+      style={{
+        height: 220,
+        borderRadius: 16,
+        background: "var(--color-surface-raised)",
+        animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
+        animationDelay: `${delay}ms`,
+      }}
+    />
+  );
+}
+
+// Bloc widgets — isolé dans sa propre frontière Suspense pour STREAMER
+// indépendamment du shell (greeting + recherche). Les données formation/profil
+// (les requêtes les plus lentes) ne bloquent plus l'affichage de l'en-tête :
+// la page paint immédiatement, les widgets arrivent dès qu'ils sont prêts.
+// getAccessiblePrograms() étant mémoïsé (cache()), les 2 dérivations ne
+// déclenchent qu'un seul jeu de requêtes.
+async function DashboardWidgets() {
+  const [formationData, profilData] = await Promise.all([
     getDashboardFormationData(),
     getDashboardProfilData(),
   ]);
+  return (
+    <>
+      <FormationWidget data={formationData} />
+      <ProfilWidget data={profilData} />
+    </>
+  );
+}
+
+export default async function DashboardPage() {
+  // Seul le greeting est attendu pour le shell — il réutilise les lectures
+  // mémoïsées du layout (quasi gratuit). Les widgets streament ensuite.
+  const firstName = await getGreetingFirstName();
   return (
     <>
       <div className="nc-page-halo" style={{ minHeight: "100lvh" }}>
@@ -185,8 +211,16 @@ export default async function DashboardPage() {
             className="grid grid-cols-1 md:grid-cols-2 gap-4"
           >
             <EmailConfirmBanner />
-            <FormationWidget data={formationData} />
-            <ProfilWidget data={profilData} />
+            <Suspense
+              fallback={
+                <>
+                  <WidgetSkeleton />
+                  <WidgetSkeleton delay={80} />
+                </>
+              }
+            >
+              <DashboardWidgets />
+            </Suspense>
           </div>
         </ContentEnter>
       </main>
