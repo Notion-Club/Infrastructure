@@ -3,6 +3,7 @@ import { Geist_Mono } from "next/font/google";
 import { Toaster } from "@/shared/components/ui/sonner";
 import { ThemeProvider } from "@/shared/components/theme/ThemeProvider";
 import ServiceWorkerRegistrar from "@/shared/components/pwa/ServiceWorkerRegistrar";
+import { IOS_SPLASH_LINKS } from "@/shared/components/pwa/iosSplashLinks";
 import { GradualBlurOverlay } from "@/shared/components/GradualBlurOverlay";
 import { sfProDisplay } from "@/shared/lib/fonts";
 import "./globals.css";
@@ -97,6 +98,20 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* Splash screens iOS — supprime l'écran blanc au démarrage de la PWA
+            en mode standalone. iOS affiche l'image dont la media query matche
+            la résolution exacte du device (cf. iosSplashLinks.ts). Sans ces
+            balises, iOS ne peut RIEN peindre pendant le boot du webview + le
+            chargement réseau → blanc total. Générés par
+            scripts/generate-ios-splash.mjs. */}
+        {IOS_SPLASH_LINKS.map((link) => (
+          <link
+            key={link.href}
+            rel="apple-touch-startup-image"
+            media={link.media}
+            href={link.href}
+          />
+        ))}
       </head>
       <body className="min-h-full flex flex-col font-sans">
         <ThemeProvider>{children}</ThemeProvider>

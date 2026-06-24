@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import { getAuthUser, getCurrentProfile } from "@/shared/lib/supabase/cached";
 import {
   ProfileIdentityProvider,
   type ProfileIdentity,
@@ -24,40 +25,27 @@ import { ProfileModalProvider } from "@/shared/components/profile/ProfileModalPr
 // Si l'user n'est pas authentifié, on redirige vers /login.
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getAuthUser() est mémoïsé (cache()) : le même appel est réutilisé par la
+  // page et les widgets de ce rendu, au lieu d'un getUser() par composant.
+  const user = await getAuthUser();
 
   if (!user) {
     redirect("/login");
   }
 
-  // Pré-fetch en parallèle : profile + capability can_view_paid_content
-  // (dérive l'offer affichée dans le module community).
-  const [profileRes, paidRes] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select(
-        "first_name, last_name, display_name, username, avatar_url, avatar_color, role",
-      )
-      .eq("id", user.id)
-      .maybeSingle<{
-        first_name: string | null;
-        last_name: string | null;
-        display_name: string | null;
-        username: string | null;
-        avatar_url: string | null;
-        avatar_color: string | null;
-        role: string | null;
-      }>(),
+  const supabase = await createSupabaseServerClient();
+
+  // Pré-fetch en parallèle : profile (mémoïsé, partagé avec le greeting de la
+  // page) + capability can_view_paid_content (dérive l'offer du module
+  // community).
+  const [profile, paidRes] = await Promise.all([
+    getCurrentProfile(),
     supabase.rpc("user_has_capability", {
       p_profile_id: user.id,
       p_capability: "can_view_paid_content",
     }),
   ]);
 
-  const profile = profileRes.data;
   const hasPaidAccess = paidRes.data === true;
   const rawRole = profile?.role ?? "member";
   const role: ProfileIdentity["role"] =
