@@ -2280,6 +2280,42 @@ html {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   Pont visuel splash → app (PWA standalone iOS)
+   Le splash natif iOS est une image unique d'une seule couleur
+   (#f5f2f2). Au 1er paint web, ce voile reprend EXACTEMENT cette
+   couleur par-dessus le squelette déjà rendu dans le bon thème
+   (classe .dark posée avant paint), puis se fond → transition
+   fluide du splash vers light OU dark, sans saut de couleur.
+   Gated `display-mode: standalone` : hors PWA (Safari onglet), pas
+   de splash natif en amont → pas de voile (évite un flash au reload).
+   ══════════════════════════════════════════════════════════════ */
+.nc-splash-cover {
+  display: none;
+}
+@media (display-mode: standalone) {
+  .nc-splash-cover {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background-color: #f5f2f2;
+    pointer-events: none;
+    animation: nc-splash-cover-out 600ms var(--nc-ease, ease) 80ms forwards;
+  }
+}
+@keyframes nc-splash-cover-out {
+  to {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-splash-cover {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
    html.dark — specificity [0,1,1] reinforcement block
    Garantit que les tokens NC dark gagnent sur toute règle :root
    issue de @theme inline (Tailwind v4) ou d'autres imports.
