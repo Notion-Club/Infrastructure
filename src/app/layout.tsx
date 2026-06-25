@@ -114,6 +114,10 @@ export default function RootLayout({
         ))}
       </head>
       <body className="min-h-full flex flex-col font-sans">
+        {/* Fond de marque GLOBAL — un seul calque fixe derrière tout le
+            contenu (dégradé d'accents en light, uni en dark). Remplace
+            l'ancien dégradé par-page clippé. cf. .nc-app-bg dans globals.css */}
+        <div className="nc-app-bg" aria-hidden />
         <ThemeProvider>
           {/* Aligne <meta name="theme-color"> sur le thème réel → les barres
               Safari (haut/bas) épousent la surface, plus de bande blanche. */}
