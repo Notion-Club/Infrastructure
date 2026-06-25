@@ -90,65 +90,22 @@ function getServerOverrideSnapshot(): string | null {
   return null;
 }
 
-// ── Persistance du thème + couleur des calques « glass » ────────────────────
+// ── Garde de persistance de la classe `.dark` ───────────────────────────────
+// Le `.dark` est posé impérativement sur <html> (ThemeProvider.applyTheme).
+// React peut le RETIRER en réconciliant <html> à la navigation / au streaming
+// RSC → la page suivante repartait en light. On le RÉ-APPLIQUE depuis la source
+// de vérité (localStorage, via getResolvedTheme → pas de course avec le rendu).
+// Idempotent (toggle force) → pas de boucle avec le MutationObserver.
 //
-// Bug iOS/WebKit : un calque `backdrop-filter` NE se repeint PAS quand la
-// couleur de son `background` change via une CUSTOM PROPERTY d'un ancêtre
-// (ici `--color-surface-page` / `--nc-bottom-nav-bg` qui basculent avec `.dark`)
-// → les bandes restaient figées sur l'ancienne couleur jusqu'à un re-composite
-// (l'utilisateur devait tourner l'écran). Retirer/remettre `backdrop-filter`
-// NE suffit pas (iOS garde le fond peint en cache).
-//
-// Seule solution fiable : MUTER DIRECTEMENT le `background` de l'élément avec
-// une valeur EXPLICITE (pas une variable). Une mutation inline directe sur
-// l'élément invalide son rendu → iOS repeint, immédiatement.
-//
-// ⚠️ Les valeurs ci-dessous doivent rester synchro avec globals.css
-// (`.nc-mobile-top-fade`, `.nc-mobile-bottom-fade`, `--nc-bottom-nav-bg`).
-// Surfaces : light #f5f2f2 = rgb(245,242,242) · dark #141211 = rgb(20,18,17).
-const GLASS_BG: Record<string, { light: string; dark: string }> = {
-  ".nc-mobile-top-fade": {
-    light:
-      "linear-gradient(to bottom, rgba(245,242,242,0.72) 0%, rgba(245,242,242,0.26) 50%, transparent 100%)",
-    dark: "linear-gradient(to bottom, rgba(20,18,17,0.72) 0%, rgba(20,18,17,0.26) 50%, transparent 100%)",
-  },
-  ".nc-mobile-bottom-fade": {
-    light:
-      "linear-gradient(to top, rgba(245,242,242,1) 0%, rgba(245,242,242,0.55) 55%, transparent 100%)",
-    dark: "linear-gradient(to top, rgba(20,18,17,1) 0%, rgba(20,18,17,0.55) 55%, transparent 100%)",
-  },
-  ".nc-bottom-nav": {
-    light: "rgba(255,255,255,0.92)",
-    dark: "rgba(28,25,23,0.88)",
-  },
-};
-
-function applyGlassTheme(dark: boolean) {
-  if (typeof document === "undefined") return;
-  for (const selector of Object.keys(GLASS_BG)) {
-    const bg = dark ? GLASS_BG[selector].dark : GLASS_BG[selector].light;
-    document
-      .querySelectorAll<HTMLElement>(selector)
-      .forEach((el) => el.style.setProperty("background", bg));
-  }
-}
-
-let lastEnforcedDark: boolean | null = null;
-
-// Aligne `.dark` de <html> sur le thème résolu (source = localStorage, lue en
-// direct → pas de course avec le rendu/streaming React) ET ré-applique la
-// couleur explicite des bandes glass à chaque bascule. Idempotent
-// (`toggle(force)` ne mute que si l'état change → pas de boucle avec l'observer).
-function enforceTheme() {
+// Les bandes « glass » (voiles + BottomNav) suivent désormais le thème PAR CSS
+// (calques couleur SANS backdrop-filter, cf. globals.css) → plus aucune
+// manipulation JS de leur couleur, ni d'astuce de re-composite.
+function enforceThemeClass() {
   if (typeof document === "undefined") return;
   const dark = getResolvedTheme() === "dark";
   const html = document.documentElement;
   if (html.classList.contains("dark") !== dark) {
     html.classList.toggle("dark", dark);
-  }
-  if (lastEnforcedDark !== dark) {
-    lastEnforcedDark = dark;
-    applyGlassTheme(dark);
   }
 }
 
@@ -180,20 +137,17 @@ export function ThemeColorMeta() {
   const color = override ?? SURFACE_COLOR[theme];
 
   // Persistance — chemin RAPIDE pré-paint à chaque navigation (pas de flash).
-  // theme en dépendance pour ré-appliquer aussi dès la bascule de thème.
   useIsoLayoutEffect(() => {
-    enforceTheme();
+    enforceThemeClass();
   }, [pathname, theme]);
 
   // Persistance — garde PERMANENTE hors cycle React. Le `.dark` posé sur <html>
-  // peut être retiré par React lors d'une réconciliation (navigation, streaming
-  // RSC, boundary de loading), parfois dans un commit ULTÉRIEUR à l'effet
-  // ci-dessus. Un MutationObserver sur la classe de <html> ré-applique la bonne
-  // classe quel que soit le moment du strip, et re-composite les bandes glass
-  // figées (bug backdrop-filter + custom property iOS).
+  // peut être retiré par React dans un commit ultérieur (réconciliation,
+  // streaming RSC). Un MutationObserver ré-applique la bonne classe quel que
+  // soit le moment du strip.
   useEffect(() => {
-    enforceTheme();
-    const observer = new MutationObserver(enforceTheme);
+    enforceThemeClass();
+    const observer = new MutationObserver(enforceThemeClass);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class"],

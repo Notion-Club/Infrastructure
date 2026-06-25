@@ -3142,6 +3142,36 @@ html.dark .nc-lt-scrim {
      les icônes). Blur et opacité réduits : il adoucit juste la coupure du
      contenu qui défile sous le chrome fixe, sans masse de flou. Couleur
      thème-aware conservée (continuité du fond en light comme en dark). */
+  /* ═══════════════════════════════════════════════════════════════════════
+     Voiles haut/bas — SÉPARÉS en 2 calques (correctif stable iOS).
+     Bug iOS/WebKit (confirmé) : un élément qui combine `backdrop-filter` ET un
+     `background` coloré via une CUSTOM PROPERTY ne se repeint PAS quand la
+     variable change (bascule de thème) → la bande restait figée sur l'ancienne
+     couleur jusqu'à un re-composite (rotation d'écran). Aucune astuce JS sur le
+     MÊME élément ne le corrige de façon fiable.
+     Solution : on dissocie le FLOU (sans couleur) et la COULEUR (sans flou).
+       • `-blur` : `backdrop-filter` seul, AUCUN background → rien à repeindre.
+       • `-fade` : dégradé `var(--color-surface-page)` SANS `backdrop-filter` →
+         se repeint normalement via CSS à chaque changement de `.dark`.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  /* Voile haut — calque FLOU (sous le calque couleur). */
+  .nc-mobile-top-blur {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(env(safe-area-inset-top, 0px) + 54px);
+    z-index: 38;
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 22%, transparent 80%);
+    mask-image: linear-gradient(to bottom, #000 0, #000 22%, transparent 80%);
+  }
+
+  /* Voile haut — calque COULEUR (thème-aware, repeint via CSS). `z-index: 39`
+     reste DERRIÈRE le logo (41) et l'avatar (40) → ne les chevauche pas. */
   .nc-mobile-top-fade {
     position: fixed;
     top: 0;
@@ -3150,8 +3180,6 @@ html.dark .nc-lt-scrim {
     height: calc(env(safe-area-inset-top, 0px) + 54px);
     z-index: 39;
     pointer-events: none;
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
     background: linear-gradient(
       to bottom,
       color-mix(in srgb, var(--color-surface-page) 72%, transparent) 0,
@@ -3162,8 +3190,22 @@ html.dark .nc-lt-scrim {
     mask-image: linear-gradient(to bottom, #000 0, #000 22%, transparent 80%);
   }
 
-  /* Fondu bas : le contenu se dissout sous la BottomNav (z-50). z-index 44 =
-     sous la nav (50) et sous le FAB feed (45), au-dessus du contenu. */
+  /* Fondu bas — calque FLOU. */
+  .nc-mobile-bottom-blur {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(env(safe-area-inset-bottom, 0px) + 96px);
+    z-index: 43;
+    pointer-events: none;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    -webkit-mask-image: linear-gradient(to top, #000 0, #000 50%, transparent 100%);
+    mask-image: linear-gradient(to top, #000 0, #000 50%, transparent 100%);
+  }
+
+  /* Fondu bas — calque COULEUR. z-index 44 = sous la nav (50) et le FAB (45). */
   .nc-mobile-bottom-fade {
     position: fixed;
     bottom: 0;
@@ -3172,8 +3214,6 @@ html.dark .nc-lt-scrim {
     height: calc(env(safe-area-inset-bottom, 0px) + 96px);
     z-index: 44;
     pointer-events: none;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
     background: linear-gradient(
       to top,
       var(--color-surface-page) 0,
@@ -3183,6 +3223,21 @@ html.dark .nc-lt-scrim {
     -webkit-mask-image: linear-gradient(to top, #000 0, #000 50%, transparent 100%);
     mask-image: linear-gradient(to top, #000 0, #000 50%, transparent 100%);
   }
+}
+
+/* BottomNav — même principe : le FLOU passe sur un `::before` (sans couleur),
+   le `background` thème-aware reste sur l'élément (sans backdrop-filter) → il
+   se repeint au changement de thème. cf. BottomNav.tsx (backdrop-filter retiré
+   du style inline). */
+.nc-bottom-nav::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 /* Modale détail d'appel coaching (plan d'action + transcription). Sur mobile,
