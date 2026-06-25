@@ -79,6 +79,14 @@ function computeSnapshot(): Snapshot {
   return currentSnapshot;
 }
 
+// Thème résolu (light|dark) lu en DIRECT depuis la source de vérité
+// (localStorage + matchMedia), sans passer par un state React. Utilisé par la
+// garde qui ré-applique la classe `.dark` sur <html> hors du cycle de rendu
+// (cf. ThemeColorMeta) → aucune course avec la réconciliation/streaming React.
+export function getResolvedTheme(): Theme {
+  return computeSnapshot().theme;
+}
+
 const listeners = new Set<() => void>();
 
 function emit() {

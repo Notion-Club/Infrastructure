@@ -3,7 +3,7 @@
 import { useContext, useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 
-import { ThemeContext } from "./ThemeProvider";
+import { ThemeContext, getResolvedTheme } from "./ThemeProvider";
 
 // `useLayoutEffect` avant paint côté client (pas de flash à la navigation),
 // `useEffect` côté serveur pour éviter le warning SSR React.
@@ -90,6 +90,68 @@ function getServerOverrideSnapshot(): string | null {
   return null;
 }
 
+// ── Persistance du thème + couleur des calques « glass » ────────────────────
+//
+// Bug iOS/WebKit : un calque `backdrop-filter` NE se repeint PAS quand la
+// couleur de son `background` change via une CUSTOM PROPERTY d'un ancêtre
+// (ici `--color-surface-page` / `--nc-bottom-nav-bg` qui basculent avec `.dark`)
+// → les bandes restaient figées sur l'ancienne couleur jusqu'à un re-composite
+// (l'utilisateur devait tourner l'écran). Retirer/remettre `backdrop-filter`
+// NE suffit pas (iOS garde le fond peint en cache).
+//
+// Seule solution fiable : MUTER DIRECTEMENT le `background` de l'élément avec
+// une valeur EXPLICITE (pas une variable). Une mutation inline directe sur
+// l'élément invalide son rendu → iOS repeint, immédiatement.
+//
+// ⚠️ Les valeurs ci-dessous doivent rester synchro avec globals.css
+// (`.nc-mobile-top-fade`, `.nc-mobile-bottom-fade`, `--nc-bottom-nav-bg`).
+// Surfaces : light #f5f2f2 = rgb(245,242,242) · dark #141211 = rgb(20,18,17).
+const GLASS_BG: Record<string, { light: string; dark: string }> = {
+  ".nc-mobile-top-fade": {
+    light:
+      "linear-gradient(to bottom, rgba(245,242,242,0.72) 0%, rgba(245,242,242,0.26) 50%, transparent 100%)",
+    dark: "linear-gradient(to bottom, rgba(20,18,17,0.72) 0%, rgba(20,18,17,0.26) 50%, transparent 100%)",
+  },
+  ".nc-mobile-bottom-fade": {
+    light:
+      "linear-gradient(to top, rgba(245,242,242,1) 0%, rgba(245,242,242,0.55) 55%, transparent 100%)",
+    dark: "linear-gradient(to top, rgba(20,18,17,1) 0%, rgba(20,18,17,0.55) 55%, transparent 100%)",
+  },
+  ".nc-bottom-nav": {
+    light: "rgba(255,255,255,0.92)",
+    dark: "rgba(28,25,23,0.88)",
+  },
+};
+
+function applyGlassTheme(dark: boolean) {
+  if (typeof document === "undefined") return;
+  for (const selector of Object.keys(GLASS_BG)) {
+    const bg = dark ? GLASS_BG[selector].dark : GLASS_BG[selector].light;
+    document
+      .querySelectorAll<HTMLElement>(selector)
+      .forEach((el) => el.style.setProperty("background", bg));
+  }
+}
+
+let lastEnforcedDark: boolean | null = null;
+
+// Aligne `.dark` de <html> sur le thème résolu (source = localStorage, lue en
+// direct → pas de course avec le rendu/streaming React) ET ré-applique la
+// couleur explicite des bandes glass à chaque bascule. Idempotent
+// (`toggle(force)` ne mute que si l'état change → pas de boucle avec l'observer).
+function enforceTheme() {
+  if (typeof document === "undefined") return;
+  const dark = getResolvedTheme() === "dark";
+  const html = document.documentElement;
+  if (html.classList.contains("dark") !== dark) {
+    html.classList.toggle("dark", dark);
+  }
+  if (lastEnforcedDark !== dark) {
+    lastEnforcedDark = dark;
+    applyGlassTheme(dark);
+  }
+}
+
 // ── Écriture de la balise ────────────────────────────────────────────────
 function writeThemeColor(color: string) {
   if (typeof document === "undefined") return;
@@ -117,17 +179,27 @@ export function ThemeColorMeta() {
   const theme = ctx?.theme ?? "light";
   const color = override ?? SURFACE_COLOR[theme];
 
-  // Persistance du thème à la navigation. Le `.dark` est posé impérativement
-  // sur <html> (ThemeProvider.applyTheme). À chaque navigation client, React
-  // peut réconcilier <html> et RETIRER cette classe (le className SSR ne la
-  // contient pas) → la nouvelle page repart en light (bandeaux qui
-  // redeviennent blancs en dark mode). On dépend de `usePathname` pour
-  // re-render à chaque route, et on RÉ-APPLIQUE la classe en useLayoutEffect
-  // (avant paint → aucun flash). Idempotent : sans strip, c'est un no-op.
+  // Persistance — chemin RAPIDE pré-paint à chaque navigation (pas de flash).
+  // theme en dépendance pour ré-appliquer aussi dès la bascule de thème.
   useIsoLayoutEffect(() => {
-    if (typeof document === "undefined") return;
-    document.documentElement.classList.toggle("dark", theme === "dark");
+    enforceTheme();
   }, [pathname, theme]);
+
+  // Persistance — garde PERMANENTE hors cycle React. Le `.dark` posé sur <html>
+  // peut être retiré par React lors d'une réconciliation (navigation, streaming
+  // RSC, boundary de loading), parfois dans un commit ULTÉRIEUR à l'effet
+  // ci-dessus. Un MutationObserver sur la classe de <html> ré-applique la bonne
+  // classe quel que soit le moment du strip, et re-composite les bandes glass
+  // figées (bug backdrop-filter + custom property iOS).
+  useEffect(() => {
+    enforceTheme();
+    const observer = new MutationObserver(enforceTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   // Écriture après paint : le premier rendu garde la balise statique (SSR),
   // puis on l'aligne sur le thème réel côté client.
