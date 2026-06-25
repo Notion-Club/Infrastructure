@@ -3,6 +3,7 @@ import { Geist_Mono } from "next/font/google";
 import { Toaster } from "@/shared/components/ui/sonner";
 import { ThemeProvider } from "@/shared/components/theme/ThemeProvider";
 import ServiceWorkerRegistrar from "@/shared/components/pwa/ServiceWorkerRegistrar";
+import { ThemeColorMeta } from "@/shared/components/theme/ThemeColorMeta";
 import { IOS_SPLASH_LINKS } from "@/shared/components/pwa/iosSplashLinks";
 import { GradualBlurOverlay } from "@/shared/components/GradualBlurOverlay";
 import { sfProDisplay } from "@/shared/lib/fonts";
@@ -71,14 +72,13 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  // Theme-color per scheme : la valeur n'est pas utilisée par iOS PWA en
-  // mode `black-translucent` (status bar transparente), mais reste consommée
-  // par Chrome Android pour colorer sa barre d'adresse, et par certains
-  // navigateurs desktop pour le titre d'onglet.
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f5f2f2" },
-    { media: "(prefers-color-scheme: dark)", color: "#141211" },
-  ],
+  // Valeur statique par défaut (premier paint / no-JS). On ne déduit PLUS la
+  // teinte via `prefers-color-scheme` : le thème réel de l'app est piloté par
+  // un store JS (localStorage → classe `.dark`) qui peut diverger de l'OS, ce
+  // qui laissait une bande claire autour d'une UI sombre sur Safari navigateur.
+  // `ThemeColorMeta` (monté dans le body) réécrit cette balise depuis le thème
+  // effectivement appliqué. #f5f2f2 = couleur de page en thème clair.
+  themeColor: "#f5f2f2",
 };
 
 // Inline script runs before paint to avoid a flash of incorrect theme.
@@ -114,7 +114,12 @@ export default function RootLayout({
         ))}
       </head>
       <body className="min-h-full flex flex-col font-sans">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {/* Aligne <meta name="theme-color"> sur le thème réel → les barres
+              Safari (haut/bas) épousent la surface, plus de bande blanche. */}
+          <ThemeColorMeta />
+          {children}
+        </ThemeProvider>
         <Toaster />
         <ServiceWorkerRegistrar />
         {/* Frosted glass haut de page — mobile uniquement. Reprend le
