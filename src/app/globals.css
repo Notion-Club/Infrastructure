@@ -572,7 +572,11 @@ html {
   }
 }
 
-/* ── Mobile : bottom sheet ── */
+/* ── Mobile : bottom sheet HAUT (même hauteur que le pop-up profil) ──
+   Hauteur fixe ~92dvh + contenu aligné en haut (justify-content par défaut)
+   → le mockup est collé en haut, le texte suit, et le VIDE restant tombe SOUS
+   le texte → l'ensemble du texte remonte vers le centre de l'écran.
+   Animation d'ouverture identique au pop-up profil : slide-up translateY. */
 .nc-pwa-panel {
   position: absolute;
   left: 0;
@@ -580,8 +584,7 @@ html {
   bottom: 0;
   display: flex;
   flex-direction: column;
-  height: auto;
-  max-height: 94dvh;
+  height: 92dvh;
   /* Blanc cassé du design system (suit le thème : off-white en light,
      near-black en dark). */
   background: var(--color-surface-page);
@@ -593,6 +596,12 @@ html {
   transform: translateY(100%);
   transition: transform var(--nc-duration-slow) var(--nc-ease);
   will-change: transform;
+}
+/* Dark mode (point 8) : on INVERSE les surfaces — le fond du modal prend la
+   teinte (plus claire) de la carte, les touches prendront la teinte (plus
+   sombre) de la page. */
+.dark .nc-pwa-panel {
+  background: var(--color-surface-card);
 }
 .nc-pwa-modal-root[data-open="true"] .nc-pwa-panel {
   transform: translateY(0);
@@ -632,6 +641,9 @@ html {
   z-index: 6;
   width: 32px;
   height: 32px;
+  /* padding:0 + box-sizing → le carré du flex est parfaitement symétrique,
+     l'icône est rigoureusement centrée (corrige le léger décalage à droite). */
+  padding: 0;
   border-radius: 9999px;
   display: flex;
   align-items: center;
@@ -649,11 +661,27 @@ html {
     background 160ms var(--nc-ease),
     transform 160ms var(--nc-ease);
 }
+/* SVG en block → pas de décalage de baseline (icône centrée pile). */
+.nc-pwa-close svg {
+  display: block;
+}
 .nc-pwa-close:hover {
   background: rgba(255, 255, 255, 0.62);
 }
 .nc-pwa-close:active {
   transform: scale(0.94);
+}
+/* Dark mode (point 7) : verre dépoli SOMBRE au lieu du verre clair. */
+.dark .nc-pwa-close {
+  color: var(--color-text-primary);
+  background: rgba(20, 18, 17, 0.5);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.08);
+}
+.dark .nc-pwa-close:hover {
+  background: rgba(20, 18, 17, 0.66);
 }
 
 /* ── Zone animation (split haut) — INTÉGRÉE, AUCUN CADRE ──
@@ -668,14 +696,16 @@ html {
      l'animation qui se réduit, jamais le texte (cf. .nc-pwa-copy en 0 0 auto). */
   flex: 0 1 auto;
   width: 100%;
-  /* Recadrage serré → mockup dense et grand sans marges perdues. */
-  height: clamp(320px, 44dvh, 460px);
+  /* Grande zone → mockup imposant. Petit padding haut = marge sous la croix
+     (le screen ne colle pas au bouton ×). */
+  height: clamp(360px, 52dvh, 540px);
+  padding-top: 6px;
   background: transparent;
   overflow: hidden;
 }
 @media (min-width: 768px) {
   .nc-pwa-anim {
-    height: clamp(320px, 42vh, 440px);
+    height: clamp(340px, 46vh, 480px);
   }
 }
 .nc-pwa-anim iframe {
@@ -699,9 +729,9 @@ html {
   align-items: center;
   text-align: center;
   gap: 8px;
-  /* Padding bas généreux → le texte décolle du bord inférieur et remonte vers
-     le centre (le mockup au-dessus reste collé en haut). */
-  padding: 16px 28px 64px;
+  /* Padding modéré : le VIDE qui remonte le texte vient désormais de la hauteur
+     fixe du modal (contenu aligné en haut), pas d'un gros padding artificiel. */
+  padding: 14px 28px 22px;
   background: transparent;
 }
 .nc-pwa-eyebrow {
@@ -731,34 +761,41 @@ html {
   margin: 0;
   max-width: 360px;
   font-size: 14.5px;
-  /* Très aéré : les « touches » inline sur deux lignes ne doivent JAMAIS se
-     toucher → interligne large = espacement net entre les pilules. */
-  line-height: 2.1;
+  /* Interligne NATUREL (on ne gonfle plus les lignes). La non-superposition des
+     pilules est obtenue en réduisant leur HAUTEUR, pas en écartant les lignes. */
+  line-height: 1.75;
   color: var(--color-text-secondary);
 }
 /* « Touches » façon keycap pour illustrer les étapes (Partager / Sur l'écran
-   d'accueil) — fond surface-card + bord + liseré bas = relief de touche.
-   Thématisé (clair/sombre) via les tokens. */
+   d'accueil) — fond + bord + liseré bas = relief de touche, thématisé.
+   Volontairement BASSES (padding vertical minimal) → elles tiennent dans une
+   ligne naturelle sans se toucher. */
 .nc-pwa-kbd {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 8px;
-  margin: 2px 1px;
-  font-size: 12.5px;
+  padding: 1px 7px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.2;
   color: var(--color-text-primary);
   background: var(--color-surface-card);
   border: 1px solid var(--color-border-default);
-  border-radius: 8px;
-  box-shadow: 0 1.5px 0 var(--color-border-default);
+  border-radius: 7px;
+  box-shadow: 0 1px 0 var(--color-border-default);
   white-space: nowrap;
 }
 .nc-pwa-kbd svg {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   flex: 0 0 auto;
+}
+/* Dark mode (point 8) : surfaces inversées — la touche prend la teinte (plus
+   SOMBRE) de la page, alors que le modal a pris la teinte (plus claire) de la
+   carte → contraste maintenu, mais inversé. */
+.dark .nc-pwa-kbd {
+  background: var(--color-surface-page);
+  border-color: var(--color-surface-page);
 }
 .nc-pwa-actions {
   display: flex;

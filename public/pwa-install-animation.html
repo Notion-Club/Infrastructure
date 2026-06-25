@@ -40,16 +40,16 @@ body{
    supérieur du modal (effet « l'écran sort du haut »). */
 .scene{transform-origin:top center}
 
-/* ===== Recadrage serré sur le bas du téléphone : on coupe la marge inutile
-   au-dessus des feuilles (la feuille de partage et le panneau « Sur l'écran
-   d'accueil » s'affichent dans le bas), tout en gardant leur sommet visible
-   (bouton « Ajouter » inclus). Le screen est collé au bord supérieur, net.
-   --shadow-gap : marge transparente AUTOUR du téléphone (gauche, droite, bas)
-   DANS le cadre → l'ombre diffuse progressivement sur tous les bords au lieu
-   d'être rognée net. Le haut est volontairement coupé (crop). ===== */
-:root{ --view-h:580px; --shadow-gap:54px; }
-.frame{ position:relative; width:calc(402px + var(--shadow-gap) * 2); height:calc(var(--view-h) + var(--shadow-gap)); overflow:hidden; }
-.frame .ncb-phone{ position:absolute; left:var(--shadow-gap); bottom:var(--shadow-gap); margin:0; }
+/* ===== Recadrage : on montre une bonne partie du téléphone, y compris un peu
+   du fond de page AU-DESSUS des feuilles (partage / « Sur l'écran d'accueil »)
+   → on voit qu'elles glissent par-dessus la page, sommets entièrement visibles.
+   Marges transparentes pour l'ombre, SÉPARÉES :
+   --gap-x (côtés, modeste → le téléphone reste large) et --gap-bottom (bas,
+   généreux → l'ombre du bas, qui s'étend le plus, n'est jamais rognée net).
+   Le haut est volontairement coupé (crop doux). ===== */
+:root{ --view-h:680px; --gap-x:42px; --gap-bottom:88px; }
+.frame{ position:relative; width:calc(402px + var(--gap-x) * 2); height:calc(var(--view-h) + var(--gap-bottom)); overflow:hidden; }
+.frame .ncb-phone{ position:absolute; left:var(--gap-x); bottom:var(--gap-bottom); margin:0; }
 
 /* =====================================================================
    ╔══════════════════════════════════════════════════════════════╗
@@ -75,9 +75,11 @@ body{
   border-radius: 56px;
   overflow: hidden;
   background: var(--color-surface-page);
+  /* Ombre adoucie et CONTENUE (s'étend moins que les marges --gap-* du cadre)
+     → elle se diffuse en entier, jamais rognée net. */
   box-shadow:
     0 2px 6px rgba(0, 0, 0, 0.04),
-    0 30px 80px -20px rgba(40, 20, 20, 0.35),
+    0 18px 48px -22px rgba(40, 20, 20, 0.30),
     0 0 0 1px rgba(0, 0, 0, 0.04);
   font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -893,9 +895,10 @@ function fit(){
   const cs = getComputedStyle(document.documentElement);
   const pad = 6;
   const vh  = parseFloat(cs.getPropertyValue('--view-h')) || 690;
-  const gap = parseFloat(cs.getPropertyValue('--shadow-gap')) || 0;
-  const fw  = 402 + gap * 2;   // largeur totale du cadre (téléphone + marges d'ombre)
-  const fh  = vh + gap;        // hauteur totale du cadre (téléphone visible + marge d'ombre bas)
+  const gx  = parseFloat(cs.getPropertyValue('--gap-x')) || 0;
+  const gb  = parseFloat(cs.getPropertyValue('--gap-bottom')) || 0;
+  const fw  = 402 + gx * 2;   // largeur totale du cadre (téléphone + marges d'ombre latérales)
+  const fh  = vh + gb;        // hauteur totale du cadre (téléphone visible + marge d'ombre bas)
   scale = Math.min(1, (innerHeight - pad*2)/fh, (innerWidth - pad*2)/fw);
   scene.style.transform = `scale(${scale})`;
 }
