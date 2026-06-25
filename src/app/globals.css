@@ -697,16 +697,18 @@ html {
      l'animation qui se réduit, jamais le texte (cf. .nc-pwa-copy en 0 0 auto). */
   flex: 0 1 auto;
   width: 100%;
-  /* Zone TRÈS grande → le mockup est la pièce maîtresse et remplit la largeur
-     (bords gauche/droite). Petit padding haut = marge sous la croix. */
-  height: clamp(460px, 72dvh, 660px);
+  /* Hauteur INTERMÉDIAIRE et stable → VERROUILLE la position du titre (ancré
+     juste dessous). La taille du téléphone se règle dans l'iframe (view-h /
+     gaps) SANS toucher cette hauteur → ajuster l'animation ne déplace plus le
+     texte. Le vide restant tombe SOUS le texte (modal plus haut que le contenu). */
+  height: clamp(360px, 57dvh, 520px);
   padding-top: 6px;
   background: transparent;
   overflow: hidden;
 }
 @media (min-width: 768px) {
   .nc-pwa-anim {
-    height: clamp(380px, 56vh, 540px);
+    height: clamp(340px, 48vh, 480px);
   }
 }
 .nc-pwa-anim iframe {
@@ -734,20 +736,14 @@ html {
   padding: 6px 24px 18px;
   background: transparent;
 }
-.nc-pwa-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--color-brand);
-  text-transform: uppercase;
-}
 .nc-pwa-title {
   margin: 0;
+  /* Bloc équilibré sur 2 lignes : `balance` répartit les mots → pas de ligne
+     orpheline d'un seul mot (point 1). La largeur force ~2 lignes pleines. */
+  max-width: 280px;
+  text-wrap: balance;
   font-size: 22px;
-  line-height: 1.2;
+  line-height: 1.22;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--color-text-primary);
@@ -759,12 +755,12 @@ html {
 }
 .nc-pwa-subtitle {
   margin: 0;
-  /* Large + police compacte → le texte tient sur 3 lignes (point 2). */
-  max-width: 390px;
-  font-size: 13.5px;
-  /* Interligne plus serré (point 4) ; pilules basses → elles ne se touchent
-     pas malgré l'interligne réduit. */
-  line-height: 1.55;
+  /* Assez large pour que la 1re phrase tienne sur UNE ligne (le <br> renvoie
+     ensuite « Clique… » à la ligne — point 2). */
+  max-width: 340px;
+  font-size: 13px;
+  /* Interligne serré ; pilules basses → elles ne se touchent pas (point 4). */
+  line-height: 1.5;
   color: var(--color-text-secondary);
 }
 /* « Touches » façon keycap pour illustrer les étapes (Partager / Sur l'écran

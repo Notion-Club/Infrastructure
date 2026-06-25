@@ -117,7 +117,9 @@ export function PwaInstallModal({
         <div className="nc-pwa-copy">
           <h2 className="nc-pwa-title">{title}</h2>
           <p className="nc-pwa-subtitle">
-            Plus de fonctionnalités et de meilleures performances. Clique sur{" "}
+            Plus de fonctionnalités et de meilleures performances.
+            <br />
+            Clique sur{" "}
             <kbd className="nc-pwa-kbd">
               Partager
               <ShareGlyph />

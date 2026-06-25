@@ -166,7 +166,7 @@ export function PwaInstallPrompt() {
     <PwaInstallModal
       mounted={mounted}
       visible={visible}
-      title="Ajoute l'app du Notion Club"
+      title="Accède au Notion Club en 1 clic avec l'app."
       canInstall={canInstall}
       onInstall={handleInstall}
       onDismiss={close}
