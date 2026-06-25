@@ -131,8 +131,8 @@ export function PwaInstallModal({
             <kbd className="nc-pwa-kbd">
               Sur l&apos;écran d&apos;accueil
               <AddToHomeGlyph />
-            </kbd>
-            .
+            </kbd>{" "}
+            pour y accéder en 1 clic.
           </p>
 
           {/* Bouton uniquement quand un vrai déclencheur existe (Android/Chromium). */}

@@ -40,15 +40,16 @@ body{
    supérieur du modal (effet « l'écran sort du haut »). */
 .scene{transform-origin:top center}
 
-/* ===== Recadrage : on laisse assez de marge en haut pour voir l'INTÉGRALITÉ
-   des feuilles qui s'affichent (feuille de partage : ses 2 premières lignes ;
-   panneau « Sur l'écran d'accueil » : son bouton « Ajouter »). Pas de fondu :
-   le screen est net, du haut jusqu'au bas du cadre.
-   --shadow-gap : espace blanc sous le téléphone DANS le cadre → son ombre
-   (coins arrondis) n'est plus rognée carrée par l'overflow. ===== */
-:root{ --view-h:700px; --shadow-gap:64px; }
-.frame{ position:relative; width:402px; height:calc(var(--view-h) + var(--shadow-gap)); overflow:hidden; }
-.frame .ncb-phone{ position:absolute; left:0; bottom:var(--shadow-gap); margin:0; }
+/* ===== Recadrage serré sur le bas du téléphone : on coupe la marge inutile
+   au-dessus des feuilles (la feuille de partage et le panneau « Sur l'écran
+   d'accueil » s'affichent dans le bas), tout en gardant leur sommet visible
+   (bouton « Ajouter » inclus). Le screen est collé au bord supérieur, net.
+   --shadow-gap : marge transparente AUTOUR du téléphone (gauche, droite, bas)
+   DANS le cadre → l'ombre diffuse progressivement sur tous les bords au lieu
+   d'être rognée net. Le haut est volontairement coupé (crop). ===== */
+:root{ --view-h:580px; --shadow-gap:54px; }
+.frame{ position:relative; width:calc(402px + var(--shadow-gap) * 2); height:calc(var(--view-h) + var(--shadow-gap)); overflow:hidden; }
+.frame .ncb-phone{ position:absolute; left:var(--shadow-gap); bottom:var(--shadow-gap); margin:0; }
 
 /* =====================================================================
    ╔══════════════════════════════════════════════════════════════╗
@@ -893,7 +894,9 @@ function fit(){
   const pad = 6;
   const vh  = parseFloat(cs.getPropertyValue('--view-h')) || 690;
   const gap = parseFloat(cs.getPropertyValue('--shadow-gap')) || 0;
-  scale = Math.min(1, (innerHeight - pad*2)/(vh + gap), (innerWidth - pad*2)/402);
+  const fw  = 402 + gap * 2;   // largeur totale du cadre (téléphone + marges d'ombre)
+  const fh  = vh + gap;        // hauteur totale du cadre (téléphone visible + marge d'ombre bas)
+  scale = Math.min(1, (innerHeight - pad*2)/fh, (innerWidth - pad*2)/fw);
   scene.style.transform = `scale(${scale})`;
 }
 function place(){

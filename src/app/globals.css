@@ -656,36 +656,26 @@ html {
   transform: scale(0.94);
 }
 
-/* ── Zone animation (split haut) — CARTE DÉTOURÉE ──
-   FORCÉE en light (le guide ne bascule jamais en dark) : fond BLANC PLEIN
-   (aucun dégradé) pour contraster le mockup. Carte flottante avec bord + coins
-   arrondis + ombre arrondie → « détourage » : en dark mode, le fond sombre
-   enveloppe la carte sur les 4 côtés, donc plus aucune séparation horizontale.
-   L'ombre du mockup (coins arrondis) respire dans le blanc et n'est plus
-   rognée carrée. */
+/* ── Zone animation (split haut) — INTÉGRÉE, AUCUN CADRE ──
+   Pas de carte, pas de bord, pas de fond propre : l'animation s'intègre
+   DIRECTEMENT dans le modal (fond uniforme, hérité du panel). Le téléphone est
+   recadré serré, collé au bord supérieur, et son ombre diffuse de tous côtés
+   (marges transparentes gérées dans l'iframe). Plus de « cadre dans un cadre »,
+   plus de différence de couleur. */
 .nc-pwa-anim {
   position: relative;
   /* Rétractable (0 1 auto) : si la hauteur d'écran est juste, c'est
-     l'animation qui se réduit, jamais le CTA (cf. .nc-pwa-copy en flex
-     0 0 auto). */
+     l'animation qui se réduit, jamais le texte (cf. .nc-pwa-copy en 0 0 auto). */
   flex: 0 1 auto;
-  /* Inset léger = carte flottante détourée (3 côtés visibles, haut quasi
-     flush → le screen « sort » toujours du haut). */
-  margin: 8px 12px 0;
-  border-radius: 24px;
-  border: 1px solid var(--color-border-default);
-  /* Ombre arrondie de la carte (coins doux, jamais carrés). */
-  box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.28);
-  /* Blanc plein, zéro dégradé. */
-  background: #ffffff;
-  /* Plus haute → mockup nettement plus grand. Responsive : se réduit sur les
-     petits écrans pour laisser de la place au copywriting. */
-  height: clamp(380px, 60dvh, 620px);
+  width: 100%;
+  /* Recadrage serré → mockup dense et grand sans marges perdues. */
+  height: clamp(320px, 44dvh, 460px);
+  background: transparent;
   overflow: hidden;
 }
 @media (min-width: 768px) {
   .nc-pwa-anim {
-    height: clamp(360px, 52vh, 560px);
+    height: clamp(320px, 42vh, 440px);
   }
 }
 .nc-pwa-anim iframe {
@@ -709,7 +699,9 @@ html {
   align-items: center;
   text-align: center;
   gap: 8px;
-  padding: 12px 28px 24px;
+  /* Padding bas généreux → le texte décolle du bord inférieur et remonte vers
+     le centre (le mockup au-dessus reste collé en haut). */
+  padding: 16px 28px 64px;
   background: transparent;
 }
 .nc-pwa-eyebrow {
@@ -739,8 +731,9 @@ html {
   margin: 0;
   max-width: 360px;
   font-size: 14.5px;
-  /* Aéré : les « touches » inline ont besoin d'air vertical. */
-  line-height: 1.7;
+  /* Très aéré : les « touches » inline sur deux lignes ne doivent JAMAIS se
+     toucher → interligne large = espacement net entre les pilules. */
+  line-height: 2.1;
   color: var(--color-text-secondary);
 }
 /* « Touches » façon keycap pour illustrer les étapes (Partager / Sur l'écran
@@ -750,14 +743,15 @@ html {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 7px;
+  padding: 3px 8px;
+  margin: 2px 1px;
   font-size: 12.5px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.25;
   color: var(--color-text-primary);
   background: var(--color-surface-card);
   border: 1px solid var(--color-border-default);
-  border-radius: 7px;
+  border-radius: 8px;
   box-shadow: 0 1.5px 0 var(--color-border-default);
   white-space: nowrap;
 }
