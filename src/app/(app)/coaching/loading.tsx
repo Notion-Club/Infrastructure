@@ -9,7 +9,7 @@ const pulse: React.CSSProperties = {
 // historique). maxWidth 1000, paddings responsive identiques à la page client.
 export default function CoachingLoading() {
   return (
-    <div className="nc-page-halo flex flex-col h-full overflow-hidden">
+    <div className="nc-page-halo flex flex-col h-dvh overflow-hidden">
       <main
         className="flex flex-col flex-1 min-h-0"
         style={{ position: "relative", zIndex: 1 }}

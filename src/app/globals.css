@@ -6,31 +6,6 @@ html {
   background-color: var(--color-surface-page);
 }
 
-/* ──────────────────────────────────────────────────────────────────────
-   App-shell — conteneur de scroll des routes (app) UNIQUEMENT.
-   Le contenu connecté scrolle DANS ce conteneur, jamais dans le document.
-   Conséquences clés :
-     • iOS Safari n'anime jamais sa barre d'outils (déclenchée par le scroll
-       racine seulement) → la BottomNav `position: fixed` reste STATIQUE ;
-     • le <body> ne fait pas de rebond élastique (overscroll) → idem en PWA
-       standalone, où ce rebond faisait « remonter » la barre.
-   `position: fixed; inset: 0` : couvre tout l'écran (full-bleed, sous le
-   notch et la barre de gestes), même référentiel de bas que la BottomNav
-   (`bottom`-based) → cohérent. Ne crée PAS de containing block pour les
-   `position: fixed` enfants (pas de transform/filter) → les modales internes
-   s'affichent bien plein écran au-dessus de tout.
-   Les routes hors (app) (auth, privacy, terms) gardent le scroll document.
-   ────────────────────────────────────────────────────────────────────── */
-.nc-app-scroll {
-  position: fixed;
-  inset: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-  scroll-behavior: smooth;
-}
-
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -93,7 +68,7 @@ html {
   --nc-btn-dark-bg: #ede9e6;
   --nc-btn-dark-text: #141211;
   /* BottomNav pill — fond sombre translucide */
-  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.80);
+  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
   --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
 }
 
@@ -164,7 +139,7 @@ html {
   --nc-btn-dark-bg: #1a1a1a;
   --nc-btn-dark-text: #ffffff;
   /* BottomNav pill */
-  --nc-bottom-nav-bg: rgba(255, 255, 255, 0.82);
+  --nc-bottom-nav-bg: rgba(255, 255, 255, 0.92);
   --nc-bottom-nav-border: rgba(229, 231, 235, 0.9);
   /* Dots pattern hover sur resource/template cards */
   --nc-card-dot-color: rgba(224, 98, 90, 0.28);
@@ -2699,7 +2674,7 @@ html.dark {
   --nc-segmented-active-text: #141211;
   --nc-btn-dark-bg: #ede9e6;
   --nc-btn-dark-text: #141211;
-  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.80);
+  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
   --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
   --nc-card-dot-color: rgba(255, 255, 255, 0.18);
   --nc-glass-bg: rgba(42, 39, 37, 0.55);
@@ -3161,16 +3136,8 @@ html.dark .nc-lt-scrim {
     mask-image: linear-gradient(to bottom, #000 0, #000 28%, transparent 72%);
   }
 
-  /* Fondu bas — frosted glass (PAS un aplat opaque). z-index 44 = sous la nav
-     (50) et sous le FAB feed (45), au-dessus du contenu.
-
-     Cause racine de la « bande » (Safari 26 Liquid Glass) : la barre basse en
-     verre composite les pixels présents derrière elle. Un APLAT opaque
-     `--color-surface-page` au bord bas → Safari ne voit que du fond plat →
-     bande. Ici on FLOUTE le contenu qui passe dessous sans le recouvrir : voile
-     ≤ 30 %, le contenu bleed jusqu'au bord et transparaît (derrière la nav
-     translucide ET sous la barre Safari). Plafond assumé : avec une BottomNav
-     persistante, on n'atteint pas le « zéro chrome » de Nike. */
+  /* Fondu bas : le contenu se dissout sous la BottomNav (z-50). z-index 44 =
+     sous la nav (50) et sous le FAB feed (45), au-dessus du contenu. */
   .nc-mobile-bottom-fade {
     position: fixed;
     bottom: 0;
@@ -3179,16 +3146,16 @@ html.dark .nc-lt-scrim {
     height: calc(env(safe-area-inset-bottom, 0px) + 96px);
     z-index: 44;
     pointer-events: none;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     background: linear-gradient(
       to top,
-      color-mix(in srgb, var(--color-surface-page) 30%, transparent) 0,
-      color-mix(in srgb, var(--color-surface-page) 12%, transparent) 55%,
+      var(--color-surface-page) 0,
+      color-mix(in srgb, var(--color-surface-page) 55%, transparent) 55%,
       transparent 100%
     );
-    -webkit-mask-image: linear-gradient(to top, #000 0, #000 55%, transparent 100%);
-    mask-image: linear-gradient(to top, #000 0, #000 55%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to top, #000 0, #000 50%, transparent 100%);
+    mask-image: linear-gradient(to top, #000 0, #000 50%, transparent 100%);
   }
 }
 

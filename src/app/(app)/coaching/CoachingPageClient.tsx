@@ -506,13 +506,13 @@ export default function CoachingPageClient({
 
   return (
     <>
-      {/* Shell à hauteur fixe, aligné sur /communaute : h-full (= hauteur du
-          conteneur #app-scroll) + overflow-hidden → la page elle-même ne
-          scrolle pas (la BottomNav ne chevauche plus l'encadré). L'encadré
-          occupe l'espace dispo sous la topbar / MobileHeader et au-dessus de
-          la nav (pb-[120px] mobile, pb-8 desktop) ; seul le Slot 2 scrolle en
-          interne (sa taille ne grandit pas avec le nombre d'appels). */}
-      <div className="nc-page-halo flex flex-col h-full overflow-hidden">
+      {/* Shell à hauteur fixe, aligné sur /communaute : h-dvh + overflow-hidden
+          → la page elle-même ne scrolle pas (la BottomNav ne chevauche plus
+          l'encadré). L'encadré occupe l'espace dispo sous la topbar /
+          MobileHeader et au-dessus de la nav (pb-[120px] mobile, pb-8 desktop) ;
+          seul le Slot 2 scrolle en interne (sa taille ne grandit pas avec le
+          nombre d'appels). */}
+      <div className="nc-page-halo flex flex-col h-dvh overflow-hidden">
         <main
           className="flex flex-col flex-1 min-h-0"
           style={{ position: "relative", zIndex: 1 }}
