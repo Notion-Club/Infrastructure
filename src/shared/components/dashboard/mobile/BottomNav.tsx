@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type React from "react";
 import { Users, Calendar } from "lucide-react";
-import { House, GraduationCap, BookWrenchFill } from "@/shared/components/icons";
+import { House, GraduationCap, WrenchScrewdriver } from "@/shared/components/icons";
 
 // Les icônes de nav mélangent la library in-app (fill-based) et des icônes
 // lucide encore utilisées (Users, Calendar) : type générique compatible des
@@ -31,7 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Formation", icon: GraduationCap, href: "/formation", iconSize: 21 },
   { label: "Communauté", icon: Users, href: "/communaute" },
   { label: "Coaching", icon: Calendar, href: "/coaching" },
-  { label: "Ressources", icon: BookWrenchFill, href: "/ressources" },
+  { label: "Ressources", icon: WrenchScrewdriver, href: "/ressources" },
 ];
 
 export function BottomNav() {

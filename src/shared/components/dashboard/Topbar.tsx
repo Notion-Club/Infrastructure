@@ -9,7 +9,7 @@ import { Users, Calendar } from "lucide-react";
 import {
   House,
   GraduationCap,
-  BookWrenchFill,
+  WrenchScrewdriver,
   Gear,
   PersonCircleFill,
 } from "@/shared/components/icons";
@@ -51,7 +51,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Formation", icon: GraduationCap, href: "/formation", iconSize: 18 },
   { label: "Communauté", icon: Users, href: "/communaute" },
   { label: "Coaching", icon: Calendar, href: "/coaching" },
-  { label: "Ressources", icon: BookWrenchFill, href: "/ressources" },
+  { label: "Ressources", icon: WrenchScrewdriver, href: "/ressources" },
 ];
 
 const SEPARATOR = (
