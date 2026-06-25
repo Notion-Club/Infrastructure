@@ -31,6 +31,14 @@ export function ProgramView({
     }
   }
 
+  // OPS-148 — pastille « Tu t'es arrêté ici » sur le module contenant la
+  // prochaine leçon à suivre (isNext). Affichée seulement pendant la période en
+  // cours : au moins une leçon faite et programme non terminé (sinon retirée).
+  const showResumePin = !isComplete && detail.completedCourses > 0;
+  const resumeModuleId = showResumePin
+    ? detail.modules.find((m) => m.courses.some((c) => c.isNext))?.id ?? null
+    : null;
+
   const deepLinkModule = openModuleSlug
     ? detail.modules.find((m) => m.slug === openModuleSlug)
     : undefined;
@@ -106,6 +114,7 @@ export function ProgramView({
             module={m}
             defaultOpen={m.id === defaultOpenModuleId}
             animateOpen={deepLinkModule != null && m.id === deepLinkModule.id}
+            isResumePoint={m.id === resumeModuleId}
           />
         ))}
       </section>

@@ -10,9 +10,6 @@ export function FormationIndex({ programs }: { programs: ProgramSummary[] }) {
   return (
     <div data-fb-label="Liste des programmes" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <header data-fb-label="Titre de page · Liste des programmes" style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 }}>
-        <span style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 500 }}>
-          Formation
-        </span>
         <h1
           style={{
             fontSize: "clamp(32px, 4vw, 44px)",

@@ -78,7 +78,6 @@ export function LessonTransition({ children }: { children: ReactNode }) {
   // Barre du haut : "count" (minuteur qui se remplit sur les 12 s, façon pub
   // YouTube), "empty" (se vide = compte à rebours de fermeture après envoi).
   const [barMode, setBarMode] = useState<"count" | "empty">("count");
-  const [canClose, setCanClose] = useState(false); // croix de skip visible
   const [seq, setSeq] = useState(0);
 
   // Valeurs lues dans des callbacks asynchrones → refs (anti stale-closure).
@@ -119,20 +118,20 @@ export function LessonTransition({ children }: { children: ReactNode }) {
       setShowForm(false);
       setProgress(0);
       setBarMode("count");
-      setCanClose(false);
     }, FADE_MS);
   }
 
-  function enableClose() {
+  // Auto-avance : le contenu est prêt ET le minimum de 5 s est écoulé (barre de
+  // progression pleine). On complète la barre puis on enchaîne tout seul sur le
+  // cours suivant — l'utilisateur n'est plus bloqué derrière une croix.
+  function autoAdvance() {
     if (!activeRef.current || closingRef.current) return;
     if (crossTimer.current) clearTimeout(crossTimer.current);
     crossTimer.current = null;
-    // La croix apparaît : le contenu est prêt ET le minimum de 5 s est écoulé.
-    // On complète la barre (≤ 90 % → 100 %) et on stoppe le minuteur de remplissage.
     if (progressTimer.current) clearInterval(progressTimer.current);
     progressTimer.current = null;
     setProgress(100);
-    setCanClose(true);
+    reveal();
   }
 
   function onStart(detail: StartDetail) {
@@ -148,7 +147,6 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     setShowForm(!!fb);
     setProgress(0);
     setBarMode("count");
-    setCanClose(false);
     setRevealing(false);
     setSeq((s) => s + 1);
     setActive(true);
@@ -168,10 +166,10 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     safetyTimer.current = setTimeout(reveal, SAFETY_MS);
   }
 
-  // Contenu prêt. Avec feedback : la croix de skip apparaît à max(5 s, ready) et
-  // le voile reste ensuite jusqu'à ce que l'utilisateur agisse (envoi du feedback
-  // ou clic sur la croix) — aucune fermeture auto. Sans feedback (nav
-  // précédente) : révélation dès que prêt (mini ANTIFLASH).
+  // Contenu prêt. Avec feedback : le cours suivant s'affiche automatiquement à
+  // max(5 s, ready) — le temps d'attente a servi à charger entièrement le cours
+  // et à proposer le feedback, mais l'utilisateur n'est jamais bloqué. Sans
+  // feedback (nav précédente) : révélation dès que prêt (mini ANTIFLASH).
   function onReady() {
     if (!activeRef.current || readyRef.current) return;
     readyRef.current = true;
@@ -180,11 +178,11 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     safetyTimer.current = null;
     const elapsed = performance.now() - startTimeRef.current;
     if (hasFormRef.current) {
-      // La croix (et donc la possibilité de quitter) apparaît au plus tard à
-      // max(5 s, ready). Pas de révélation auto ensuite : le temps d'attente a
-      // servi à charger entièrement le cours suivant, l'utilisateur garde la main.
+      // Dès que le cours est prêt ET la barre pleine (max 5 s, ready), on enchaîne
+      // tout seul. Le feedback reste envoyable pendant le chargement, mais ne
+      // barre plus l'accès au cours suivant.
       if (crossTimer.current) clearTimeout(crossTimer.current);
-      crossTimer.current = setTimeout(enableClose, Math.max(0, MIN_CROSS - elapsed));
+      crossTimer.current = setTimeout(autoAdvance, Math.max(0, MIN_CROSS - elapsed));
     } else {
       if (revealTimer.current) clearTimeout(revealTimer.current);
       revealTimer.current = setTimeout(reveal, Math.max(0, ANTIFLASH - elapsed));
@@ -314,7 +312,7 @@ export function LessonTransition({ children }: { children: ReactNode }) {
                           moduleName={feedback.moduleName}
                           onClose={onFeedbackClose}
                           onDone={onFeedbackDone}
-                          closable={canClose}
+                          closable={false}
                         />
                       </div>
                     </div>
