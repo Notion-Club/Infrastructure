@@ -1,10 +1,9 @@
+// Flou progressif LÉGER : 3 calques au lieu de 6 (chaque calque `backdrop-filter`
+// est coûteux sur mobile). Suffit à adoucir la coupure sans alourdir le rendu.
 const LAYERS = [
-  { blur: 2, from: 0, to: 20 },
-  { blur: 5, from: 15, to: 40 },
-  { blur: 10, from: 30, to: 60 },
-  { blur: 18, from: 45, to: 80 },
-  { blur: 28, from: 60, to: 95 },
-  { blur: 45, from: 75, to: 100 },
+  { blur: 2, from: 0, to: 35 },
+  { blur: 6, from: 25, to: 70 },
+  { blur: 12, from: 55, to: 100 },
 ];
 
 interface GradualBlurOverlayProps {

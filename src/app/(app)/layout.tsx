@@ -72,17 +72,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <AdminPushRegistrar />
           <Topbar />
           <div className="md:hidden">
-            {/* Zones de flou permanentes (toutes les pages connectées) :
-                frosted en haut (status bar iOS) + fondu en bas (sous la
-                BottomNav). Décoratives, pointer-events:none → ne capturent
-                jamais le tap. Toute nouvelle page hérite de l'effet. */}
-            <div className="nc-mobile-top-blur" aria-hidden />
-            <div className="nc-mobile-top-fade" aria-hidden />
+            {/* Chrome mobile. Le fondu de couleur du bord vient du fond de page
+                (`.nc-app-bg`) et le léger flou du haut de `GradualBlurOverlay`
+                (root layout) — plus de calques « bande » par-dessus le contenu. */}
             <MobileBrandLogo />
             <MobileTopActions />
             <BottomNav />
-            <div className="nc-mobile-bottom-blur" aria-hidden />
-            <div className="nc-mobile-bottom-fade" aria-hidden />
           </div>
           {children}
           <FeedbackWidgetLoader />
