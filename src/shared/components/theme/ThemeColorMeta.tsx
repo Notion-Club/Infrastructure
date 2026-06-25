@@ -1,8 +1,14 @@
 "use client";
 
-import { useContext, useEffect, useSyncExternalStore } from "react";
+import { useContext, useEffect, useLayoutEffect, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 
 import { ThemeContext } from "./ThemeProvider";
+
+// `useLayoutEffect` avant paint côté client (pas de flash à la navigation),
+// `useEffect` côté serveur pour éviter le warning SSR React.
+const useIsoLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 // ============================================================================
 // ThemeColorMeta — pilote dynamiquement <meta name="theme-color">.
@@ -102,6 +108,7 @@ function writeThemeColor(color: string) {
 
 export function ThemeColorMeta() {
   const ctx = useContext(ThemeContext);
+  const pathname = usePathname();
   const override = useSyncExternalStore(
     subscribeOverride,
     getOverrideSnapshot,
@@ -109,6 +116,18 @@ export function ThemeColorMeta() {
   );
   const theme = ctx?.theme ?? "light";
   const color = override ?? SURFACE_COLOR[theme];
+
+  // Persistance du thème à la navigation. Le `.dark` est posé impérativement
+  // sur <html> (ThemeProvider.applyTheme). À chaque navigation client, React
+  // peut réconcilier <html> et RETIRER cette classe (le className SSR ne la
+  // contient pas) → la nouvelle page repart en light (bandeaux qui
+  // redeviennent blancs en dark mode). On dépend de `usePathname` pour
+  // re-render à chaque route, et on RÉ-APPLIQUE la classe en useLayoutEffect
+  // (avant paint → aucun flash). Idempotent : sans strip, c'est un no-op.
+  useIsoLayoutEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [pathname, theme]);
 
   // Écriture après paint : le premier rendu garde la balise statique (SSR),
   // puis on l'aligne sur le thème réel côté client.

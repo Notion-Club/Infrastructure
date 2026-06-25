@@ -94,6 +94,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
+      suppressHydrationWarning
       className={`${sfProDisplay.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
@@ -136,7 +137,7 @@ export default function RootLayout({
             zIndex < MobileTopActions (40) → les boutons (clé, cloche,
             avatar) restent nets au-dessus du voile. */}
         <div className="md:hidden">
-          <GradualBlurOverlay anchor="top" height={100} zIndex={35} />
+          <GradualBlurOverlay anchor="top" height={56} zIndex={35} />
         </div>
       </body>
     </html>

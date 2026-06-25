@@ -3137,24 +3137,29 @@ html.dark .nc-lt-scrim {
      lieu de le « précéder » crispés. Le dégradé/masque garde le bas transparent
      pour que les éléments restent nets à leur position de repos (12px) et ne se
      floutent qu'en remontant vers le haut de l'écran. */
+  /* Voile haut — fin et discret. `z-index: 39` le place DERRIÈRE le logo (41)
+     et l'avatar (40) → il ne les chevauche plus (avant z-42 passait par-dessus
+     les icônes). Blur et opacité réduits : il adoucit juste la coupure du
+     contenu qui défile sous le chrome fixe, sans masse de flou. Couleur
+     thème-aware conservée (continuité du fond en light comme en dark). */
   .nc-mobile-top-fade {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: calc(env(safe-area-inset-top, 0px) + 60px);
-    z-index: 42;
+    height: calc(env(safe-area-inset-top, 0px) + 54px);
+    z-index: 39;
     pointer-events: none;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     background: linear-gradient(
       to bottom,
-      var(--color-surface-page) 0,
-      color-mix(in srgb, var(--color-surface-page) 50%, transparent) 45%,
+      color-mix(in srgb, var(--color-surface-page) 72%, transparent) 0,
+      color-mix(in srgb, var(--color-surface-page) 26%, transparent) 50%,
       transparent 100%
     );
-    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 28%, transparent 72%);
-    mask-image: linear-gradient(to bottom, #000 0, #000 28%, transparent 72%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 22%, transparent 80%);
+    mask-image: linear-gradient(to bottom, #000 0, #000 22%, transparent 80%);
   }
 
   /* Fondu bas : le contenu se dissout sous la BottomNav (z-50). z-index 44 =
