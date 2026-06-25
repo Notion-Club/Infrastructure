@@ -924,7 +924,14 @@ html {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    /* Fond unifié : une SEULE couleur de surface thème-aware partout
+       (html, body, .nc-page-halo) → fini le triplet de fonds concurrents
+       (body était en `--background` blanc/noir pur, ≠ de html/halo en
+       `--color-surface-page`), source des bandes et du fond non-adaptatif.
+       `--background` (token shadcn) reste utilisé tel quel par les composants
+       (cards, popovers…), on ne change QUE le fond de page. */
+    @apply text-foreground;
+    background-color: var(--color-surface-page);
   }
 }
 
