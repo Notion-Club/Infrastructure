@@ -76,10 +76,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                 frosted en haut (status bar iOS) + fondu en bas (sous la
                 BottomNav). Décoratives, pointer-events:none → ne capturent
                 jamais le tap. Toute nouvelle page hérite de l'effet. */}
+            <div className="nc-mobile-top-blur" aria-hidden />
             <div className="nc-mobile-top-fade" aria-hidden />
             <MobileBrandLogo />
             <MobileTopActions />
             <BottomNav />
+            <div className="nc-mobile-bottom-blur" aria-hidden />
             <div className="nc-mobile-bottom-fade" aria-hidden />
           </div>
           {children}
