@@ -3,7 +3,7 @@
 import { useContext, useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 
-import { ThemeContext } from "./ThemeProvider";
+import { ThemeContext, getResolvedTheme } from "./ThemeProvider";
 
 // `useLayoutEffect` avant paint côté client (pas de flash à la navigation),
 // `useEffect` côté serveur pour éviter le warning SSR React.
@@ -90,6 +90,63 @@ function getServerOverrideSnapshot(): string | null {
   return null;
 }
 
+// ── Persistance du thème + repaint des calques « glass » ────────────────────
+// Calques `backdrop-filter` dont la couleur de fond suit le thème via une
+// custom property (`--color-surface-page` / `--nc-bottom-nav-bg`).
+const GLASS_SELECTOR =
+  ".nc-mobile-top-fade, .nc-mobile-bottom-fade, .nc-bottom-nav";
+
+// Bug iOS/WebKit : un calque `backdrop-filter` NE se repeint PAS quand une
+// custom property de son `background` change → au passage en dark, ces bandes
+// restent figées sur l'ancienne couleur jusqu'à un re-composite (l'utilisateur
+// devait tourner l'écran en paysage). On force le re-composite : on retire le
+// filtre une frame, on le restaure à la suivante → repaint avec la bonne
+// couleur. On sauvegarde/restaure la valeur calculée (CSS pour les fondus,
+// inline pour la BottomNav) pour ne casser ni l'un ni l'autre.
+function repaintGlassLayers() {
+  if (typeof document === "undefined") return;
+  const els = Array.from(
+    document.querySelectorAll<HTMLElement>(GLASS_SELECTOR),
+  );
+  if (els.length === 0) return;
+  for (const el of els) {
+    const gcs = getComputedStyle(el);
+    el.dataset.ncGlass =
+      gcs.getPropertyValue("backdrop-filter") ||
+      gcs.getPropertyValue("-webkit-backdrop-filter") ||
+      "";
+    el.style.setProperty("backdrop-filter", "none");
+    el.style.setProperty("-webkit-backdrop-filter", "none");
+  }
+  requestAnimationFrame(() => {
+    for (const el of els) {
+      const value = el.dataset.ncGlass ?? "";
+      el.style.setProperty("backdrop-filter", value);
+      el.style.setProperty("-webkit-backdrop-filter", value);
+      delete el.dataset.ncGlass;
+    }
+  });
+}
+
+let lastEnforcedDark: boolean | null = null;
+
+// Aligne `.dark` de <html> sur le thème résolu (source = localStorage, lue en
+// direct → pas de course avec le rendu/streaming React) ET re-composite les
+// calques glass figés à chaque bascule. Idempotent (`toggle(force)` ne mute
+// que si l'état change → pas de boucle avec le MutationObserver).
+function enforceTheme() {
+  if (typeof document === "undefined") return;
+  const dark = getResolvedTheme() === "dark";
+  const html = document.documentElement;
+  if (html.classList.contains("dark") !== dark) {
+    html.classList.toggle("dark", dark);
+  }
+  if (lastEnforcedDark !== dark) {
+    lastEnforcedDark = dark;
+    repaintGlassLayers();
+  }
+}
+
 // ── Écriture de la balise ────────────────────────────────────────────────
 function writeThemeColor(color: string) {
   if (typeof document === "undefined") return;
@@ -117,17 +174,27 @@ export function ThemeColorMeta() {
   const theme = ctx?.theme ?? "light";
   const color = override ?? SURFACE_COLOR[theme];
 
-  // Persistance du thème à la navigation. Le `.dark` est posé impérativement
-  // sur <html> (ThemeProvider.applyTheme). À chaque navigation client, React
-  // peut réconcilier <html> et RETIRER cette classe (le className SSR ne la
-  // contient pas) → la nouvelle page repart en light (bandeaux qui
-  // redeviennent blancs en dark mode). On dépend de `usePathname` pour
-  // re-render à chaque route, et on RÉ-APPLIQUE la classe en useLayoutEffect
-  // (avant paint → aucun flash). Idempotent : sans strip, c'est un no-op.
+  // Persistance — chemin RAPIDE pré-paint à chaque navigation (pas de flash).
+  // theme en dépendance pour ré-appliquer aussi dès la bascule de thème.
   useIsoLayoutEffect(() => {
-    if (typeof document === "undefined") return;
-    document.documentElement.classList.toggle("dark", theme === "dark");
+    enforceTheme();
   }, [pathname, theme]);
+
+  // Persistance — garde PERMANENTE hors cycle React. Le `.dark` posé sur <html>
+  // peut être retiré par React lors d'une réconciliation (navigation, streaming
+  // RSC, boundary de loading), parfois dans un commit ULTÉRIEUR à l'effet
+  // ci-dessus. Un MutationObserver sur la classe de <html> ré-applique la bonne
+  // classe quel que soit le moment du strip, et re-composite les bandes glass
+  // figées (bug backdrop-filter + custom property iOS).
+  useEffect(() => {
+    enforceTheme();
+    const observer = new MutationObserver(enforceTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   // Écriture après paint : le premier rendu garde la balise statique (SSR),
   // puis on l'aligne sur le thème réel côté client.

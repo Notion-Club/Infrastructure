@@ -150,6 +150,9 @@ export function BottomNav() {
     <nav
       aria-label="Navigation principale"
       data-fb-label="Barre de navigation"
+      // Marqueur pour le re-composite des calques glass au changement de thème
+      // (cf. ThemeColorMeta.repaintGlassLayers — bug backdrop-filter iOS).
+      className="nc-bottom-nav"
       style={{
         position: "fixed",
         // En PWA standalone, `env(safe-area-inset-bottom)` vaut ~34px sur
