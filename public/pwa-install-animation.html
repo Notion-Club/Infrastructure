@@ -28,26 +28,25 @@
 html,body{height:100%}
 body{
   min-height:100%;
-  display:flex;align-items:center;justify-content:center;
-  /* transparent : on laisse transparaître le fond de la zone d'animation du
-     modal hôte (intégration « fondu » premium, pas de bande blanche dure). */
+  /* Ancré EN HAUT (flex-start) : le téléphone « sort » du haut du modal hôte,
+     au lieu d'être centré. Rendu net, sans fondu. */
+  display:flex;align-items:flex-start;justify-content:center;
+  /* transparent : on laisse transparaître le fond clair de la zone d'animation
+     du modal hôte (le guide reste en light mode quel que soit le thème). */
   background:transparent;
   font-family:"SF Pro Display",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
-.scene{transform-origin:center center}
+/* Mise à l'échelle ancrée en haut → le sommet du cadre reste collé au bord
+   supérieur du modal (effet « l'écran sort du haut »). */
+.scene{transform-origin:top center}
 
-/* ===== Recadrage : focus sur le bas de l'écran, fondu blanc en haut ===== */
-/* Recadré serré sur le bas du téléphone (barre Safari → feuille de partage →
-   « Sur l'écran d'accueil ») : la hauteur n'est plus le facteur limitant, le
-   mockup remplit donc mieux la zone d'animation du pop-up (rendu showcase). */
-:root{ --view-h:468px; --fade-h:64px; }
+/* ===== Recadrage : on laisse assez de marge en haut pour voir l'INTÉGRALITÉ
+   des feuilles qui s'affichent (feuille de partage : ses 2 premières lignes ;
+   panneau « Sur l'écran d'accueil » : son bouton « Ajouter »). Pas de fondu :
+   le screen est net, du haut jusqu'au bas du cadre. ===== */
+:root{ --view-h:712px; }
 .frame{ position:relative; width:402px; height:var(--view-h); overflow:hidden; }
 .frame .ncb-phone{ position:absolute; left:0; bottom:0; margin:0; }
-.frame::after{
-  content:""; position:absolute; top:0; left:0; right:0; height:var(--fade-h);
-  background:linear-gradient(to bottom, #fff 0%, rgba(255,255,255,0) 100%);
-  pointer-events:none; z-index:40;
-}
 
 /* =====================================================================
    ╔══════════════════════════════════════════════════════════════╗
@@ -883,7 +882,9 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
 /* ---- échelle + positionnement ---- */
 function fit(){
-  const pad = 28;
+  /* Marge interne minime → le téléphone remplit au mieux la zone d'animation
+     (rendu showcase, plus grand). */
+  const pad = 6;
   const vh = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--view-h')) || 690;
   scale = Math.min(1, (innerHeight - pad*2)/vh, (innerWidth - pad*2)/402);
   scene.style.transform = `scale(${scale})`;

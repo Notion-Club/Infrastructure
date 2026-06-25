@@ -528,8 +528,14 @@ html {
    La racine vit au niveau du (app)/layout, HORS de tout nc-page-halo.
 
    Split screen : moitié haute = animation iOS « Sur l'écran d'accueil »
-   (iframe isolée, boucle GIF), moitié basse = copywriting + CTA. Le
-   raccord entre les deux est un fondu blanc premium (style Apple).
+   (iframe isolée, boucle GIF) qui « sort » du haut du modal, NET (sans
+   fondu) ; moitié basse = copywriting + CTA.
+
+   Thème : le pop-up (fonds, textes, bordures) suit le thème via les tokens
+   `--color-*` (donc dark-aware). SEULE la zone d'animation reste forcée en
+   light (fond clair fixe) — le guide d'installation ne bascule jamais en
+   dark. Fonds = blanc cassé du design system (--color-surface-page), pas de
+   #ffffff pur.
    ────────────────────────────────────────────────────────────── */
 .nc-pwa-modal-root {
   position: fixed;
@@ -576,9 +582,9 @@ html {
   flex-direction: column;
   height: auto;
   max-height: 94dvh;
-  /* Surface blanche pleine (animation + copy) → fondu sans bande de couleur,
-     lecture « keynote Apple ». */
-  background: #ffffff;
+  /* Blanc cassé du design system (suit le thème : off-white en light,
+     near-black en dark). */
+  background: var(--color-surface-page);
   border-top-left-radius: 28px;
   border-top-right-radius: 28px;
   overflow: hidden;
@@ -592,45 +598,56 @@ html {
   transform: translateY(0);
 }
 
-/* Poignée d'attrape (mobile) — affordance « tirer vers le bas ». */
+/* Poignée d'attrape (mobile) — EN OVERLAY au-dessus du haut de l'animation,
+   pour que le screen reste flush au bord supérieur (« sort du haut »). */
 .nc-pwa-grabber {
-  flex-shrink: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
   display: flex;
   justify-content: center;
-  align-items: center;
-  padding: 10px 0 2px;
+  align-items: flex-start;
+  padding: 9px 0;
   cursor: pointer;
-  position: relative;
-  z-index: 3;
 }
 .nc-pwa-grabber::before {
   content: "";
   width: 40px;
   height: 4px;
   border-radius: 9999px;
-  background: var(--color-border-default);
+  /* Lisible par-dessus le contenu clair de l'animation. */
+  background: rgba(60, 60, 67, 0.32);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.35);
 }
 
 /* ── Zone animation (split haut) ──
-   Fond blanc + halo brand discret derrière le téléphone. L'iframe remplit la
-   zone ; un fondu blanc en bas dissout le mockup dans le copywriting. */
+   FORCÉE en light (le guide ne bascule jamais en dark) : fond clair fixe
+   (blanc cassé) + halo brand discret derrière le téléphone. L'iframe remplit
+   la zone et le mockup « sort » du haut — rendu NET, aucun fondu. */
 .nc-pwa-anim {
   position: relative;
-  flex: 0 0 auto;
-  height: 330px;
+  /* Rétractable (0 1 auto) : si la hauteur d'écran est juste, c'est
+     l'animation qui se réduit, jamais le CTA (cf. .nc-pwa-copy en flex
+     0 0 auto). */
+  flex: 0 1 auto;
+  /* Plus haute → mockup nettement plus grand. Responsive : se réduit sur les
+     petits écrans pour laisser de la place au copywriting. */
+  height: clamp(360px, 56dvh, 580px);
   background:
     radial-gradient(
-      ellipse 120% 80% at 50% 0%,
-      rgba(224, 98, 90, 0.12) 0%,
-      rgba(224, 98, 90, 0.04) 38%,
-      transparent 70%
+      ellipse 130% 75% at 50% 0%,
+      rgba(224, 98, 90, 0.14) 0%,
+      rgba(224, 98, 90, 0.05) 40%,
+      transparent 72%
     ),
-    #ffffff;
+    #f5f2f2;
   overflow: hidden;
 }
 @media (min-width: 768px) {
   .nc-pwa-anim {
-    height: 350px;
+    height: clamp(340px, 48vh, 520px);
   }
 }
 .nc-pwa-anim iframe {
@@ -642,34 +659,20 @@ html {
   background: transparent;
   display: block;
 }
-/* Fondu premium bas : l'animation « fond » dans le bloc texte. */
-.nc-pwa-anim::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 88px;
-  pointer-events: none;
-  z-index: 2;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.85) 55%,
-    #ffffff 100%
-  );
-}
 
-/* ── Bloc copywriting + CTA (split bas) ── */
+/* ── Bloc copywriting + CTA (split bas) ──
+   Fond transparent → hérite du blanc cassé (thématisé) du panel.
+   flex 0 0 auto → hauteur naturelle protégée : jamais rognée même si l'écran
+   est court (c'est l'animation au-dessus qui se rétracte). */
 .nc-pwa-copy {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: 8px;
-  padding: 6px 28px 26px;
-  background: #ffffff;
+  padding: 18px 28px 26px;
+  background: transparent;
 }
 .nc-pwa-eyebrow {
   display: inline-flex;
@@ -749,7 +752,8 @@ html {
   color: var(--color-text-secondary);
 }
 
-/* ── Desktop : modale centrée (scale + fade), même surface blanche ── */
+/* ── Desktop : modale centrée (scale + fade), même surface (blanc cassé
+   thématisé, héritée du panel) ── */
 @media (min-width: 768px) {
   .nc-pwa-panel {
     position: relative;
