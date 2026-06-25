@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, X } from "lucide-react";
+import { X } from "lucide-react";
 
 // ============================================================================
 // PwaInstallModal — pop-up d'incitation à installer la PWA.
@@ -98,7 +98,7 @@ export function PwaInstallModal({
           aria-label="Fermer"
           data-fb-label="Fermer · Pop-up installation PWA"
         >
-          <X size={17} strokeWidth={2.4} />
+          <X size={14} strokeWidth={2.4} />
         </button>
 
         {/* Split haut : animation en boucle, isolée dans une iframe. */}
@@ -115,14 +115,9 @@ export function PwaInstallModal({
 
         {/* Split bas : copywriting + CTA conditionnel. */}
         <div className="nc-pwa-copy">
-          <span className="nc-pwa-eyebrow">
-            <Sparkles size={13} strokeWidth={2.4} />
-            Expérience app
-          </span>
           <h2 className="nc-pwa-title">{title}</h2>
           <p className="nc-pwa-subtitle">
-            L&apos;application offre plus de fonctionnalités et de meilleures
-            performances. Clique sur{" "}
+            Plus de fonctionnalités et de meilleures performances. Clique sur{" "}
             <kbd className="nc-pwa-kbd">
               Partager
               <ShareGlyph />

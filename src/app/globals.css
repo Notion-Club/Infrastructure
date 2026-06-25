@@ -636,11 +636,12 @@ html {
    bouton d'action). Toujours présente (dismiss). */
 .nc-pwa-close {
   position: absolute;
-  top: 16px;
-  right: 18px;
+  top: 14px;
+  right: 14px;
   z-index: 6;
-  width: 32px;
-  height: 32px;
+  /* Plus petite → laisse de la place à une animation imposante. */
+  width: 26px;
+  height: 26px;
   /* padding:0 + box-sizing → le carré du flex est parfaitement symétrique,
      l'icône est rigoureusement centrée (corrige le léger décalage à droite). */
   padding: 0;
@@ -696,16 +697,16 @@ html {
      l'animation qui se réduit, jamais le texte (cf. .nc-pwa-copy en 0 0 auto). */
   flex: 0 1 auto;
   width: 100%;
-  /* Grande zone → mockup imposant. Petit padding haut = marge sous la croix
-     (le screen ne colle pas au bouton ×). */
-  height: clamp(360px, 52dvh, 540px);
+  /* Zone TRÈS grande → le mockup est la pièce maîtresse et remplit la largeur
+     (bords gauche/droite). Petit padding haut = marge sous la croix. */
+  height: clamp(460px, 72dvh, 660px);
   padding-top: 6px;
   background: transparent;
   overflow: hidden;
 }
 @media (min-width: 768px) {
   .nc-pwa-anim {
-    height: clamp(340px, 46vh, 480px);
+    height: clamp(380px, 56vh, 540px);
   }
 }
 .nc-pwa-anim iframe {
@@ -728,10 +729,9 @@ html {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 8px;
-  /* Padding modéré : le VIDE qui remonte le texte vient désormais de la hauteur
-     fixe du modal (contenu aligné en haut), pas d'un gros padding artificiel. */
-  padding: 14px 28px 22px;
+  gap: 5px;
+  /* Texte resserré et collé à l'animation (point 1) ; peu de padding haut. */
+  padding: 6px 24px 18px;
   background: transparent;
 }
 .nc-pwa-eyebrow {
@@ -759,11 +759,12 @@ html {
 }
 .nc-pwa-subtitle {
   margin: 0;
-  max-width: 360px;
-  font-size: 14.5px;
-  /* Interligne NATUREL (on ne gonfle plus les lignes). La non-superposition des
-     pilules est obtenue en réduisant leur HAUTEUR, pas en écartant les lignes. */
-  line-height: 1.75;
+  /* Large + police compacte → le texte tient sur 3 lignes (point 2). */
+  max-width: 390px;
+  font-size: 13.5px;
+  /* Interligne plus serré (point 4) ; pilules basses → elles ne se touchent
+     pas malgré l'interligne réduit. */
+  line-height: 1.55;
   color: var(--color-text-secondary);
 }
 /* « Touches » façon keycap pour illustrer les étapes (Partager / Sur l'écran
@@ -773,21 +774,21 @@ html {
 .nc-pwa-kbd {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 1px 7px;
-  font-size: 12px;
+  gap: 4px;
+  padding: 1px 6px;
+  font-size: 11.5px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.1;
   color: var(--color-text-primary);
   background: var(--color-surface-card);
   border: 1px solid var(--color-border-default);
-  border-radius: 7px;
+  border-radius: 6px;
   box-shadow: 0 1px 0 var(--color-border-default);
   white-space: nowrap;
 }
 .nc-pwa-kbd svg {
-  width: 11px;
-  height: 11px;
+  width: 10.5px;
+  height: 10.5px;
   flex: 0 0 auto;
 }
 /* Dark mode (point 8) : surfaces inversées — la touche prend la teinte (plus
