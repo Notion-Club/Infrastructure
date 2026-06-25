@@ -519,6 +519,271 @@ html {
   }
 }
 
+/* ──────────────────────────────────────────────────────────────
+   POP-UP INSTALLATION PWA (#pwa-install)
+   ──────────────────────────────────────────────────────────────
+   Reprend À L'IDENTIQUE le pattern du pop-up profil (.nc-profile-*) :
+     - mobile  : bottom sheet ancré en bas (slide-up ↔ slide-down) ;
+     - desktop : modale centrée (scale + fade).
+   La racine vit au niveau du (app)/layout, HORS de tout nc-page-halo.
+
+   Split screen : moitié haute = animation iOS « Sur l'écran d'accueil »
+   (iframe isolée, boucle GIF), moitié basse = copywriting + CTA. Le
+   raccord entre les deux est un fondu blanc premium (style Apple).
+   ────────────────────────────────────────────────────────────── */
+.nc-pwa-modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 210; /* juste au-dessus du pop-up profil (200) */
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 768px) {
+  .nc-pwa-modal-root {
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+}
+
+/* Backdrop flouté (mobile ET desktop) — le pop-up PWA n'a pas de blurzone
+   d'app dédiée, c'est donc le backdrop qui porte le flou sur les deux tailles. */
+.nc-pwa-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  transition: opacity var(--nc-duration-normal) var(--nc-ease);
+}
+.nc-pwa-modal-root[data-open="true"] .nc-pwa-backdrop {
+  opacity: 1;
+}
+@media (min-width: 768px) {
+  .nc-pwa-backdrop {
+    background: rgba(0, 0, 0, 0.34);
+  }
+}
+
+/* ── Mobile : bottom sheet ── */
+.nc-pwa-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  max-height: 94dvh;
+  /* Surface blanche pleine (animation + copy) → fondu sans bande de couleur,
+     lecture « keynote Apple ». */
+  background: #ffffff;
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 -8px 40px -8px rgba(0, 0, 0, 0.28);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  transform: translateY(100%);
+  transition: transform var(--nc-duration-slow) var(--nc-ease);
+  will-change: transform;
+}
+.nc-pwa-modal-root[data-open="true"] .nc-pwa-panel {
+  transform: translateY(0);
+}
+
+/* Poignée d'attrape (mobile) — affordance « tirer vers le bas ». */
+.nc-pwa-grabber {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 0 2px;
+  cursor: pointer;
+  position: relative;
+  z-index: 3;
+}
+.nc-pwa-grabber::before {
+  content: "";
+  width: 40px;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--color-border-default);
+}
+
+/* ── Zone animation (split haut) ──
+   Fond blanc + halo brand discret derrière le téléphone. L'iframe remplit la
+   zone ; un fondu blanc en bas dissout le mockup dans le copywriting. */
+.nc-pwa-anim {
+  position: relative;
+  flex: 0 0 auto;
+  height: 330px;
+  background:
+    radial-gradient(
+      ellipse 120% 80% at 50% 0%,
+      rgba(224, 98, 90, 0.12) 0%,
+      rgba(224, 98, 90, 0.04) 38%,
+      transparent 70%
+    ),
+    #ffffff;
+  overflow: hidden;
+}
+@media (min-width: 768px) {
+  .nc-pwa-anim {
+    height: 350px;
+  }
+}
+.nc-pwa-anim iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  display: block;
+}
+/* Fondu premium bas : l'animation « fond » dans le bloc texte. */
+.nc-pwa-anim::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 88px;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.85) 55%,
+    #ffffff 100%
+  );
+}
+
+/* ── Bloc copywriting + CTA (split bas) ── */
+.nc-pwa-copy {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 6px 28px 26px;
+  background: #ffffff;
+}
+.nc-pwa-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-brand);
+  text-transform: uppercase;
+}
+.nc-pwa-title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+@media (min-width: 768px) {
+  .nc-pwa-title {
+    font-size: 24px;
+  }
+}
+.nc-pwa-subtitle {
+  margin: 0;
+  max-width: 360px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+.nc-pwa-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
+  margin-top: 14px;
+}
+.nc-pwa-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--color-brand);
+  color: #ffffff;
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  box-shadow: 0 10px 24px -10px rgba(224, 98, 90, 0.65);
+  transition:
+    transform 160ms var(--nc-ease),
+    box-shadow 160ms var(--nc-ease);
+}
+.nc-pwa-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px -10px rgba(224, 98, 90, 0.72);
+}
+.nc-pwa-btn-primary:active {
+  transform: translateY(0) scale(0.99);
+}
+.nc-pwa-btn-ghost {
+  border: none;
+  background: none;
+  padding: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.nc-pwa-btn-ghost:hover {
+  color: var(--color-text-secondary);
+}
+
+/* ── Desktop : modale centrée (scale + fade), même surface blanche ── */
+@media (min-width: 768px) {
+  .nc-pwa-panel {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    height: auto;
+    width: 100%;
+    max-width: 440px;
+    max-height: 90vh;
+    border-radius: 28px;
+    border: 1px solid var(--color-border-default);
+    box-shadow: var(--nc-shadow-2);
+    transform: scale(0.96);
+    opacity: 0;
+    transition:
+      transform var(--nc-duration-normal) var(--nc-ease),
+      opacity var(--nc-duration-normal) var(--nc-ease);
+  }
+  .nc-pwa-modal-root[data-open="true"] .nc-pwa-panel {
+    transform: scale(1);
+    opacity: 1;
+  }
+  .nc-pwa-grabber {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-pwa-backdrop,
+  .nc-pwa-panel {
+    transition: none !important;
+  }
+}
+
 /* ── FAB "Nouveau post" mobile (feed communauté) ── */
 .nc-feed-fab {
   position: fixed;
