@@ -150,8 +150,9 @@ export function BottomNav() {
     <nav
       aria-label="Navigation principale"
       data-fb-label="Barre de navigation"
-      // Marqueur pour le re-composite des calques glass au changement de thème
-      // (cf. ThemeColorMeta.repaintGlassLayers — bug backdrop-filter iOS).
+      // `.nc-bottom-nav` : le `background` thème-aware reste sur CET élément
+      // (sans backdrop-filter → se repeint au changement de mode sur iOS) ;
+      // le flou est porté par `.nc-bottom-nav::before` (cf. globals.css).
       className="nc-bottom-nav"
       style={{
         position: "fixed",
