@@ -12,7 +12,8 @@ import {
   use,
   Suspense,
 } from "react";
-import { MessageCircle, MessagesSquare, SquarePen } from "lucide-react";
+import { SquarePen } from "lucide-react";
+import { MessageBadge, SharedWithYou } from "@/shared/components/icons";
 import { toast } from "sonner";
 import { useRouter, usePathname } from "next/navigation";
 import type { PostTag } from "../types/post.types";
@@ -268,10 +269,10 @@ export function CommunityPage({
 
             {(
               [
-                { value: "feed" as Tab, label: "Feed", icon: MessagesSquare },
-                { value: "messages" as Tab, label: "Messages", icon: MessageCircle },
+                { value: "feed" as Tab, label: "Feed" },
+                { value: "messages" as Tab, label: "Messages" },
               ]
-            ).map(({ value, label, icon: Icon }, i) => {
+            ).map(({ value, label }, i) => {
               const isActive = activeTab === value;
               return (
                 <button
@@ -316,7 +317,17 @@ export function CommunityPage({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  <Icon size={15} strokeWidth={isActive ? 2.5 : 2} />
+                  {value === "feed" ? (
+                    <SharedWithYou size={15} />
+                  ) : (
+                    /* L'icône Messages est bicolore : sa pastille passe en
+                       rouge brand quand il y a des non-lus. L'état non-lu vient
+                       des conversations en Suspense → fallback sur une pastille
+                       neutre (unread=false) tant qu'elles ne sont pas chargées. */
+                    <Suspense fallback={<MessageBadge size={15} />}>
+                      <MessagesTabIcon conversationsPromise={conversationsPromise} />
+                    </Suspense>
+                  )}
                   {label}
                   {/* Compteur non-lus (Messages) : alimenté par les conversations
                       en Suspense → n'empêche jamais le cadre de s'afficher. */}
@@ -406,6 +417,20 @@ export function CommunityPage({
 // dans un <Suspense fallback={null}> : le switcher s'affiche immédiatement, le
 // badge n'apparaît qu'une fois les conversations chargées.
 // ────────────────────────────────────────────────────────────────────────────
+// Icône de l'onglet Messages — MessageBadge bicolore dont la pastille passe en
+// rouge brand dès qu'il existe au moins un message non-lu. `use()` la promesse
+// des conversations (même source que UnreadBadge) ; rendu en Suspense côté
+// switcher → fallback sur une pastille neutre tant que ça stream.
+function MessagesTabIcon({
+  conversationsPromise,
+}: {
+  conversationsPromise: Promise<Conversation[]>;
+}) {
+  const conversations = use(conversationsPromise);
+  const hasUnread = conversations.some((c) => c.unreadCount > 0);
+  return <MessageBadge size={15} unread={hasUnread} />;
+}
+
 function UnreadBadge({
   conversationsPromise,
 }: {

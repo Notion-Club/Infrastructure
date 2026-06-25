@@ -20,7 +20,8 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
-import { X, Sparkles, AudioLines, Copy, Check } from "lucide-react";
+import { X, Copy, Check } from "lucide-react";
+import { Sparkles, WaveformBadgeSearch } from "@/shared/components/icons";
 import { MacOSWindowBar } from "@/shared/components/ui/MacOSWindowBar";
 import { NotionBlocks } from "@/shared/components/notion/NotionBlocks";
 import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
@@ -438,7 +439,7 @@ export function CallDetailModal({
                   {
                     value: "transcript",
                     label: "Transcription",
-                    icon: <AudioLines size={15} />,
+                    icon: <WaveformBadgeSearch size={15} />,
                   },
                 ]}
               />

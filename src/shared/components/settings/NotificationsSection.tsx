@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
-  BellRing,
   LoaderCircle,
   Mail,
   MessageCircle,
   Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
+
+import { Bell as BellIcon } from "@/shared/components/icons";
 
 import {
   DEFAULT_CHANNEL_ENABLED,
@@ -242,7 +243,7 @@ export function NotificationsSection({
   return (
     <SettingsCard
       title="Notifications"
-      iconNode={<BellRing size={20} strokeWidth={2} />}
+      iconNode={<BellIcon size={20} />}
       description="Définis les notifications que tu souhaites recevoir"
       fbLabel="Section notifications · Réglages"
     >

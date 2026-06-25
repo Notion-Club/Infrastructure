@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
   ChevronDown,
-  GraduationCap,
-  ListTree,
   Lock,
   PlayCircle,
 } from "lucide-react";
+
+import { GraduationCap, ListBulletBelowRectangle } from "@/shared/components/icons";
 
 import { Tree, Folder, File } from "@/shared/components/ui/file-tree";
 import { startLessonTransition } from "./LessonTransition";
@@ -105,7 +105,7 @@ export function LessonBreadcrumb({
         }}
         className="bg-[var(--color-surface-card)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-raised)]"
       >
-        <ListTree size={15} style={{ flexShrink: 0, color: "var(--color-brand)" }} />
+        <ListBulletBelowRectangle size={15} style={{ flexShrink: 0, color: "var(--color-brand)" }} />
         <span
           style={{
             color: "var(--color-text-primary)",

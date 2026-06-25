@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useTransition } from "react";
-import { ArrowLeft, Loader2, Search } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
+import { ArrowReturn } from "@/shared/components/icons";
 import type { Conversation, Message } from "../../types/conversation.types";
 import type { User } from "../../types/user.types";
 import { REPLY_SNIPPET_MAX } from "../../lib/validation";
@@ -260,7 +261,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
             }}
             className="hover:bg-[rgba(0,0,0,0.06)]"
           >
-            <ArrowLeft size={16} />
+            <ArrowReturn size={16} />
           </button>
         )}
         <UserAvatar user={conversation.participant} size={36} />

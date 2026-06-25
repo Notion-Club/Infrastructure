@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Settings, CircleUserRound } from "lucide-react";
+import { Gear, PersonCircleFill } from "@/shared/components/icons";
 
 import { AppearanceSection } from "@/shared/components/settings/AppearanceSection";
 import { NotificationPopover } from "@/modules/community/components/notifications/NotificationPopover";
@@ -163,7 +163,7 @@ export function MobileTopActions() {
               }}
               className="hover:bg-[var(--color-surface-raised)]"
             >
-              <CircleUserRound size={16} style={{ color: "var(--color-text-muted)" }} />
+              <PersonCircleFill size={16} style={{ color: "var(--color-text-muted)" }} />
               Profil
             </button>
             <Link
@@ -184,7 +184,7 @@ export function MobileTopActions() {
               }}
               className="hover:bg-[var(--color-surface-raised)]"
             >
-              <Settings size={16} style={{ color: "var(--color-text-muted)" }} />
+              <Gear size={16} style={{ color: "var(--color-text-muted)" }} />
               Réglages
             </Link>
             <button

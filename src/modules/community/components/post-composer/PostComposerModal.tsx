@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Image as ImageIcon, Link, Loader2 } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
+import { Link, Photo } from "@/shared/components/icons";
 import { toast } from "sonner";
 import type { Post, PostTag, PostAudience } from "../../types/post.types";
 import type { User } from "../../types/user.types";
@@ -621,7 +622,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
                 }}
                 className={uploading ? "" : "hover:bg-[rgba(0,0,0,0.06)]"}
               >
-                {uploading ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
+                {uploading ? <Loader2 size={14} className="animate-spin" /> : <Photo size={14} />}
               </button>
               {/* Bouton "Ajouter une vidéo" retiré (décision produit du
                   2026-06-02). Théo veut que les membres collent directement

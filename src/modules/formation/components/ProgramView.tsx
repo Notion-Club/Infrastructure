@@ -1,4 +1,4 @@
-import { PartyPopper } from "lucide-react";
+import { PartyPopper } from "@/shared/components/icons";
 
 import { ProgressBar } from "@/shared/components/dashboard/widgets/ProgressBar";
 import type { ProgramDetail } from "../types";

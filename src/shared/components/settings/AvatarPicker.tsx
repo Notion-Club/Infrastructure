@@ -15,10 +15,11 @@ import {
   Image as ImageIcon,
   LoaderCircle,
   Palette,
-  Trash2,
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
+
+import { Trash } from "@/shared/components/icons";
 
 import {
   AVATAR_ALLOWED_MIME,
@@ -373,7 +374,7 @@ export function AvatarPicker({
                 {removing ? (
                   <LoaderCircle size={14} className="animate-spin" />
                 ) : (
-                  <Trash2 size={14} />
+                  <Trash size={14} />
                 )}
                 {removing ? "Suppression…" : "Supprimer la photo"}
               </button>

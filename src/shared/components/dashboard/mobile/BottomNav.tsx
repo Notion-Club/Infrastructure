@@ -3,11 +3,23 @@
 import { useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, GraduationCap, Users, Calendar, Library, type LucideIcon } from "lucide-react";
+import type React from "react";
+import { Users, Calendar } from "lucide-react";
+import { House, GraduationCap, BookWrenchFill } from "@/shared/components/icons";
+
+// Les icônes de nav mélangent la library in-app (fill-based) et des icônes
+// lucide encore utilisées (Users, Calendar) : type générique compatible des
+// deux familles.
+type NavIcon = React.ComponentType<{
+  size?: number | string;
+  strokeWidth?: number;
+  className?: string;
+  style?: React.CSSProperties;
+}>;
 
 type NavItem = {
   label: string;
-  icon: LucideIcon;
+  icon: NavIcon;
   href: string;
   // Override optionnel : graduation-cap paraît plus petit à taille égale → on
   // l'agrandit pour une présence homogène avec les autres icônes.
@@ -15,11 +27,11 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Accueil", icon: Home, href: "/dashboard" },
+  { label: "Accueil", icon: House, href: "/dashboard" },
   { label: "Formation", icon: GraduationCap, href: "/formation", iconSize: 21 },
   { label: "Communauté", icon: Users, href: "/communaute" },
   { label: "Coaching", icon: Calendar, href: "/coaching" },
-  { label: "Ressources", icon: Library, href: "/ressources" },
+  { label: "Ressources", icon: BookWrenchFill, href: "/ressources" },
 ];
 
 export function BottomNav() {

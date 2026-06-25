@@ -13,8 +13,10 @@
 // expiré), on masque le switcher et on n'affiche que la grille des passés.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { History } from "lucide-react";
-import { ClockArrowRight } from "@/shared/components/icons/ClockArrowRight";
+import {
+  ClockArrowReverseDotted,
+  ClockBadgeCheckmark,
+} from "@/shared/components/icons";
 import type { CallCardData } from "@/shared/lib/mock/coaching";
 import { CallTile } from "@/shared/components/coaching/CallTile";
 import { CoachingTabs } from "@/shared/components/coaching/CoachingTabs";
@@ -200,12 +202,12 @@ export function CoachingHistory({
             {
               value: "past",
               label: "Tes appels passés",
-              icon: <History size={15} />,
+              icon: <ClockArrowReverseDotted size={15} />,
             },
             {
               value: "upcoming",
               label: "Tes appels à venir",
-              icon: <ClockArrowRight size={15} />,
+              icon: <ClockBadgeCheckmark size={15} />,
             },
           ]}
         />

@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowRight, Play, PartyPopper, Sparkles } from "lucide-react";
+import { ArrowRight, Play, Sparkles } from "lucide-react";
+
+import { PartyPopper } from "@/shared/components/icons";
 
 import { ProgressBar } from "@/shared/components/dashboard/widgets/ProgressBar";
 import type { ProgramSummary } from "../types";

@@ -7,9 +7,10 @@ import {
   EyeOff,
   LockKeyholeOpen,
   LoaderCircle,
-  KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
+
+import { Lock } from "@/shared/components/icons";
 
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import { GoogleLogo } from "@/shared/components/ui/GoogleButton";
@@ -45,7 +46,7 @@ export function SecuritySection({
   return (
     <SettingsCard
       title="Sécurité"
-      iconNode={<KeyRound size={20} strokeWidth={2} />}
+      iconNode={<Lock size={20} />}
       description="Gère tes méthodes de connexion au Notion Club"
       fbLabel="Section sécurité · Réglages"
       embedded={embedded}

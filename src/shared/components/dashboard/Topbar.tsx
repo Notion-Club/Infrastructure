@@ -1,19 +1,18 @@
 "use client";
 
+import type React from "react";
 import { useRef, useEffect, useLayoutEffect, useCallback, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { Users, Calendar } from "lucide-react";
 import {
-  Home,
+  House,
   GraduationCap,
-  Users,
-  Calendar,
-  Library,
-  CircleUserRound,
-  Settings,
-  type LucideIcon,
-} from "lucide-react";
+  BookWrenchFill,
+  Gear,
+  PersonCircleFill,
+} from "@/shared/components/icons";
 
 import { AppearanceSection } from "@/shared/components/settings/AppearanceSection";
 import { NotificationPopover } from "@/modules/community/components/notifications/NotificationPopover";
@@ -30,7 +29,17 @@ import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition"
 // iconSize : override optionnel — certaines icônes lucide (ex. graduation-cap,
 // glyphe large mais court) paraissent plus petites à taille égale ; on les
 // agrandit légèrement pour une présence visuelle homogène dans la nav.
-type NavItem = { label: string; icon: LucideIcon; href: string; iconSize?: number };
+// Les icônes de nav mélangent désormais la library in-app (fill-based) et des
+// icônes lucide encore utilisées (Users, Calendar). On type donc l'icône comme
+// un composant générique acceptant size/strokeWidth/className/style, compatible
+// avec les deux familles.
+type NavIcon = React.ComponentType<{
+  size?: number | string;
+  strokeWidth?: number;
+  className?: string;
+  style?: React.CSSProperties;
+}>;
+type NavItem = { label: string; icon: NavIcon; href: string; iconSize?: number };
 
 const LOGO_LIGHT =
   "https://res.cloudinary.com/dceobxyts/image/upload/v1777034233/Notion_Club_-_Black_-_Sans_BG_hcvk9k.png";
@@ -38,11 +47,11 @@ const LOGO_DARK =
   "https://res.cloudinary.com/dceobxyts/image/upload/v1777935553/Notion_Club_-_White_-_Sans_BG_du43oh.png";
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Accueil", icon: Home, href: "/dashboard" },
+  { label: "Accueil", icon: House, href: "/dashboard" },
   { label: "Formation", icon: GraduationCap, href: "/formation", iconSize: 18 },
   { label: "Communauté", icon: Users, href: "/communaute" },
   { label: "Coaching", icon: Calendar, href: "/coaching" },
-  { label: "Ressources", icon: Library, href: "/ressources" },
+  { label: "Ressources", icon: BookWrenchFill, href: "/ressources" },
 ];
 
 const SEPARATOR = (
@@ -341,7 +350,7 @@ export function Topbar() {
                 }}
                 className="hover:bg-[var(--color-surface-raised)]"
               >
-                <CircleUserRound size={16} style={{ color: "var(--color-text-muted)" }} />
+                <PersonCircleFill size={16} style={{ color: "var(--color-text-muted)" }} />
                 Profil
               </button>
               <Link
@@ -362,7 +371,7 @@ export function Topbar() {
                 }}
                 className="hover:bg-[var(--color-surface-raised)]"
               >
-                <Settings size={16} style={{ color: "var(--color-text-muted)" }} />
+                <Gear size={16} style={{ color: "var(--color-text-muted)" }} />
                 Réglages
               </Link>
               <button

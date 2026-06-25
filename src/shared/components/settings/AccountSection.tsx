@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { FingerprintPattern, LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
+
+import { FaceId } from "@/shared/components/icons";
 
 import { updateProfileAction, updateAccountEmailAction } from "@/modules/settings";
 import { SettingsCard } from "./SettingsCard";
@@ -129,7 +131,7 @@ export function AccountSection({
   return (
     <SettingsCard
       title="Mes informations"
-      iconNode={<FingerprintPattern size={20} strokeWidth={2} />}
+      iconNode={<FaceId size={20} />}
       description="C'est avec ces informations que tu te connectes au Notion Club"
       fbLabel="Section compte · Réglages"
       embedded={embedded}

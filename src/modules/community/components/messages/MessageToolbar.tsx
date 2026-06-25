@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { SmilePlus, Reply, MoreHorizontal, Pencil, Trash2, Forward } from "lucide-react";
+import { SmilePlus, Reply, MoreHorizontal, Pencil, Forward } from "lucide-react";
+import { Trash } from "@/shared/components/icons";
 
 // Picker complet — étendu (16 emojis) pour couvrir le besoin "j'ai pas mon
 // emoji dans les 3 favoris". Aligné sur les emojis communs WhatsApp/Telegram.
@@ -383,7 +384,7 @@ export function MessageToolbar({
             )}
             {onDelete && (
               <MenuItem
-                icon={<Trash2 size={14} />}
+                icon={<Trash size={14} />}
                 label="Supprimer"
                 onClick={() => {
                   setMenuOpen(false);
