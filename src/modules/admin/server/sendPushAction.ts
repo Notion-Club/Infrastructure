@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/shared/lib/supabase/admin";
 import { sendWebPushToUser } from "@/shared/lib/push/webPush";
+import { createAdminPushNotifications } from "@/shared/lib/push/inAppNotification";
 
 // Server Action consommée par le dev tool admin (cf. AdminPushDevCard).
 // Trois cibles possibles : envoyer une notif push à soi-même, à un user
@@ -136,6 +137,17 @@ export async function sendAdminPushAction(
       failed += 1;
     }
   }
+
+  // Trace in-app : on insère une notification 'admin_push' par destinataire
+  // pour que le push apparaisse aussi dans la cloche (Realtime → badge live).
+  // Indépendant du résultat d'envoi push : un device sans souscription active
+  // n'a pas reçu le push, mais doit quand même retrouver la notif en in-app.
+  // Fire-and-forget — n'impacte jamais le récap d'envoi.
+  await createAdminPushNotifications(recipientIds, {
+    title: input.title,
+    body: input.body,
+    link: input.url,
+  });
 
   return {
     ok: true,

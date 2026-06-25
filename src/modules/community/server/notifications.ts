@@ -32,6 +32,9 @@ type NotificationRow = {
   comment_id: string | null;
   conversation_id: string | null;
   excerpt: string | null;
+  // Renseignés uniquement pour les push admin (type admin_push, mig. 044).
+  title: string | null;
+  link: string | null;
   read_at: string | null;
   created_at: string;
   actor: ActorRow | null;
@@ -79,6 +82,8 @@ function mapRow(row: NotificationRow): Notification {
     excerpt: row.excerpt ?? "",
     postId: row.post_id ?? undefined,
     conversationId: row.conversation_id ?? undefined,
+    title: row.title ?? undefined,
+    link: row.link ?? undefined,
     read: row.read_at !== null,
     createdAt: row.created_at,
   };
@@ -102,7 +107,7 @@ export async function getNotifications(): Promise<Notification[]> {
     .select(
       `
         id, type, post_id, comment_id, conversation_id,
-        excerpt, read_at, created_at,
+        excerpt, title, link, read_at, created_at,
         actor:profiles!notifications_actor_id_fkey (
           id, first_name, last_name, display_name, username,
           avatar_url, avatar_color

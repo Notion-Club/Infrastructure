@@ -69,6 +69,9 @@ const PUSH_VERB: Record<NotificationType, string> = {
   reaction_on_post: "a réagi à ton post",
   new_dm: "t'a envoyé un message",
   admin_annonce: "a publié une annonce",
+  // admin_push ne transite jamais par ce pont (les push admin partent en direct
+  // via sendAdminPushAction). Clé présente pour l'exhaustivité du Record.
+  admin_push: "",
 };
 
 function buildTitle(actorName: string, type: NotificationType): string {
