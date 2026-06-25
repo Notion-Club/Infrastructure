@@ -49,10 +49,12 @@ export function MobileTopActions() {
   return (
     <div
       style={{
-        // `position: absolute` (et non fixed) : les boutons restent ancrés en
-        // HAUT DE PAGE et défilent avec le contenu — ils ne suivent plus le
-        // scroll et ne survolent jamais le contenu scrollé.
-        position: "absolute",
+        // `position: fixed` : les boutons restent ancrés au viewport, comme le
+        // bandeau frosted (.nc-mobile-top-fade) et la BottomNav. En `absolute`
+        // ils défilaient avec le document et « remontaient » dans le bandeau
+        // fixe au scroll (incohérence de calques). Le frosted derrière eux
+        // assure la lisibilité quand le contenu défile dessous.
+        position: "fixed",
         // `safe-area-inset-top` vaut ~44px en PWA standalone (status bar
         // iOS transparente grâce à `black-translucent`). Sans cet offset,
         // les boutons se retrouveraient sous l'heure iPhone.

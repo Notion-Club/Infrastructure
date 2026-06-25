@@ -3113,7 +3113,12 @@ html.dark .nc-lt-scrim {
    `position: absolute` (et non fixed) : le logo reste ancré en HAUT DE PAGE et
    défile avec le contenu — il ne survole jamais le contenu scrollé. */
 .nc-mobile-logo {
-  position: absolute;
+  /* `fixed` (et non `absolute`) : le logo reste ancré au viewport comme le
+     bandeau frosted (.nc-mobile-top-fade) et la BottomNav. En `absolute` il
+     défilait avec le document et « remontait » dans le bandeau fixe au scroll.
+     Rendu HORS de .nc-page-halo (cf. (app)/layout) → pas d'isolation parente
+     qui casserait le fixed. */
+  position: fixed;
   top: calc(12px + env(safe-area-inset-top, 0px));
   left: 16px;
   z-index: 41;
