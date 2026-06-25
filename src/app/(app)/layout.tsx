@@ -16,6 +16,7 @@ import { DevToolboxProvider } from "@/shared/components/dev/DevToolbox";
 import { AdminPushRegistrar } from "@/shared/components/dev/admin-push/AdminPushRegistrar";
 import { ProfileModalProvider } from "@/shared/components/profile/ProfileModalProvider";
 import { PwaInstallPrompt } from "@/shared/components/pwa/PwaInstallPrompt";
+import { ScrollLockBridge } from "@/shared/components/ScrollLockBridge";
 
 // Layout commun à toutes les pages connectées (dashboard, settings, communaute,
 // coaching, ressources). Server Component : on pré-fetch l'identity de l'user
@@ -70,6 +71,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <DevToolboxProvider>
         <ProfileModalProvider>
           <AdminPushRegistrar />
+          {/* Propage le verrou de scroll des modales (body → #app-scroll),
+              indispensable depuis que le scroll vit dans le shell. */}
+          <ScrollLockBridge />
+          {/* Chrome FIXE — rendu HORS du scroller (#app-scroll) pour rester
+              ancré au viewport pendant que le contenu défile derrière. */}
           <Topbar />
           <div className="md:hidden">
             {/* Zones de flou permanentes (toutes les pages connectées) :
@@ -82,7 +88,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <BottomNav />
             <div className="nc-mobile-bottom-fade" aria-hidden />
           </div>
-          {children}
+          {/* Conteneur de scroll UNIQUE des routes (app). Le document ne
+              scrolle jamais → barre de nav `fixed` 100% statique (Safari +
+              PWA). cf. docs/pwa/ios-safari-app-shell.md */}
+          <div id="app-scroll" className="nc-app-scroll">
+            {children}
+          </div>
           <FeedbackWidgetLoader />
           {/* Pop-up d'incitation à installer la PWA — s'ouvre auto quelques
               secondes après l'arrivée, sauf si déjà en mode standalone. */}
