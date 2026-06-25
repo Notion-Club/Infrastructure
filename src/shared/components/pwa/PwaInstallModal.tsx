@@ -80,17 +80,7 @@ export function PwaInstallModal({
       <div className="nc-pwa-backdrop" onClick={onDismiss} aria-hidden />
 
       <div className="nc-pwa-panel" data-fb-label="Pop-up installation PWA">
-        {/* Poignée (mobile) — clic = fermeture vers le bas. */}
-        <div
-          className="nc-pwa-grabber"
-          onClick={onDismiss}
-          role="button"
-          tabIndex={-1}
-          aria-label="Fermer"
-          data-fb-label="Poignée · Pop-up installation PWA"
-        />
-
-        {/* Croix liquid glass (toujours présente) — seul moyen de fermer sur iOS. */}
+        {/* Croix liquid glass — SEUL moyen de fermer (plus de poignée). */}
         <button
           type="button"
           className="nc-pwa-close"

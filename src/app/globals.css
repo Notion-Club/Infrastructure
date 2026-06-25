@@ -607,29 +607,7 @@ html {
   transform: translateY(0);
 }
 
-/* Poignée d'attrape (mobile) — EN OVERLAY au-dessus du haut de l'animation,
-   pour que le screen reste flush au bord supérieur (« sort du haut »). */
-.nc-pwa-grabber {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 5;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 9px 0;
-  cursor: pointer;
-}
-.nc-pwa-grabber::before {
-  content: "";
-  width: 40px;
-  height: 4px;
-  border-radius: 9999px;
-  /* Lisible par-dessus le contenu clair de l'animation. */
-  background: rgba(60, 60, 67, 0.32);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.35);
-}
+/* (Poignée d'attrape retirée — seule la croix ferme le pop-up.) */
 
 /* Croix de fermeture « liquid glass » — coin supérieur droit, posée sur la
    carte blanche de l'animation. Sur iOS, c'est le SEUL moyen de fermer (aucun
@@ -870,9 +848,6 @@ html {
   .nc-pwa-modal-root[data-open="true"] .nc-pwa-panel {
     transform: scale(1);
     opacity: 1;
-  }
-  .nc-pwa-grabber {
-    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -379,8 +379,12 @@ body{
 .ath-spacer{ display:none; }
 
 /* clavier AZERTY (light) */
-.ath-kb{ background:#d1d4db; padding:8px 3px 4px; flex:0 0 auto; }
-.ath-pred{ display:flex; height:44px; align-items:center; }
+/* padding-bas généreux → les touches remontent au-dessus des coins arrondis du
+   téléphone (plus masquées par les bords). La barre de suggestions est retirée
+   et son espace sert à ce relèvement. */
+.ath-kb{ background:#d1d4db; padding:8px 3px 52px; flex:0 0 auto; }
+/* Barre de mots suggérés retirée (demande produit). */
+.ath-pred{ display:none; }
 .ath-pred span{ flex:1; text-align:center; color:#1b1b1b; font-size:16px; position:relative; }
 .ath-pred span+span::before{ content:""; position:absolute; left:0; top:10px; bottom:10px; width:.5px; background:rgba(0,0,0,.16); }
 .ath-kbrow{ display:flex; gap:6px; margin:5px 3px; }
