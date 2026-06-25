@@ -3,12 +3,21 @@
 import { useContext, useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 
-import { ThemeContext } from "./ThemeProvider";
+import { ThemeContext, getResolvedTheme } from "./ThemeProvider";
 
 // `useLayoutEffect` avant paint côté client (pas de flash à la navigation),
 // `useEffect` côté serveur pour éviter le warning SSR React.
 const useIsoLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+// Aligne la classe `.dark` de <html> sur le thème résolu (source de vérité =
+// localStorage, lue en direct → pas de course avec le rendu React). Idempotent :
+// `toggle(force)` ne mute que si l'état change, donc pas de boucle avec le
+// MutationObserver qui l'appelle.
+function enforceThemeClass() {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("dark", getResolvedTheme() === "dark");
+}
 
 // ============================================================================
 // ThemeColorMeta — pilote dynamiquement <meta name="theme-color">.
@@ -117,17 +126,29 @@ export function ThemeColorMeta() {
   const theme = ctx?.theme ?? "light";
   const color = override ?? SURFACE_COLOR[theme];
 
-  // Persistance du thème à la navigation. Le `.dark` est posé impérativement
-  // sur <html> (ThemeProvider.applyTheme). À chaque navigation client, React
-  // peut réconcilier <html> et RETIRER cette classe (le className SSR ne la
-  // contient pas) → la nouvelle page repart en light (bandeaux qui
-  // redeviennent blancs en dark mode). On dépend de `usePathname` pour
-  // re-render à chaque route, et on RÉ-APPLIQUE la classe en useLayoutEffect
-  // (avant paint → aucun flash). Idempotent : sans strip, c'est un no-op.
+  // Persistance du thème — chemin RAPIDE (avant paint) à chaque navigation.
+  // Le `.dark` est posé impérativement sur <html> (ThemeProvider.applyTheme) ;
+  // React peut le RETIRER en réconciliant <html> à la navigation (le className
+  // SSR ne le contient pas) → page suivante en light, bandeaux blancs en dark.
+  // On ré-applique avant le paint pour éviter tout flash.
   useIsoLayoutEffect(() => {
-    if (typeof document === "undefined") return;
-    document.documentElement.classList.toggle("dark", theme === "dark");
+    enforceThemeClass();
   }, [pathname, theme]);
+
+  // Persistance du thème — garde PERMANENTE, hors cycle de rendu React. Le
+  // strip peut survenir dans un commit ULTÉRIEUR (streaming RSC, boundary de
+  // loading) après que l'effet ci-dessus a déjà tourné → l'effet ne suffit pas.
+  // Un MutationObserver sur la classe de <html> ré-applique la bonne classe
+  // quel que soit le moment du strip. Source = localStorage (pas de course).
+  useEffect(() => {
+    enforceThemeClass();
+    const observer = new MutationObserver(enforceThemeClass);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   // Écriture après paint : le premier rendu garde la balise statique (SSR),
   // puis on l'aligne sur le thème réel côté client.
