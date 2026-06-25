@@ -43,10 +43,12 @@ body{
 /* ===== Recadrage : on laisse assez de marge en haut pour voir l'INTÉGRALITÉ
    des feuilles qui s'affichent (feuille de partage : ses 2 premières lignes ;
    panneau « Sur l'écran d'accueil » : son bouton « Ajouter »). Pas de fondu :
-   le screen est net, du haut jusqu'au bas du cadre. ===== */
-:root{ --view-h:712px; }
-.frame{ position:relative; width:402px; height:var(--view-h); overflow:hidden; }
-.frame .ncb-phone{ position:absolute; left:0; bottom:0; margin:0; }
+   le screen est net, du haut jusqu'au bas du cadre.
+   --shadow-gap : espace blanc sous le téléphone DANS le cadre → son ombre
+   (coins arrondis) n'est plus rognée carrée par l'overflow. ===== */
+:root{ --view-h:700px; --shadow-gap:64px; }
+.frame{ position:relative; width:402px; height:calc(var(--view-h) + var(--shadow-gap)); overflow:hidden; }
+.frame .ncb-phone{ position:absolute; left:0; bottom:var(--shadow-gap); margin:0; }
 
 /* =====================================================================
    ╔══════════════════════════════════════════════════════════════╗
@@ -387,7 +389,8 @@ body{
 .ath-key--space{ flex:5; }
 .ath-key--return{ flex:1.7; background:#007aff; color:#fff; }
 .ath-space-a{ position:absolute; right:12px; bottom:6px; font-size:11px; color:rgba(0,0,0,.35); }
-.ath-globe{ display:flex; align-items:center; padding:6px 0 4px 14px; font-size:22px; color:#1b1b1b; }
+/* Globe du clavier retiré (demande produit). */
+.ath-globe{ display:none; }
 
 
 /* =====================================================================
@@ -883,10 +886,14 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms));
 /* ---- échelle + positionnement ---- */
 function fit(){
   /* Marge interne minime → le téléphone remplit au mieux la zone d'animation
-     (rendu showcase, plus grand). */
+     (rendu showcase, plus grand). On échelonne sur la hauteur TOTALE du cadre
+     (view-h + gap d'ombre) pour que l'ombre du bas reste visible, jamais
+     re-rognée par la carte hôte. */
+  const cs = getComputedStyle(document.documentElement);
   const pad = 6;
-  const vh = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--view-h')) || 690;
-  scale = Math.min(1, (innerHeight - pad*2)/vh, (innerWidth - pad*2)/402);
+  const vh  = parseFloat(cs.getPropertyValue('--view-h')) || 690;
+  const gap = parseFloat(cs.getPropertyValue('--shadow-gap')) || 0;
+  scale = Math.min(1, (innerHeight - pad*2)/(vh + gap), (innerWidth - pad*2)/402);
   scene.style.transform = `scale(${scale})`;
 }
 function place(){
