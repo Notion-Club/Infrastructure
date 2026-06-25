@@ -90,50 +90,55 @@ function getServerOverrideSnapshot(): string | null {
   return null;
 }
 
-// ── Persistance du thème + repaint des calques « glass » ────────────────────
-// Calques `backdrop-filter` dont la couleur de fond suit le thème via une
-// custom property (`--color-surface-page` / `--nc-bottom-nav-bg`).
-const GLASS_SELECTOR =
-  ".nc-mobile-top-fade, .nc-mobile-bottom-fade, .nc-bottom-nav";
+// ── Persistance du thème + couleur des calques « glass » ────────────────────
+//
+// Bug iOS/WebKit : un calque `backdrop-filter` NE se repeint PAS quand la
+// couleur de son `background` change via une CUSTOM PROPERTY d'un ancêtre
+// (ici `--color-surface-page` / `--nc-bottom-nav-bg` qui basculent avec `.dark`)
+// → les bandes restaient figées sur l'ancienne couleur jusqu'à un re-composite
+// (l'utilisateur devait tourner l'écran). Retirer/remettre `backdrop-filter`
+// NE suffit pas (iOS garde le fond peint en cache).
+//
+// Seule solution fiable : MUTER DIRECTEMENT le `background` de l'élément avec
+// une valeur EXPLICITE (pas une variable). Une mutation inline directe sur
+// l'élément invalide son rendu → iOS repeint, immédiatement.
+//
+// ⚠️ Les valeurs ci-dessous doivent rester synchro avec globals.css
+// (`.nc-mobile-top-fade`, `.nc-mobile-bottom-fade`, `--nc-bottom-nav-bg`).
+// Surfaces : light #f5f2f2 = rgb(245,242,242) · dark #141211 = rgb(20,18,17).
+const GLASS_BG: Record<string, { light: string; dark: string }> = {
+  ".nc-mobile-top-fade": {
+    light:
+      "linear-gradient(to bottom, rgba(245,242,242,0.72) 0%, rgba(245,242,242,0.26) 50%, transparent 100%)",
+    dark: "linear-gradient(to bottom, rgba(20,18,17,0.72) 0%, rgba(20,18,17,0.26) 50%, transparent 100%)",
+  },
+  ".nc-mobile-bottom-fade": {
+    light:
+      "linear-gradient(to top, rgba(245,242,242,1) 0%, rgba(245,242,242,0.55) 55%, transparent 100%)",
+    dark: "linear-gradient(to top, rgba(20,18,17,1) 0%, rgba(20,18,17,0.55) 55%, transparent 100%)",
+  },
+  ".nc-bottom-nav": {
+    light: "rgba(255,255,255,0.92)",
+    dark: "rgba(28,25,23,0.88)",
+  },
+};
 
-// Bug iOS/WebKit : un calque `backdrop-filter` NE se repeint PAS quand une
-// custom property de son `background` change → au passage en dark, ces bandes
-// restent figées sur l'ancienne couleur jusqu'à un re-composite (l'utilisateur
-// devait tourner l'écran en paysage). On force le re-composite : on retire le
-// filtre une frame, on le restaure à la suivante → repaint avec la bonne
-// couleur. On sauvegarde/restaure la valeur calculée (CSS pour les fondus,
-// inline pour la BottomNav) pour ne casser ni l'un ni l'autre.
-function repaintGlassLayers() {
+function applyGlassTheme(dark: boolean) {
   if (typeof document === "undefined") return;
-  const els = Array.from(
-    document.querySelectorAll<HTMLElement>(GLASS_SELECTOR),
-  );
-  if (els.length === 0) return;
-  for (const el of els) {
-    const gcs = getComputedStyle(el);
-    el.dataset.ncGlass =
-      gcs.getPropertyValue("backdrop-filter") ||
-      gcs.getPropertyValue("-webkit-backdrop-filter") ||
-      "";
-    el.style.setProperty("backdrop-filter", "none");
-    el.style.setProperty("-webkit-backdrop-filter", "none");
+  for (const selector of Object.keys(GLASS_BG)) {
+    const bg = dark ? GLASS_BG[selector].dark : GLASS_BG[selector].light;
+    document
+      .querySelectorAll<HTMLElement>(selector)
+      .forEach((el) => el.style.setProperty("background", bg));
   }
-  requestAnimationFrame(() => {
-    for (const el of els) {
-      const value = el.dataset.ncGlass ?? "";
-      el.style.setProperty("backdrop-filter", value);
-      el.style.setProperty("-webkit-backdrop-filter", value);
-      delete el.dataset.ncGlass;
-    }
-  });
 }
 
 let lastEnforcedDark: boolean | null = null;
 
 // Aligne `.dark` de <html> sur le thème résolu (source = localStorage, lue en
-// direct → pas de course avec le rendu/streaming React) ET re-composite les
-// calques glass figés à chaque bascule. Idempotent (`toggle(force)` ne mute
-// que si l'état change → pas de boucle avec le MutationObserver).
+// direct → pas de course avec le rendu/streaming React) ET ré-applique la
+// couleur explicite des bandes glass à chaque bascule. Idempotent
+// (`toggle(force)` ne mute que si l'état change → pas de boucle avec l'observer).
 function enforceTheme() {
   if (typeof document === "undefined") return;
   const dark = getResolvedTheme() === "dark";
@@ -143,7 +148,7 @@ function enforceTheme() {
   }
   if (lastEnforcedDark !== dark) {
     lastEnforcedDark = dark;
-    repaintGlassLayers();
+    applyGlassTheme(dark);
   }
 }
 
