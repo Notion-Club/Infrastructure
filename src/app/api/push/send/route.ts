@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { sendWebPushToUser } from "@/shared/lib/push/webPush";
+import { createAdminPushNotifications } from "@/shared/lib/push/inAppNotification";
 
 const sendSchema = z.object({
   userId: z.string().uuid(),
@@ -53,6 +54,16 @@ export async function POST(request: NextRequest) {
       tag: parsed.tag,
       data: parsed.url ? { url: parsed.url } : undefined,
     });
+
+    // Trace in-app : le push doit aussi apparaître dans la cloche du
+    // destinataire (Realtime → badge live), même si aucun device n'avait de
+    // souscription active. Fire-and-forget — n'impacte pas la réponse.
+    await createAdminPushNotifications([parsed.userId], {
+      title: parsed.title,
+      body: parsed.body,
+      link: parsed.url,
+    });
+
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json(

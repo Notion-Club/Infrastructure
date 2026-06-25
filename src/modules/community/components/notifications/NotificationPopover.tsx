@@ -16,7 +16,27 @@ const NOTIF_LABELS: Record<Notification["type"], string> = {
   reaction_on_post: "a réagi à ton post",
   new_dm: "t'a envoyé un message",
   admin_annonce: "a publié une annonce",
+  // admin_push : le rendu utilise n.title (pas de verbe acteur). Libellé
+  // présent uniquement pour l'exhaustivité du Record.
+  admin_push: "",
 };
+
+// Deep-link d'un push admin : le lien stocké peut être une URL absolue
+// (construite côté outil admin) ou un chemin relatif. On normalise vers un
+// chemin relatif same-origin pour une navigation client Next propre ; un lien
+// externe (autre origine) est renvoyé tel quel.
+function toRelativeHref(link: string): string {
+  if (!/^https?:\/\//i.test(link)) return link; // déjà relatif
+  try {
+    const url = new URL(link);
+    if (typeof window !== "undefined" && url.origin !== window.location.origin) {
+      return link; // lien externe → on garde l'URL absolue
+    }
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return link;
+  }
+}
 
 // Onglets du centre — chaque catégorie a son icône SVG (public/icons-notion).
 // Les SVG sont posés en masque CSS (.nc-notif-seg-icon) → recolorés par
@@ -113,6 +133,20 @@ export function NotificationPopover({
 
   function handleNotifClick(n: Notification) {
     markAsRead(n.id);
+    if (n.type === "admin_push") {
+      // Push admin : deep-link libre (n.link). Sans lien, la notif est
+      // purement informative — on referme juste le popover.
+      if (n.link) {
+        const href = toRelativeHref(n.link);
+        if (/^https?:\/\//i.test(href)) {
+          window.open(href, "_blank", "noopener,noreferrer");
+        } else {
+          router.push(href);
+        }
+      }
+      close();
+      return;
+    }
     if (n.conversationId) {
       // Le segment accepte un convId : MessagesLayout résout la conv puis
       // normalise l'URL vers /messages/<username>.
@@ -388,7 +422,24 @@ export function NotificationPopover({
                   }}
                 >
                   <div style={{ position: "relative", flexShrink: 0 }}>
-                    {n.actorAvatar ? (
+                    {n.type === "admin_push" ? (
+                      // Push admin/système : pas d'acteur → pastille de marque
+                      // avec la cloche, identité Notion Club cohérente.
+                      <div
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: "50%",
+                          background: "var(--color-brand)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#fff",
+                        }}
+                      >
+                        <Bell size={18} />
+                      </div>
+                    ) : n.actorAvatar ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={n.actorAvatar}
@@ -430,12 +481,32 @@ export function NotificationPopover({
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-primary)", lineHeight: 1.4 }}>
-                      <strong>{n.actorName}</strong>{" "}
-                      {NOTIF_LABELS[n.type]}{" "}
-                      {n.excerpt && (
-                        <span style={{ color: "var(--color-text-secondary)" }}>
-                          &ldquo;{n.excerpt.slice(0, 40)}{n.excerpt.length > 40 ? "…" : ""}&rdquo;
-                        </span>
+                      {n.type === "admin_push" ? (
+                        // Push admin : titre libre en gras, corps en dessous.
+                        <>
+                          <strong>{n.title || "Notion Club"}</strong>
+                          {n.excerpt && (
+                            <span
+                              style={{
+                                display: "block",
+                                marginTop: 2,
+                                color: "var(--color-text-secondary)",
+                              }}
+                            >
+                              {n.excerpt}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <strong>{n.actorName}</strong>{" "}
+                          {NOTIF_LABELS[n.type]}{" "}
+                          {n.excerpt && (
+                            <span style={{ color: "var(--color-text-secondary)" }}>
+                              &ldquo;{n.excerpt.slice(0, 40)}{n.excerpt.length > 40 ? "…" : ""}&rdquo;
+                            </span>
+                          )}
+                        </>
                       )}
                     </p>
                     <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--color-text-muted)" }}>

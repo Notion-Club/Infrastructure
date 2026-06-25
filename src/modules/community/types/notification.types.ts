@@ -5,7 +5,9 @@ export type NotificationType =
   | "reply_to_comment"
   | "reaction_on_post"
   | "new_dm"
-  | "admin_annonce";
+  | "admin_annonce"
+  // Push admin/système (mig. 044) : titre + lien libres, sans acteur.
+  | "admin_push";
 
 export interface Notification {
   id: string;
@@ -20,6 +22,16 @@ export interface Notification {
   excerpt: string;
   postId?: string;
   conversationId?: string;
+  /**
+   * Titre libre — uniquement pour les push admin (type admin_push). Les notifs
+   * community laissent ce champ vide (titre dérivé acteur + verbe côté UI).
+   */
+  title?: string;
+  /**
+   * Deep-link libre ouvert au tap — uniquement pour les push admin. Les notifs
+   * community déduisent leur lien de postId / conversationId.
+   */
+  link?: string;
   read: boolean;
   createdAt: string;
 }
