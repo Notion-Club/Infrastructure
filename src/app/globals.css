@@ -187,8 +187,8 @@ html {
    Dark mode — overrides des classes utilitaires NC
    ══════════════════════════════════════════════════════════ */
 
-/* Halo de page — supprimé en dark mode (fond uni warm near-black #141211) */
-.dark .nc-page-halo::before {
+/* Fond de marque — supprimé en dark mode (fond uni warm near-black #141211) */
+.dark .nc-app-bg {
   background: none;
 }
 
@@ -1060,7 +1060,12 @@ html {
 }
 
 .nc-page-halo {
-  background-color: var(--color-surface-page);
+  /* Fond géré GLOBALEMENT par `.nc-app-bg` (root layout) → transparent ici.
+     Avant, le dégradé vivait dans `::before { position: fixed }` DANS ce halo
+     `isolation: isolate` → clippé à la boîte de la page → bande plate hors
+     boîte (overscroll / au-delà de 100lvh). En le sortant en fond global, la
+     couverture est uniforme et sans seam. */
+  background-color: transparent;
   position: relative;
   isolation: isolate;
   /*
@@ -1080,8 +1085,12 @@ html {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-.nc-page-halo::before {
-  content: "";
+/* Fond de marque GLOBAL — monté une seule fois (root layout), couvre tout le
+   viewport en permanence (`position: fixed; inset: 0`), hors de toute boîte
+   isolée → couverture uniforme, aucun seam ni bande plate. Remplace l'ancien
+   `.nc-page-halo::before`. La couleur de base vient de html/body
+   (--color-surface-page), ce calque n'ajoute QUE les accents dégradés. */
+.nc-app-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
@@ -3104,7 +3113,12 @@ html.dark .nc-lt-scrim {
    `position: absolute` (et non fixed) : le logo reste ancré en HAUT DE PAGE et
    défile avec le contenu — il ne survole jamais le contenu scrollé. */
 .nc-mobile-logo {
-  position: absolute;
+  /* `fixed` (et non `absolute`) : le logo reste ancré au viewport comme le
+     bandeau frosted (.nc-mobile-top-fade) et la BottomNav. En `absolute` il
+     défilait avec le document et « remontait » dans le bandeau fixe au scroll.
+     Rendu HORS de .nc-page-halo (cf. (app)/layout) → pas d'isolation parente
+     qui casserait le fixed. */
+  position: fixed;
   top: calc(12px + env(safe-area-inset-top, 0px));
   left: 16px;
   z-index: 41;
@@ -3123,24 +3137,29 @@ html.dark .nc-lt-scrim {
      lieu de le « précéder » crispés. Le dégradé/masque garde le bas transparent
      pour que les éléments restent nets à leur position de repos (12px) et ne se
      floutent qu'en remontant vers le haut de l'écran. */
+  /* Voile haut — fin et discret. `z-index: 39` le place DERRIÈRE le logo (41)
+     et l'avatar (40) → il ne les chevauche plus (avant z-42 passait par-dessus
+     les icônes). Blur et opacité réduits : il adoucit juste la coupure du
+     contenu qui défile sous le chrome fixe, sans masse de flou. Couleur
+     thème-aware conservée (continuité du fond en light comme en dark). */
   .nc-mobile-top-fade {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: calc(env(safe-area-inset-top, 0px) + 60px);
-    z-index: 42;
+    height: calc(env(safe-area-inset-top, 0px) + 54px);
+    z-index: 39;
     pointer-events: none;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     background: linear-gradient(
       to bottom,
-      var(--color-surface-page) 0,
-      color-mix(in srgb, var(--color-surface-page) 50%, transparent) 45%,
+      color-mix(in srgb, var(--color-surface-page) 72%, transparent) 0,
+      color-mix(in srgb, var(--color-surface-page) 26%, transparent) 50%,
       transparent 100%
     );
-    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 28%, transparent 72%);
-    mask-image: linear-gradient(to bottom, #000 0, #000 28%, transparent 72%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 22%, transparent 80%);
+    mask-image: linear-gradient(to bottom, #000 0, #000 22%, transparent 80%);
   }
 
   /* Fondu bas : le contenu se dissout sous la BottomNav (z-50). z-index 44 =
