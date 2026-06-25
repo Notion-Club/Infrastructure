@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowReturn } from '@/shared/components/icons';
 
 interface BreadcrumbItem {
   label: string;
@@ -39,7 +39,7 @@ export function ResourceBreadcrumb({ items }: ResourceBreadcrumbProps) {
         }}
         className="hover:bg-[#eaeaea] hover:text-[var(--color-text-primary)]"
       >
-        <ArrowLeft size={13} strokeWidth={2.25} />
+        <ArrowReturn size={13} />
         Revenir à Ressources
       </button>
 

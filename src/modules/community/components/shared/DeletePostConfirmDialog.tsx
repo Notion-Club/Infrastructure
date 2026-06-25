@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { Trash2 } from "lucide-react";
+import { Trash } from "@/shared/components/icons";
 import { useModalTransition } from "@/shared/lib/hooks/useModalTransition";
 
 interface DeletePostConfirmDialogProps {
@@ -58,7 +58,7 @@ export function DeletePostConfirmDialog({ onConfirm, onCancel }: DeletePostConfi
             alignSelf: "center",
           }}
         >
-          <Trash2 size={22} color="var(--color-brand)" />
+          <Trash size={22} color="var(--color-brand)" />
         </div>
 
         {/* Text */}

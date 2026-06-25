@@ -2,8 +2,10 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Flag, LoaderCircle, LogOut, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Flag, LoaderCircle, LogOut } from "lucide-react";
 import { toast } from "sonner";
+
+import { Trash } from "@/shared/components/icons";
 
 import {
   ACCOUNT_DELETION_CONFIRMATION_PHRASE,
@@ -94,7 +96,7 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
           }}
           className="hover:bg-[rgba(224,98,90,0.06)]"
         >
-          <Trash2 size={14} />
+          <Trash size={14} />
           Supprimer mon compte
         </button>
       </div>
@@ -228,7 +230,7 @@ function DeleteAccountModal({
               gap: 10,
             }}
           >
-            <Trash2 size={18} style={{ color: "var(--color-brand)" }} />
+            <Trash size={18} style={{ color: "var(--color-brand)" }} />
             Supprimer le compte
           </h2>
           <p

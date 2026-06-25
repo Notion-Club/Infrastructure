@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import {
-  ArrowLeft,
   ArrowUpRight,
   CalendarDays,
   CircleDot,
@@ -14,6 +13,8 @@ import {
   Tag,
   X,
 } from "lucide-react";
+
+import { ArrowReturn } from "@/shared/components/icons";
 
 import { InvoicePreview } from "./InvoicePreview";
 import {
@@ -85,7 +86,7 @@ export function InvoiceDetail({
           aria-label="Retour aux paiements"
           data-fb-label="Retour · Détail facture"
         >
-          <ArrowLeft size={16} />
+          <ArrowReturn size={16} />
         </button>
         <button
           type="button"

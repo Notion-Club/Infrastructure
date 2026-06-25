@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowReturn } from "@/shared/components/icons";
 import { toast } from "sonner";
 import type { Post } from "../types/post.types";
 import type { Comment } from "../types/comment.types";
@@ -138,7 +138,7 @@ export function CommunityPostDetailPage({
         }}
         className="hover:bg-[#eaeaea] hover:text-[var(--color-text-primary)] dark:hover:bg-[rgba(255,255,255,0.10)]"
       >
-        <ArrowLeft size={14} strokeWidth={2.25} />
+        <ArrowReturn size={14} />
         Retour à la communauté
       </button>
 

@@ -1,4 +1,4 @@
-import { Blocks } from "lucide-react";
+import { ExternalDrive } from "@/shared/components/icons";
 
 import { SettingsCard } from "./SettingsCard";
 import { IntegrationCard } from "./SecuritySection";
@@ -17,7 +17,7 @@ export function IntegrationsSection({
   return (
     <SettingsCard
       title="Intégrations"
-      iconNode={<Blocks size={20} strokeWidth={2} />}
+      iconNode={<ExternalDrive size={20} />}
       description="Connecte tes outils au Notion Club."
       fbLabel="Section intégrations · Réglages"
       embedded={embedded}

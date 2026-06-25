@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bold, Italic, List, Link, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { Bold, Italic, ListBullet, Link, Photo } from "@/shared/components/icons";
 import { toast } from "sonner";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
@@ -97,7 +98,7 @@ export function CommentComposer({
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   // Loader pendant l'upload d'image vers Supabase Storage. Pas de spinner
   // distinct dans l'UI courante — on désactive juste le bouton et on toggle
-  // une icône Loader2 en place de ImageIcon.
+  // une icône Loader2 en place de Photo.
   const [uploadingImage, setUploadingImage] = useState(false);
   // Image en attente de publication — pattern Slack : on upload immédiatement
   // vers Supabase Storage, on affiche une preview sous le textarea, et au
@@ -332,7 +333,7 @@ export function CommentComposer({
             {[
               { Icon: Bold, title: "Gras", cmd: "bold" },
               { Icon: Italic, title: "Italique", cmd: "italic" },
-              { Icon: List, title: "Liste", cmd: "insertUnorderedList" },
+              { Icon: ListBullet, title: "Liste", cmd: "insertUnorderedList" },
             ].map(({ Icon, title, cmd }) => (
               <button
                 key={cmd}
@@ -407,7 +408,7 @@ export function CommentComposer({
               }}
               className={uploadingImage ? "" : "hover:bg-[rgba(0,0,0,0.06)]"}
             >
-              {uploadingImage ? <Loader2 size={13} className="animate-spin" /> : <ImageIcon size={13} />}
+              {uploadingImage ? <Loader2 size={13} className="animate-spin" /> : <Photo size={13} />}
             </button>
             {/* Bouton vidéo retiré — décision produit 2026-06-02 (Théo).
                 Le preview vidéo est toujours auto-détecté à partir d'un

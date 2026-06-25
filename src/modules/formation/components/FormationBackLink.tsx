@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowReturn } from "@/shared/components/icons";
 
 import { startLessonTransition } from "./LessonTransition";
 
@@ -48,7 +48,7 @@ export function FormationBackLink() {
       }}
       className="hover:bg-[#eaeaea] hover:text-[var(--color-text-primary)]"
     >
-      <ArrowLeft size={13} strokeWidth={2.25} /> Tous les programmes
+      <ArrowReturn size={13} /> Tous les programmes
     </button>
   );
 }

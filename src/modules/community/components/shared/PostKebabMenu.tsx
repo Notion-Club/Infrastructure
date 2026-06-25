@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, PinOff } from "lucide-react";
+import { PinFill, Trash } from "@/shared/components/icons";
 import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
 
 interface PostKebabMenuProps {
@@ -113,7 +114,7 @@ export function PostKebabMenu({ onEdit, onDelete, onTogglePin, pinned }: PostKeb
               }}
               className="hover:bg-[#f5f5f5] dark:hover:bg-[rgba(255,255,255,0.08)]"
             >
-              {pinned ? <PinOff size={14} /> : <Pin size={14} />}
+              {pinned ? <PinOff size={14} /> : <PinFill size={14} />}
               {pinned ? "Désépingler" : "Épingler"}
             </button>
           )}
@@ -138,7 +139,7 @@ export function PostKebabMenu({ onEdit, onDelete, onTogglePin, pinned }: PostKeb
               }}
               className="hover:bg-[rgba(224,98,90,0.06)] dark:hover:bg-[rgba(224,98,90,0.14)]"
             >
-              <Trash2 size={14} /> Supprimer
+              <Trash size={14} /> Supprimer
             </button>
           )}
         </div>

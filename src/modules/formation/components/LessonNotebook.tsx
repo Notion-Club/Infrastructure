@@ -3,18 +3,23 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
-  Bold,
   Check,
-  FileText,
-  Image as ImageIcon,
-  Italic,
-  LayoutTemplate,
   Lightbulb,
-  Link as LinkIcon,
-  List,
-  Pencil,
   Video as VideoIcon,
 } from "lucide-react";
+
+import {
+  Bold,
+  BookWrench,
+  CharacterTextboxSparkles,
+  Italic,
+  Link,
+  ListBullet,
+  PencilScribble,
+  Photo,
+  SparkleClipboard,
+  Templates,
+} from "@/shared/components/icons";
 
 import { toEmbedSrc } from "@/shared/lib/notion/video";
 import type { LessonResourceLink } from "../server/notion";
@@ -111,21 +116,21 @@ export function LessonNotebook({ synthese, resources, courseId, initialNote }: P
           buttonRef={(el) => { itemRefs.current[0] = el; }}
           active={tab === "notes"}
           onClick={() => { lastClickedRef.current = 0; moveTo(0, true); setTab("notes"); }}
-          icon={<Pencil size={15} strokeWidth={tab === "notes" ? 2.5 : 2} />}
+          icon={<PencilScribble size={15} />}
           label="Mes notes"
         />
         <SwitchButton
           buttonRef={(el) => { itemRefs.current[1] = el; }}
           active={tab === "synthese"}
           onClick={() => { lastClickedRef.current = 1; moveTo(1, true); setTab("synthese"); }}
-          icon={<Lightbulb size={15} strokeWidth={tab === "synthese" ? 2.5 : 2} />}
+          icon={<CharacterTextboxSparkles size={15} />}
           label="À garder en tête"
         />
         <SwitchButton
           buttonRef={(el) => { itemRefs.current[2] = el; }}
           active={tab === "resources"}
           onClick={() => { lastClickedRef.current = 2; moveTo(2, true); setTab("resources"); }}
-          icon={<FileText size={15} strokeWidth={tab === "resources" ? 2.5 : 2} />}
+          icon={<BookWrench size={15} />}
           label="Ressources"
           badge={resources.length}
         />
@@ -218,7 +223,7 @@ function EmptyState({
   title,
   subtitle,
 }: {
-  icon: typeof Lightbulb;
+  icon: React.ComponentType<{ size?: number }>;
   title: string;
   subtitle: string;
 }) {
@@ -310,7 +315,7 @@ function ResourcesPanel({ items }: { items: LessonResourceLink[] }) {
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={FileText}
+        icon={SparkleClipboard}
         title="Aucune ressource liée"
         subtitle="Les ressources et templates rattachés à ce cours apparaîtront ici."
       />
@@ -320,7 +325,7 @@ function ResourcesPanel({ items }: { items: LessonResourceLink[] }) {
     <div>
       {items.map((item, i) => {
         const cat = CATEGORY[item.category];
-        const Icon = item.category === "template" ? LayoutTemplate : FileText;
+        const Icon = item.category === "template" ? Templates : SparkleClipboard;
         return (
           <a
             key={item.notionId}
@@ -469,9 +474,9 @@ function RichTextNotes({ courseId, initialNote }: { courseId: string; initialNot
       >
         <ToolbarButton onClick={() => exec("bold")} title="Gras"><Bold size={15} /></ToolbarButton>
         <ToolbarButton onClick={() => exec("italic")} title="Italique"><Italic size={15} /></ToolbarButton>
-        <ToolbarButton onClick={() => exec("insertUnorderedList")} title="Liste"><List size={15} /></ToolbarButton>
-        <ToolbarButton onClick={addLink} title="Lien"><LinkIcon size={15} /></ToolbarButton>
-        <ToolbarButton onClick={addImage} title="Image"><ImageIcon size={15} /></ToolbarButton>
+        <ToolbarButton onClick={() => exec("insertUnorderedList")} title="Liste"><ListBullet size={15} /></ToolbarButton>
+        <ToolbarButton onClick={addLink} title="Lien"><Link size={15} /></ToolbarButton>
+        <ToolbarButton onClick={addImage} title="Image"><Photo size={15} /></ToolbarButton>
         <ToolbarButton onClick={addVideo} title="Vidéo"><VideoIcon size={15} /></ToolbarButton>
         <span
           style={{
