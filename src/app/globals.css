@@ -187,8 +187,8 @@ html {
    Dark mode — overrides des classes utilitaires NC
    ══════════════════════════════════════════════════════════ */
 
-/* Halo de page — supprimé en dark mode (fond uni warm near-black #141211) */
-.dark .nc-page-halo::before {
+/* Fond de marque — supprimé en dark mode (fond uni warm near-black #141211) */
+.dark .nc-app-bg {
   background: none;
 }
 
@@ -1060,7 +1060,12 @@ html {
 }
 
 .nc-page-halo {
-  background-color: var(--color-surface-page);
+  /* Fond géré GLOBALEMENT par `.nc-app-bg` (root layout) → transparent ici.
+     Avant, le dégradé vivait dans `::before { position: fixed }` DANS ce halo
+     `isolation: isolate` → clippé à la boîte de la page → bande plate hors
+     boîte (overscroll / au-delà de 100lvh). En le sortant en fond global, la
+     couverture est uniforme et sans seam. */
+  background-color: transparent;
   position: relative;
   isolation: isolate;
   /*
@@ -1080,8 +1085,12 @@ html {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-.nc-page-halo::before {
-  content: "";
+/* Fond de marque GLOBAL — monté une seule fois (root layout), couvre tout le
+   viewport en permanence (`position: fixed; inset: 0`), hors de toute boîte
+   isolée → couverture uniforme, aucun seam ni bande plate. Remplace l'ancien
+   `.nc-page-halo::before`. La couleur de base vient de html/body
+   (--color-surface-page), ce calque n'ajoute QUE les accents dégradés. */
+.nc-app-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
