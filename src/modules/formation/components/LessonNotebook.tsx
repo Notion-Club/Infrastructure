@@ -10,7 +10,6 @@ import {
 
 import {
   Bold,
-  BookWrench,
   CharacterTextboxSparkles,
   Italic,
   Link,
@@ -19,6 +18,7 @@ import {
   Photo,
   SparkleClipboard,
   Templates,
+  WrenchScrewdriver,
 } from "@/shared/components/icons";
 
 import { toEmbedSrc } from "@/shared/lib/notion/video";
@@ -130,7 +130,7 @@ export function LessonNotebook({ synthese, resources, courseId, initialNote }: P
           buttonRef={(el) => { itemRefs.current[2] = el; }}
           active={tab === "resources"}
           onClick={() => { lastClickedRef.current = 2; moveTo(2, true); setTab("resources"); }}
-          icon={<BookWrench size={15} />}
+          icon={<WrenchScrewdriver size={15} />}
           label="Ressources"
           badge={resources.length}
         />
