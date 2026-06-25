@@ -149,7 +149,7 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", position: "relative", zIndex: 2 }}>
         <button
           type="button"
-          onClick={() => go(resumeHref)}
+          onClick={() => go(completed ? detailHref : resumeHref)}
           data-fb-label="Bouton Reprendre · Carte programme"
           style={{
             background: "var(--color-brand)",

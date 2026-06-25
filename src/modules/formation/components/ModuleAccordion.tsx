@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Circle,
   Lock,
+  MapPin,
   Play,
   Sparkles,
 } from "lucide-react";
@@ -22,6 +23,9 @@ type Props = {
   // Deep-link depuis le fil d'Ariane d'une leçon : le module démarre fermé
   // puis se déplie tout seul (et scroll dans le viewport) au montage.
   animateOpen?: boolean;
+  // Module où l'utilisateur s'est arrêté (contient la prochaine leçon à suivre)
+  // → pastille « Tu t'es arrêté ici » dans le coin supérieur droit de l'encadré.
+  isResumePoint?: boolean;
 };
 
 export function ModuleAccordion({
@@ -29,6 +33,7 @@ export function ModuleAccordion({
   module,
   defaultOpen = false,
   animateOpen = false,
+  isResumePoint = false,
 }: Props) {
   // animateOpen → on part fermé pour rejouer l'animation de dépliage au montage.
   const [open, setOpen] = useState(defaultOpen && !animateOpen);
@@ -68,6 +73,7 @@ export function ModuleAccordion({
       ref={rootRef}
       data-fb-label={`Accordéon module « ${module.name} » · Page programme`}
       style={{
+        position: "relative",
         background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         borderRadius: 18,
@@ -77,6 +83,32 @@ export function ModuleAccordion({
         scrollMarginTop: 120,
       }}
     >
+      {isResumePoint && (
+        <span
+          data-fb-label="Pastille « Tu t'es arrêté ici » · Accordéon module"
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 12,
+            zIndex: 2,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "4px 10px",
+            borderRadius: 9999,
+            background: "var(--color-brand)",
+            color: "white",
+            fontSize: 11,
+            fontWeight: 600,
+            lineHeight: 1,
+            whiteSpace: "nowrap",
+            boxShadow: "var(--nc-shadow-3)",
+            pointerEvents: "none",
+          }}
+        >
+          <MapPin size={11} strokeWidth={2.4} /> Tu t&apos;es arrêté ici
+        </span>
+      )}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
