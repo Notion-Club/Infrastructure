@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import type { LessonNeighbour } from "../types";
 import { markCourseCompleted } from "../server/actions";
 import { startLessonTransition } from "./LessonTransition";
+import { scrollAppToTop } from "@/shared/lib/appScroll";
 
 type Props = {
   programSlug: string;
@@ -38,7 +39,7 @@ export function LessonNavigation({
     // Voile de transition (sans feedback) : masque l'ancien cours pendant le
     // chargement du suivant, puis révèle.
     startLessonTransition();
-    window.scrollTo({ top: 0, behavior: "instant" });
+    scrollAppToTop("instant");
     router.push(`/formation/${programSlug}/${n.moduleSlug}/${n.courseSlug}`);
   }
 
@@ -50,7 +51,7 @@ export function LessonNavigation({
       startLessonTransition({
         feedback: { courseName, formationName, moduleName },
       });
-      window.scrollTo({ top: 0, behavior: "instant" });
+      scrollAppToTop("instant");
     }
     startTransition(async () => {
       if (!done) {

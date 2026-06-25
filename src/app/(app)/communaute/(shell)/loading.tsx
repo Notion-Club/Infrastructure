@@ -25,7 +25,7 @@ const pulse: React.CSSProperties = {
 export default function CommunauteLoading() {
   return (
     <div
-      className="flex flex-col h-dvh overflow-hidden"
+      className="flex flex-col h-full overflow-hidden"
       style={{
         backgroundColor: "var(--color-surface-page)",
         // Parité avec `.nc-page-halo` (PWA standalone iOS) : sans ce padding,

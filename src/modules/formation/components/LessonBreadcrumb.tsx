@@ -13,6 +13,7 @@ import { GraduationCap, ListBulletBelowRectangle } from "@/shared/components/ico
 
 import { Tree, Folder, File } from "@/shared/components/ui/file-tree";
 import { startLessonTransition } from "./LessonTransition";
+import { scrollAppToTop } from "@/shared/lib/appScroll";
 import type { LessonTreeModule } from "../types";
 
 type Props = {
@@ -79,7 +80,7 @@ export function LessonBreadcrumb({
     setClosing(false);
     if (isLesson) {
       startLessonTransition();
-      window.scrollTo({ top: 0, behavior: "instant" });
+      scrollAppToTop("instant");
     }
     startTransition(() => router.push(href));
   }
