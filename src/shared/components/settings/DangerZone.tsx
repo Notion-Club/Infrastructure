@@ -2,10 +2,13 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Flag, LoaderCircle, LogOut } from "lucide-react";
+import { Eye, EyeOff, Flag, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
-import { Trash } from "@/shared/components/icons";
+import {
+  IphoneArrowForward,
+  PersonBadgeMinus,
+} from "@/shared/components/icons";
 
 import {
   ACCOUNT_DELETION_CONFIRMATION_PHRASE,
@@ -71,7 +74,7 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
           {signingOut ? (
             <LoaderCircle size={14} className="animate-spin" />
           ) : (
-            <LogOut size={14} />
+            <IphoneArrowForward size={14} />
           )}
           {signingOut ? "Déconnexion…" : "Se déconnecter"}
         </button>
@@ -96,7 +99,7 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
           }}
           className="hover:bg-[rgba(224,98,90,0.06)]"
         >
-          <Trash size={14} />
+          <PersonBadgeMinus size={14} />
           Supprimer mon compte
         </button>
       </div>
@@ -230,7 +233,7 @@ function DeleteAccountModal({
               gap: 10,
             }}
           >
-            <Trash size={18} style={{ color: "var(--color-brand)" }} />
+            <PersonBadgeMinus size={18} style={{ color: "var(--color-brand)" }} />
             Supprimer le compte
           </h2>
           <p

@@ -1,6 +1,7 @@
-// Library d'icônes in-app (SF Symbols Apple). SVG d'origine dans ./source/
+// Library d'icônes in-app (SF Symbols Apple), normalisées 24×24. SVG d'origine dans ./source/
 export { ClockArrowRight } from "./ClockArrowRight";
 export { ArrowReturn } from "./ArrowReturn";
+export { At } from "./At";
 export { Bell } from "./Bell";
 export { Bold } from "./Bold";
 export { BookWrench } from "./BookWrench";
@@ -14,20 +15,29 @@ export { FaceId } from "./FaceId";
 export { Gear } from "./Gear";
 export { GraduationCap } from "./GraduationCap";
 export { House } from "./House";
+export { Iphone } from "./Iphone";
+export { IphoneArrowForward } from "./IphoneArrowForward";
+export { IphoneRadiowaves } from "./IphoneRadiowaves";
 export { Italic } from "./Italic";
 export { Link } from "./Link";
 export { ListBullet } from "./ListBullet";
 export { ListBulletBelowRectangle } from "./ListBulletBelowRectangle";
 export { Lock } from "./Lock";
+export { LockCircleDotted } from "./LockCircleDotted";
 export { MessageBadge } from "./MessageBadge";
+export { Moon } from "./Moon";
+export { PaperplaneFill } from "./PaperplaneFill";
 export { PartyPopper } from "./PartyPopper";
 export { PencilScribble } from "./PencilScribble";
+export { PersonBadgeMinus } from "./PersonBadgeMinus";
 export { PersonCircleFill } from "./PersonCircleFill";
 export { Photo } from "./Photo";
 export { PinFill } from "./PinFill";
+export { PlusMessage } from "./PlusMessage";
 export { SharedWithYou } from "./SharedWithYou";
 export { SparkleClipboard } from "./SparkleClipboard";
 export { Sparkles } from "./Sparkles";
+export { SunMax } from "./SunMax";
 export { Templates } from "./Templates";
 export { Trash } from "./Trash";
 export { Waveform } from "./Waveform";

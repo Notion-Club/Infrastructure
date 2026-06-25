@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Paperclip, Send, X, FileText, Loader2, Reply as ReplyIcon } from "lucide-react";
+import { Paperclip, X, FileText, Loader2, Reply as ReplyIcon } from "lucide-react";
+import { PaperplaneFill } from "@/shared/components/icons";
 import { toast } from "sonner";
 import { uploadDmFileAction } from "../../server/actions";
 
@@ -516,7 +517,7 @@ export function MessageComposer({
           }}
           aria-label="Envoyer"
         >
-          <Send size={16} />
+          <PaperplaneFill size={16} />
         </button>
       </div>
 
