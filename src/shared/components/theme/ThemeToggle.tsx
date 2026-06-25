@@ -1,7 +1,8 @@
 "use client";
 
+import type React from "react";
 import { useCallback, useLayoutEffect, useRef } from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { SunMax, Moon, Iphone } from "@/shared/components/icons";
 import { useTheme } from "@/shared/lib/hooks/useTheme";
 import type { ThemePreference } from "./ThemeProvider";
 
@@ -10,10 +11,10 @@ type Variant = "compact" | "segmented";
 const SEGMENTED_OPTIONS: Array<{
   value: ThemePreference;
   label: string;
-  icon: typeof Sun;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
 }> = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "system", label: "Système", icon: Monitor },
+  { value: "light", label: "Light", icon: SunMax },
+  { value: "system", label: "Système", icon: Iphone },
   { value: "dark", label: "Dark", icon: Moon },
 ];
 
@@ -125,7 +126,7 @@ export function ThemeToggle({
                 transition: "background 150ms ease, box-shadow 150ms ease, color 150ms ease",
               }}
             >
-              <Icon size={14} strokeWidth={active ? 2.5 : 2} />
+              <Icon size={14} />
               {label}
             </button>
           );
@@ -171,7 +172,7 @@ export function ThemeToggle({
           color: "var(--color-text-secondary)",
         }}
       >
-        {isDark ? <Moon size={9} /> : <Sun size={9} />}
+        {isDark ? <Moon size={9} /> : <SunMax size={9} />}
       </span>
     </button>
   );

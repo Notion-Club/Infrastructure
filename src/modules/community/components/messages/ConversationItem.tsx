@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
 import type { Conversation } from "../../types/conversation.types";
 import { shortDate } from "../../utils/date-helpers";
 import { UserAvatar } from "../shared/UserAvatar";
+import { Photo } from "@/shared/components/icons";
 
 interface ConversationItemProps {
   conversation: Conversation;
@@ -17,9 +19,15 @@ export function ConversationItem({ conversation, active, onClick, onPrefetch }: 
   // (mig. queries — preview tronqué côté serveur, libellé symbolique pour
   // image/pdf). Fallback : on regarde conversation.messages au cas où on a
   // déjà chargé le détail via getConversation (cache local).
+  // Cas image (fallback messages) : on rend l'icône Photo + "Image" en JSX
+  // au lieu de l'emoji 📷. Détecté séparément pour ne pas casser le
+  // traitement string (slice/length) des autres cas.
+  const lastMsg = conversation.messages[conversation.messages.length - 1];
+  const isImageFallback =
+    !conversation.lastMessagePreview && lastMsg?.type === "image";
+
   const rawPreview = conversation.lastMessagePreview
     ?? (() => {
-      const lastMsg = conversation.messages[conversation.messages.length - 1];
       if (!lastMsg) return undefined;
       if (lastMsg.type === "pdf") return "📎 Fichier";
       if (lastMsg.type === "image") return "📷 Image";
@@ -30,7 +38,12 @@ export function ConversationItem({ conversation, active, onClick, onPrefetch }: 
   // WhatsApp/Slack qui aide à scanner la liste.
   const previewText = rawPreview ? rawPreview.slice(0, 50) : "Aucun message";
   const truncated = rawPreview && rawPreview.length > 50 ? "…" : "";
-  const preview = rawPreview
+  const preview: ReactNode = isImageFallback ? (
+    <span className="inline-flex items-center gap-1">
+      {conversation.lastMessageFromMe ? "Vous : " : ""}
+      <Photo size={13} /> Image
+    </span>
+  ) : rawPreview
     ? `${conversation.lastMessageFromMe ? "Vous : " : ""}${previewText}${truncated}`
     : "Aucun message";
 

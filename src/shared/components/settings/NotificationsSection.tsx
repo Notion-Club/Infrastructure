@@ -1,16 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  Bell,
-  LoaderCircle,
-  Mail,
-  MessageCircle,
-  Smartphone,
-} from "lucide-react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { Bell, LoaderCircle, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 
-import { Bell as BellIcon } from "@/shared/components/icons";
+import {
+  At,
+  Bell as BellIcon,
+  IphoneRadiowaves,
+} from "@/shared/components/icons";
 
 import {
   DEFAULT_CHANNEL_ENABLED,
@@ -56,16 +54,21 @@ const CATEGORIES: Category[] = [
 type ChannelMeta = {
   key: NotificationChannel;
   label: string;
-  Icon: typeof Mail;
+  Icon: ComponentType<{
+    size?: number;
+    strokeWidth?: number;
+    className?: string;
+    "aria-hidden"?: boolean;
+  }>;
 };
 
 const CHANNELS: ChannelMeta[] = [
-  { key: "email", label: "Mail", Icon: Mail },
+  { key: "email", label: "Mail", Icon: At },
   { key: "in_app", label: "InApp", Icon: Bell },
   { key: "whatsapp", label: "WhatsApp", Icon: MessageCircle },
   // Web Push (mobile + desktop), requiert souscription navigateur. Sur iOS,
   // marche uniquement quand la PWA est installée sur l'écran d'accueil.
-  { key: "push", label: "Push", Icon: Smartphone },
+  { key: "push", label: "Push", Icon: IphoneRadiowaves },
 ];
 
 // Fusion visuelle In-App + Push : on n'affiche qu'UN seul canal, celui de la
@@ -459,7 +462,12 @@ function ChannelHeaderButton({
   onClick,
 }: {
   label: string;
-  Icon: typeof Mail;
+  Icon: ComponentType<{
+    size?: number;
+    strokeWidth?: number;
+    className?: string;
+    "aria-hidden"?: boolean;
+  }>;
   active: boolean;
   onClick: () => void;
 }) {

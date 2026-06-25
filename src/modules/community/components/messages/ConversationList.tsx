@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { PlusMessage } from "@/shared/components/icons";
 import type { Conversation } from "../../types/conversation.types";
 import type { User } from "../../types/user.types";
 import { ConversationItem } from "./ConversationItem";
@@ -77,7 +78,7 @@ export function ConversationList({
             className="hover:opacity-85"
             aria-label="Nouvelle conversation"
           >
-            <Plus size={16} />
+            <PlusMessage size={16} />
           </button>
         </div>
         <div
