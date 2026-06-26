@@ -924,14 +924,18 @@ html {
     @apply border-border outline-ring/50;
   }
   body {
-    /* Fond unifié : une SEULE couleur de surface thème-aware partout
-       (html, body, .nc-page-halo) → fini le triplet de fonds concurrents
-       (body était en `--background` blanc/noir pur, ≠ de html/halo en
-       `--color-surface-page`), source des bandes et du fond non-adaptatif.
+    /* Le body est TRANSPARENT : le seul fond de l'app est `.nc-app-bg`
+       (dégradé fixe, z-index:-1). Un `background-color` opaque sur le body se
+       peindrait AU-DESSUS du calque z-index négatif (ordre de peinture CSS :
+       fonds des blocs en flux normal > enfants positionnés en z-index négatif)
+       → il masquait le dégradé et, comme le body est la boîte qui scrolle, on
+       le voyait « se décrocher » au scroll en laissant apparaître le dégradé +
+       les bandes safe-area. La couleur de base pour l'overscroll iOS est portée
+       par `html` (canvas, peint SOUS le dégradé → n'occulte rien).
        `--background` (token shadcn) reste utilisé tel quel par les composants
-       (cards, popovers…), on ne change QUE le fond de page. */
+       (cards, popovers…). */
     @apply text-foreground;
-    background-color: var(--color-surface-page);
+    background-color: transparent;
   }
 }
 

@@ -123,3 +123,30 @@ Décision : **fusionner toute la DA dans le seul `.nc-app-bg`**.
 
 Bilan : un contenu transparent qui scrolle au-dessus d'**un unique dégradé
 fixe**, du haut au bas → plus de frontière qui « surgit » au scroll.
+
+## 8. La VRAIE cause racine (test device) — le `body` opaque masquait tout
+
+Le §7 a embelli le dégradé mais le symptôme persistait à l'identique sur device :
+un fond blanc cassé qui se décroche au scroll et laisse voir le dégradé + les
+bandes. Raison : **on n'avait jamais corrigé l'occulteur**.
+
+`.nc-app-bg` est en `z-index: -1`. Or `body` portait
+`background-color: var(--color-surface-page)` (**opaque**). Dans l'ordre de
+peinture CSS, **le fond d'un bloc en flux normal (le `body`) se peint AU-DESSUS
+d'un enfant positionné en `z-index` négatif**. Donc le blanc cassé du `body`
+recouvrait le dégradé en permanence. Et comme le `body` est la boîte qui
+scrolle, c'est LUI qu'on voyait « se décrocher », révélant le `.nc-app-bg` fixe
+(dégradé + zones safe-area = les « bandes ») là où le `body` ne peignait pas.
+
+Correctif décisif (`globals.css`) :
+
+- **`body { background-color: transparent }`** → le dégradé `.nc-app-bg`
+  redevient le SEUL fond visible, sur toutes les pages.
+- **`html`** garde une couleur unie (`--color-surface-page`) = base d'overscroll
+  iOS (canvas peint SOUS le dégradé → n'occulte rien).
+- Modèle final, sans conflit : `html` (base) < `.nc-app-bg` (dégradé, seul fond
+  visible) < `body` transparent < `.nc-page-halo` transparent < contenu.
+
+Leçon : un fond fixe en `z-index` négatif est INVISIBLE tant qu'un ancêtre/bloc
+en flux a un `background` opaque. Vérifier l'ordre de peinture AVANT de soigner
+le dégradé lui-même.
