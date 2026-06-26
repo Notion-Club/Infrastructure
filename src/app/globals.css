@@ -4,18 +4,12 @@
 html {
   scroll-behavior: smooth;
   /* Fond du CANVAS = zone révélée par l'overscroll iOS (rubber-band /
-     pull-to-refresh, où le `.nc-app-bg` fixe suit l'élastique et se décolle) +
-     1ʳᵉ frame avant peinture. On le teinte d'une ROSE qui épouse le BORD du
-     dégradé (là où l'overscroll se produit) au lieu du blanc cassé plat → plus
-     de bande blanche quand on tire la page. `html.dark` repasse au near-black.
-     Valeur à garder SYNCHRO avec `LIGHT_CHROME` / `DARK_SURFACE` de
-     ThemeColorMeta.tsx (teinte du chrome Safari) → canvas + barres Safari +
-     dégradé cohérents. Sélecteurs explicites (pas de token) pour éviter toute
-     ambiguïté de cascade entre `:root` et `.dark`. */
-  background-color: #efd6d3;
-}
-html.dark {
-  background-color: #141211;
+     pull-to-refresh, où le `.nc-app-bg` fixe suit l'élastique) + 1ʳᵉ frame. On
+     reste sur la surface UNIFORME (`--color-surface-page` : #f5f2f2 light /
+     near-black dark) — exactement la couleur vers laquelle le dégradé fond en
+     haut/bas et celle des bandes Safari (theme-color). Donc overscroll, bandes
+     Safari et bords du dégradé sont la même couleur unie → aucune cassure. */
+  background-color: var(--color-surface-page);
 }
 
 @custom-variant dark (&:is(.dark *));
@@ -1112,25 +1106,21 @@ html.dark {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* Toute la DA dans UNE seule propriété `background` = UN seul élément peint
-     (l'empilement de `radial-gradient` n'est PAS une superposition de <div>).
-     Pas de `backdrop-filter` ici → le calque se repeint correctement au
-     changement de thème (cf. rétro bandes iOS).
+  /* Toute la DA dans UNE seule propriété `background` = UN seul élément peint,
+     sans `backdrop-filter` (→ repeint correct au changement de thème, cf. rétro).
 
-     1) Accents dégradés de marque couvrant TOUT le viewport (coins + un voile
-        central) → wash homogène, CONTINU du bord supérieur (sous le notch)
-        jusqu'en bas. AUCUN fondu ni bande en haut : le dégradé est strictement
-        uniforme → le contenu remonte derrière le notch sans liseré de couleur
-        qui jure. (Compromis assumé : en PWA standalone, le texte iOS blanc du
-        status-bar repose directement sur le dégradé clair.)
-     2) Couleur de base de la surface en dernier → le calque est opaque et
-        autoportant (ne dépend plus du fond de body pour se compléter). */
+     DESIGN — accents = 2 TACHES latérales (gauche/droite), centrées
+     verticalement (y=50%) et de hauteur limitée (~50% du viewport). Conséquence
+     clé : le HAUT et le BAS (~25% chacun) restent en surface UNIFORME
+     (`--color-surface-page`). Le dégradé rejoint donc SANS CASSURE les zones de
+     couleur unie qui l'encadrent — bandes Safari (theme-color) et canvas
+     d'overscroll, réglées sur cette MÊME surface. On ne pose plus aucune couleur
+     sur la limite haute/basse (fini le coin coloré qui tranchait net avec la
+     bande). Centre des taches hors-écran (-8% / 108%) → fondu « tache » depuis
+     le bord vers le centre. */
   background:
-    radial-gradient(circle at 0% 0%, rgba(224, 99, 90, 0.26) 0%, transparent 60%),
-    radial-gradient(circle at 100% 0%, rgba(224, 99, 90, 0.22) 0%, transparent 58%),
-    radial-gradient(circle at 0% 100%, rgba(224, 99, 90, 0.20) 0%, transparent 58%),
-    radial-gradient(circle at 100% 100%, rgba(224, 99, 90, 0.24) 0%, transparent 60%),
-    radial-gradient(ellipse at 50% 38%, rgba(224, 99, 90, 0.10) 0%, transparent 55%),
+    radial-gradient(56% 50% at -8% 50%, rgba(224, 99, 90, 0.28) 0%, transparent 72%),
+    radial-gradient(56% 50% at 108% 50%, rgba(224, 99, 90, 0.26) 0%, transparent 72%),
     var(--color-surface-page);
 }
 

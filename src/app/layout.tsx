@@ -71,14 +71,15 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  // theme-color = couleur des barres Safari (mode navigateur, haut + bas). On la
-  // teinte pour qu'elle ÉPOUSE le bord du dégradé de page (rose en clair,
-  // near-black en sombre) → plus de bande blanche autour du contenu. Le `media`
-  // gère le pré-paint (no-JS) selon l'OS ; `ThemeColorMeta` (body) affine ensuite
-  // selon le thème RÉEL de l'app (store JS, qui peut diverger de l'OS). Le rose
-  // doit rester synchro avec `LIGHT_CHROME` (ThemeColorMeta) et `html` (globals).
+  // theme-color = couleur des barres Safari (mode navigateur, haut + bas) = la
+  // surface UNIFORME de la page (#f5f2f2 clair / #141211 sombre). Le dégradé
+  // `.nc-app-bg` fond vers cette même surface en haut/bas (accents repoussés sur
+  // les côtés) → les barres prolongent la page sans cassure. Le `media` gère le
+  // pré-paint (no-JS) selon l'OS ; `ThemeColorMeta` (body) affine ensuite selon
+  // le thème RÉEL de l'app. À garder synchro avec `LIGHT_CHROME` (ThemeColorMeta)
+  // et `--color-surface-page` (globals).
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#efd6d3" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f2f2" },
     { media: "(prefers-color-scheme: dark)", color: "#141211" },
   ],
 };
@@ -122,9 +123,9 @@ export default function RootLayout({
             l'ancien dégradé par-page clippé. cf. .nc-app-bg dans globals.css */}
         <div className="nc-app-bg" aria-hidden />
         <ThemeProvider>
-          {/* Pilote <meta name="theme-color"> selon le thème réel : rose (épouse
-              le bord du dégradé) en clair, near-black en sombre → barres Safari
-              fondues dans la DA, plus de bande blanche. Garde aussi `.dark`. */}
+          {/* Pilote <meta name="theme-color"> selon le thème réel : surface unie
+              #f5f2f2 en clair, near-black en sombre. Le dégradé fond vers cette
+              surface en haut/bas → barres Safari sans cassure. Garde aussi `.dark`. */}
           <ThemeColorMeta />
           {children}
         </ThemeProvider>

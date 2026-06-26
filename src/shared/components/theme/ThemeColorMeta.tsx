@@ -26,25 +26,27 @@ const useIsoLayoutEffect =
 // le téléphone est en clair, ou l'inverse). Résultat : barres claires autour
 // d'une UI sombre, ou l'inverse.
 //
-// Correctif : on pilote la balise depuis le thème EFFECTIVEMENT appliqué, et on
-// la teinte pour qu'elle ÉPOUSE le bord du dégradé de page (pas de blanc).
+// Correctif : on pilote la balise depuis le thème EFFECTIVEMENT appliqué, sur la
+// couleur de surface UNIFORME de la page.
 //   - SOMBRE : `#141211` (barres near-black sur UI sombre).
-//   - CLAIR : une ROSE (`LIGHT_CHROME`) qui matche le bord du dégradé
-//     `.nc-app-bg`. On ne peut PAS rendre le chrome Safari translucide (testé :
-//     retirer la balise → Safari retombe sur son matériau clair ≈ blanc, donc
-//     bande blanche persistante). Le seul levier est sa COULEUR : on la fait
-//     coïncider avec la DA → barres haut/bas fondues dans le dégradé.
+//   - CLAIR : `#f5f2f2` (surface claire).
+// On ne peut PAS rendre le chrome Safari translucide (testé : retirer la balise
+// → Safari retombe sur un matériau clair ≈ blanc). On ne contrôle que sa
+// COULEUR. La clé : le dégradé `.nc-app-bg` est conçu pour FONDRE vers cette
+// même surface en haut/bas (accents repoussés sur les côtés) → les barres
+// Safari prolongent la page sans cassure (cf. globals.css `.nc-app-bg`).
 //
 // Note : on ne peut PAS supprimer les barres Safari en mode navigateur (c'est
 // son chrome) ; on ne contrôle que leur couleur via theme-color.
 // ============================================================================
 
-// Teintes du chrome Safari (barres haut/bas, mode navigateur) — DOIVENT rester
-// synchro avec `html` / `html.dark` dans globals.css (même teinte pour le
-// canvas d'overscroll), pour que chrome + overscroll + dégradé soient continus.
-//   - CLAIR : rose qui épouse le bord du dégradé `.nc-app-bg`.
-//   - SOMBRE : near-black (= --color-surface-page dark).
-const LIGHT_CHROME = "#efd6d3";
+// Teintes du chrome Safari (barres haut/bas, mode navigateur) = surface UNIFORME
+// de la page. DOIVENT rester synchro avec `--color-surface-page` (globals.css)
+// et avec la couleur vers laquelle le dégradé `.nc-app-bg` fond en haut/bas →
+// barres Safari, overscroll et bords du dégradé identiques, sans cassure.
+//   - CLAIR : #f5f2f2 (surface claire).
+//   - SOMBRE : #141211 (surface near-black).
+const LIGHT_CHROME = "#f5f2f2";
 const DARK_SURFACE = "#141211";
 
 // ── Override store ─────────────────────────────────────────────────────────
@@ -149,8 +151,8 @@ export function ThemeColorMeta() {
     getServerOverrideSnapshot,
   );
   const theme = ctx?.theme ?? "light";
-  // Clair → rose (épouse le bord du dégradé) ; sombre → near-black ; un
-  // override éventuel (overlay) prime toujours.
+  // Clair → surface claire #f5f2f2 ; sombre → near-black ; un override éventuel
+  // (overlay) prime toujours.
   const color = override ?? (theme === "dark" ? DARK_SURFACE : LIGHT_CHROME);
 
   // Persistance — chemin RAPIDE pré-paint à chaque navigation (pas de flash).
