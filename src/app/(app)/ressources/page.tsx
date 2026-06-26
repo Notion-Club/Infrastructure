@@ -1,14 +1,17 @@
 import { Suspense } from 'react';
 import { ResourcesGrid } from '@/modules/ressources/components/ResourcesGrid';
 import { getAllResourceItems } from '@/modules/ressources/lib/fetch';
-import { GradualBlurOverlay } from '@/shared/components/GradualBlurOverlay';
 
 export default async function RessourcesPage() {
   const items = await getAllResourceItems();
 
   return (
     <>
-      <GradualBlurOverlay />
+      {/* Pas de bandeau bas `GradualBlurOverlay` : il créait un voile blanchâtre
+          (backdrop-filter fixe) qui ne se repeignait pas au switch de thème sur
+          iOS. On s'aligne sur Settings/Formation — le contenu scrolle derrière
+          la BottomNav translucide, avec le padding `pb-[176px]` pour dégager la
+          dernière ligne. Cf. docs/pwa/safari-web-pwa-integration.md. */}
       <div className="nc-page-halo" style={{ minHeight: '100lvh' }}>
         <main style={{ position: 'relative', zIndex: 1 }}>
           <div className="px-4 pt-[96px] pb-[176px] md:px-10 md:pt-[148px] md:pb-[140px]">

@@ -124,22 +124,22 @@ function enforceThemeClass() {
 // natif (le dégradé transparaît derrière, plus de bande blanche opaque).
 function applyThemeColor(color: string | null) {
   if (typeof document === "undefined") return;
-  const tag = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-  if (color === null) {
-    if (tag) tag.remove();
-    return;
-  }
-  if (!tag) {
-    const created = document.createElement("meta");
-    created.setAttribute("name", "theme-color");
-    created.setAttribute("content", color);
-    document.head.appendChild(created);
-    return;
-  }
-  // La balise statique émise par Next peut porter un attribut `media` ;
-  // on le neutralise pour que notre valeur s'applique inconditionnellement.
-  tag.removeAttribute("media");
+  // On RECRÉE la balise à chaque application (plutôt que de muter `content`) :
+  // sur iOS, muter l'attribut pendant qu'une couche `backdrop-filter` (modale,
+  // pop-up, bottom sheet) est composée PAR-DESSUS la page est souvent ignoré —
+  // le chrome Safari reste figé sur l'ancienne teinte jusqu'à fermeture de
+  // l'overlay. Retirer puis ré-insérer l'élément <meta> force Safari à relire la
+  // valeur, donc le switch clair/sombre se propage aux barres même modale
+  // ouverte. On retire AUSSI la balise statique (avec `media`) émise par Next.
+  // cf. docs/pwa/safari-web-pwa-integration.md.
+  document
+    .querySelectorAll('meta[name="theme-color"]')
+    .forEach((m) => m.remove());
+  if (color === null) return;
+  const tag = document.createElement("meta");
+  tag.setAttribute("name", "theme-color");
   tag.setAttribute("content", color);
+  document.head.appendChild(tag);
 }
 
 export function ThemeColorMeta() {

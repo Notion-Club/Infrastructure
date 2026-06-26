@@ -1,6 +1,5 @@
 import { Suspense, ViewTransition } from 'react';
 import { notFound } from 'next/navigation';
-import { GradualBlurOverlay } from '@/shared/components/GradualBlurOverlay';
 import { getResourceBySlug, getRelatedResources } from '@/modules/ressources/lib/fetch';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceBreadcrumb } from '@/modules/ressources/components/shared/ResourceBreadcrumb';
@@ -387,7 +386,8 @@ export default async function ResourceDetailPage({ params }: PageProps) {
 
   return (
     <>
-      <GradualBlurOverlay />
+      {/* Pas de `GradualBlurOverlay` (cf. docs/pwa/safari-web-pwa-integration.md) :
+          aligné sur Settings/Formation, contenu derrière la BottomNav translucide. */}
       <div className="nc-page-halo" style={{ minHeight: '100lvh' }}>
         <main style={{ position: 'relative', zIndex: 1 }}>
           <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
