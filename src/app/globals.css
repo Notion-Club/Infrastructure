@@ -1105,19 +1105,15 @@ html {
      Pas de `backdrop-filter` ici → le calque se repeint correctement au
      changement de thème (cf. rétro bandes iOS).
 
-     1) Fondu très léger en haut : assombrit à peine la zone du status-bar iOS
-        (texte blanc en PWA standalone) pour la lisibilité — intégré au même
-        calque, ce n'est PAS une bande séparée.
-     2) Accents dégradés de marque couvrant TOUT le viewport (coins + un voile
-        central) → wash homogène, plus de zone centrale plate.
-     3) Couleur de base de la surface en dernier → le calque est opaque et
+     1) Accents dégradés de marque couvrant TOUT le viewport (coins + un voile
+        central) → wash homogène, CONTINU du bord supérieur (sous le notch)
+        jusqu'en bas. AUCUN fondu ni bande en haut : le dégradé est strictement
+        uniforme → le contenu remonte derrière le notch sans liseré de couleur
+        qui jure. (Compromis assumé : en PWA standalone, le texte iOS blanc du
+        status-bar repose directement sur le dégradé clair.)
+     2) Couleur de base de la surface en dernier → le calque est opaque et
         autoportant (ne dépend plus du fond de body pour se compléter). */
   background:
-    linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.12) 0,
-      rgba(0, 0, 0, 0) calc(env(safe-area-inset-top, 0px) + 56px)
-    ),
     radial-gradient(circle at 0% 0%, rgba(224, 99, 90, 0.26) 0%, transparent 60%),
     radial-gradient(circle at 100% 0%, rgba(224, 99, 90, 0.22) 0%, transparent 58%),
     radial-gradient(circle at 0% 100%, rgba(224, 99, 90, 0.20) 0%, transparent 58%),
