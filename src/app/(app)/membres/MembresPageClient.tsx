@@ -4,12 +4,23 @@ import { useMemo, useState, useTransition } from "react";
 import type { ComponentType } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Activity, CreditCard, Search, SearchX, Wallet, X } from "lucide-react";
+import {
+  Activity,
+  CreditCard,
+  Mail,
+  MessageCircle,
+  Search,
+  SearchX,
+  Wallet,
+  X,
+} from "lucide-react";
 
 import {
+  Bell,
   CheckmarkSealText,
   ClockArrowReverseDotted,
   GraduationCap,
+  IphoneRadiowaves,
   PersonBadgeMinus,
   PersonCircleFill,
 } from "@/shared/components/icons";
@@ -1344,6 +1355,37 @@ function MemberDrawer({
             </div>
           </div>
 
+          {/* Notifications */}
+          <div style={surface}>
+            <div style={sectionTitle}>
+              <Bell size={15} aria-hidden />
+              Notifications
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 10,
+              }}
+            >
+              <NotifIndicator
+                Icon={Mail}
+                label="Email"
+                on={m.notifications.email}
+              />
+              <NotifIndicator
+                Icon={IphoneRadiowaves}
+                label="Push"
+                on={m.notifications.push}
+              />
+              <NotifIndicator
+                Icon={MessageCircle}
+                label="WhatsApp"
+                on={m.notifications.whatsapp}
+              />
+            </div>
+          </div>
+
           {/* Paiements */}
           <div style={surface}>
             <div
@@ -1757,6 +1799,72 @@ function EmailVerifiedBadge({ verified }: { verified: boolean }) {
       )}
       {verified ? "Vérifié" : "Non vérifié"}
     </span>
+  );
+}
+
+// Indicateur ON/OFF d'un canal de notification (lecture seule, ticket 3b).
+function NotifIndicator({
+  Icon,
+  label,
+  on,
+}: {
+  Icon: ComponentType<{ size?: number | string }>;
+  label: string;
+  on: boolean;
+}) {
+  return (
+    <div
+      style={{
+        background: "var(--color-surface-raised)",
+        borderRadius: 12,
+        padding: "12px 13px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          display: "inline-flex",
+          color: on ? "var(--color-brand)" : "var(--color-text-muted)",
+        }}
+      >
+        <Icon size={17} />
+      </span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: "var(--color-text-primary)",
+          }}
+        >
+          {label}
+        </span>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 11.5,
+            fontWeight: 600,
+            color: on ? SEMANTIC.successText : "var(--color-text-muted)",
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: on ? SEMANTIC.success : "var(--color-text-muted)",
+            }}
+          />
+          {on ? "Activé" : "Désactivé"}
+        </span>
+      </div>
+    </div>
   );
 }
 
