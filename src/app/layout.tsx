@@ -5,7 +5,6 @@ import { ThemeProvider } from "@/shared/components/theme/ThemeProvider";
 import ServiceWorkerRegistrar from "@/shared/components/pwa/ServiceWorkerRegistrar";
 import { ThemeColorMeta } from "@/shared/components/theme/ThemeColorMeta";
 import { IOS_SPLASH_LINKS } from "@/shared/components/pwa/iosSplashLinks";
-import { GradualBlurOverlay } from "@/shared/components/GradualBlurOverlay";
 import { sfProDisplay } from "@/shared/lib/fonts";
 import "./globals.css";
 
@@ -31,9 +30,9 @@ export const metadata: Metadata = {
     // entre la status bar et la page). Le texte iOS (heure, signal,
     // batterie) reste affiché en blanc par-dessus.
     //
-    // Pour la lisibilité du texte iOS blanc sur fond clair, on ajoute un
-    // `GradualBlurOverlay` ancré en haut (frosted glass façon iOS) sur
-    // mobile, monté dans le body — cf. plus bas.
+    // Pour la lisibilité du texte iOS blanc, le fond unique `.nc-app-bg`
+    // intègre un léger fondu sombre en haut (dans le même calque dégradé,
+    // pas de voile `backdrop-filter` superposé) — cf. globals.css.
     statusBarStyle: "black-translucent",
   },
   icons: {
@@ -127,18 +126,10 @@ export default function RootLayout({
         </ThemeProvider>
         <Toaster />
         <ServiceWorkerRegistrar />
-        {/* Frosted glass haut de page — mobile uniquement. Reprend le
-            composant utilisé en bas des pages Ressources / Communauté
-            mais ancré en haut : `backdrop-filter: blur` gradué qui floute
-            le contenu de page qui passe derrière la zone status bar iOS
-            (en PWA standalone, viewport-fit=cover laisse le body
-            s'étendre jusqu'au bord supérieur du téléphone). Effet
-            d'app native, valable en light comme en dark mode.
-            zIndex < MobileTopActions (40) → les boutons (clé, cloche,
-            avatar) restent nets au-dessus du voile. */}
-        <div className="md:hidden">
-          <GradualBlurOverlay anchor="top" height={56} zIndex={35} />
-        </div>
+        {/* (Voile flou du haut retiré.) Le fond unique `.nc-app-bg` porte
+            désormais à lui seul l'adoucissement de la zone status-bar iOS
+            (léger fondu intégré au dégradé) — plus de calque `backdrop-filter`
+            superposé au contenu. */}
       </body>
     </html>
   );

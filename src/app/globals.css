@@ -1085,33 +1085,41 @@ html {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* Fond de marque GLOBAL — monté une seule fois (root layout), couvre tout le
-   viewport en permanence (`position: fixed; inset: 0`), hors de toute boîte
-   isolée → couverture uniforme, aucun seam ni bande plate. Remplace l'ancien
-   `.nc-page-halo::before`. La couleur de base vient de html/body
-   (--color-surface-page), ce calque n'ajoute QUE les accents dégradés. */
+/* Fond de marque GLOBAL & UNIQUE — monté une seule fois (root layout), couvre
+   tout le viewport en permanence (`position: fixed; inset: 0`), hors de toute
+   boîte isolée. C'est le SEUL calque de fond de l'app : le contenu scrolle par
+   dessus en transparent. Plus de dualité « blanc cassé plat (body) au centre +
+   dégradé aux coins » qui donnait l'impression de couches qui se décollent au
+   scroll. */
 .nc-app-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* 1er calque = fondu vers la surface (blanc en light) à la limite du notch :
-     évite la cassure nette en haut. Pas de backdrop-filter ici → se repeint au
-     changement de thème, contrairement aux anciennes bandes. Suivi des accents
-     dégradés de marque (radial). */
+  /* Toute la DA dans UNE seule propriété `background` = UN seul élément peint
+     (l'empilement de `radial-gradient` n'est PAS une superposition de <div>).
+     Pas de `backdrop-filter` ici → le calque se repeint correctement au
+     changement de thème (cf. rétro bandes iOS).
+
+     1) Fondu très léger en haut : assombrit à peine la zone du status-bar iOS
+        (texte blanc en PWA standalone) pour la lisibilité — intégré au même
+        calque, ce n'est PAS une bande séparée.
+     2) Accents dégradés de marque couvrant TOUT le viewport (coins + un voile
+        central) → wash homogène, plus de zone centrale plate.
+     3) Couleur de base de la surface en dernier → le calque est opaque et
+        autoportant (ne dépend plus du fond de body pour se compléter). */
   background:
     linear-gradient(
       to bottom,
-      var(--color-surface-page) 0,
-      var(--color-surface-page) calc(env(safe-area-inset-top, 0px) + 22px),
-      transparent calc(env(safe-area-inset-top, 0px) + 110px)
+      rgba(0, 0, 0, 0.12) 0,
+      rgba(0, 0, 0, 0) calc(env(safe-area-inset-top, 0px) + 56px)
     ),
-    radial-gradient(circle at 0% 0%, rgba(224, 99, 90, 0.28) 0%, transparent 35%),
-    radial-gradient(circle at 100% 0%, rgba(224, 99, 90, 0.24) 0%, transparent 34%),
-    radial-gradient(circle at 0% 100%, rgba(224, 99, 90, 0.22) 0%, transparent 34%),
-    radial-gradient(circle at 100% 100%, rgba(224, 99, 90, 0.26) 0%, transparent 35%),
-    radial-gradient(ellipse at 0% 50%, rgba(224, 99, 90, 0.12) 0%, transparent 20%),
-    radial-gradient(ellipse at 100% 50%, rgba(224, 99, 90, 0.12) 0%, transparent 20%);
+    radial-gradient(circle at 0% 0%, rgba(224, 99, 90, 0.26) 0%, transparent 60%),
+    radial-gradient(circle at 100% 0%, rgba(224, 99, 90, 0.22) 0%, transparent 58%),
+    radial-gradient(circle at 0% 100%, rgba(224, 99, 90, 0.20) 0%, transparent 58%),
+    radial-gradient(circle at 100% 100%, rgba(224, 99, 90, 0.24) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 38%, rgba(224, 99, 90, 0.10) 0%, transparent 55%),
+    var(--color-surface-page);
 }
 
 .nc-shine-card {
