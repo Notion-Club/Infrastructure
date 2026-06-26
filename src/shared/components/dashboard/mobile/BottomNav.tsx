@@ -150,10 +150,8 @@ export function BottomNav() {
     <nav
       aria-label="Navigation principale"
       data-fb-label="Barre de navigation"
-      // `.nc-bottom-nav` : le `background` thème-aware reste sur CET élément
-      // (sans backdrop-filter → se repeint au changement de mode sur iOS) ;
-      // le flou est porté par `.nc-bottom-nav::before` (cf. globals.css).
-      className="nc-bottom-nav"
+      // `background` thème-aware sans backdrop-filter → se repeint au
+      // changement de mode (pas de flou figé). Pilule simple et performante.
       style={{
         position: "fixed",
         // En PWA standalone, `env(safe-area-inset-bottom)` vaut ~34px sur
@@ -167,10 +165,9 @@ export function BottomNav() {
         right: 12,
         height: 56,
         zIndex: 50,
-        // `background` thème-aware reste ici (élément SANS backdrop-filter →
-        // se repeint au changement de mode sur iOS). Le flou est déporté sur
-        // `.nc-bottom-nav::before` (cf. globals.css) pour ne pas figer la
-        // couleur (bug iOS backdrop-filter + custom property).
+        // `background` thème-aware, SANS backdrop-filter → se repeint au
+        // changement de mode sur iOS (un calque backdrop-filter coloré par
+        // variable resterait figé). Pilule simple et performante.
         background: "var(--nc-bottom-nav-bg)",
         border: "0.5px solid var(--nc-bottom-nav-border)",
         borderRadius: 9999,
