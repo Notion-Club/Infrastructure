@@ -1,27 +1,25 @@
-// Easing spring façon iOS — généré par PHYSIQUE de ressort, pas inventé.
+// Easing — ressort CRITIQUE (ζ = 1), généré par PHYSIQUE, pas inventé.
 //
-// Méthode : réponse indicielle d'un ressort sous-amorti (paramétrage Apple
-// « response + damping ratio »), échantillonnée en `linear()` à la manière du
-// linear-easing-generator de Jake Archibald.
-//   → https://linear-easing-generator.netlify.app
+// Réponse indicielle d'un ressort critiquement amorti : décélération douce et
+// MONOTONE, ZÉRO overshoot → l'élément ne « rebondit » jamais et se cale net sur
+// sa cible (cf. retour : « ça ne doit plus bouger une fois la cible atteinte »).
+// Échantillonné en `linear()` à la manière du linear-easing-generator de Jake
+// Archibald → https://linear-easing-generator.netlify.app
 //
-// Paramètres : response = 0.4 s, damping ratio ζ = 0.8
-//   ωₙ = 2π / 0.4         = 15.708 rad/s   (pulsation propre)
-//   ω_d = ωₙ·√(1−ζ²)      = 9.425 rad/s    (pulsation amortie)
-//   x(t) = 1 − e^(−ζωₙt)·[cos(ω_d t) + (ζωₙ/ω_d)·sin(ω_d t)]
+//   x(t) = 1 − e^(−ωₙt)·(1 + ωₙt),   ωₙ = 16 rad/s
+//   stabilisation ≈ 482 ms → durée du morph.
 //
-// Profil : léger overshoot ≈ 1.52 % au pic (~62 % du timeline), stabilisation
-// ≈ 540 ms → c'est la durée du morph. Dernier point épinglé à 1 (atterrissage
-// net). À utiliser pour le conteneur (transform + border-radius) et le titre.
+// À utiliser pour le conteneur (transform + border-radius) ET tout transport de
+// contenu (titre, description, tags) → tout s'arrête ensemble, sans rebond.
 export const SPRING_EASING =
-  'linear(0 0%, 0.0445 3.8%, 0.1492 7.7%, 0.2811 11.5%, 0.4183 15.4%, 0.5475 19.2%, ' +
-  '0.6613 23.1%, 0.7566 26.9%, 0.8331 30.8%, 0.8923 34.6%, 0.9362 38.5%, 0.9676 42.3%, ' +
-  '0.9888 46.2%, 1.0024 50%, 1.0102 53.8%, 1.014 57.7%, 1.0152 61.5%, 1.0146 65.4%, ' +
-  '1.013 69.2%, 1.0111 73.1%, 1.009 76.9%, 1.007 80.8%, 1.0053 84.6%, 1.0038 88.5%, ' +
-  '1.0026 92.3%, 1.0017 96.2%, 1 100%)';
+  'linear(0 0%, 0.0418 4.2%, 0.1361 8.3%, 0.251 12.5%, 0.368 16.7%, 0.4772 20.8%, ' +
+  '0.5742 25%, 0.6573 29.2%, 0.7269 33.3%, 0.7841 37.5%, 0.8305 41.7%, 0.8677 45.8%, ' +
+  '0.8973 50%, 0.9206 54.2%, 0.9388 58.3%, 0.9531 62.5%, 0.9641 66.7%, 0.9726 70.8%, ' +
+  '0.9791 75%, 0.9841 79.2%, 0.988 83.3%, 0.9909 87.5%, 0.9931 91.7%, 0.9948 95.8%, 1 100%)';
 
-export const SPRING_DURATION = 540;
+export const SPRING_DURATION = 482;
 
-// Easing doux pour les cross-fades (sortie carte / entrée encadré / scrim) —
-// pas de spring sur l'opacité, on garde une décélération simple.
-export const FADE_EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
+// Sortie de contenu = ease-OUT franc (disparaît vite puis s'efface en douceur,
+// « discrètement ») ; entrée = ease-out symétrique.
+export const FADE_OUT_EASING = 'cubic-bezier(0.4, 0, 1, 1)';
+export const FADE_IN_EASING = 'cubic-bezier(0, 0, 0.2, 1)';

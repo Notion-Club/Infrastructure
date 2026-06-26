@@ -11,9 +11,8 @@ import {
 import { createPortal } from 'react-dom';
 import type { LabResource } from './mock';
 import { LabBadge } from './LabBadge';
-import { SPRING_EASING, SPRING_DURATION, FADE_EASING } from './spring';
+import { SPRING_EASING, SPRING_DURATION, FADE_OUT_EASING, FADE_IN_EASING } from './spring';
 
-// Géométrie source capturée au clic (rects en coordonnées viewport).
 export interface ZoomSource {
   resource: LabResource;
   cardRect: DOMRect;
@@ -25,8 +24,6 @@ const prefersReduced = () =>
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// Titre de l'encadré (grand) — partagé entre le H1 réel (caché) et le titre
-// ANCRÉ qui morphe. Doit être pixel-identique pour un ancrage invisible.
 const H1_STYLE: CSSProperties = {
   fontSize: 'clamp(32px, 7vw, 44px)',
   fontWeight: 700,
@@ -36,7 +33,6 @@ const H1_STYLE: CSSProperties = {
   lineHeight: 1.1,
 };
 
-// Titre de la carte (petit) — reproduit la DNA `ResourceCard` h3.
 const CARD_TITLE_STYLE: CSSProperties = {
   fontSize: 15,
   fontWeight: 600,
@@ -58,6 +54,14 @@ const anim = (
   return a;
 };
 
+// Transport du contenu carte (état OUVERT) : translate vers le rect cible
+// (mesuré sur la boîte) + scale UNIFORME (zéro distorsion du texte).
+function cardOpenTransform(box: HTMLElement, c: DOMRect): string {
+  const r = box.getBoundingClientRect();
+  const k = r.width / c.width;
+  return `translate(${r.left - c.left}px, ${r.top - c.top}px) scale(${k})`;
+}
+
 export function ZoomOverlay({
   source,
   onClosed,
@@ -66,12 +70,12 @@ export function ZoomOverlay({
   onClosed: () => void;
 }) {
   const pageBgRef = useRef<HTMLDivElement>(null);
-  const boxRef = useRef<HTMLDivElement>(null);
-  const destRef = useRef<HTMLDivElement>(null); // conteneur encadré → rect cible
+  const boxRef = useRef<HTMLDivElement>(null); // surface qui morphe + contient l'encadré
+  const encRef = useRef<HTMLDivElement>(null); // contenu encadré (enfant → scale avec la boîte)
   const encTitleRef = useRef<HTMLHeadingElement>(null);
-  const encLayerRef = useRef<HTMLDivElement>(null);
-  const cardLayerRef = useRef<HTMLDivElement>(null);
-  const heroRef = useRef<HTMLHeadingElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null); // contenu carte transporté
+  const cardTitleRef = useRef<HTMLHeadingElement>(null); // titre carte (cross-fade rapide ↔ hero)
+  const heroRef = useRef<HTMLHeadingElement>(null); // titre ancré continu
 
   const geomRef = useRef<{ fromBox: string; fromTitle: string } | null>(null);
   const animsRef = useRef<Animation[]>([]);
@@ -81,13 +85,47 @@ export function ZoomOverlay({
   // ── Ouverture ───────────────────────────────────────────────────────────
   useLayoutEffect(() => {
     const box = boxRef.current;
-    const dest = destRef.current;
+    const enc = encRef.current;
     const encTitle = encTitleRef.current;
     const hero = heroRef.current;
+    const card = cardRef.current;
     const pageBg = pageBgRef.current;
-    if (!box || !dest || !encTitle || !hero) return;
+    if (!box || !enc || !encTitle || !hero || !card) return;
 
-    // Fond de page : on copie le background RÉEL de `.nc-app-bg` (thème-exact).
+    const store = animsRef.current;
+    const d = SPRING_DURATION;
+
+    // 1) Mesures pendant que la boîte est CENTRÉE (avant tout transform FLIP).
+    const destRect = box.getBoundingClientRect();
+    const destTitleRect = encTitle.getBoundingClientRect();
+    const destTitleFont = parseFloat(getComputedStyle(encTitle).fontSize) || 40;
+
+    // 2) Fige la boîte en px + origine top-left pour le FLIP.
+    box.style.top = `${destRect.top}px`;
+    box.style.left = `${destRect.left}px`;
+    box.style.width = `${destRect.width}px`;
+    box.style.height = `${destRect.height}px`;
+    box.style.transformOrigin = 'top left';
+
+    const c = source.cardRect;
+    const sx = c.width / destRect.width;
+    const sy = c.height / destRect.height;
+    const fromBox = `translate(${c.left - destRect.left}px, ${c.top - destRect.top}px) scale(${sx}, ${sy})`;
+    box.style.transform = fromBox; // état initial avant l'anim (zéro flash)
+
+    // Titre ancré : layout encadré, ramené au titre carte (scale uniforme).
+    const tt = source.titleRect;
+    const tScale = source.titleFontSize / destTitleFont;
+    const fromTitle = `translate(${tt.left - destTitleRect.left}px, ${tt.top - destTitleRect.top}px) scale(${tScale})`;
+    hero.style.top = `${destTitleRect.top}px`;
+    hero.style.left = `${destTitleRect.left}px`;
+    hero.style.width = `${destTitleRect.width}px`;
+    hero.style.transform = fromTitle;
+
+    const toCard = cardOpenTransform(box, c);
+    geomRef.current = { fromBox, fromTitle };
+
+    // Fond de page : copie le background RÉEL de .nc-app-bg (thème-exact).
     if (pageBg) {
       const real = document.querySelector('.nc-app-bg');
       if (real) {
@@ -99,79 +137,47 @@ export function ZoomOverlay({
       }
     }
 
-    const reduced = prefersReduced();
-    const store = animsRef.current;
-
-    const destRect = dest.getBoundingClientRect();
-    const destTitleRect = encTitle.getBoundingClientRect();
-    const destTitleFont = parseFloat(getComputedStyle(encTitle).fontSize) || 40;
-
-    // Clone au RECT CIBLE, ramené au rect source par un transform (FLIP).
-    box.style.top = `${destRect.top}px`;
-    box.style.left = `${destRect.left}px`;
-    box.style.width = `${destRect.width}px`;
-    box.style.height = `${destRect.height}px`;
-
-    const c = source.cardRect;
-    const sx = c.width / destRect.width;
-    const sy = c.height / destRect.height;
-    const fromBox = `translate(${c.left - destRect.left}px, ${c.top - destRect.top}px) scale(${sx}, ${sy})`;
-
-    // Titre ancré : en LAYOUT ENCADRÉ, ramené au titre source par scale uniforme.
-    const tt = source.titleRect;
-    const tScale = source.titleFontSize / destTitleFont;
-    const fromTitle = `translate(${tt.left - destTitleRect.left}px, ${tt.top - destTitleRect.top}px) scale(${tScale})`;
-
-    hero.style.top = `${destTitleRect.top}px`;
-    hero.style.left = `${destTitleRect.left}px`;
-    hero.style.width = `${destTitleRect.width}px`;
-
-    geomRef.current = { fromBox, fromTitle };
-
-    if (reduced) {
+    if (prefersReduced()) {
       box.style.transform = 'none';
       box.style.borderRadius = 'var(--nc-radius-md)';
       if (pageBg) pageBg.style.opacity = '1';
-      if (cardLayerRef.current) cardLayerRef.current.style.opacity = '0';
-      if (encLayerRef.current) encLayerRef.current.style.opacity = '1';
-      hero.style.opacity = '0';
-      encTitle.style.opacity = '1';
+      enc.style.opacity = '1';
+      card.style.opacity = '0';
+      hero.style.transform = 'none';
       requestAnimationFrame(() => setInteractive(true));
       return;
     }
 
-    const d = SPRING_DURATION;
+    // Fond opaque QUASI-IMMÉDIAT → l'index passe derrière la page qui s'ouvre.
+    anim(pageBg, [{ opacity: 0, offset: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 1 }], d, FADE_IN_EASING, store);
 
-    // Fond de page opaque → couvre la grille tôt (bascule de PAGE, pas popup).
-    anim(pageBg, [{ opacity: 0, offset: 0 }, { opacity: 1, offset: 0.28 }, { opacity: 1, offset: 1 }], d, FADE_EASING, store);
-
-    // Conteneur : transform spring + border-radius 16 → 24.
+    // Boîte : FLIP non-uniforme + radius, ressort SANS overshoot.
     const boxAnim = anim(
       box,
-      [
-        { transform: fromBox, borderRadius: '16px' },
-        { transform: 'none', borderRadius: 'var(--nc-radius-md)' },
-      ],
+      [{ transform: fromBox, borderRadius: '16px' }, { transform: 'none', borderRadius: 'var(--nc-radius-md)' }],
       d,
       SPRING_EASING,
       store,
     );
 
-    // Titre ancré : spring (transform) + handoff rapide depuis le titre carte.
+    // Contenu encadré (enfant) : scale avec la boîte, entre en fondu tardif.
+    anim(enc, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.35 }, { opacity: 1, offset: 1 }], d, FADE_IN_EASING, store);
+
+    // Contenu carte : transporté (grandit + monte). Les EXTRAS (badges/desc)
+    // restent visibles pendant le scale ; le TITRE s'efface vite (cross-fade hero).
+    anim(card, [{ transform: 'none' }, { transform: toCard }], d, SPRING_EASING, store);
+    anim(card, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.25 }, { opacity: 0, offset: 0.6 }], d, FADE_OUT_EASING, store);
+    anim(cardTitleRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.16 }], d, FADE_OUT_EASING, store);
+
+    // Titre ancré : ressort continu (handoff rapide depuis le titre carte).
     anim(hero, [{ transform: fromTitle }, { transform: 'none' }], d, SPRING_EASING, store);
-    anim(hero, [{ opacity: 0, offset: 0 }, { opacity: 1, offset: 0.18 }, { opacity: 1, offset: 1 }], d, FADE_EASING, store);
-
-    // Contenu carte (titre carte + badges + desc) : sort très tôt (handoff titre).
-    anim(cardLayerRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.2 }, { opacity: 0, offset: 1 }], d, FADE_EASING, store);
-
-    // Contenu encadré : entre tard.
-    anim(encLayerRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1, offset: 1 }], d, FADE_EASING, store);
+    anim(hero, [{ opacity: 0, offset: 0 }, { opacity: 1, offset: 0.16 }, { opacity: 1, offset: 1 }], d, FADE_IN_EASING, store);
 
     boxAnim?.finished.then(() => setInteractive(true)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Fermeture (symétrique) ──────────────────────────────────────────────
+  // ── Fermeture (symétrique, contenu synchro dès le départ) ───────────────
   const close = useCallback(() => {
     if (closingRef.current) return;
     closingRef.current = true;
@@ -182,40 +188,41 @@ export function ZoomOverlay({
     if (!geom || !box) return onClosed();
     if (prefersReduced()) return onClosed();
 
-    // Fige l'état courant en inline avant de réanimer (pas de saut au cancel).
     animsRef.current.forEach((a) => {
       try {
         a.commitStyles();
       } catch {
-        /* anim non encore démarrée */
+        /* anim non démarrée */
       }
       a.cancel();
     });
     animsRef.current = [];
     const store = animsRef.current;
     const d = SPRING_DURATION;
+    const toCard = cardOpenTransform(box, source.cardRect);
 
     const boxAnim = anim(
       box,
-      [
-        { transform: 'none', borderRadius: 'var(--nc-radius-md)' },
-        { transform: geom.fromBox, borderRadius: '16px' },
-      ],
+      [{ transform: 'none', borderRadius: 'var(--nc-radius-md)' }, { transform: geom.fromBox, borderRadius: '16px' }],
       d,
       SPRING_EASING,
       store,
     );
-    anim(heroRef.current, [{ transform: 'none' }, { transform: geom.fromTitle }], d, SPRING_EASING, store);
-    anim(heroRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.8 }, { opacity: 0, offset: 1 }], d, FADE_EASING, store);
-    anim(pageBgRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.72 }, { opacity: 0, offset: 1 }], d, FADE_EASING, store);
-    anim(encLayerRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.45 }, { opacity: 0, offset: 1 }], d, FADE_EASING, store);
+    // Contenu encadré : disparaît DÈS LE DÉPART (ease-out), réduit avec la boîte.
+    anim(encRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.3 }, { opacity: 0, offset: 1 }], d, FADE_OUT_EASING, store);
+    // Fond de page : se retire en fin → l'index réapparaît quand la carte rentre.
+    anim(pageBgRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.4 }, { opacity: 0, offset: 1 }], d, FADE_OUT_EASING, store);
     // Contenu carte : revient en toute fin → atterrissage pixel-exact sur la grille.
-    anim(cardLayerRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.82 }, { opacity: 1, offset: 1 }], d, FADE_EASING, store);
+    anim(cardRef.current, [{ transform: toCard }, { transform: 'none' }], d, SPRING_EASING, store);
+    anim(cardRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1, offset: 1 }], d, FADE_IN_EASING, store);
+    anim(cardTitleRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.84 }, { opacity: 1, offset: 1 }], d, FADE_IN_EASING, store);
+    // Titre ancré : revient, fond en toute fin (le titre carte prend le relais).
+    anim(heroRef.current, [{ transform: 'none' }, { transform: geom.fromTitle }], d, SPRING_EASING, store);
+    anim(heroRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.8 }, { opacity: 0, offset: 1 }], d, FADE_OUT_EASING, store);
 
     boxAnim?.finished.then(onClosed).catch(onClosed);
-  }, [onClosed]);
+  }, [onClosed, source.cardRect]);
 
-  // Échap ferme.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close();
@@ -224,7 +231,6 @@ export function ZoomOverlay({
     return () => window.removeEventListener('keydown', onKey);
   }, [close]);
 
-  // Nettoyage explicite du clone au démontage.
   useEffect(() => {
     return () => {
       animsRef.current.forEach((a) => a.cancel());
@@ -236,7 +242,7 @@ export function ZoomOverlay({
 
   const overlay = (
     <div role="dialog" aria-modal style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}>
-      {/* Fond de PAGE opaque (réplique .nc-app-bg) — couvre la grille */}
+      {/* Fond de PAGE opaque (réplique .nc-app-bg) — couvre l'index */}
       <div
         ref={pageBgRef}
         onClick={close}
@@ -249,35 +255,26 @@ export function ZoomOverlay({
         }}
       />
 
-      {/* Clone — surface qui morphe (bg/bordure/ombre/radius) */}
+      {/* Boîte = surface qui morphe + CONTIENT l'encadré (scale ensemble) */}
       <div
         ref={boxRef}
-        style={{
-          position: 'fixed',
-          transformOrigin: 'top left',
-          background: 'var(--color-surface-card)',
-          border: '1px solid var(--color-border-default)',
-          boxShadow: 'var(--nc-shadow-3)',
-          borderRadius: 16,
-          willChange: 'transform, border-radius',
-          pointerEvents: 'none',
-        }}
-      />
-
-      {/* Conteneur ENCADRÉ — définit le rect cible + contenu (fade tardif) */}
-      <div
-        ref={destRef}
         style={{
           position: 'fixed',
           top: 'calc(env(safe-area-inset-top, 0px) + 76px)',
           left: '50%',
           transform: 'translateX(-50%)',
           width: 'min(720px, calc(100vw - 32px))',
+          background: 'var(--color-surface-card)',
+          border: '1px solid var(--color-border-default)',
+          boxShadow: 'var(--nc-shadow-3)',
+          borderRadius: 16,
+          overflow: 'hidden',
+          willChange: 'transform, border-radius',
           pointerEvents: 'none',
         }}
       >
-        <div ref={encLayerRef} style={{ padding: 32, opacity: 0, pointerEvents: interactive ? 'auto' : 'none' }}>
-          {/* H1 réel caché : le titre ANCRÉ le recouvre. Garde le layout. */}
+        <div ref={encRef} style={{ padding: 32, opacity: 0, pointerEvents: interactive ? 'auto' : 'none' }}>
+          {/* H1 réel caché — le titre ANCRÉ le recouvre, mais garde le layout */}
           <h1 ref={encTitleRef} style={{ ...H1_STYLE, opacity: 0, marginBottom: 16 }}>
             {resource.titre}
           </h1>
@@ -291,12 +288,12 @@ export function ZoomOverlay({
           </div>
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border-default)', margin: '0 0 24px' }} />
           <p style={{ fontSize: 15, color: 'var(--color-text-secondary)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            Aperçu mocké du contenu. Le morph transporte la carte vers cette page :
-            fond de page opaque (la grille disparaît), titre ancré continu, surface
-            unique qui grandit — pas un pop-up superposé.
+            Aperçu mocké : la carte est transportée vers cette page. Le contenu
+            grandit et se réduit AVEC la surface, l’index passe derrière, et rien
+            ne rebondit une fois la cible atteinte.
           </p>
           <p style={{ fontSize: 15, color: 'var(--color-text-secondary)', lineHeight: 1.7, margin: 0 }}>
-            Ferme avec la croix, le fond ou Échap — fermeture symétrique.
+            Ferme avec la croix, le fond ou Échap.
           </p>
 
           <button
@@ -326,9 +323,9 @@ export function ZoomOverlay({
         </div>
       </div>
 
-      {/* Contenu CARTE (au rect source) — titre carte + badges + desc */}
+      {/* Contenu CARTE transporté (titre carte + badges + desc) */}
       <div
-        ref={cardLayerRef}
+        ref={cardRef}
         style={{
           position: 'fixed',
           top: source.cardRect.top,
@@ -337,9 +334,11 @@ export function ZoomOverlay({
           height: source.cardRect.height,
           padding: 20,
           boxSizing: 'border-box',
+          transformOrigin: 'top left',
           display: 'flex',
           flexDirection: 'column',
           gap: 12,
+          willChange: 'transform, opacity',
           pointerEvents: 'none',
         }}
       >
@@ -347,7 +346,7 @@ export function ZoomOverlay({
           <LabBadge kind="ressource" label="Ressource" />
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <h3 style={CARD_TITLE_STYLE}>{resource.titre}</h3>
+          <h3 ref={cardTitleRef} style={CARD_TITLE_STYLE}>{resource.titre}</h3>
           <p
             style={{
               fontSize: 13,
@@ -369,7 +368,7 @@ export function ZoomOverlay({
         </div>
       </div>
 
-      {/* Titre ANCRÉ — layout encadré, morphe entre carte et page (continu) */}
+      {/* Titre ANCRÉ continu */}
       <h1
         ref={heroRef}
         style={{
