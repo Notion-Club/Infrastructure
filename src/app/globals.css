@@ -3138,12 +3138,11 @@ html.dark .nc-lt-scrim {
    `position: absolute` (et non fixed) : le logo reste ancré en HAUT DE PAGE et
    défile avec le contenu — il ne survole jamais le contenu scrollé. */
 .nc-mobile-logo {
-  /* `fixed` (et non `absolute`) : le logo reste ancré au viewport comme le
-     bandeau frosted (.nc-mobile-top-fade) et la BottomNav. En `absolute` il
-     défilait avec le document et « remontait » dans le bandeau fixe au scroll.
-     Rendu HORS de .nc-page-halo (cf. (app)/layout) → pas d'isolation parente
-     qui casserait le fixed. */
-  position: fixed;
+  /* `absolute` (et non `fixed`) : ancré au HAUT DE LA PAGE → défile avec le
+     contenu et disparaît au scroll, comme la rangée d'actions (MobileTopActions).
+     Rendu HORS de .nc-page-halo (cf. (app)/layout) → pas d'isolation/transform
+     parente qui décalerait l'absolute. */
+  position: absolute;
   top: calc(12px + env(safe-area-inset-top, 0px));
   left: 16px;
   z-index: 41;
@@ -3152,14 +3151,43 @@ html.dark .nc-lt-scrim {
   align-items: center;
 }
 
-/* Les anciens « voiles » haut/bas (calques colorés + flou par-dessus le
-   contenu) ont été SUPPRIMÉS : ils ne suivaient pas le thème sur iOS
-   (bug backdrop-filter + custom property, jamais maîtrisé) et empilaient des
-   calques coûteux. La couleur du bord vient désormais UNIQUEMENT du fond de
-   page (`.nc-app-bg`, qui se fond vers la surface au niveau du notch), et le
-   léger flou progressif du haut est porté par `GradualBlurOverlay` (sans
-   couleur → il échantillonne le fond thème-correct). Un seul fond + un voile
-   de flou, au lieu de 4 calques. */
+/* Voile de flou du haut (mobile) = DEUX calques SÉPARÉS, jamais couleur + flou
+   sur le MÊME élément (= le bug WebKit « backdrop-filter + couleur via variable
+   ne se repeint pas au thème », cf. docs/pwa/retrospective-bandes-ios-theme.md) :
+     1. `GradualBlurOverlay` (root layout) → le FLOU pur, dans tous les modes.
+     2. `.nc-top-tint` (ci-dessous) → la COULEUR du thème, SANS backdrop-filter
+        donc repeint correct au switch clair/sombre.
+   La teinte n'est affichée qu'en **Safari navigateur** (`display-mode: browser`),
+   où le chrome du haut est teinté par `theme-color` : la bande de teinte se
+   SOUDE à cette barre (fin de la cassure entre flou pur et zone colorée). En PWA
+   standalone (status bar transparente), on garde le flou pur seul. */
+.nc-top-tint {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Hauteur ≈ status-bar : juste une « ligne » de couleur en haut, le flou
+     (GradualBlurOverlay) descend plus bas. */
+  height: calc(env(safe-area-inset-top, 0px) + 24px);
+  /* Au-dessus du flou (38), sous les icônes (40/41). */
+  z-index: 39;
+  pointer-events: none;
+  /* Couleur de surface du thème (= theme-color des barres Safari) → continuité
+     parfaite. Fondu vers transparent pour révéler le flou en dessous. AUCUN
+     backdrop-filter ici → la variable se repeint au changement de thème. */
+  background: linear-gradient(
+    to bottom,
+    var(--color-surface-page) 0%,
+    var(--color-surface-page) 42%,
+    transparent 100%
+  );
+}
+@media (display-mode: browser) {
+  .nc-top-tint {
+    display: block;
+  }
+}
 
 /* Modale détail d'appel coaching (plan d'action + transcription). Sur mobile,
    on raccourcit légèrement la fenêtre (88vh → 82dvh) pour qu'elle respire
