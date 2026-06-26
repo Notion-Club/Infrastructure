@@ -147,15 +147,24 @@ export function NotificationPermissionPrompt() {
       return;
     }
 
-    // Souscription OK → on reflète le choix dans le tableau de préférences.
-    const persisted = await enablePushChannelAction().catch(() => null);
-    if (persisted && !persisted.ok) {
-      // L'abo navigateur a réussi mais l'écriture des préférences a échoué :
-      // les notifs arriveront quand même, on ne bloque pas l'utilisateur.
-      console.error("[push prompt] enablePushChannel failed:", persisted.message);
-    }
+    // Notifications autorisées → on referme TOUT DE SUITE le pop-up (slide-down
+    // vers le bas) et on affiche la confirmation : l'utilisateur n'attend pas
+    // l'écriture des préférences.
     toast.success("Notifications activées 🎉");
     close();
+
+    // L'écriture du canal push se fait en arrière-plan (fire-and-forget) : si
+    // elle échoue, les notifs arrivent quand même, on ne re-bloque pas l'UI.
+    void enablePushChannelAction()
+      .then((persisted) => {
+        if (persisted && !persisted.ok) {
+          console.error(
+            "[push prompt] enablePushChannel failed:",
+            persisted.message,
+          );
+        }
+      })
+      .catch(() => undefined);
   }, [push, close]);
 
   // Décision d'ouverture auto. Re-tourne quand le hook a fini de détecter le

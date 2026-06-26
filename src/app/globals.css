@@ -684,18 +684,18 @@ html {
      l'animation qui se réduit, jamais le texte (cf. .nc-pwa-copy en 0 0 auto). */
   flex: 0 1 auto;
   width: 100%;
-  /* Hauteur INTERMÉDIAIRE et stable → VERROUILLE la position du titre (ancré
-     juste dessous). La taille du téléphone se règle dans l'iframe (view-h /
-     gaps) SANS toucher cette hauteur → ajuster l'animation ne déplace plus le
-     texte. Le vide restant tombe SOUS le texte (modal plus haut que le contenu). */
-  height: clamp(340px, 54dvh, 500px);
+  /* Hauteur RÉDUITE et stable → la fenêtre d'animation est recadrée serré sur
+     les notifications (cf. iframe : --win-top / --win-h). Plus de bande morte
+     au-dessus, et le titre (ancré juste dessous) remonte à hauteur du regard,
+     là où se trouvaient les contrôles iOS. */
+  height: clamp(180px, 26dvh, 230px);
   padding-top: 6px;
   background: transparent;
   overflow: hidden;
 }
 @media (min-width: 768px) {
   .nc-pwa-anim {
-    height: clamp(340px, 48vh, 480px);
+    height: clamp(190px, 26vh, 240px);
   }
 }
 .nc-pwa-anim iframe {

@@ -34,17 +34,24 @@ body{
   color:var(--color-text-primary);
 }
 
-/* Stage = toute l'iframe ; téléphone ancré en bas (crop HAUT → focus notifs). */
-.anim-stage{ position:fixed; inset:0; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
-.scene{ transform-origin:bottom center; }
+/* Stage = toute l'iframe ; fenêtre centrée sur les notifications. */
+.anim-stage{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.scene{ transform-origin:center; }
 
-/* Recadrage : crop HAUT (pas d'horloge, fond vide minimal) → on ne montre que
-   le bas du téléphone, focus notifications. Frame quasi à la largeur du
-   téléphone → en « contain » le scale est limité par la largeur → téléphone
-   massif, presque pleine largeur du modal. */
-.frame{ position:relative; --view-h:560px; --gap-x:18px; --gap-bottom:44px;
-  width:calc(402px + var(--gap-x) * 2); height:calc(var(--view-h) + var(--gap-bottom)); overflow:hidden; }
-.frame .ncb-phone{ position:absolute; left:var(--gap-x); bottom:var(--gap-bottom); margin:0; }
+/* Recadrage SERRÉ sur les notifications : on ne montre plus le haut vide
+   (wallpaper, ex-« zone rose ») ni le bas (contrôles lampe/photo, home
+   indicator). La fenêtre est une tranche du téléphone [--win-top → +--win-h]
+   en coordonnées « phone-y ». Résultat : les 2 notifications remontent en
+   haut du modal, sans bande morte au-dessus, et le bloc texte suit juste en
+   dessous (à la hauteur des ex-contrôles). */
+.frame{ position:relative; --win-top:528px; --win-h:196px; --gap-x:18px; --pad-y:14px;
+  width:calc(402px + var(--gap-x) * 2);
+  height:calc(var(--win-h) + var(--pad-y) * 2);
+  overflow:hidden; }
+/* Le téléphone est positionné pour que phone-y = --win-top tombe à --pad-y du
+   haut de la fenêtre (le reste, en haut comme en bas, est rogné par overflow). */
+.frame .ncb-phone{ position:absolute; left:var(--gap-x);
+  top:calc(var(--pad-y) - var(--win-top)); margin:0; }
 
 /* Coque téléphone — radius/ombre repris de .ncb-phone. */
 .ncb-phone{
@@ -87,7 +94,7 @@ body{
   background:var(--color-brand); box-shadow:0 1px 3px rgba(0,0,0,.18); }
 .ls-notif .ico img{ width:100%; height:100%; object-fit:cover; display:block; }
 .ls-notif .body{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:1px; }
-.ls-notif .ttl{ font-size:15px; font-weight:600; line-height:18px; letter-spacing:-0.23px; color:#1b1b1b;
+.ls-notif .ttl{ font-size:15px; font-weight:700; line-height:18px; letter-spacing:-0.23px; color:#1b1b1b;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .ls-notif .msg{ font-size:15px; font-weight:400; line-height:18px; letter-spacing:-0.23px; color:#5c5c61;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
