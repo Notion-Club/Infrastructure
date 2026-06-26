@@ -71,23 +71,32 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  // theme-color = couleur des barres Safari (mode navigateur, haut + bas) = la
-  // surface UNIFORME de la page (#f5f2f2 clair / #141211 sombre). Le dégradé
-  // `.nc-app-bg` fond vers cette même surface en haut/bas (accents repoussés sur
-  // les côtés) → les barres prolongent la page sans cassure. Le `media` gère le
-  // pré-paint (no-JS) selon l'OS ; `ThemeColorMeta` (body) affine ensuite selon
-  // le thème RÉEL de l'app. À garder synchro avec `LIGHT_CHROME` (ThemeColorMeta)
-  // et `--color-surface-page` (globals).
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f5f2f2" },
-    { media: "(prefers-color-scheme: dark)", color: "#141211" },
-  ],
+  // PAS de `themeColor` ici, VOLONTAIREMENT. La balise <meta name="theme-color">
+  // est gérée EXCLUSIVEMENT en impératif (script inline pré-paint + `ThemeColorMeta`),
+  // jamais par React/Next.
+  //
+  // Pourquoi : `ThemeColorMeta` doit RETIRER puis RÉ-INSÉRER le <meta> à chaque
+  // switch (seul moyen de forcer Safari iOS à relire la teinte quand un overlay
+  // `backdrop-filter` est composé par-dessus). Si React possédait aussi une balise
+  // theme-color (via `viewport`), ce retrait détacherait un nœud que React croit
+  // encore vivant → `removeChild` sur parent null EN PHASE COMMIT à la navigation
+  // → tout le commit avorte (navigation figée, dropdown gelé). En laissant React
+  // hors de cette balise, le code impératif en est seul propriétaire → zéro
+  // conflit. Teintes : #f5f2f2 (clair) / #141211 (sombre) — cf. LIGHT_CHROME /
+  // DARK_SURFACE dans ThemeColorMeta et `--color-surface-page` dans globals.
 };
 
 // Inline script runs before paint to avoid a flash of incorrect theme.
 // Stored preference can be "light" | "dark" | "system"; "system" falls back
 // to prefers-color-scheme.
-const THEME_INIT_SCRIPT = `(function(){try{var p=localStorage.getItem('theme');if(p!=='light'&&p!=='dark'&&p!=='system')p='system';var t=p;if(p==='system'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`;
+//
+// Il pose AUSSI la balise <meta name="theme-color"> de pré-paint, créée
+// IMPÉRATIVEMENT (hors React) : c'est ce qui remplace l'ancien `viewport.themeColor`
+// supprimé. Avantage vs l'ancienne version `media` : la teinte suit le thème RÉEL
+// de l'app (localStorage), pas seulement l'OS. `ThemeColorMeta` reprend ensuite la
+// main (retrait/ré-insertion réactive) sur ce même nœud non-React → aucun conflit.
+// Teintes synchro avec LIGHT_CHROME / DARK_SURFACE (ThemeColorMeta).
+const THEME_INIT_SCRIPT = `(function(){try{var p=localStorage.getItem('theme');if(p!=='light'&&p!=='dark'&&p!=='system')p='system';var t=p;if(p==='system'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(t==='dark')document.documentElement.classList.add('dark');var m=document.createElement('meta');m.setAttribute('name','theme-color');m.setAttribute('content',t==='dark'?'#141211':'#f5f2f2');document.head.appendChild(m);}catch(e){}})();`;
 
 export default function RootLayout({
   children,

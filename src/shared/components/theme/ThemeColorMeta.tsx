@@ -130,7 +130,11 @@ function applyThemeColor(color: string | null) {
   // le chrome Safari reste figé sur l'ancienne teinte jusqu'à fermeture de
   // l'overlay. Retirer puis ré-insérer l'élément <meta> force Safari à relire la
   // valeur, donc le switch clair/sombre se propage aux barres même modale
-  // ouverte. On retire AUSSI la balise statique (avec `media`) émise par Next.
+  // ouverte. On retire AUSSI la balise de pré-paint posée par le script inline du
+  // root layout (créée hors React). AUCUNE balise theme-color n'est rendue par
+  // React/Next (cf. layout.tsx : pas de `viewport.themeColor`) → ce retrait ne
+  // détache jamais un nœud géré par React, donc plus de `removeChild` sur parent
+  // null en phase commit (ce qui figeait la navigation).
   // cf. docs/pwa/safari-web-pwa-integration.md.
   document
     .querySelectorAll('meta[name="theme-color"]')
@@ -174,8 +178,8 @@ export function ThemeColorMeta() {
     return () => observer.disconnect();
   }, []);
 
-  // Écriture après paint : le premier rendu garde la balise statique (SSR),
-  // puis on l'aligne sur le thème réel côté client (retrait pur en clair).
+  // Écriture après paint : le 1ᵉʳ paint garde la balise posée par le script
+  // inline, puis on l'aligne sur le thème réel + les overrides côté client.
   useEffect(() => {
     applyThemeColor(color);
   }, [color]);
