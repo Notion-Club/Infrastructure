@@ -1,13 +1,28 @@
 'use client';
 
-import { LAB_RESOURCES } from './mock';
+import { useState } from 'react';
+import { LAB_RESOURCES, type LabResource } from './mock';
 import { LabCard } from './LabCard';
+import { ZoomOverlay, type ZoomSource } from './ZoomOverlay';
 
-// Étape 1 — mini-grille statique (zéro animation). Le fond est le vrai
-// `.nc-app-bg` hérité du root layout ; la grille reproduit la structure de
-// `ResourcesGrid` (grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4, .nc-grid-card).
-// Le morph (clic → encadré) arrive à l'Étape 2.
+// Étape 2 — le morph. Clic carte → clone `position: fixed` qui grandit (spring
+// WAAPI) depuis le rect EXACT de la carte vers l'encadré, titre ancré + cross-
+// fade temporisé. La grille reste montée et IMMOBILE derrière. Fond = vrai
+// `.nc-app-bg` hérité du root layout.
 export function ZoomLab() {
+  const [active, setActive] = useState<ZoomSource | null>(null);
+
+  const open = (resource: LabResource, surface: HTMLElement) => {
+    // Géométrie capturée AVANT tout changement DOM → la grille ne bouge pas,
+    // les rects restent valides. Positions via getBoundingClientRect (jamais vh).
+    const cardRect = surface.getBoundingClientRect();
+    const titleEl = surface.querySelector('[data-lab-card-title]') as HTMLElement | null;
+    if (!titleEl) return;
+    const titleRect = titleEl.getBoundingClientRect();
+    const titleFontSize = parseFloat(getComputedStyle(titleEl).fontSize) || 15;
+    setActive({ resource, cardRect, titleRect, titleFontSize });
+  };
+
   return (
     <main style={{ position: 'relative', zIndex: 1 }}>
       <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
@@ -43,19 +58,21 @@ export function ZoomLab() {
               Zoom-transition — prototype
             </h1>
             <p style={{ fontSize: 15, color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.6 }}>
-              Étape 1 : grille statique à la DNA réelle des cartes /Ressources. Aucune animation pour l’instant.
+              Étape 2 : clique une carte → morph spring vers l’encadré, titre ancré, grille immobile.
             </p>
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {LAB_RESOURCES.map((resource) => (
               <div key={resource.slug} className="nc-grid-card" data-card-id={resource.slug}>
-                <LabCard resource={resource} />
+                <LabCard resource={resource} onOpen={open} />
               </div>
             ))}
           </div>
         </div>
       </div>
+
+      {active && <ZoomOverlay source={active} onClosed={() => setActive(null)} />}
     </main>
   );
 }
