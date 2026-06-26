@@ -71,13 +71,14 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  // Valeur statique par défaut (premier paint / no-JS). On ne déduit PLUS la
-  // teinte via `prefers-color-scheme` : le thème réel de l'app est piloté par
-  // un store JS (localStorage → classe `.dark`) qui peut diverger de l'OS, ce
-  // qui laissait une bande claire autour d'une UI sombre sur Safari navigateur.
-  // `ThemeColorMeta` (monté dans le body) réécrit cette balise depuis le thème
-  // effectivement appliqué. #f5f2f2 = couleur de page en thème clair.
-  themeColor: "#f5f2f2",
+  // theme-color : on ne le force QU'EN thème sombre (barres Safari near-black
+  // autour d'une UI sombre). En thème clair, AUCUNE balise active → Safari
+  // applique son matériau translucide natif aux barres haut/bas : le dégradé de
+  // page transparaît derrière, au lieu d'une bande blanche opaque. Le `media`
+  // gère le pré-paint (no-JS) ; `ThemeColorMeta` (body) affine ensuite selon le
+  // thème réel de l'app (store JS, qui peut diverger de l'OS) et RETIRE la
+  // balise en clair.
+  themeColor: [{ media: "(prefers-color-scheme: dark)", color: "#141211" }],
 };
 
 // Inline script runs before paint to avoid a flash of incorrect theme.
@@ -119,8 +120,9 @@ export default function RootLayout({
             l'ancien dégradé par-page clippé. cf. .nc-app-bg dans globals.css */}
         <div className="nc-app-bg" aria-hidden />
         <ThemeProvider>
-          {/* Aligne <meta name="theme-color"> sur le thème réel → les barres
-              Safari (haut/bas) épousent la surface, plus de bande blanche. */}
+          {/* Pilote <meta name="theme-color"> selon le thème réel : RETIRE la
+              balise en clair (barres Safari translucides natives, le dégradé
+              transparaît) ; near-black en sombre. Garde aussi la classe `.dark`. */}
           <ThemeColorMeta />
           {children}
         </ThemeProvider>
