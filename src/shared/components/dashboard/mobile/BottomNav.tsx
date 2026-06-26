@@ -171,7 +171,12 @@ export function BottomNav() {
         background: "var(--nc-bottom-nav-bg)",
         border: "0.5px solid var(--nc-bottom-nav-border)",
         borderRadius: 9999,
-        boxShadow: "0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)",
+        // Ombre de contact serrée UNIQUEMENT (léger relief collé à la pilule).
+        // L'ancien halo `0 4px 24px rgba(0,0,0,0.08)` débordait sous la pilule et,
+        // en Safari iOS navigateur (safe-area-inset-bottom ≈ 0), se coinçait dans
+        // l'espace avant la barre Safari → apparaissait comme un voile sombre
+        // parasite. Retiré : plus de halo descendant, la pilule garde sa `border`.
+        boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
         display: "flex",
         alignItems: "center",
         padding: "0 6px",
