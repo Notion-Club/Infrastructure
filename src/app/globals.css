@@ -73,8 +73,9 @@ html {
   /* Boutons CTA sombres inversés en dark */
   --nc-btn-dark-bg: #ede9e6;
   --nc-btn-dark-text: #141211;
-  /* BottomNav pill — fond sombre translucide */
-  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
+  /* BottomNav pill — fond sombre OPAQUE (cf. clair : pas de transparence au
+     scroll, le contenu ne doit jamais transparaître derrière la pilule). */
+  --nc-bottom-nav-bg: #1c1917;
   --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
 }
 
@@ -144,8 +145,10 @@ html {
   /* Boutons CTA sombres — s'inversent en dark mode */
   --nc-btn-dark-bg: #1a1a1a;
   --nc-btn-dark-text: #ffffff;
-  /* BottomNav pill */
-  --nc-bottom-nav-bg: rgba(255, 255, 255, 0.92);
+  /* BottomNav pill — fond OPAQUE (pas de backdrop-filter sur iOS) : à 0.92 le
+     contenu transparaissait derrière la pilule au scroll. Opaque = barre nette,
+     contenu jamais visible derrière (en PWA comme en navigateur). */
+  --nc-bottom-nav-bg: #ffffff;
   --nc-bottom-nav-border: rgba(229, 231, 235, 0.9);
   /* Dots pattern hover sur resource/template cards */
   --nc-card-dot-color: rgba(224, 98, 90, 0.28);
