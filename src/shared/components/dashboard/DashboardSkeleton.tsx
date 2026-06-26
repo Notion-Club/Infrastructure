@@ -241,18 +241,14 @@ export function DashboardSkeleton({ withChrome = false }: { withChrome?: boolean
             <div style={block({ height: 40, borderRadius: 9999, animationDelay: "60ms" })} />
           </div>
 
-          {/* Widgets grid */}
+          {/* Widgets grid — calqué sur la vraie homepage : exactement deux cartes
+              (Formation + Profil). PAS de placeholder pointillé en dessous : la
+              vraie page n'en a aucun, le résidu créait un encadré fantôme (et,
+              en pleine largeur, un faux « barreau » de nav) qui disparaissait au
+              chargement → mismatch skeleton ↔ page. */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <WidgetCardSkeleton />
             <WidgetCardSkeleton delay={80} />
-            <div
-              className="col-span-1 md:col-span-2"
-              style={{
-                height: 80,
-                borderRadius: 16,
-                border: "1.5px dashed var(--color-border-default)",
-              }}
-            />
           </div>
         </div>
         </main>

@@ -258,11 +258,11 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
           groupe, le bouton Filtres est placé à gauche des pills. */}
       <div
         data-fb-label="Filtre barre · Grille des ressources"
+        className="nc-resources-filterbar"
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 24,
-          flexWrap: 'wrap',
         }}
       >
         {/* Tags group — bouton Filtres à gauche, pills à droite.

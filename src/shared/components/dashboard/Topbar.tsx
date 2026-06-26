@@ -51,7 +51,10 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Accueil", icon: House, href: "/dashboard" },
   { label: "Formation", icon: GraduationCap, href: "/formation", iconSize: 18 },
   { label: "Communauté", icon: RectangleGroupBubble, href: "/communaute" },
-  { label: "Coaching", icon: PersonsWave, href: "/coaching", iconSize: 18 },
+  // person.2.wave.2 : glyphe large mais COURT (≈ 60 % de la hauteur du canvas).
+  // À 18 il rendait ~11px de haut, nettement sous House/Communauté (~15px) →
+  // visuellement plus petit que le reste. 22 l'aligne optiquement (≈ 13-14px).
+  { label: "Coaching", icon: PersonsWave, href: "/coaching", iconSize: 22 },
   { label: "Ressources", icon: WrenchScrewdriver, href: "/ressources" },
 ];
 

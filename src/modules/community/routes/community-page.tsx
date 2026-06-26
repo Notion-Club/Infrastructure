@@ -220,13 +220,18 @@ export function CommunityPage({
       <ImageLightboxRoot />
 
       {/* Global container card — CADRE toujours présent (jamais en Suspense).
-          `flex flex-col` SANS `flex-1 min-h-0` : la carte grandit avec son
-          contenu (scroll-document) au lieu d'être figée à la hauteur du shell
-          (ce qui figeait la barre Safari → contenu raccourci). `overflow:hidden`
-          ne fait plus que clipper les coins arrondis. La vue Messages se redonne
-          une hauteur fixe explicite (cf. MessagesContent). */}
+          `flex flex-col flex-1` (sans `min-h-0`) — exactement comme l'encadré de
+          /coaching : la carte remplit AU MOINS la hauteur du viewport (entre la
+          barre de nav et le bas, avec la marge) PUIS grandit avec son contenu
+          (scroll-document). Sans `flex-1`, quand le feed était court, la carte
+          restait raccourcie alors que /coaching descendait pleinement → les deux
+          pages n'avaient pas la même hauteur. `min-h-0` reste volontairement
+          absent : c'est LUI (combiné à une hauteur de shell figée) qui bloquait
+          la croissance et figeait la barre Safari, pas `flex-1` seul.
+          `overflow:hidden` ne fait que clipper les coins arrondis. La vue
+          Messages se redonne une hauteur fixe explicite (cf. MessagesContent). */}
       <div
-        className="flex flex-col"
+        className="flex flex-col flex-1"
         data-fb-label="Encadré principal · Communauté"
         style={{
           background: "var(--color-surface-raised)",

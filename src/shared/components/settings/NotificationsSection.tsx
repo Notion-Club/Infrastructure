@@ -60,6 +60,10 @@ type ChannelMeta = {
     className?: string;
     "aria-hidden"?: boolean;
   }>;
+  // Override de taille : certains glyphes (ex. iphone.radiowaves) sont larges
+  // mais courts → rendus plus petits à taille égale. On les agrandit pour une
+  // présence homogène avec les autres canaux.
+  iconSize?: number;
 };
 
 const CHANNELS: ChannelMeta[] = [
@@ -68,7 +72,7 @@ const CHANNELS: ChannelMeta[] = [
   { key: "whatsapp", label: "WhatsApp", Icon: MessageCircle },
   // Web Push (mobile + desktop), requiert souscription navigateur. Sur iOS,
   // marche uniquement quand la PWA est installée sur l'écran d'accueil.
-  { key: "push", label: "Push", Icon: IphoneRadiowaves },
+  { key: "push", label: "Push", Icon: IphoneRadiowaves, iconSize: 22 },
 ];
 
 // Fusion visuelle In-App + Push : on n'affiche qu'UN seul canal, celui de la
@@ -372,11 +376,12 @@ function NotificationsMatrix({
         >
           Type
         </div>
-        {VISIBLE_CHANNELS.map(({ key, label, Icon }) => (
+        {VISIBLE_CHANNELS.map(({ key, label, Icon, iconSize }) => (
           <div key={key} role="columnheader">
             <ChannelHeaderButton
               label={label}
               Icon={Icon}
+              iconSize={iconSize}
               active={channels[key]}
               onClick={() => onToggleChannel(key)}
             />
@@ -458,6 +463,7 @@ function NotificationsMatrix({
 function ChannelHeaderButton({
   label,
   Icon,
+  iconSize = 16,
   active,
   onClick,
 }: {
@@ -468,6 +474,7 @@ function ChannelHeaderButton({
     className?: string;
     "aria-hidden"?: boolean;
   }>;
+  iconSize?: number;
   active: boolean;
   onClick: () => void;
 }) {
@@ -506,7 +513,7 @@ function ChannelHeaderButton({
       }}
       className="hover:bg-[var(--nc-nav-hover-bg)] focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
     >
-      <Icon size={16} strokeWidth={active ? 2.25 : 2} aria-hidden />
+      <Icon size={iconSize} strokeWidth={active ? 2.25 : 2} aria-hidden />
       <span
         style={{
           fontSize: 11,

@@ -1978,18 +1978,26 @@ html {
   transform-origin: top right;
 }
 @media (min-width: 768px) {
+  /* Carte plus haute → fenêtre d'aperçu plus haute → on voit plus bas dans la
+     facture (avant : coupé à « Gouman Operates »). Proportions retravaillées
+     pour rester élégant : la facture descend maintenant jusqu'au tableau /
+     totaux avant le fondu, sans que la carte paraisse vide ou grossière. */
   .nc-payments-cta {
-    min-height: 96px;
-    padding: 18px 232px 18px 24px;
+    min-height: 132px;
+    padding: 22px 232px 22px 24px;
   }
   .nc-payments-cta__title {
     font-size: 18px;
   }
   .nc-payments-cta__preview {
-    top: 16px;
+    top: 18px;
     right: 18px;
     width: 208px;
-    height: 82px;
+    height: 112px;
+    /* Fondu repoussé plus bas (66 % au lieu de 58 %) : on garde net une plus
+       grande partie de la facture maintenant qu'on en montre davantage. */
+    -webkit-mask-image: linear-gradient(to bottom, #000 66%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 66%, transparent 100%);
   }
   .nc-payments-cta__preview > * {
     transform: scale(0.8);
@@ -3207,36 +3215,54 @@ html.dark .nc-lt-scrim {
   background: rgba(0, 0, 0, 0.6);
 }
 
-/* Groupe tabs + filtre : aligné à droite sur desktop (poussé par la recherche
-   flexible), aligné à gauche sur mobile (la barre passe à la ligne au-dessus). */
+/* Barre de filtres Ressources (conteneur recherche + tags).
+   • Mobile : wrap → la recherche (100 %) occupe seule la 1ʳᵉ ligne, les filtres
+     passent en dessous.
+   • Desktop : NOWRAP. C'est la clé du « tout sur une ligne » : avec flex-wrap,
+     le navigateur décide les retours à la ligne sur la taille de BASE des items
+     (donc avant tout rétrécissement) → une barre large basculait seule sur la
+     ligne du dessus. En nowrap, les items se contractent au lieu de wrapper. */
+.nc-resources-filterbar {
+  flex-wrap: wrap;
+}
+@media (min-width: 768px) {
+  .nc-resources-filterbar {
+    flex-wrap: nowrap;
+  }
+}
+
+/* Groupe tabs + filtre : aligné à droite sur desktop (poussé par la recherche),
+   aligné à gauche sur mobile (la barre passe à la ligne au-dessus).
+   flex-shrink:0 sur desktop → ce sont les 4 filtres qui restent intègres ; tout
+   le rétrécissement éventuel est absorbé par la barre de recherche. */
 .nc-tags-group {
   margin-left: 0;
 }
 @media (min-width: 768px) {
   .nc-tags-group {
     margin-left: auto;
+    flex-shrink: 0;
   }
 }
 
 /* Barre de recherche Ressources.
-   • Mobile : pleine largeur, non rétractable → occupe seule la première ligne,
-     les filtres passent en dessous.
-   • Desktop : base 600px mais RÉTRACTABLE (flex-shrink:1, contrairement à
-     l'ancienne barre figée à flex-shrink:0 qui débordait sur 2 lignes). Tant
-     que tout tient, .nc-tags-group (margin-left:auto) cale les 4 filtres à
-     droite et la barre reste à 600 ; dès que ça déborde, les marges auto
-     passent à 0 et la barre se contracte (jusqu'à 260px min) pour tenir sur
-     UNE seule ligne. */
+   • Mobile : pleine largeur, non rétractable → occupe seule la première ligne.
+   • Desktop : base 420px, NON-extensible (flex-grow:0) mais rétractable
+     (flex-shrink:1, min 200px). Raccourcie (ancien 600 → 420) pour que, sur le
+     contenu de 920px, la barre + l'espace + les 4 filtres (~370px) tiennent
+     largement sur UNE ligne (420 + 24 + 370 = 814 < 920). Le reste d'espace est
+     absorbé par .nc-tags-group (margin-left:auto) → bel intervalle entre la
+     recherche (gauche) et les filtres (droite). */
 .nc-resources-search {
   width: 100%;
   flex-shrink: 0;
 }
 @media (min-width: 768px) {
   .nc-resources-search {
-    flex: 0 1 600px;
+    flex: 0 1 420px;
     width: auto;
-    min-width: 260px;
-    max-width: 600px;
+    min-width: 200px;
+    max-width: 420px;
   }
 }
 
