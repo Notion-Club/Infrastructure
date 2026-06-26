@@ -1,22 +1,39 @@
 "use client";
 
 import type React from "react";
-import { useCallback, useLayoutEffect, useRef } from "react";
-import { SunMax, Moon, Iphone } from "@/shared/components/icons";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { SunMax, Moon, Iphone, Desktopcomputer } from "@/shared/components/icons";
 import { useTheme } from "@/shared/lib/hooks/useTheme";
 import type { ThemePreference } from "./ThemeProvider";
 
 type Variant = "compact" | "segmented";
 
+type SegmentedIcon = React.ComponentType<{ size?: number; className?: string }>;
+
 const SEGMENTED_OPTIONS: Array<{
   value: ThemePreference;
   label: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: SegmentedIcon;
 }> = [
   { value: "light", label: "Light", icon: SunMax },
+  // L'icône « Système » est remplacée dynamiquement par useSystemThemeIcon() :
+  // iPhone sur mobile, desktopcomputer sur desktop. Iphone reste le défaut SSR.
   { value: "system", label: "Système", icon: Iphone },
   { value: "dark", label: "Dark", icon: Moon },
 ];
+
+// Icône du mode « Système » selon le device : par défaut l'iPhone (rendu SSR +
+// premier paint client), puis bascule sur `desktopcomputer` si l'UA indique un
+// poste de bureau. State client-only → pas de mismatch d'hydratation.
+function useSystemThemeIcon(): SegmentedIcon {
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const ua = navigator.userAgent || "";
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod|Windows Phone/i.test(ua);
+    setIsDesktop(!isMobile);
+  }, []);
+  return isDesktop ? Desktopcomputer : Iphone;
+}
 
 export function ThemeToggle({
   variant = "compact",
@@ -27,6 +44,7 @@ export function ThemeToggle({
 }) {
   const { preference, theme, setPreference, toggleTheme } = useTheme();
   const isDark = theme === "dark";
+  const systemIcon = useSystemThemeIcon();
 
   const itemRefs       = useRef<(HTMLButtonElement | null)[]>([]);
   const pillRef        = useRef<HTMLDivElement>(null);
@@ -58,6 +76,11 @@ export function ThemeToggle({
     const idx = SEGMENTED_OPTIONS.findIndex((o) => o.value === preference);
     if (lastClickedRef.current === idx) {
       lastClickedRef.current = -1;
+      // L'option vient de passer active (font-weight 500 → 600, donc un peu plus
+      // large). Au clic, moveTo a mesuré la largeur « inactive » : on re-mesure
+      // ici, après application des styles actifs, et on anime vers la largeur
+      // définitive — sinon la pill reste figée à la taille de transition.
+      moveTo(idx, true);
       return;
     }
     lastClickedRef.current = -1;
@@ -95,7 +118,9 @@ export function ThemeToggle({
             zIndex: 0,
           }}
         />
-        {SEGMENTED_OPTIONS.map(({ value, label, icon: Icon }, i) => {
+        {SEGMENTED_OPTIONS.map(({ value, label, icon }, i) => {
+          // Le mode « Système » porte une icône variable selon le device.
+          const Icon = value === "system" ? systemIcon : icon;
           const active = preference === value;
           return (
             <button

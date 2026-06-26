@@ -3126,13 +3126,35 @@ html.dark .nc-lt-scrim {
 }
 
 /* Groupe tabs + filtre : aligné à droite sur desktop (poussé par la recherche
-   fixe), aligné à gauche sur mobile (la barre passe à la ligne au-dessus). */
+   flexible), aligné à gauche sur mobile (la barre passe à la ligne au-dessus). */
 .nc-tags-group {
   margin-left: 0;
 }
 @media (min-width: 768px) {
   .nc-tags-group {
     margin-left: auto;
+  }
+}
+
+/* Barre de recherche Ressources.
+   • Mobile : pleine largeur, non rétractable → occupe seule la première ligne,
+     les filtres passent en dessous.
+   • Desktop : base 600px mais RÉTRACTABLE (flex-shrink:1, contrairement à
+     l'ancienne barre figée à flex-shrink:0 qui débordait sur 2 lignes). Tant
+     que tout tient, .nc-tags-group (margin-left:auto) cale les 4 filtres à
+     droite et la barre reste à 600 ; dès que ça déborde, les marges auto
+     passent à 0 et la barre se contracte (jusqu'à 260px min) pour tenir sur
+     UNE seule ligne. */
+.nc-resources-search {
+  width: 100%;
+  flex-shrink: 0;
+}
+@media (min-width: 768px) {
+  .nc-resources-search {
+    flex: 0 1 600px;
+    width: auto;
+    min-width: 260px;
+    max-width: 600px;
   }
 }
 

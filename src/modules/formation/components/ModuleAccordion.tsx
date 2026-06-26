@@ -62,6 +62,30 @@ export function ModuleAccordion({
     return () => clearTimeout(t);
   }, [animateOpen]);
 
+  // Toggle + recentrage : à l'ouverture, on scrolle pour amener l'encadré au
+  // centre du viewport. On vise sa hauteur FINALE (en-tête replié + contenu
+  // déplié, déjà mesuré dans `innerHeight`) pour que le scroll et le dépliage
+  // s'animent ensemble et atterrissent pile centrés — sans attendre la fin de
+  // l'animation max-height. Sinon un module ouvert en bas de page (près de la
+  // BottomNav) s'ouvre hors écran sans qu'on le voie.
+  function toggleOpen() {
+    setOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        requestAnimationFrame(() => {
+          const el = rootRef.current;
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          const finalHeight = rect.height + innerHeight;
+          const elTop = rect.top + window.scrollY;
+          const target = elTop - (window.innerHeight - finalHeight) / 2;
+          window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+        });
+      }
+      return next;
+    });
+  }
+
   const percent =
     module.totalCount === 0
       ? 0
@@ -111,7 +135,7 @@ export function ModuleAccordion({
       )}
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
         aria-expanded={open}
         data-fb-label={`En-tête accordéon module « ${module.name} » · Accordéon module`}
         style={{

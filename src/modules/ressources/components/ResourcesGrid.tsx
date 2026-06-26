@@ -479,14 +479,17 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
         </div>
         {/* /Tags group */}
 
-        {/* Search — LEFT (order:-1), largeur FIXE et verrouillée : barre longue
-            (élément central) qui NE se redimensionne PAS quand le bouton Filtres
-            disparaît (flexShrink:0, aucune relation flex avec les filtres). */}
+        {/* Search — LEFT (order:-1). Largeur pilotée par la classe
+            .nc-resources-search (cf. globals.css) :
+            • mobile : pleine largeur → passe seule sur la ligne au-dessus ;
+            • desktop : flexible et bornée (260→600px) → se contracte pour que la
+              barre ET les 4 filtres tiennent sur UNE seule ligne (barre à
+              gauche, filtres alignés à droite via .nc-tags-group). */}
         {/* Two layers always in DOM; opacity-toggled so text-swap animation
             completes before the button layer fades out and input fades in. */}
         <div
-          className="nc-search-shimmer"
-          style={{ order: -1, width: 600, maxWidth: '100%', flexShrink: 0, position: 'relative', height: 44 }}
+          className="nc-search-shimmer nc-resources-search"
+          style={{ order: -1, position: 'relative', height: 44 }}
         >
           {/* BASE — input réel, TOUJOURS monté/visible/interactif. Le tap atterrit
               directement dessus → focus natif → clavier mobile, sans focus différé.

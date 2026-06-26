@@ -5,13 +5,14 @@ import { useRef, useEffect, useLayoutEffect, useCallback, useTransition } from "
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Users, Calendar } from "lucide-react";
 import {
   House,
   GraduationCap,
   WrenchScrewdriver,
   Gear,
   PersonCircleFill,
+  RectangleGroupBubble,
+  PersonsWave,
 } from "@/shared/components/icons";
 
 import { AppearanceSection } from "@/shared/components/settings/AppearanceSection";
@@ -26,13 +27,13 @@ import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import { DevToolboxButton } from "@/shared/components/dev/DevToolbox";
 import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
 
-// iconSize : override optionnel — certaines icônes lucide (ex. graduation-cap,
-// glyphe large mais court) paraissent plus petites à taille égale ; on les
-// agrandit légèrement pour une présence visuelle homogène dans la nav.
-// Les icônes de nav mélangent désormais la library in-app (fill-based) et des
-// icônes lucide encore utilisées (Users, Calendar). On type donc l'icône comme
-// un composant générique acceptant size/strokeWidth/className/style, compatible
-// avec les deux familles.
+// iconSize : override optionnel — certaines icônes (ex. graduation-cap, ou la
+// glyphe large mais courte person.2.wave.2) paraissent plus petites à taille
+// égale ; on les agrandit légèrement pour une présence visuelle homogène.
+// Les icônes de nav sont toutes issues de la library in-app (SF Symbols,
+// fill-based). On garde un type générique acceptant
+// size/strokeWidth/className/style pour rester compatible si une icône lucide
+// (stroke-based) est réintroduite plus tard.
 type NavIcon = React.ComponentType<{
   size?: number | string;
   strokeWidth?: number;
@@ -49,8 +50,8 @@ const LOGO_DARK =
 const NAV_ITEMS: NavItem[] = [
   { label: "Accueil", icon: House, href: "/dashboard" },
   { label: "Formation", icon: GraduationCap, href: "/formation", iconSize: 18 },
-  { label: "Communauté", icon: Users, href: "/communaute" },
-  { label: "Coaching", icon: Calendar, href: "/coaching" },
+  { label: "Communauté", icon: RectangleGroupBubble, href: "/communaute" },
+  { label: "Coaching", icon: PersonsWave, href: "/coaching", iconSize: 18 },
   { label: "Ressources", icon: WrenchScrewdriver, href: "/ressources" },
 ];
 
@@ -143,6 +144,12 @@ export function Topbar() {
     );
     if (lastClickedRef.current === idx) {
       lastClickedRef.current = -1;
+      // L'onglet vient de passer actif (font-weight 400 → 600, donc un peu plus
+      // large). Au clic, moveTo a mesuré la largeur « inactive » : on re-mesure
+      // ici, après application des styles actifs, et on anime vers la largeur
+      // définitive — sinon la pill reste figée à la taille de transition
+      // (corrigée seulement au 2e clic).
+      moveTo(idx, true);
       return;
     }
     lastClickedRef.current = -1;

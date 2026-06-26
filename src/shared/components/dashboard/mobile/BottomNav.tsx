@@ -4,12 +4,17 @@ import { useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type React from "react";
-import { Users, Calendar } from "lucide-react";
-import { House, GraduationCap, WrenchScrewdriver } from "@/shared/components/icons";
+import {
+  House,
+  GraduationCap,
+  WrenchScrewdriver,
+  RectangleGroupBubble,
+  PersonsWave,
+} from "@/shared/components/icons";
 
-// Les icônes de nav mélangent la library in-app (fill-based) et des icônes
-// lucide encore utilisées (Users, Calendar) : type générique compatible des
-// deux familles.
+// Les icônes de nav sont toutes issues de la library in-app (SF Symbols,
+// fill-based) : type générique compatible si une icône lucide (stroke-based)
+// est réintroduite plus tard.
 type NavIcon = React.ComponentType<{
   size?: number | string;
   strokeWidth?: number;
@@ -29,8 +34,8 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { label: "Accueil", icon: House, href: "/dashboard" },
   { label: "Formation", icon: GraduationCap, href: "/formation", iconSize: 21 },
-  { label: "Communauté", icon: Users, href: "/communaute" },
-  { label: "Coaching", icon: Calendar, href: "/coaching" },
+  { label: "Communauté", icon: RectangleGroupBubble, href: "/communaute" },
+  { label: "Coaching", icon: PersonsWave, href: "/coaching", iconSize: 22 },
   { label: "Ressources", icon: WrenchScrewdriver, href: "/ressources" },
 ];
 
@@ -91,6 +96,12 @@ export function BottomNav() {
     const idx = activeIdx();
     if (lastClickedRef.current === idx) {
       lastClickedRef.current = -1;
+      // L'onglet vient de passer actif (font-weight plus épais → un peu plus
+      // large). Au clic, moveTo a mesuré la largeur « inactive » : on re-mesure
+      // ici, après application des styles actifs, et on anime vers la largeur
+      // définitive — sinon la pill reste figée à la taille de transition
+      // (corrigée seulement au 2e clic).
+      moveTo(idx, true);
       return;
     }
     lastClickedRef.current = -1;
