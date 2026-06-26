@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Notion Club — aperçu notifications écran verrouillé</title>
+<style>
+/* =====================================================================
+   SCÈNE iOS écran verrouillé — lifée du modal « Active les notifications ».
+   Isolée dans une iframe (cf. NotificationPermissionModal.tsx → .nc-pwa-anim).
+   Fond TRANSPARENT : on laisse transparaître la zone d'animation claire du
+   modal hôte (guide en light mode quel que soit le thème).
+   ===================================================================== */
+:root{
+  --color-brand:#e0625a;
+  --color-text-primary:#000000;
+  --color-text-secondary:#52525b;
+  --color-surface-page:#f5f2f2;
+}
+
+/* ===== SF Pro Display — fallback -apple-system natif sur Apple ===== */
+@font-face{ font-family:"SF Pro Display"; font-style:normal; font-weight:400; font-display:swap;
+  src:local("SF Pro Display"), local("SFProDisplay-Regular"), url("fonts/SF-Pro-Display-Regular.woff2") format("woff2"); }
+@font-face{ font-family:"SF Pro Display"; font-style:normal; font-weight:700; font-display:swap;
+  src:local("SF Pro Display Bold"), local("SFProDisplay-Bold"), url("fonts/SF-Pro-Display-Bold.woff2") format("woff2"); }
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  min-height:100%;
+  background:transparent;
+  font-family:"SF Pro Display",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  color:var(--color-text-primary);
+}
+
+/* Stage = toute l'iframe ; téléphone ancré en bas (crop HAUT → focus notifs). */
+.anim-stage{ position:fixed; inset:0; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
+.scene{ transform-origin:bottom center; }
+
+/* Recadrage : crop HAUT (pas d'horloge, fond vide minimal) → on ne montre que
+   le bas du téléphone, focus notifications. Frame quasi à la largeur du
+   téléphone → en « contain » le scale est limité par la largeur → téléphone
+   massif, presque pleine largeur du modal. */
+.frame{ position:relative; --view-h:560px; --gap-x:18px; --gap-bottom:44px;
+  width:calc(402px + var(--gap-x) * 2); height:calc(var(--view-h) + var(--gap-bottom)); overflow:hidden; }
+.frame .ncb-phone{ position:absolute; left:var(--gap-x); bottom:var(--gap-bottom); margin:0; }
+
+/* Coque téléphone — radius/ombre repris de .ncb-phone. */
+.ncb-phone{
+  position:relative; width:402px; height:874px; margin:0 auto;
+  border-radius:56px; overflow:hidden;
+  /* WALLPAPER = halo riche du guide d'install (.ncb-halo) : 4 coins + 2 côtés. */
+  background:
+    radial-gradient(circle at 0% 0%,   rgba(224,99,90,0.28) 0%, transparent 35%),
+    radial-gradient(circle at 100% 0%, rgba(224,99,90,0.24) 0%, transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(224,99,90,0.22) 0%, transparent 34%),
+    radial-gradient(circle at 100% 100%,rgba(224,99,90,0.26) 0%, transparent 35%),
+    radial-gradient(ellipse at 0% 50%,  rgba(224,99,90,0.12) 0%, transparent 20%),
+    radial-gradient(ellipse at 100% 50%,rgba(224,99,90,0.12) 0%, transparent 20%),
+    var(--color-surface-page);
+  box-shadow:0 2px 8px rgba(0,0,0,0.05), 0 14px 34px -20px rgba(40,20,20,0.30), 0 0 0 1px rgba(0,0,0,0.04);
+  font-family:"SF Pro Display",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased; isolation:isolate;
+}
+.ncb-phone *, .ncb-phone *::before, .ncb-phone *::after{ box-sizing:border-box; }
+
+/* Status bar (cropée, présente pour cohérence) — icônes sombres sur wallpaper clair. */
+.ls-status{ position:absolute; top:0; left:0; right:0; height:54px; z-index:10; }
+.ls-status .ic{ position:absolute; right:22px; top:19px; display:flex; align-items:center; gap:7px; }
+
+/* ===== NOTIFICATIONS — verre clair iOS (wallpaper light), texte sombre =====
+   2 emplacements : HAUT (translateY 0) / BAS (translateY 72px).
+   Notif A (la 1re, « 9:41 ») entre en BAS, puis REMONTE en HAUT quand la
+   notif B (« maintenant », plus récente) prend sa place en BAS. */
+.ls-notifs{ position:absolute; left:15px; right:15px; top:560px; height:136px; z-index:6; }
+.ls-notif{
+  position:absolute; left:0; right:0; top:0;
+  display:flex; align-items:center; gap:12px;
+  padding:12px 14px; min-height:64px; border-radius:24px;
+  background:rgba(255,255,255,0.58);
+  -webkit-backdrop-filter:blur(30px) saturate(180%); backdrop-filter:blur(30px) saturate(180%);
+  box-shadow:0 8px 30px rgba(40,20,20,0.12), inset 0 0 0 .5px rgba(255,255,255,0.7), inset 0 1px 1px rgba(255,255,255,0.6);
+  opacity:0; will-change:transform,opacity,filter;
+}
+.ls-notif .ico{ flex:0 0 auto; width:38px; height:38px; border-radius:9px; overflow:hidden;
+  background:var(--color-brand); box-shadow:0 1px 3px rgba(0,0,0,.18); }
+.ls-notif .ico img{ width:100%; height:100%; object-fit:cover; display:block; }
+.ls-notif .body{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:1px; }
+.ls-notif .ttl{ font-size:15px; font-weight:600; line-height:18px; letter-spacing:-0.23px; color:#1b1b1b;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ls-notif .msg{ font-size:15px; font-weight:400; line-height:18px; letter-spacing:-0.23px; color:#5c5c61;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ls-notif .time{ flex:0 0 auto; align-self:flex-start; margin-top:1px;
+  font-size:15px; font-weight:400; letter-spacing:-0.2px; color:#8a8a8e; }
+
+.ls-notif--a{ animation:notifA 8s infinite; }
+.ls-notif--b{ animation:notifB 8s infinite; }
+
+/* A : entre en BAS (72) → remonte en HAUT (0) → sortie ease-out. Vide ~0,7s. */
+@keyframes notifA{
+  0%   { opacity:0; transform:translateY(58px) scale(.96); filter:blur(0); }
+  2%   { opacity:0; transform:translateY(58px) scale(.96); animation-timing-function:cubic-bezier(.34,1.4,.5,1); }
+  9%   { opacity:1; transform:translateY(72px) scale(1); }
+  24%  { opacity:1; transform:translateY(72px) scale(1); animation-timing-function:cubic-bezier(.22,1,.36,1); }
+  31%  { opacity:1; transform:translateY(0px)  scale(1); }
+  84%  { opacity:1; transform:translateY(0px)  scale(1); filter:blur(0); animation-timing-function:cubic-bezier(.4,0,.2,1); }
+  93%  { opacity:0; transform:translateY(-7px) scale(1); filter:blur(2px); }
+  100% { opacity:0; transform:translateY(58px) scale(.96); filter:blur(0); }
+}
+/* B : entre en BAS (72) au moment où A remonte → reste en BAS → sortie ease-out */
+@keyframes notifB{
+  0%   { opacity:0; transform:translateY(58px) scale(.96); filter:blur(0); }
+  24%  { opacity:0; transform:translateY(58px) scale(.96); animation-timing-function:cubic-bezier(.34,1.4,.5,1); }
+  31%  { opacity:1; transform:translateY(72px) scale(1); }
+  84%  { opacity:1; transform:translateY(72px) scale(1); filter:blur(0); animation-timing-function:cubic-bezier(.4,0,.2,1); }
+  93%  { opacity:0; transform:translateY(65px) scale(1); filter:blur(2px); }
+  100% { opacity:0; transform:translateY(58px) scale(.96); filter:blur(0); }
+}
+
+/* Contrôles (lampe / appareil photo) — VRAIS icônes SVG fournis. */
+.ls-controls{ position:absolute; left:46px; right:46px; top:766px; height:58px; z-index:5;
+  display:flex; justify-content:space-between; align-items:center; }
+.ls-ctrl{ width:58px; height:58px; border-radius:100px;
+  background:rgba(255,255,255,0.5);
+  -webkit-backdrop-filter:blur(14px) saturate(160%); backdrop-filter:blur(14px) saturate(160%);
+  box-shadow:0 8px 30px rgba(40,20,20,0.10), inset 0 0 0 .5px rgba(255,255,255,0.6);
+  display:flex; align-items:center; justify-content:center; color:#1b1b1b; }
+.ls-ctrl svg{ display:block; }
+
+/* Home indicator — sombre sur wallpaper clair. */
+.ls-home{ position:absolute; left:50%; transform:translateX(-50%); bottom:9px;
+  width:144px; height:5px; border-radius:100px; background:#1b1b1b; opacity:.32; z-index:7; }
+
+/* Réduction de mouvement : on fige l'état final (A en haut, B en bas). */
+@media (prefers-reduced-motion: reduce){
+  .ls-notif{ animation:none !important; opacity:1 !important; filter:none !important; }
+  .ls-notif--a{ transform:translateY(0) !important; }
+  .ls-notif--b{ transform:translateY(72px) !important; }
+}
+</style>
+</head>
+<body>
+<div class="anim-stage" id="stage">
+  <div class="scene" id="scene">
+    <div class="frame" id="frame">
+      <div class="ncb-phone">
+
+        <!-- status bar (cropée) -->
+        <div class="ls-status">
+          <div class="ic">
+            <svg width="27" height="11" viewBox="0 0 621.094 256.348" fill="#1b1b1b" aria-hidden="true"><path d="M25.6348 256.348L84.4727 256.348C99.8535 256.348 110.107 245.605 110.107 229.736L110.107 158.691C110.107 142.578 99.8535 132.08 84.4727 132.08L25.6348 132.08C10.2539 132.08 0 142.578 0 158.691L0 229.736C0 245.605 10.2539 256.348 25.6348 256.348ZM196.045 256.348L254.883 256.348C270.264 256.348 280.518 245.605 280.518 229.736L280.518 119.385C280.518 103.516 270.264 92.7734 254.883 92.7734L196.045 92.7734C180.664 92.7734 170.41 103.516 170.41 119.385L170.41 229.736C170.41 245.605 180.664 256.348 196.045 256.348ZM366.211 256.348L425.049 256.348C440.43 256.348 450.684 245.605 450.684 229.736L450.684 69.8242C450.684 53.7109 440.43 42.9688 425.049 42.9688L366.211 42.9688C351.074 42.9688 340.576 53.7109 340.576 69.8242L340.576 229.736C340.576 245.605 351.074 256.348 366.211 256.348ZM536.621 256.348L595.703 256.348C611.084 256.348 621.094 245.605 621.094 229.736L621.094 26.6113C621.094 10.7422 611.084 0 595.703 0L536.621 0C521.24 0 510.986 10.7422 510.986 26.6113L510.986 229.736C510.986 245.605 521.24 256.348 536.621 256.348Z"/></svg>
+            <svg width="17" height="12" viewBox="0 0 562.262 406.006" fill="#1b1b1b" aria-hidden="true"><path d="M36.9902 171.143C41.873 175.781 48.7089 175.781 53.3476 170.898C113.406 107.178 192.508 73.4863 281.131 73.4863C370.242 73.4863 449.832 107.422 509.402 171.143C513.797 175.537 520.389 175.293 525.271 170.654L558.963 136.963C563.357 132.568 563.113 127.197 559.695 123.047C502.322 52.2461 394.412 0.244141 281.131 0.244141C168.094 0.244141 59.6952 52.2461 2.56634 123.047C-0.851626 127.197-0.851626 132.568 3.29877 136.963Z"/><path d="M138.309 273.193C143.68 278.32 150.271 277.588 155.154 272.217C184.451 239.746 232.303 216.064 281.131 216.309C330.447 216.064 378.299 240.479 408.084 272.949C412.478 278.076 418.582 277.832 423.953 272.949L461.795 235.352C465.701 231.445 466.189 226.074 462.527 221.68C425.662 176.514 357.303 142.578 281.131 142.578C204.959 142.578 136.6 176.514 99.7343 221.68C96.0722 226.074 96.3163 230.957 100.467 235.352Z"/><path d="M281.131 406.006C286.502 406.006 291.141 403.564 300.662 394.287L360.232 337.158C363.894 333.496 364.871 328.125 361.453 323.73C345.584 303.223 315.555 285.4 281.131 285.4C245.73 285.4 215.701 303.955 199.832 325.195C197.391 329.102 198.367 333.496 202.273 337.158L261.6 394.287C271.121 403.32 275.76 406.006 281.131 406.006Z"/></svg>
+            <svg width="26" height="12" viewBox="0 0 722.656 330.322" fill="#1b1b1b" aria-hidden="true"><path opacity="0.4" d="M130.127 330.322L513.916 330.322C555.664 330.322 590.82 326.416 615.723 301.514C640.625 276.611 644.287 241.943 644.287 200.195L644.287 130.127C644.287 88.3789 640.625 53.7109 615.723 28.8086C590.82 3.90625 555.664 0 513.916 0L129.639 0C88.623 0 53.4668 3.90625 28.5645 28.8086C3.66211 53.7109 0 88.623 0 129.395L0 200.195C0 241.943 3.66211 276.611 28.5645 301.514C53.4668 326.416 88.623 330.322 130.127 330.322ZM123.535 291.016C98.3887 291.016 72.0215 287.598 57.1289 272.949C42.4805 258.057 39.3066 231.934 39.3066 206.787L39.3066 124.023C39.3066 98.3887 42.4805 72.2656 57.1289 57.373C72.0215 42.4805 98.6328 39.3066 124.268 39.3066L520.752 39.3066C545.898 39.3066 572.266 42.7246 586.914 57.373C601.807 72.2656 604.98 98.1445 604.98 123.291L604.98 206.787C604.98 231.934 601.807 258.057 586.914 272.949C572.266 287.598 545.898 291.016 520.752 291.016ZM677.49 228.271C696.777 227.051 722.656 202.393 722.656 165.039C722.656 127.93 696.777 103.271 677.49 102.051Z"/><path d="M110.596 262.695L406.494 262.695C423.34 262.695 433.105 260.254 439.941 253.418C446.777 246.582 449.219 236.816 449.219 219.971L449.219 110.352C449.219 93.5059 446.777 83.7402 439.941 76.9043C433.105 70.0684 423.096 67.627 406.494 67.627L111.328 67.627C93.75 67.627 83.7402 70.0684 77.1484 76.9043C70.3125 83.7402 67.8711 93.75 67.8711 110.84L67.8711 219.971C67.8711 236.816 70.3125 246.582 77.1484 253.418C83.9844 260.254 93.9941 262.695 110.596 262.695Z"/></svg>
+          </div>
+        </div>
+
+        <!-- horloge retirée : crop haut + pas d'heure visible -->
+
+        <!-- notifications (A = 1re/haut après remontée, B = récente/bas) -->
+        <div class="ls-notifs">
+          <div class="ls-notif ls-notif--a">
+            <div class="ico"><img src="https://res.cloudinary.com/dceobxyts/image/upload/v1777030253/Design_sans_titre_vk9gej.png" alt="Notion Club"></div>
+            <div class="body">
+              <div class="ttl">Notion Club</div>
+              <div class="msg">Appel avec Théo confirmé ✅</div>
+            </div>
+            <div class="time">9:41</div>
+          </div>
+          <div class="ls-notif ls-notif--b">
+            <div class="ico"><img src="https://res.cloudinary.com/dceobxyts/image/upload/v1777030253/Design_sans_titre_vk9gej.png" alt="Notion Club"></div>
+            <div class="body">
+              <div class="ttl">Notion Club</div>
+              <div class="msg">Nathan a publié dans #General</div>
+            </div>
+            <div class="time">maintenant</div>
+          </div>
+        </div>
+
+        <!-- contrôles : VRAIS icônes SVG (flashlight.on.fill + camera) -->
+        <div class="ls-controls">
+          <div class="ls-ctrl" aria-hidden="true">
+            <svg width="20" height="24" viewBox="0 0 239.502 577.393" fill="currentColor"><path d="M0 56.3965L239.502 56.3965L239.502 48.0957C239.502 15.625 223.633 0 192.383 0L46.875 0C15.625 0 0 15.625 0 48.0957ZM96.9238 577.148L142.578 577.148C173.34 577.148 189.697 560.791 189.697 529.053L189.697 245.85C189.697 218.75 195.801 200.439 205.566 185.303L219.482 163.574C231.445 144.775 239.502 128.662 239.502 106.934L239.502 84.7168L0 84.7168L0 106.934C0 128.662 8.05664 144.775 20.0195 163.574L33.9355 185.303C43.7012 200.439 49.8047 218.75 49.8047 245.85L49.8047 529.053C49.8047 560.791 66.1621 577.148 96.9238 577.148ZM76.6602 342.773L76.6602 269.043C76.6602 245.117 95.459 226.074 119.873 226.074C144.043 226.074 162.842 245.117 162.842 269.043L162.842 342.773C162.842 366.943 144.043 385.742 119.873 385.742C95.459 385.742 76.6602 366.943 76.6602 342.773ZM119.873 241.455C103.76 241.455 91.7969 253.174 91.7969 269.043C91.7969 284.424 104.248 296.875 119.873 296.875C135.254 296.875 147.705 284.424 147.705 269.043C147.705 253.174 135.986 241.455 119.873 241.455Z"/></svg>
+          </div>
+          <div class="ls-ctrl" aria-hidden="true">
+            <svg width="24" height="20" viewBox="0 0 599.609 481.201" fill="currentColor"><path d="M484.619 187.256C501.221 187.256 514.893 173.584 514.893 156.982C514.893 140.137 501.221 126.709 484.619 126.709C467.773 126.709 454.346 140.137 454.346 156.982C454.346 173.584 467.773 187.256 484.619 187.256ZM76.6602 465.576L522.949 465.576C573.73 465.576 599.609 440.186 599.609 389.893L599.609 134.277C599.609 83.9844 573.73 58.8379 522.949 58.8379L453.125 58.8379C433.838 58.8379 427.979 54.9316 416.992 42.7246L397.461 20.752C385.254 7.32422 372.803 0 347.656 0L250.244 0C225.098 0 212.646 7.32422 200.439 20.752L180.908 42.7246C169.922 54.6875 163.818 58.8379 144.775 58.8379L76.6602 58.8379C25.6348 58.8379 0 83.9844 0 134.277L0 389.893C0 440.186 25.6348 465.576 76.6602 465.576ZM77.1484 426.27C53.2227 426.27 39.3066 413.33 39.3066 387.939L39.3066 136.475C39.3066 111.084 53.2227 98.1445 77.1484 98.1445L154.541 98.1445C176.514 98.1445 188.477 93.9941 200.684 80.3223L219.727 58.8379C233.643 43.2129 240.967 39.3066 262.451 39.3066L335.449 39.3066C356.934 39.3066 364.258 43.2129 378.174 58.8379L397.217 80.3223C409.424 93.9941 421.387 98.1445 443.359 98.1445L522.217 98.1445C546.387 98.1445 560.303 111.084 560.303 136.475L560.303 387.939C560.303 413.33 546.387 426.27 522.217 426.27ZM299.805 391.113C373.535 391.113 432.861 332.031 432.861 257.568C432.861 183.35 373.779 124.268 299.805 124.268C225.83 124.268 166.504 183.35 166.504 257.568C166.504 332.031 225.83 391.113 299.805 391.113ZM299.805 354.004C246.826 354.004 203.369 311.279 203.369 257.568C203.369 204.102 246.582 161.133 299.805 161.133C353.027 161.133 395.996 204.102 395.996 257.568C395.996 311.279 353.027 354.004 299.805 354.004Z"/></svg>
+          </div>
+        </div>
+
+        <!-- home indicator -->
+        <div class="ls-home"></div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Mise à l'échelle « contain » de la scène DANS l'iframe (zone .nc-pwa-anim du
+   modal hôte) → l'animation remplit le split haut du modal, ancrée en bas. */
+(function(){
+  var stage = document.getElementById('stage');
+  var scene = document.getElementById('scene');
+  var frame = document.getElementById('frame');
+  function fit(){
+    var fw = frame.offsetWidth, fh = frame.offsetHeight;
+    var cw = stage.clientWidth, ch = stage.clientHeight;
+    if(!fw || !fh || !cw || !ch) return;
+    var s = Math.min(cw / fw, ch / fh);
+    scene.style.transform = 'scale(' + s + ')';
+  }
+  window.addEventListener('resize', fit, {passive:true});
+  if(window.ResizeObserver){ new ResizeObserver(fit).observe(stage); }
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(fit); }
+  fit();
+})();
+</script>
+</body>
+</html>

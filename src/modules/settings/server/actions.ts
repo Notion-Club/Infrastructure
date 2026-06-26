@@ -939,6 +939,64 @@ export async function updateNotificationSettingsAction(
 }
 
 // ============================================================================
+// enablePushChannelAction — coche le canal « push » dans les préférences
+// ============================================================================
+// Appelée par le pop-up d'opt-in notifications (NotificationPermissionPrompt)
+// juste APRÈS que la souscription Web Push navigateur a réussi (permission
+// native acceptée + endpoint persisté côté push_subscriptions).
+//
+// Rôle : refléter ce choix dans le *tableau de préférences* de l'utilisateur,
+//   1. canal global `push` = true (table channel_preferences) ;
+//   2. push activé pour TOUTES les catégories (table notification_preferences),
+//      pour que « ne rien louper » soit vrai : sans ça, le canal serait coché
+//      mais aucune catégorie ne déclencherait réellement de push.
+//
+// Idempotent (upsert) → ré-acceptation sans effet de bord. L'auth vient
+// toujours de la session serveur (le user_id client est ignoré), RLS *_self.
+export async function enablePushChannelAction(): Promise<NotificationSettingsResult> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      message: "Tu dois être connecté pour activer les notifications.",
+    };
+  }
+
+  const prefRows = NOTIFICATION_CATEGORIES.map((category) => ({
+    user_id: user.id,
+    category,
+    channel: "push" as NotificationChannel,
+    enabled: true,
+  }));
+
+  const [prefsRes, channelRes] = await Promise.all([
+    supabase
+      .from("notification_preferences")
+      .upsert(prefRows, { onConflict: "user_id,category,channel" }),
+    supabase.from("channel_preferences").upsert(
+      { user_id: user.id, channel: "push", enabled: true },
+      { onConflict: "user_id,channel" },
+    ),
+  ]);
+
+  if (prefsRes.error || channelRes.error) {
+    const err = prefsRes.error ?? channelRes.error;
+    console.error("[enablePushChannel] failed:", err?.message);
+    return {
+      ok: false,
+      code: "unknown",
+      message: err?.message ?? "Erreur lors de l'activation du canal push.",
+    };
+  }
+
+  return { ok: true };
+}
+
+// ============================================================================
 // linkGoogleIdentityAction — associe un compte Google à l'utilisateur courant
 // ============================================================================
 // Mirroir du sign-in Google (modules/auth) mais côté liaison : on initialise le

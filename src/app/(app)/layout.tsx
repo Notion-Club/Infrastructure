@@ -16,6 +16,7 @@ import { DevToolboxProvider } from "@/shared/components/dev/DevToolbox";
 import { AdminPushRegistrar } from "@/shared/components/dev/admin-push/AdminPushRegistrar";
 import { ProfileModalProvider } from "@/shared/components/profile/ProfileModalProvider";
 import { PwaInstallPrompt } from "@/shared/components/pwa/PwaInstallPrompt";
+import { NotificationPermissionPrompt } from "@/shared/components/pwa/NotificationPermissionPrompt";
 
 // Layout commun à toutes les pages connectées (dashboard, settings, communaute,
 // coaching, ressources). Server Component : on pré-fetch l'identity de l'user
@@ -84,6 +85,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           {/* Pop-up d'incitation à installer la PWA — s'ouvre auto quelques
               secondes après l'arrivée, sauf si déjà en mode standalone. */}
           <PwaInstallPrompt />
+          {/* Pop-up d'opt-in notifications — l'inverse : s'ouvre auto quelques
+              secondes après l'ouverture de l'app INSTALLÉE (standalone), une
+              fois, pour activer le push natif iOS/Android. */}
+          <NotificationPermissionPrompt />
         </ProfileModalProvider>
       </DevToolboxProvider>
     </ProfileIdentityProvider>
