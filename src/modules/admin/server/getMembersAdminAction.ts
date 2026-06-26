@@ -80,7 +80,23 @@ export type AdminMemberDetail = {
   callsCount: number;
   noShowsCount: number;
   nextCallAt: string | null;
+  // Notifications — état des 3 canaux affichés en admin (lecture seule).
+  // email/whatsapp : toggle global `channel_preferences` (défaut si absent).
+  // push : présence d'au moins un device actif dans `push_subscriptions`.
+  notifications: AdminMemberNotifications;
 };
+
+export type AdminMemberNotifications = {
+  email: boolean;
+  whatsapp: boolean;
+  push: boolean;
+};
+
+// Défauts canaux — miroir de DEFAULT_CHANNEL_ENABLED (module settings). L'isolation
+// inter-modules interdit l'import direct ; on garde strictement la même règle :
+// email activé par défaut, whatsapp désactivé par défaut (cf. migrations 004 + 012).
+const NOTIF_DEFAULT_EMAIL = true;
+const NOTIF_DEFAULT_WHATSAPP = false;
 
 export type AdminOfferOption = {
   slug: string;
@@ -205,6 +221,8 @@ export async function getMembersAdminData(): Promise<MembersAdminData> {
     progressRes,
     callsRes,
     companiesRes,
+    channelPrefsRes,
+    pushSubsRes,
     authUsers,
   ] = await Promise.all([
     profilesQuery.returns<ProfileRow[]>(),
@@ -237,6 +255,15 @@ export async function getMembersAdminData(): Promise<MembersAdminData> {
       .select("profile_id, scheduled_at, status")
       .returns<CallRow[]>(),
     admin.from("companies").select("id, name").returns<CompanyRow[]>(),
+    admin
+      .from("channel_preferences")
+      .select("user_id, channel, enabled")
+      .returns<ChannelPrefRow[]>(),
+    admin
+      .from("push_subscriptions")
+      .select("user_id")
+      .is("expired_at", null)
+      .returns<PushSubRow[]>(),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
   ]);
 
@@ -295,6 +322,20 @@ export async function getMembersAdminData(): Promise<MembersAdminData> {
     arr.push(c);
     callsByProfile.set(c.profile_id, arr);
   }
+
+  // Préférences de canal (email/whatsapp) par profil — on ne retient que les
+  // canaux exploités côté admin ; l'absence de ligne ⇒ valeur par défaut.
+  const channelPrefsByProfile = new Map<string, { email?: boolean; whatsapp?: boolean }>();
+  for (const row of channelPrefsRes.data ?? []) {
+    if (row.channel !== "email" && row.channel !== "whatsapp") continue;
+    const cell = channelPrefsByProfile.get(row.user_id) ?? {};
+    cell[row.channel] = row.enabled ?? false;
+    channelPrefsByProfile.set(row.user_id, cell);
+  }
+
+  // Push actif = au moins un device non expiré (expired_at IS NULL filtré en amont).
+  const pushActiveProfiles = new Set<string>();
+  for (const row of pushSubsRes.data ?? []) pushActiveProfiles.add(row.user_id);
 
   const members: AdminMemberDetail[] = (profilesRes.data ?? []).map((p) => {
     const rawMems = membershipsByProfile.get(p.id) ?? [];
@@ -390,6 +431,12 @@ export async function getMembersAdminData(): Promise<MembersAdminData> {
       callsCount: calls.length,
       noShowsCount,
       nextCallAt: upcoming[0]?.scheduled_at ?? null,
+      notifications: {
+        email: channelPrefsByProfile.get(p.id)?.email ?? NOTIF_DEFAULT_EMAIL,
+        whatsapp:
+          channelPrefsByProfile.get(p.id)?.whatsapp ?? NOTIF_DEFAULT_WHATSAPP,
+        push: pushActiveProfiles.has(p.id),
+      },
     };
   });
 
@@ -608,3 +655,9 @@ type CallRow = {
   status: string | null;
 };
 type CompanyRow = { id: string; name: string };
+type ChannelPrefRow = {
+  user_id: string;
+  channel: string;
+  enabled: boolean | null;
+};
+type PushSubRow = { user_id: string };
