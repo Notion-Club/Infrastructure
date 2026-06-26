@@ -18,11 +18,12 @@ import { NotificationPermissionModal } from "./NotificationPermissionModal";
 //   • UNIQUEMENT en mode installé (standalone) — c'est « ouvrir l'app PWA »
 //     sur iOS / Android. Sur iOS Safari, le Web Push ne marche QUE dans ce
 //     mode → inutile de demander ailleurs ;
-//   • uniquement si le navigateur supporte le push ET que la permission n'est
-//     pas encore tranchée (`status === "unsubscribed"`) : on ne harcèle pas un
-//     user déjà abonné, et on ne peut de toute façon pas re-demander après un
-//     refus natif (`denied`) ;
-//   • une seule fois par navigateur (flag localStorage).
+//   • uniquement si le navigateur supporte le push ET que les notifications
+//     push NE SONT PAS encore activées (`status !== "subscribed"`). On couvre
+//     donc « permission pas encore demandée » ET « déjà refusée » → tant que
+//     l'utilisateur n'a pas activé, on (re)propose ;
+//   • fréquence : pilotée par REPROMPT_POLICY (cf. ci-dessous). Aujourd'hui
+//     « always » → à CHAQUE ouverture de l'app. Plus tard « daily » → 1×/jour.
 //
 // Au clic sur le CTA :
 //   1. `push.subscribe()` → demande la permission NATIVE iOS/Android, crée la
@@ -35,14 +36,49 @@ import { NotificationPermissionModal } from "./NotificationPermissionModal";
 // hors user gesture (cf. usePushSubscription).
 // ============================================================================
 
-// Clé localStorage — bumper le suffixe pour ré-afficher après une refonte.
-// (Re-test local : localStorage.removeItem("nc-push-prompt-seen-v1").)
-const SEEN_KEY = "nc-push-prompt-seen-v1";
+// Fréquence de ré-affichage. Une seule ligne à changer le jour où on accueille
+// les vrais membres :
+//   • "always" → le pop-up s'ouvre à CHAQUE ouverture de l'app tant que le push
+//     n'est pas activé (comportement voulu aujourd'hui) ;
+//   • "daily"  → au plus 1×/jour calendaire (anti-harcèlement en prod), sans
+//     limite dans le temps : tous les jours où les notifs ne sont pas activées.
+const REPROMPT_POLICY: "always" | "daily" = "always";
 
-// Délai avant ouverture auto : « dans les premières secondes » après l'arrivée
-// sur l'app, sans casser le premier rendu. Légèrement plus long que l'install
-// pour ne jamais empiler les deux pop-ups.
-const OPEN_DELAY_MS = 3000;
+// Clé localStorage utilisée uniquement par la policy "daily" (date du dernier
+// affichage, AAAA-MM-JJ). Inutile en "always". (Re-test : localStorage
+// .removeItem("nc-push-prompt-last-shown").)
+const LAST_SHOWN_KEY = "nc-push-prompt-last-shown";
+
+// Date du jour (AAAA-MM-JJ) en heure locale, sans dépendre de Date.now() côté
+// type — suffisant pour un cap journalier best-effort.
+function todayStamp(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// La policy autorise-t-elle un affichage maintenant ?
+function passesFrequencyPolicy(): boolean {
+  if (REPROMPT_POLICY === "always") return true;
+  try {
+    return window.localStorage.getItem(LAST_SHOWN_KEY) !== todayStamp();
+  } catch {
+    // Stockage bloqué (mode privé) → on n'empêche pas l'affichage.
+    return true;
+  }
+}
+
+// Mémorise l'affichage du jour (no-op en policy "always").
+function recordShown(): void {
+  if (REPROMPT_POLICY !== "daily") return;
+  try {
+    window.localStorage.setItem(LAST_SHOWN_KEY, todayStamp());
+  } catch {
+    // Stockage bloqué : on échoue silencieusement (le cap retombe sur "always").
+  }
+}
+
+// Délai avant ouverture auto : « dès l'ouverture », juste après le premier
+// rendu pour ne pas le bloquer. Court → le pop-up se sent immédiat.
+const OPEN_DELAY_MS = 1500;
 
 // Durée de l'animation de fermeture la plus longue (slide-down mobile =
 // --nc-duration-slow). Doit rester synchro avec globals.css.
@@ -73,24 +109,16 @@ export function NotificationPermissionPrompt() {
   // re-tourne quand `push.status` passe de "loading" à sa valeur réelle).
   const scheduledRef = useRef(false);
 
-  const markSeen = useCallback(() => {
-    try {
-      window.localStorage.setItem(SEEN_KEY, "1");
-    } catch {
-      // Mode privé / stockage bloqué : échec silencieux, le pop-up se
-      // ré-affichera au prochain chargement (acceptable).
-    }
-  }, []);
-
   const open = useCallback(() => {
     setMounted(true);
-    // « Vu » dès l'ouverture → pas de ré-affichage au reload suivant.
-    markSeen();
+    // Trace l'affichage du jour (utile seulement en policy "daily" ; no-op en
+    // "always" → réouverture à chaque lancement).
+    recordShown();
     // Deux frames : monter à l'état fermé puis basculer data-open=true.
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = requestAnimationFrame(() => setVisible(true));
     });
-  }, [markSeen]);
+  }, []);
 
   const close = useCallback(() => {
     setVisible(false);
@@ -137,15 +165,8 @@ export function NotificationPermissionPrompt() {
     if (!isStandalone()) return; // pas en app installée → on ne propose pas
     if (push.status === "loading") return; // détection en cours
     if (!push.support.supported) return; // push indisponible sur ce navigateur
-    if (push.status !== "unsubscribed") return; // déjà abonné ou refusé
-
-    let alreadySeen = false;
-    try {
-      alreadySeen = window.localStorage.getItem(SEEN_KEY) === "1";
-    } catch {
-      alreadySeen = false;
-    }
-    if (alreadySeen) return;
+    if (push.status === "subscribed") return; // déjà activé → on n'embête pas
+    if (!passesFrequencyPolicy()) return; // cap de fréquence (always / daily)
 
     scheduledRef.current = true;
     openTimer.current = setTimeout(open, OPEN_DELAY_MS);
