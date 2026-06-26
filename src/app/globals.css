@@ -2713,7 +2713,9 @@ html.dark {
   --nc-segmented-active-text: #141211;
   --nc-btn-dark-bg: #ede9e6;
   --nc-btn-dark-text: #141211;
-  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
+  /* BottomNav pill — OPAQUE (ce bloc `html.dark` gagne en specificité : sans
+     cette valeur, la pilule restait translucide en dark malgré le fix opaque). */
+  --nc-bottom-nav-bg: #1c1917;
   --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
   --nc-card-dot-color: rgba(255, 255, 255, 0.18);
   --nc-glass-bg: rgba(42, 39, 37, 0.55);
