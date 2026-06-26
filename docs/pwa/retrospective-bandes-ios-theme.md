@@ -93,3 +93,60 @@ et coûtaient cher, et on **fusionne la couleur dans le fond de page** :
 - Fichiers clés : `src/app/globals.css` (`.nc-app-bg`), `src/app/layout.tsx`
   (`GradualBlurOverlay`, `ThemeColorMeta`), `src/app/(app)/layout.tsx` (chrome),
   `src/shared/components/theme/*`.
+
+## 7. Itération suivante — vraiment UN seul fond (DA dégradé)
+
+Symptôme persistant après §5 : au scroll, le contenu (cartes blanches + fond
+plat off-white du `body`) « se décollait » du dégradé, qui n'apparaissait qu'aux
+coins et au bas → impression de calques empilés. Cause : **dualité** entre un
+remplissage **plat** (`body` = `--color-surface-page`) au centre et un
+**dégradé** (`.nc-app-bg`) cantonné aux coins, plus une **bande blanche** forcée
+au notch (1er stop du `linear-gradient`).
+
+Décision : **fusionner toute la DA dans le seul `.nc-app-bg`**.
+
+- Le dégradé d'accents couvre désormais **tout le viewport** (coins + voile
+  central, `transparent` repoussé à ~58-60 %) → wash homogène, plus de zone
+  centrale plate.
+- La **bande blanche au notch est supprimée** ; remplacée par un **fondu sombre
+  très léger** (`rgba(0,0,0,0.12)` → 0 sur `safe-area-top + 56px`) **intégré au
+  même calque** (juste pour la lisibilité du status-bar blanc en PWA). Pas un
+  `<div>` séparé : c'est un `background-image` de plus dans la même propriété.
+- `.nc-app-bg` reçoit `var(--color-surface-page)` en **couleur de base finale**
+  → calque **opaque et autoportant** (ne dépend plus du fond de `body`).
+- **`GradualBlurOverlay` (ancre top) retiré** du root layout — c'était la couche
+  `backdrop-filter` superposée en trop. Le composant reste utilisé en `bottom`
+  ailleurs (Ressources/Communauté).
+- Toujours **aucun `backdrop-filter`** sur `.nc-app-bg` → repeint correct au
+  changement de thème (acquis de §5 préservé). Dark mode inchangé (fond uni
+  near-black, `.dark .nc-app-bg { background: none }`).
+
+Bilan : un contenu transparent qui scrolle au-dessus d'**un unique dégradé
+fixe**, du haut au bas → plus de frontière qui « surgit » au scroll.
+
+## 8. La VRAIE cause racine (test device) — le `body` opaque masquait tout
+
+Le §7 a embelli le dégradé mais le symptôme persistait à l'identique sur device :
+un fond blanc cassé qui se décroche au scroll et laisse voir le dégradé + les
+bandes. Raison : **on n'avait jamais corrigé l'occulteur**.
+
+`.nc-app-bg` est en `z-index: -1`. Or `body` portait
+`background-color: var(--color-surface-page)` (**opaque**). Dans l'ordre de
+peinture CSS, **le fond d'un bloc en flux normal (le `body`) se peint AU-DESSUS
+d'un enfant positionné en `z-index` négatif**. Donc le blanc cassé du `body`
+recouvrait le dégradé en permanence. Et comme le `body` est la boîte qui
+scrolle, c'est LUI qu'on voyait « se décrocher », révélant le `.nc-app-bg` fixe
+(dégradé + zones safe-area = les « bandes ») là où le `body` ne peignait pas.
+
+Correctif décisif (`globals.css`) :
+
+- **`body { background-color: transparent }`** → le dégradé `.nc-app-bg`
+  redevient le SEUL fond visible, sur toutes les pages.
+- **`html`** garde une couleur unie (`--color-surface-page`) = base d'overscroll
+  iOS (canvas peint SOUS le dégradé → n'occulte rien).
+- Modèle final, sans conflit : `html` (base) < `.nc-app-bg` (dégradé, seul fond
+  visible) < `body` transparent < `.nc-page-halo` transparent < contenu.
+
+Leçon : un fond fixe en `z-index` négatif est INVISIBLE tant qu'un ancêtre/bloc
+en flux a un `background` opaque. Vérifier l'ordre de peinture AVANT de soigner
+le dégradé lui-même.

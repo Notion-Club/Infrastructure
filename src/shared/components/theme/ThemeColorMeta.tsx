@@ -26,19 +26,28 @@ const useIsoLayoutEffect =
 // le téléphone est en clair, ou l'inverse). Résultat : barres claires autour
 // d'une UI sombre, ou l'inverse.
 //
-// Correctif : on abandonne la déduction par média et on écrit la balise
-// `theme-color` depuis le thème EFFECTIVEMENT appliqué. Les barres épousent
-// alors toujours la surface → plus de bande qui jure.
+// Correctif : on pilote la balise depuis le thème EFFECTIVEMENT appliqué, sur la
+// couleur de surface UNIFORME de la page.
+//   - SOMBRE : `#141211` (barres near-black sur UI sombre).
+//   - CLAIR : `#f5f2f2` (surface claire).
+// On ne peut PAS rendre le chrome Safari translucide (testé : retirer la balise
+// → Safari retombe sur un matériau clair ≈ blanc). On ne contrôle que sa
+// COULEUR. La clé : le dégradé `.nc-app-bg` est conçu pour FONDRE vers cette
+// même surface en haut/bas (accents repoussés sur les côtés) → les barres
+// Safari prolongent la page sans cassure (cf. globals.css `.nc-app-bg`).
 //
-// Note : on ne peut PAS supprimer les barres en mode navigateur (chrome du
-// navigateur). Le plein-écran réellement immersif reste la PWA installée.
+// Note : on ne peut PAS supprimer les barres Safari en mode navigateur (c'est
+// son chrome) ; on ne contrôle que leur couleur via theme-color.
 // ============================================================================
 
-// Doit rester synchro avec `--color-surface-page` dans globals.css.
-const SURFACE_COLOR: Record<"light" | "dark", string> = {
-  light: "#f5f2f2",
-  dark: "#141211",
-};
+// Teintes du chrome Safari (barres haut/bas, mode navigateur) = surface UNIFORME
+// de la page. DOIVENT rester synchro avec `--color-surface-page` (globals.css)
+// et avec la couleur vers laquelle le dégradé `.nc-app-bg` fond en haut/bas →
+// barres Safari, overscroll et bords du dégradé identiques, sans cassure.
+//   - CLAIR : #f5f2f2 (surface claire).
+//   - SOMBRE : #141211 (surface near-black).
+const LIGHT_CHROME = "#f5f2f2";
+const DARK_SURFACE = "#141211";
 
 // ── Override store ─────────────────────────────────────────────────────────
 // Permet à un overlay dont le fond DIFFÈRE de la surface de page (ex. lightbox
@@ -109,20 +118,32 @@ function enforceThemeClass() {
   }
 }
 
-// ── Écriture de la balise ────────────────────────────────────────────────
-function writeThemeColor(color: string) {
+// ── Écriture / retrait de la balise ───────────────────────────────────────
+// `color === null` → on RETIRE toute balise theme-color (statique ou écrite
+// précédemment) pour laisser Safari peindre ses barres en matériau translucide
+// natif (le dégradé transparaît derrière, plus de bande blanche opaque).
+function applyThemeColor(color: string | null) {
   if (typeof document === "undefined") return;
-  let tag = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-  if (!tag) {
-    tag = document.createElement("meta");
-    tag.setAttribute("name", "theme-color");
-    document.head.appendChild(tag);
-  } else {
-    // La balise statique émise par Next peut porter un attribut `media` ;
-    // on le neutralise pour que notre valeur s'applique inconditionnellement.
-    tag.removeAttribute("media");
-  }
+  // On RECRÉE la balise à chaque application (plutôt que de muter `content`) :
+  // sur iOS, muter l'attribut pendant qu'une couche `backdrop-filter` (modale,
+  // pop-up, bottom sheet) est composée PAR-DESSUS la page est souvent ignoré —
+  // le chrome Safari reste figé sur l'ancienne teinte jusqu'à fermeture de
+  // l'overlay. Retirer puis ré-insérer l'élément <meta> force Safari à relire la
+  // valeur, donc le switch clair/sombre se propage aux barres même modale
+  // ouverte. On retire AUSSI la balise de pré-paint posée par le script inline du
+  // root layout (créée hors React). AUCUNE balise theme-color n'est rendue par
+  // React/Next (cf. layout.tsx : pas de `viewport.themeColor`) → ce retrait ne
+  // détache jamais un nœud géré par React, donc plus de `removeChild` sur parent
+  // null en phase commit (ce qui figeait la navigation).
+  // cf. docs/pwa/safari-web-pwa-integration.md.
+  document
+    .querySelectorAll('meta[name="theme-color"]')
+    .forEach((m) => m.remove());
+  if (color === null) return;
+  const tag = document.createElement("meta");
+  tag.setAttribute("name", "theme-color");
   tag.setAttribute("content", color);
+  document.head.appendChild(tag);
 }
 
 export function ThemeColorMeta() {
@@ -134,7 +155,9 @@ export function ThemeColorMeta() {
     getServerOverrideSnapshot,
   );
   const theme = ctx?.theme ?? "light";
-  const color = override ?? SURFACE_COLOR[theme];
+  // Clair → surface claire #f5f2f2 ; sombre → near-black ; un override éventuel
+  // (overlay) prime toujours.
+  const color = override ?? (theme === "dark" ? DARK_SURFACE : LIGHT_CHROME);
 
   // Persistance — chemin RAPIDE pré-paint à chaque navigation (pas de flash).
   useIsoLayoutEffect(() => {
@@ -155,10 +178,10 @@ export function ThemeColorMeta() {
     return () => observer.disconnect();
   }, []);
 
-  // Écriture après paint : le premier rendu garde la balise statique (SSR),
-  // puis on l'aligne sur le thème réel côté client.
+  // Écriture après paint : le 1ᵉʳ paint garde la balise posée par le script
+  // inline, puis on l'aligne sur le thème réel + les overrides côté client.
   useEffect(() => {
-    writeThemeColor(color);
+    applyThemeColor(color);
   }, [color]);
 
   return null;

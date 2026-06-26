@@ -5,7 +5,6 @@ import { ThemeProvider } from "@/shared/components/theme/ThemeProvider";
 import ServiceWorkerRegistrar from "@/shared/components/pwa/ServiceWorkerRegistrar";
 import { ThemeColorMeta } from "@/shared/components/theme/ThemeColorMeta";
 import { IOS_SPLASH_LINKS } from "@/shared/components/pwa/iosSplashLinks";
-import { GradualBlurOverlay } from "@/shared/components/GradualBlurOverlay";
 import { sfProDisplay } from "@/shared/lib/fonts";
 import "./globals.css";
 
@@ -31,9 +30,9 @@ export const metadata: Metadata = {
     // entre la status bar et la page). Le texte iOS (heure, signal,
     // batterie) reste affiché en blanc par-dessus.
     //
-    // Pour la lisibilité du texte iOS blanc sur fond clair, on ajoute un
-    // `GradualBlurOverlay` ancré en haut (frosted glass façon iOS) sur
-    // mobile, monté dans le body — cf. plus bas.
+    // Pour la lisibilité du texte iOS blanc, le fond unique `.nc-app-bg`
+    // intègre un léger fondu sombre en haut (dans le même calque dégradé,
+    // pas de voile `backdrop-filter` superposé) — cf. globals.css.
     statusBarStyle: "black-translucent",
   },
   icons: {
@@ -72,19 +71,32 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  // Valeur statique par défaut (premier paint / no-JS). On ne déduit PLUS la
-  // teinte via `prefers-color-scheme` : le thème réel de l'app est piloté par
-  // un store JS (localStorage → classe `.dark`) qui peut diverger de l'OS, ce
-  // qui laissait une bande claire autour d'une UI sombre sur Safari navigateur.
-  // `ThemeColorMeta` (monté dans le body) réécrit cette balise depuis le thème
-  // effectivement appliqué. #f5f2f2 = couleur de page en thème clair.
-  themeColor: "#f5f2f2",
+  // PAS de `themeColor` ici, VOLONTAIREMENT. La balise <meta name="theme-color">
+  // est gérée EXCLUSIVEMENT en impératif (script inline pré-paint + `ThemeColorMeta`),
+  // jamais par React/Next.
+  //
+  // Pourquoi : `ThemeColorMeta` doit RETIRER puis RÉ-INSÉRER le <meta> à chaque
+  // switch (seul moyen de forcer Safari iOS à relire la teinte quand un overlay
+  // `backdrop-filter` est composé par-dessus). Si React possédait aussi une balise
+  // theme-color (via `viewport`), ce retrait détacherait un nœud que React croit
+  // encore vivant → `removeChild` sur parent null EN PHASE COMMIT à la navigation
+  // → tout le commit avorte (navigation figée, dropdown gelé). En laissant React
+  // hors de cette balise, le code impératif en est seul propriétaire → zéro
+  // conflit. Teintes : #f5f2f2 (clair) / #141211 (sombre) — cf. LIGHT_CHROME /
+  // DARK_SURFACE dans ThemeColorMeta et `--color-surface-page` dans globals.
 };
 
 // Inline script runs before paint to avoid a flash of incorrect theme.
 // Stored preference can be "light" | "dark" | "system"; "system" falls back
 // to prefers-color-scheme.
-const THEME_INIT_SCRIPT = `(function(){try{var p=localStorage.getItem('theme');if(p!=='light'&&p!=='dark'&&p!=='system')p='system';var t=p;if(p==='system'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`;
+//
+// Il pose AUSSI la balise <meta name="theme-color"> de pré-paint, créée
+// IMPÉRATIVEMENT (hors React) : c'est ce qui remplace l'ancien `viewport.themeColor`
+// supprimé. Avantage vs l'ancienne version `media` : la teinte suit le thème RÉEL
+// de l'app (localStorage), pas seulement l'OS. `ThemeColorMeta` reprend ensuite la
+// main (retrait/ré-insertion réactive) sur ce même nœud non-React → aucun conflit.
+// Teintes synchro avec LIGHT_CHROME / DARK_SURFACE (ThemeColorMeta).
+const THEME_INIT_SCRIPT = `(function(){try{var p=localStorage.getItem('theme');if(p!=='light'&&p!=='dark'&&p!=='system')p='system';var t=p;if(p==='system'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(t==='dark')document.documentElement.classList.add('dark');var m=document.createElement('meta');m.setAttribute('name','theme-color');m.setAttribute('content',t==='dark'?'#141211':'#f5f2f2');document.head.appendChild(m);}catch(e){}})();`;
 
 export default function RootLayout({
   children,
@@ -120,25 +132,18 @@ export default function RootLayout({
             l'ancien dégradé par-page clippé. cf. .nc-app-bg dans globals.css */}
         <div className="nc-app-bg" aria-hidden />
         <ThemeProvider>
-          {/* Aligne <meta name="theme-color"> sur le thème réel → les barres
-              Safari (haut/bas) épousent la surface, plus de bande blanche. */}
+          {/* Pilote <meta name="theme-color"> selon le thème réel : surface unie
+              #f5f2f2 en clair, near-black en sombre. Le dégradé fond vers cette
+              surface en haut/bas → barres Safari sans cassure. Garde aussi `.dark`. */}
           <ThemeColorMeta />
           {children}
         </ThemeProvider>
         <Toaster />
         <ServiceWorkerRegistrar />
-        {/* Frosted glass haut de page — mobile uniquement. Reprend le
-            composant utilisé en bas des pages Ressources / Communauté
-            mais ancré en haut : `backdrop-filter: blur` gradué qui floute
-            le contenu de page qui passe derrière la zone status bar iOS
-            (en PWA standalone, viewport-fit=cover laisse le body
-            s'étendre jusqu'au bord supérieur du téléphone). Effet
-            d'app native, valable en light comme en dark mode.
-            zIndex < MobileTopActions (40) → les boutons (clé, cloche,
-            avatar) restent nets au-dessus du voile. */}
-        <div className="md:hidden">
-          <GradualBlurOverlay anchor="top" height={56} zIndex={35} />
-        </div>
+        {/* (Voile flou du haut retiré.) Le fond unique `.nc-app-bg` porte
+            désormais à lui seul l'adoucissement de la zone status-bar iOS
+            (léger fondu intégré au dégradé) — plus de calque `backdrop-filter`
+            superposé au contenu. */}
       </body>
     </html>
   );

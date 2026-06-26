@@ -3,6 +3,12 @@
 
 html {
   scroll-behavior: smooth;
+  /* Fond du CANVAS = zone révélée par l'overscroll iOS (rubber-band /
+     pull-to-refresh, où le `.nc-app-bg` fixe suit l'élastique) + 1ʳᵉ frame. On
+     reste sur la surface UNIFORME (`--color-surface-page` : #f5f2f2 light /
+     near-black dark) — exactement la couleur vers laquelle le dégradé fond en
+     haut/bas et celle des bandes Safari (theme-color). Donc overscroll, bandes
+     Safari et bords du dégradé sont la même couleur unie → aucune cassure. */
   background-color: var(--color-surface-page);
 }
 
@@ -924,14 +930,18 @@ html {
     @apply border-border outline-ring/50;
   }
   body {
-    /* Fond unifié : une SEULE couleur de surface thème-aware partout
-       (html, body, .nc-page-halo) → fini le triplet de fonds concurrents
-       (body était en `--background` blanc/noir pur, ≠ de html/halo en
-       `--color-surface-page`), source des bandes et du fond non-adaptatif.
+    /* Le body est TRANSPARENT : le seul fond de l'app est `.nc-app-bg`
+       (dégradé fixe, z-index:-1). Un `background-color` opaque sur le body se
+       peindrait AU-DESSUS du calque z-index négatif (ordre de peinture CSS :
+       fonds des blocs en flux normal > enfants positionnés en z-index négatif)
+       → il masquait le dégradé et, comme le body est la boîte qui scrolle, on
+       le voyait « se décrocher » au scroll en laissant apparaître le dégradé +
+       les bandes safe-area. La couleur de base pour l'overscroll iOS est portée
+       par `html` (canvas, peint SOUS le dégradé → n'occulte rien).
        `--background` (token shadcn) reste utilisé tel quel par les composants
-       (cards, popovers…), on ne change QUE le fond de page. */
+       (cards, popovers…). */
     @apply text-foreground;
-    background-color: var(--color-surface-page);
+    background-color: transparent;
   }
 }
 
@@ -1085,33 +1095,33 @@ html {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* Fond de marque GLOBAL — monté une seule fois (root layout), couvre tout le
-   viewport en permanence (`position: fixed; inset: 0`), hors de toute boîte
-   isolée → couverture uniforme, aucun seam ni bande plate. Remplace l'ancien
-   `.nc-page-halo::before`. La couleur de base vient de html/body
-   (--color-surface-page), ce calque n'ajoute QUE les accents dégradés. */
+/* Fond de marque GLOBAL & UNIQUE — monté une seule fois (root layout), couvre
+   tout le viewport en permanence (`position: fixed; inset: 0`), hors de toute
+   boîte isolée. C'est le SEUL calque de fond de l'app : le contenu scrolle par
+   dessus en transparent. Plus de dualité « blanc cassé plat (body) au centre +
+   dégradé aux coins » qui donnait l'impression de couches qui se décollent au
+   scroll. */
 .nc-app-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* 1er calque = fondu vers la surface (blanc en light) à la limite du notch :
-     évite la cassure nette en haut. Pas de backdrop-filter ici → se repeint au
-     changement de thème, contrairement aux anciennes bandes. Suivi des accents
-     dégradés de marque (radial). */
+  /* Toute la DA dans UNE seule propriété `background` = UN seul élément peint,
+     sans `backdrop-filter` (→ repeint correct au changement de thème, cf. rétro).
+
+     DESIGN — accents = 2 TACHES latérales (gauche/droite), centrées
+     verticalement (y=50%) et de hauteur limitée (~50% du viewport). Conséquence
+     clé : le HAUT et le BAS (~25% chacun) restent en surface UNIFORME
+     (`--color-surface-page`). Le dégradé rejoint donc SANS CASSURE les zones de
+     couleur unie qui l'encadrent — bandes Safari (theme-color) et canvas
+     d'overscroll, réglées sur cette MÊME surface. On ne pose plus aucune couleur
+     sur la limite haute/basse (fini le coin coloré qui tranchait net avec la
+     bande). Centre des taches hors-écran (-8% / 108%) → fondu « tache » depuis
+     le bord vers le centre. */
   background:
-    linear-gradient(
-      to bottom,
-      var(--color-surface-page) 0,
-      var(--color-surface-page) calc(env(safe-area-inset-top, 0px) + 22px),
-      transparent calc(env(safe-area-inset-top, 0px) + 110px)
-    ),
-    radial-gradient(circle at 0% 0%, rgba(224, 99, 90, 0.28) 0%, transparent 35%),
-    radial-gradient(circle at 100% 0%, rgba(224, 99, 90, 0.24) 0%, transparent 34%),
-    radial-gradient(circle at 0% 100%, rgba(224, 99, 90, 0.22) 0%, transparent 34%),
-    radial-gradient(circle at 100% 100%, rgba(224, 99, 90, 0.26) 0%, transparent 35%),
-    radial-gradient(ellipse at 0% 50%, rgba(224, 99, 90, 0.12) 0%, transparent 20%),
-    radial-gradient(ellipse at 100% 50%, rgba(224, 99, 90, 0.12) 0%, transparent 20%);
+    radial-gradient(56% 50% at -8% 50%, rgba(224, 99, 90, 0.28) 0%, transparent 72%),
+    radial-gradient(56% 50% at 108% 50%, rgba(224, 99, 90, 0.26) 0%, transparent 72%),
+    var(--color-surface-page);
 }
 
 .nc-shine-card {
