@@ -32,17 +32,16 @@ export default function CommunauteLayout({
   const postsPromise = listPosts();
   const conversationsPromise = listConversations();
 
-  // Scroll-DOCUMENT (et non plus `h-dvh overflow-hidden` à scroll interne) : un
-  // shell à hauteur fixe empêche le document de scroller → sur iOS Safari la barre
-  // d'outils ne se rétracte jamais → `dvh` reste petit → contenu du feed raccourci.
-  // En laissant le document scroller (`minHeight: 100lvh`, comme dashboard/
-  // ressources), Safari replie sa barre et le contenu descend pleinement, comme en
-  // PWA. La vue Messages garde, elle, une hauteur fixe explicite (cf.
-  // MessagesContent dans community-page).
   return (
-    <div className="nc-page-halo flex flex-col" style={{ minHeight: "100lvh" }}>
+    // Shell à hauteur fixe : la PAGE ne scrolle pas (h-dvh + overflow-hidden),
+    // seul l'intérieur de la carte scrolle. Clearance basse RESPONSIVE
+    // (`pb = env(safe-area-inset-bottom) + 86px` = empreinte BottomNav + ~20px)
+    // → la carte s'arrête TOUJOURS pile au-dessus de la nav sur tout écran
+    // (PWA safe~34 → 120px comme avant ; Safari safe~0 → 86px, la carte descend
+    // plus bas). Desktop : md:pb-8.
+    <div className="nc-page-halo flex flex-col h-dvh overflow-hidden">
       <main
-        className="flex flex-col flex-1 w-full mx-auto px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8"
+        className="flex flex-col flex-1 min-h-0 w-full mx-auto px-4 pt-[64px] pb-[calc(env(safe-area-inset-bottom,0px)+86px)] md:px-10 md:pt-[104px] md:pb-8"
         style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
       >
         <CommunityPage

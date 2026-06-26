@@ -4,23 +4,23 @@ const pulse: React.CSSProperties = {
   borderRadius: "var(--nc-radius-xs)",
 };
 
-// Mirrors coaching/page.tsx : scroll-DOCUMENT (`minHeight: 100lvh`), encadré
-// global unique (Slot 1 bannière + Slot 2 historique). maxWidth 1000, paddings
-// responsive identiques à la page client.
+// Mirrors coaching/page.tsx : shell à hauteur fixe (h-dvh + overflow-hidden,
+// aligné sur /communaute), encadré global unique (Slot 1 bannière + Slot 2
+// historique). maxWidth 1000, paddings responsive identiques à la page client.
 export default function CoachingLoading() {
   return (
-    <div className="nc-page-halo flex flex-col" style={{ minHeight: "100lvh" }}>
+    <div className="nc-page-halo flex flex-col h-dvh overflow-hidden">
       <main
-        className="flex flex-col flex-1"
+        className="flex flex-col flex-1 min-h-0"
         style={{ position: "relative", zIndex: 1 }}
       >
         <div
-          className="px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8 w-full flex flex-col flex-1"
+          className="px-4 pt-[64px] pb-[calc(env(safe-area-inset-bottom,0px)+86px)] md:px-10 md:pt-[104px] md:pb-8 w-full flex flex-col flex-1 min-h-0"
           style={{ maxWidth: 1000, margin: "0 auto" }}
         >
           {/* Encadré global */}
           <div
-            className="flex flex-col flex-1"
+            className="flex flex-col flex-1 min-h-0"
             style={{
               background: "var(--color-surface-card)",
               border: "1px solid var(--color-border-default)",
@@ -48,7 +48,7 @@ export default function CoachingLoading() {
 
             {/* Slot 2 — switcher + grille skeleton */}
             <div
-              className="flex-1"
+              className="flex-1 min-h-0 overflow-y-auto"
               style={{ padding: "20px 10px 8px", display: "flex", flexDirection: "column", gap: 16 }}
             >
               <div style={{ ...pulse, height: 40, width: "100%", borderRadius: 10, animationDelay: "80ms" }} />

@@ -506,26 +506,27 @@ export default function CoachingPageClient({
 
   return (
     <>
-      {/* Scroll-DOCUMENT (et non plus `h-dvh overflow-hidden` à scroll interne) :
-          un shell à hauteur fixe empêche le document de scroller → sur iOS Safari
-          la barre d'outils ne se rétracte jamais → `dvh` reste petit → l'encadré
-          est raccourci (« fin remontée trop tôt »). En laissant le document
-          scroller (`minHeight: 100lvh`), Safari replie sa barre et l'encadré
-          descend pleinement comme en PWA. `flex-1` (sans `min-h-0`) → l'encadré
-          remplit au moins le viewport puis grandit avec l'historique. */}
-      <div className="nc-page-halo flex flex-col" style={{ minHeight: "100lvh" }}>
+      {/* Shell à hauteur fixe, aligné sur /communaute : h-dvh + overflow-hidden
+          → la PAGE ne scrolle pas, seul le Slot 2 scrolle en interne (sa taille
+          ne grandit pas avec le nombre d'appels).
+          Clearance basse RESPONSIVE : `pb = env(safe-area-inset-bottom) + 86px`
+          = exactement l'empreinte de la BottomNav (bottom 10 + safe + hauteur 56)
+          + ~20px → l'encadré s'arrête TOUJOURS pile au-dessus de la nav, quel que
+          soit l'écran (PWA safe~34 → 120px comme avant ; Safari safe~0 → 86px,
+          l'encadré descend plus bas). Desktop : pb-8 (pas de BottomNav). */}
+      <div className="nc-page-halo flex flex-col h-dvh overflow-hidden">
         <main
-          className="flex flex-col flex-1"
+          className="flex flex-col flex-1 min-h-0"
           style={{ position: "relative", zIndex: 1 }}
         >
           {/* Contenu principal */}
           <div
-            className="px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8 w-full flex flex-col flex-1"
+            className="px-4 pt-[64px] pb-[calc(env(safe-area-inset-bottom,0px)+86px)] md:px-10 md:pt-[104px] md:pb-8 w-full flex flex-col flex-1 min-h-0"
             style={{ maxWidth: 1000, margin: "0 auto" }}
           >
             {/* Encadré global unique — Slot 1 (bannière) + Slot 2 (historique) */}
             <div
-              className="nc-mode-in flex flex-col flex-1"
+              className="nc-mode-in flex flex-col flex-1 min-h-0"
               data-fb-label="Encadré global · Coaching"
               style={{
                 background: "var(--color-surface-card)",
@@ -546,10 +547,9 @@ export default function CoachingPageClient({
                 />
               </div>
 
-              {/* Slot 2 — Historique / teaser / état vide. Flux naturel (plus de
-                  scroll interne) : la liste grandit et le DOCUMENT scrolle. */}
+              {/* Slot 2 — Historique / teaser / état vide (scroll interne) */}
               <div
-                className="flex-1"
+                className="flex-1 min-h-0 overflow-y-auto"
                 style={{ padding: "20px 10px 8px" }}
               >
                 {slot2}

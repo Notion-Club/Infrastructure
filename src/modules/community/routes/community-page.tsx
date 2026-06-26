@@ -218,14 +218,9 @@ export function CommunityPage({
           dans un body de post / commentaire. */}
       <ImageLightboxRoot />
 
-      {/* Global container card — CADRE toujours présent (jamais en Suspense).
-          `flex flex-col` SANS `flex-1 min-h-0` : la carte grandit avec son
-          contenu (scroll-document) au lieu d'être figée à la hauteur du shell
-          (ce qui figeait la barre Safari → contenu raccourci). `overflow:hidden`
-          ne fait plus que clipper les coins arrondis. La vue Messages se redonne
-          une hauteur fixe explicite (cf. MessagesContent). */}
+      {/* Global container card — CADRE toujours présent (jamais en Suspense) */}
       <div
-        className="flex flex-col"
+        className="flex flex-col flex-1 min-h-0"
         data-fb-label="Encadré principal · Communauté"
         style={{
           background: "var(--color-surface-raised)",
@@ -489,10 +484,31 @@ function FeedList({
   onRetry: () => void;
 }) {
   const initialPosts = use(postsPromise);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Le feed scrolle désormais avec le DOCUMENT (plus de conteneur à scroll
-  // interne) → l'ancien hack desktop de redirection de la molette n'est plus
-  // nécessaire (et serait nuisible : il `preventDefault` sans rien scroller).
+  // Desktop only: redirect wheel events fired over the page (rose halo zone,
+  // header, etc.) into the inner scroll container so the feed scrolls même
+  // quand le curseur est hors de la carte blanche.
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const pageEl = scroller.closest(".nc-page-halo");
+    if (!pageEl) return;
+
+    function onWheel(e: Event) {
+      const el = scrollRef.current;
+      if (!el) return;
+      const we = e as WheelEvent;
+      if (window.matchMedia("(max-width: 767px)").matches) return;
+      if (we.deltaY === 0) return;
+      if (el.contains(we.target as Node)) return;
+      el.scrollTop += we.deltaY;
+      we.preventDefault();
+    }
+
+    pageEl.addEventListener("wheel", onWheel, { passive: false });
+    return () => pageEl.removeEventListener("wheel", onWheel);
+  }, []);
 
   // Merge optimistic + initialPosts, dédoublonne par id, filtre par tag,
   // trie (pinned d'abord puis date desc).
@@ -519,7 +535,8 @@ function FeedList({
 
   return (
     <div
-      className="overflow-x-hidden"
+      ref={scrollRef}
+      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
       data-fb-label="Liste · Feed"
       style={{ padding: "0 16px 16px" }}
     >
@@ -555,14 +572,8 @@ function MessagesContent({
   conversationUsername: string | null;
 }) {
   const initialConversations = use(conversationsPromise);
-  // Le shell de /communaute est passé en scroll-DOCUMENT (pour le feed). La vue
-  // Messages, elle, a besoin d'un conteneur à hauteur DÉFINIE (liste + composer
-  // à scroll interne, façon chat) : on la lui redonne explicitement ici, au lieu
-  // de dépendre de la chaîne flex `flex-1 min-h-0` du shell (supprimée).
-  // ⚙️ Offset à ajuster sur device si la zone de chat dépasse/sous-dépasse la
-  // BottomNav (chrome haut + switcher ≈ 224px).
   return (
-    <div style={{ height: MESSAGES_EMBED_HEIGHT, overflow: "hidden" }}>
+    <div className="flex-1 min-h-0 overflow-hidden">
       <MessagesLayout
         currentUser={currentUser}
         devRole={devRole}
@@ -574,13 +585,8 @@ function MessagesContent({
   );
 }
 
-// Hauteur de la zone Messages embarquée (chat à scroll interne) dans le shell
-// scroll-document de /communaute. Doit rester synchro entre MessagesContent et
-// son fallback. ⚙️ Ajustable sur device.
-const MESSAGES_EMBED_HEIGHT = "calc(100dvh - 224px)";
-
-// ── Fallbacks Suspense — occupent la zone de contenu le temps que les données
-//    streament. Le cadre (switcher/filtres) reste, lui, déjà affiché.
+// ── Fallbacks Suspense — occupent la zone de contenu (flex-1) le temps que les
+//    données streament. Le cadre (switcher/filtres) reste, lui, déjà affiché.
 const skPulse: React.CSSProperties = {
   animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
   background: "var(--color-surface-raised)",
@@ -590,7 +596,7 @@ const skPulse: React.CSSProperties = {
 function FeedListFallback() {
   return (
     <div
-      className="overflow-x-hidden"
+      className="flex-1 min-h-0 overflow-hidden"
       style={{ padding: "0 16px 16px" }}
       aria-hidden
     >
@@ -627,7 +633,8 @@ function FeedListFallback() {
 function MessagesFallback() {
   return (
     <div
-      style={{ height: MESSAGES_EMBED_HEIGHT, overflow: "hidden", padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}
+      className="flex-1 min-h-0 overflow-hidden"
+      style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}
       aria-hidden
     >
       {Array.from({ length: 6 }, (_, i) => (
