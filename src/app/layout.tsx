@@ -71,14 +71,16 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  // theme-color : on ne le force QU'EN thème sombre (barres Safari near-black
-  // autour d'une UI sombre). En thème clair, AUCUNE balise active → Safari
-  // applique son matériau translucide natif aux barres haut/bas : le dégradé de
-  // page transparaît derrière, au lieu d'une bande blanche opaque. Le `media`
-  // gère le pré-paint (no-JS) ; `ThemeColorMeta` (body) affine ensuite selon le
-  // thème réel de l'app (store JS, qui peut diverger de l'OS) et RETIRE la
-  // balise en clair.
-  themeColor: [{ media: "(prefers-color-scheme: dark)", color: "#141211" }],
+  // theme-color = couleur des barres Safari (mode navigateur, haut + bas). On la
+  // teinte pour qu'elle ÉPOUSE le bord du dégradé de page (rose en clair,
+  // near-black en sombre) → plus de bande blanche autour du contenu. Le `media`
+  // gère le pré-paint (no-JS) selon l'OS ; `ThemeColorMeta` (body) affine ensuite
+  // selon le thème RÉEL de l'app (store JS, qui peut diverger de l'OS). Le rose
+  // doit rester synchro avec `LIGHT_CHROME` (ThemeColorMeta) et `html` (globals).
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#efd6d3" },
+    { media: "(prefers-color-scheme: dark)", color: "#141211" },
+  ],
 };
 
 // Inline script runs before paint to avoid a flash of incorrect theme.
@@ -120,9 +122,9 @@ export default function RootLayout({
             l'ancien dégradé par-page clippé. cf. .nc-app-bg dans globals.css */}
         <div className="nc-app-bg" aria-hidden />
         <ThemeProvider>
-          {/* Pilote <meta name="theme-color"> selon le thème réel : RETIRE la
-              balise en clair (barres Safari translucides natives, le dégradé
-              transparaît) ; near-black en sombre. Garde aussi la classe `.dark`. */}
+          {/* Pilote <meta name="theme-color"> selon le thème réel : rose (épouse
+              le bord du dégradé) en clair, near-black en sombre → barres Safari
+              fondues dans la DA, plus de bande blanche. Garde aussi `.dark`. */}
           <ThemeColorMeta />
           {children}
         </ThemeProvider>

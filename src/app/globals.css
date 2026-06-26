@@ -3,7 +3,19 @@
 
 html {
   scroll-behavior: smooth;
-  background-color: var(--color-surface-page);
+  /* Fond du CANVAS = zone révélée par l'overscroll iOS (rubber-band /
+     pull-to-refresh, où le `.nc-app-bg` fixe suit l'élastique et se décolle) +
+     1ʳᵉ frame avant peinture. On le teinte d'une ROSE qui épouse le BORD du
+     dégradé (là où l'overscroll se produit) au lieu du blanc cassé plat → plus
+     de bande blanche quand on tire la page. `html.dark` repasse au near-black.
+     Valeur à garder SYNCHRO avec `LIGHT_CHROME` / `DARK_SURFACE` de
+     ThemeColorMeta.tsx (teinte du chrome Safari) → canvas + barres Safari +
+     dégradé cohérents. Sélecteurs explicites (pas de token) pour éviter toute
+     ambiguïté de cascade entre `:root` et `.dark`. */
+  background-color: #efd6d3;
+}
+html.dark {
+  background-color: #141211;
 }
 
 @custom-variant dark (&:is(.dark *));
