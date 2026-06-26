@@ -25,8 +25,9 @@ const pulse: React.CSSProperties = {
 export default function CommunauteLoading() {
   return (
     <div
-      className="flex flex-col h-dvh overflow-hidden"
+      className="flex flex-col"
       style={{
+        minHeight: "100lvh",
         backgroundColor: "var(--color-surface-page)",
         // Parité avec `.nc-page-halo` (PWA standalone iOS) : sans ce padding,
         // le skeleton remonterait de ~44px sous l'heure iPhone vs le contenu.
@@ -34,12 +35,12 @@ export default function CommunauteLoading() {
       }}
     >
       <main
-        className="flex flex-col flex-1 min-h-0 w-full mx-auto px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8"
+        className="flex flex-col flex-1 w-full mx-auto px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8"
         style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
       >
         {/* Carte globale — calque le conteneur de CommunityPage */}
         <div
-          className="flex flex-col flex-1 min-h-0"
+          className="flex flex-col"
           style={{
             background: "var(--color-surface-raised)",
             border: "1px solid var(--color-border-default)",
@@ -100,9 +101,9 @@ export default function CommunauteLoading() {
             />
           </div>
 
-          {/* Liste de posts — zone scrollable interne (overflow-y uniquement) */}
+          {/* Liste de posts — flux naturel (scroll-document, comme le réel) */}
           <div
-            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+            className="overflow-x-hidden"
             style={{ padding: "0 16px 16px" }}
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
