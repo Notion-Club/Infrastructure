@@ -57,8 +57,9 @@ export const metadata: Metadata = {
 
 // `viewport-fit=cover` est requis pour que les pages s'étendent sous
 // l'encoche iPhone — combiné aux `env(safe-area-inset-*)` déjà utilisés
-// dans MobileHeader / BottomNav. `themeColor` aligne la status bar iOS et
-// la barre Chrome Android sur la couleur de fond de page (#f5f2f2).
+// dans MobileHeader / BottomNav. La teinte des barres iOS/Android
+// (`theme-color`) est gérée dynamiquement par `ThemeColorMeta` (cf. plus bas),
+// plus par `viewport` — pour qu'elle suive le thème réel light/dark.
 //
 // `maximumScale: 1` + `userScalable: false` désactivent l'auto-zoom iOS
 // quand l'utilisateur focus un `<input>` ou `<textarea>` dont le
@@ -72,13 +73,13 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  // Valeur statique par défaut (premier paint / no-JS). On ne déduit PLUS la
-  // teinte via `prefers-color-scheme` : le thème réel de l'app est piloté par
-  // un store JS (localStorage → classe `.dark`) qui peut diverger de l'OS, ce
-  // qui laissait une bande claire autour d'une UI sombre sur Safari navigateur.
-  // `ThemeColorMeta` (monté dans le body) réécrit cette balise depuis le thème
-  // effectivement appliqué. #f5f2f2 = couleur de page en thème clair.
-  themeColor: "#f5f2f2",
+  // PAS de `themeColor` ici. La balise <meta name="theme-color"> est rendue
+  // exclusivement par `ThemeColorMeta` (composant client, rendu aussi en SSR →
+  // valeur par défaut #f5f2f2 en thème clair dès le premier paint / no-JS),
+  // qui la fait ensuite suivre le thème réel (light/dark) ET les overrides
+  // d'overlays. La déclarer aussi dans `viewport` créerait une SECONDE balise
+  // theme-color gérée par Next, en doublon de celle de React → on garde une
+  // source unique, propriété de React, pour éviter tout conflit de <head>.
 };
 
 // Inline script runs before paint to avoid a flash of incorrect theme.

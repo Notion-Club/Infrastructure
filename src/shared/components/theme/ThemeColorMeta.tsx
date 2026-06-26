@@ -109,22 +109,6 @@ function enforceThemeClass() {
   }
 }
 
-// ── Écriture de la balise ────────────────────────────────────────────────
-function writeThemeColor(color: string) {
-  if (typeof document === "undefined") return;
-  let tag = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-  if (!tag) {
-    tag = document.createElement("meta");
-    tag.setAttribute("name", "theme-color");
-    document.head.appendChild(tag);
-  } else {
-    // La balise statique émise par Next peut porter un attribut `media` ;
-    // on le neutralise pour que notre valeur s'applique inconditionnellement.
-    tag.removeAttribute("media");
-  }
-  tag.setAttribute("content", color);
-}
-
 export function ThemeColorMeta() {
   const ctx = useContext(ThemeContext);
   const pathname = usePathname();
@@ -155,11 +139,22 @@ export function ThemeColorMeta() {
     return () => observer.disconnect();
   }, []);
 
-  // Écriture après paint : le premier rendu garde la balise statique (SSR),
-  // puis on l'aligne sur le thème réel côté client.
-  useEffect(() => {
-    writeThemeColor(color);
-  }, [color]);
-
-  return null;
+  // Balise rendue DÉCLARATIVEMENT → React 19 la hoiste dans <head> et en reste
+  // SEUL propriétaire. On ne touche plus jamais le DOM du <head> à la main.
+  //
+  // Pourquoi ce changement est critique : l'ancienne version écrivait la balise
+  // impérativement (`querySelector` + `appendChild`/`setAttribute`) sur le nœud
+  // `<meta theme-color>` que React 19 gère lui-même (métadonnées hoistées). À la
+  // navigation, quand React réconciliait le <head>, son `stateNode` pointait sur
+  // un nœud qu'on avait muté/déplacé → `parentNode` null → `removeChild` jetait
+  // EN PLEINE PHASE COMMIT → React avortait tout le commit (navigation figée,
+  // spinner infini, dropdown gelé). En rendant la balise via JSX, la mise à jour
+  // passe par la réconciliation normale de React : aucune collision possible.
+  //
+  // `suppressHydrationWarning` : le SSR rend la couleur du thème par défaut
+  // (light), mais au 1ᵉʳ rendu client le thème réel (localStorage) peut être
+  // sombre → contenu volontairement divergent, sans warning d'hydratation.
+  return (
+    <meta name="theme-color" content={color} suppressHydrationWarning />
+  );
 }
