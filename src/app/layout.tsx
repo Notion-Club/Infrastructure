@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/shared/components/theme/ThemeProvider";
 import ServiceWorkerRegistrar from "@/shared/components/pwa/ServiceWorkerRegistrar";
 import { ThemeColorMeta } from "@/shared/components/theme/ThemeColorMeta";
 import { IOS_SPLASH_LINKS } from "@/shared/components/pwa/iosSplashLinks";
+import { GradualBlurOverlay } from "@/shared/components/GradualBlurOverlay";
 import { sfProDisplay } from "@/shared/lib/fonts";
 import "./globals.css";
 
@@ -140,10 +141,25 @@ export default function RootLayout({
         </ThemeProvider>
         <Toaster />
         <ServiceWorkerRegistrar />
-        {/* (Voile flou du haut retiré.) Le fond unique `.nc-app-bg` porte
-            désormais à lui seul l'adoucissement de la zone status-bar iOS
-            (léger fondu intégré au dégradé) — plus de calque `backdrop-filter`
-            superposé au contenu. */}
+        {/* Voile de flou GLOBAL en haut — mobile uniquement, monté ici (root
+            layout) → actif sur TOUTES les pages, présentes et à venir.
+            `GradualBlurOverlay` = flou progressif PUR (aucune couleur → il
+            échantillonne le fond thème-correct, pas de bug de repaint iOS), max
+            en haut (zone heure/batterie/réseau) et fondu élégant vers le bas.
+            `pointer-events: none` → n'intercepte aucun clic.
+
+            Hauteur = status-bar (`env(safe-area-inset-top)`) + ~52px : couvre
+            la zone système ET passe DERRIÈRE la rangée d'icônes (logo z41 /
+            actions z40 > ce voile z39) → le contenu ne défile plus « à nu »
+            derrière les boutons. ⚙️ Réglage : ajuster le `+52px` (plus court =
+            voile plus fin, limité à la status-bar) et le `zIndex`. */}
+        <div className="md:hidden">
+          <GradualBlurOverlay
+            anchor="top"
+            height="calc(env(safe-area-inset-top, 0px) + 52px)"
+            zIndex={39}
+          />
+        </div>
       </body>
     </html>
   );

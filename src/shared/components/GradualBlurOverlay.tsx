@@ -7,7 +7,13 @@ const LAYERS = [
 ];
 
 interface GradualBlurOverlayProps {
-  height?: number;
+  /**
+   * Hauteur du voile. `number` → px ; `string` → toute valeur CSS, ex.
+   * `calc(env(safe-area-inset-top, 0px) + 52px)` pour épouser la status-bar iOS
+   * quel que soit le device. (Mode `sticky` : `number` requis pour la marge
+   * négative qui « ramène » le contenu.)
+   */
+  height?: number | string;
   zIndex?: number;
   /**
    * - 'fixed' (défaut) : voile collé au viewport, suit le scroll de window.
@@ -36,12 +42,17 @@ export function GradualBlurOverlay({
   const isSticky = position === "sticky";
   const isTop = anchor === "top";
 
+  // Marge négative pour « ramener » le contenu (mode sticky uniquement).
+  // Supporte une hauteur en string CSS (env/calc) comme en number (px).
+  const negMargin =
+    typeof height === "number" ? -height : `calc(-1 * (${height}))`;
+
   const containerStyle: React.CSSProperties = isSticky
     ? {
         position: "sticky",
         [isTop ? "top" : "bottom"]: 0,
         height,
-        ...(isTop ? { marginBottom: -height } : { marginTop: -height }),
+        ...(isTop ? { marginBottom: negMargin } : { marginTop: negMargin }),
         pointerEvents: "none",
         zIndex,
       }
