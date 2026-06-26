@@ -1963,12 +1963,11 @@ html {
   width: 120px;
   height: 64px;
   overflow: hidden;
-  border-radius: 10px;
+  /* Bas NET (demande explicite) : coupe franche, sans fondu ni coins arrondis
+     en bas. Seul le haut garde l'arrondi du papier ; le bas est un trait droit
+     qui sépare proprement l'aperçu du fond du bouton. */
+  border-radius: 10px 10px 0 0;
   pointer-events: none;
-  /* Fondu bas → la facture se fond dans le bouton (peek élégant) et le bas
-     (tableau Description/TVA/Total HT) disparaît en douceur. */
-  -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
 }
 .nc-payments-cta__preview > * {
   position: absolute;
@@ -1994,10 +1993,6 @@ html {
     right: 18px;
     width: 208px;
     height: 112px;
-    /* Fondu repoussé plus bas (66 % au lieu de 58 %) : on garde net une plus
-       grande partie de la facture maintenant qu'on en montre davantage. */
-    -webkit-mask-image: linear-gradient(to bottom, #000 66%, transparent 100%);
-    mask-image: linear-gradient(to bottom, #000 66%, transparent 100%);
   }
   .nc-payments-cta__preview > * {
     transform: scale(0.8);
@@ -2355,26 +2350,24 @@ html {
 .nc-invoice-hero__paper {
   filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.12));
 }
-/* Incrustation native : un SEUL dégradé flou léger, ancré au BAS de l'aperçu,
-   à la jonction avec la section des propriétés. Le corps de la facture reste
-   net (avant : un voile flou couvrait ~la moitié haute du papier, d'où l'effet
-   « bizarre »). Le flou monte en intensité vers le bas via un masque, et la
-   couleur fond vers la surface de la carte sur les mêmes arrêts → net. */
+/* Fondu aperçu ↔ propriétés : un SEUL dégradé opaque, transparent en haut →
+   couleur EXACTE de la surface de la modale (--color-surface-card) en bas, sur
+   laquelle reposent aussi les propriétés. Le bas du papier se fond donc
+   progressivement dans le fond de la modale et se prolonge SANS cassure dans la
+   section des propriétés (même couleur). Pas de backdrop-filter ni de masque :
+   c'est le flou qui « étalait » le blanc du papier en une fine bande claire
+   (très visible en dark) — une coupe en dégradé opaque est nette et naturelle. */
 .nc-invoice-hero__veil {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 42%;
+  height: 50%;
   pointer-events: none;
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 72%);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 72%);
   background: linear-gradient(
     to bottom,
     transparent 0%,
-    var(--color-surface-card) 88%
+    var(--color-surface-card) 72%
   );
 }
 
@@ -2447,10 +2440,23 @@ html {
   transition: color 150ms var(--nc-ease), border-color 150ms var(--nc-ease),
     background 150ms var(--nc-ease), filter 150ms var(--nc-ease);
 }
-/* « Ouvrir » = bouton secondaire → contraste géré par .nc-modal-btn (dark inclus). */
 .nc-invoice-open:hover {
   color: var(--color-brand);
   border-color: rgba(224, 98, 90, 0.35);
+}
+/* En dark, « Ouvrir » héritait de .nc-modal-btn → surface-raised (#201d1b),
+   quasi identique au fond de la modale (surface-card #2a2725) : il se fondait
+   dedans (« même couleur que le fond du modal »). On l'éclaircit nettement pour
+   qu'il se détache. (« Télécharger » est en brand red → déjà contrasté.) */
+.dark .nc-invoice-open {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--color-text-primary);
+}
+.dark .nc-invoice-open:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--color-brand);
+  border-color: rgba(224, 98, 90, 0.4);
 }
 .nc-invoice-download {
   border: none;

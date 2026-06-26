@@ -18,6 +18,15 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       position="bottom-right"
+      // Sur mobile, la BottomNav flottante (hauteur 56 + bottom 10 + safe-area)
+      // occupe le bas → un toast ancré en bas passait par-dessus la barre. On le
+      // remonte au-dessus d'elle (56 + 10 + ~16 de marge = 82px, plus la
+      // safe-area iOS). Desktop : offset par défaut conservé.
+      mobileOffset={{
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 82px)",
+        left: "16px",
+        right: "16px",
+      }}
       icons={{
         success: (
           <CircleCheckIcon className="size-4" style={{ color: "#16a34a" }} />

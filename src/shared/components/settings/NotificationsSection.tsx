@@ -376,17 +376,27 @@ function NotificationsMatrix({
         >
           Type
         </div>
-        {VISIBLE_CHANNELS.map(({ key, label, Icon, iconSize }) => (
-          <div key={key} role="columnheader">
-            <ChannelHeaderButton
-              label={label}
-              Icon={Icon}
-              iconSize={iconSize}
-              active={channels[key]}
-              onClick={() => onToggleChannel(key)}
-            />
-          </div>
-        ))}
+        {VISIBLE_CHANNELS.map(({ key, label, Icon, iconSize }) => {
+          // En-tête « actif » (rouge) UNIQUEMENT si le canal est ouvert ET qu'au
+          // moins un type l'utilise. Avant, l'en-tête lisait seulement le flag
+          // maître `channels[key]` : désactiver toute la colonne (décocher tous
+          // les types) laissait la pilule rouge « comme si c'était encore activé ».
+          // Maintenant, dès que la colonne est vide (ou le canal coupé), elle
+          // repasse neutre — cohérent avec les toggles des cellules.
+          const channelActive =
+            channels[key] && categories.some((c) => prefs[c.key]?.[key]);
+          return (
+            <div key={key} role="columnheader">
+              <ChannelHeaderButton
+                label={label}
+                Icon={Icon}
+                iconSize={iconSize}
+                active={channelActive}
+                onClick={() => onToggleChannel(key)}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {/* BODY */}
