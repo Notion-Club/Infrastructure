@@ -11,7 +11,7 @@ import {
 import { createPortal } from 'react-dom';
 import type { LabResource } from './mock';
 import { LabBadge } from './LabBadge';
-import { SPRING_EASING, SPRING_DURATION, FADE_OUT_EASING, FADE_IN_EASING } from './spring';
+import { SPRING_EASING, SPRING_DURATION } from './spring';
 
 export interface ZoomSource {
   resource: LabResource;
@@ -22,12 +22,22 @@ const prefersReduced = () =>
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// Material « container transform → fade-through » :
+//  - le CONTENEUR (surface) morphe (width/height/radius) ;
+//  - les contenus sont à leur taille NATURELLE (jamais agrandis) et se relaient
+//    en cross-fade SÉQUENTIEL à easing LINÉAIRE (sortant 100→0, PUIS entrant
+//    0→100) → jamais deux textes visibles ensemble ;
+//  - chaque contenu se contente de TRANSLATER pour suivre la surface.
+// Réf. m3.material.io/styles/motion/transitions + material-components-android.
+const FADE = 'linear';
+
 const H1_STYLE: CSSProperties = {
-  fontSize: 'clamp(32px, 7vw, 44px)',
+  fontSize: 'clamp(28px, 6vw, 38px)',
   fontWeight: 700,
-  letterSpacing: '-0.03em',
+  letterSpacing: '-0.02em',
   color: 'var(--color-text-primary)',
   margin: 0,
+  lineHeight: 1.15,
 };
 
 const CARD_TITLE_STYLE: CSSProperties = {
@@ -59,11 +69,11 @@ export function ZoomOverlay({
   onClosed: () => void;
 }) {
   const pageBgRef = useRef<HTMLDivElement>(null);
-  const surfRef = useRef<HTMLDivElement>(null); // surface VIDE — width/height/radius (coins lisses)
-  const encRef = useRef<HTMLDivElement>(null); // bloc encadré (cible)
-  const cardRef = useRef<HTMLDivElement>(null); // bloc carte (départ)
+  const surfRef = useRef<HTMLDivElement>(null);
+  const encRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
-  const gRef = useRef<{ surfFrom: Keyframe; surfTo: Keyframe; encFrom: string; cardTo: string } | null>(null);
+  const gRef = useRef<{ surfFrom: Keyframe; surfTo: Keyframe; track: string; cardOut: string } | null>(null);
   const animsRef = useRef<Animation[]>([]);
   const closingRef = useRef(false);
   const [interactive, setInteractive] = useState(false);
@@ -80,15 +90,12 @@ export function ZoomOverlay({
     const d = SPRING_DURATION;
     const c = source.cardRect;
 
-    // Mesure de la cible (encRef à l'identité).
+    // Cible mesurée (encRef à l'identité, taille NATURELLE de la page).
     const destRect = enc.getBoundingClientRect();
-
     const dx = c.left - destRect.left;
     const dy = c.top - destRect.top;
-    const kDown = c.width / destRect.width; // scale uniforme (carte ← encadré)
-    const kUp = destRect.width / c.width; // scale uniforme (carte → encadré)
 
-    // Surface VIDE : width/height/translate/radius (PAS de scale → coins ronds, lisses).
+    // Surface VIDE : width/height/translate/radius (PAS de scale → coins lisses).
     surf.style.top = `${destRect.top}px`;
     surf.style.left = `${destRect.left}px`;
     const surfFrom: Keyframe = {
@@ -97,23 +104,18 @@ export function ZoomOverlay({
       height: `${c.height}px`,
       borderRadius: '16px',
     };
-    const surfTo: Keyframe = {
-      transform: 'none',
-      width: `${destRect.width}px`,
-      height: `${destRect.height}px`,
-      borderRadius: '24px',
-    };
+    const surfTo: Keyframe = { transform: 'none', width: `${destRect.width}px`, height: `${destRect.height}px`, borderRadius: '24px' };
     Object.assign(surf.style, surfFrom);
 
-    // Les DEUX blocs suivent EXACTEMENT la surface (même taille/position à chaque
-    // instant) → le cross-fade est parfaitement aligné. translate via top-left.
-    const encFrom = `translate(${dx}px, ${dy}px) scale(${kDown})`;
-    const cardTo = `translate(${-dx}px, ${-dy}px) scale(${kUp})`;
-    enc.style.transform = encFrom;
+    // Les deux contenus suivent la surface par simple TRANSLATE (zéro scale du texte).
+    // - encadré : posé à la cible, parti depuis le coin de la carte → identité.
+    // - carte : posée au coin de la carte → translatée vers le coin de la cible.
+    const track = `translate(${dx}px, ${dy}px)`; // coin carte (depuis la cible)
+    const cardOut = `translate(${-dx}px, ${-dy}px)`; // coin cible (depuis la carte)
+    enc.style.transform = track;
 
-    gRef.current = { surfFrom, surfTo, encFrom, cardTo };
+    gRef.current = { surfFrom, surfTo, track, cardOut };
 
-    // Fond de page : copie le background RÉEL de .nc-app-bg (thème-exact).
     if (pageBg) {
       const real = document.querySelector('.nc-app-bg');
       if (real) {
@@ -136,18 +138,18 @@ export function ZoomOverlay({
     }
 
     // Fond opaque QUASI-IMMÉDIAT → l'index passe derrière la page.
-    anim(pageBg, [{ opacity: 0, offset: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 1 }], d, FADE_IN_EASING, store);
+    anim(pageBg, [{ opacity: 0, offset: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 1 }], d, FADE, store);
 
     // Surface : ressort SANS overshoot, coins lisses.
     const surfAnim = anim(surf, [surfFrom, surfTo], d, SPRING_EASING, store);
 
-    // Bloc CARTE : suit la surface, disparaît TÔT et ENTIÈREMENT (avant l'encadré).
-    anim(card, [{ transform: 'none' }, { transform: cardTo }], d, SPRING_EASING, store);
-    anim(card, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 0, offset: 0.28 }], d, FADE_OUT_EASING, store);
+    // Contenu CARTE (sortant) : suit la surface, disparaît ENTIÈREMENT tôt (linéaire).
+    anim(card, [{ transform: 'none' }, { transform: cardOut }], d, SPRING_EASING, store);
+    anim(card, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 0, offset: 0.4 }], d, FADE, store);
 
-    // Bloc ENCADRÉ : suit la surface, apparaît APRÈS (zéro chevauchement).
-    anim(enc, [{ transform: encFrom }, { transform: 'none' }], d, SPRING_EASING, store);
-    anim(enc, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.32 }, { opacity: 1, offset: 0.62 }], d, FADE_IN_EASING, store);
+    // Contenu ENCADRÉ (entrant) : transparent au départ, entre APRÈS (zéro chevauchement).
+    anim(enc, [{ transform: track }, { transform: 'none' }], d, SPRING_EASING, store);
+    anim(enc, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.45 }, { opacity: 1, offset: 0.85 }], d, FADE, store);
 
     surfAnim?.finished.then(() => setInteractive(true)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -177,14 +179,14 @@ export function ZoomOverlay({
     const d = SPRING_DURATION;
 
     const surfAnim = anim(surf, [g.surfTo, g.surfFrom], d, SPRING_EASING, store);
-    // Bloc encadré : disparaît DÈS LE DÉPART, ENTIÈREMENT.
-    anim(encRef.current, [{ transform: 'none' }, { transform: g.encFrom }], d, SPRING_EASING, store);
-    anim(encRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.28 }, { opacity: 0, offset: 1 }], d, FADE_OUT_EASING, store);
-    // Bloc carte : revient seulement EN FIN (après disparition de l'encadré).
-    anim(cardRef.current, [{ transform: g.cardTo }, { transform: 'none' }], d, SPRING_EASING, store);
-    anim(cardRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.72 }, { opacity: 1, offset: 1 }], d, FADE_IN_EASING, store);
-    // Fond de page : se retire en fin → l'index réapparaît quand la carte rentre.
-    anim(pageBgRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.45 }, { opacity: 0, offset: 1 }], d, FADE_OUT_EASING, store);
+    // Encadré (sortant) : disparaît DÈS LE DÉPART, entièrement.
+    anim(encRef.current, [{ transform: 'none' }, { transform: g.track }], d, SPRING_EASING, store);
+    anim(encRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.35 }, { opacity: 0, offset: 1 }], d, FADE, store);
+    // Carte (entrante) : revient EN FIN (après disparition de l'encadré).
+    anim(cardRef.current, [{ transform: g.cardOut }, { transform: 'none' }], d, SPRING_EASING, store);
+    anim(cardRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.6 }, { opacity: 1, offset: 0.95 }], d, FADE, store);
+    // Fond : se retire en fin → l'index réapparaît quand la carte rentre.
+    anim(pageBgRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.5 }, { opacity: 0, offset: 1 }], d, FADE, store);
 
     surfAnim?.finished.then(onClosed).catch(onClosed);
   }, [onClosed]);
@@ -208,7 +210,6 @@ export function ZoomOverlay({
 
   const overlay = (
     <div role="dialog" aria-modal style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}>
-      {/* Fond de PAGE opaque — couvre l'index */}
       <div
         ref={pageBgRef}
         onClick={close}
@@ -221,7 +222,7 @@ export function ZoomOverlay({
         }}
       />
 
-      {/* Surface VIDE qui morphe (width/height/radius → coins lisses) */}
+      {/* Surface VIDE qui morphe (container) */}
       <div
         ref={surfRef}
         style={{
@@ -236,38 +237,38 @@ export function ZoomOverlay({
         }}
       />
 
-      {/* Bloc ENCADRÉ (cible) — suit la surface, apparaît après la carte */}
+      {/* Contenu ENCADRÉ — taille NATURELLE (jamais agrandie) */}
       <div
         ref={encRef}
         style={{
           position: 'fixed',
           top: 'calc(env(safe-area-inset-top, 0px) + 76px)',
           left: '50%',
-          marginLeft: 'calc(min(720px, 100vw - 32px) * -0.5)',
-          width: 'min(720px, calc(100vw - 32px))',
+          marginLeft: 'calc(min(640px, 100vw - 32px) * -0.5)',
+          width: 'min(640px, calc(100vw - 32px))',
           transformOrigin: 'top left',
-          padding: 32,
+          padding: 28,
           boxSizing: 'border-box',
           opacity: 0,
           willChange: 'transform, opacity',
           pointerEvents: interactive ? 'auto' : 'none',
         }}
       >
-        <h1 style={{ ...H1_STYLE, lineHeight: 1.1, marginBottom: 16 }}>{resource.titre}</h1>
-        <p style={{ fontSize: 16, color: 'var(--color-text-secondary)', margin: '0 0 16px', lineHeight: 1.6 }}>
+        <h1 style={{ ...H1_STYLE, marginBottom: 14 }}>{resource.titre}</h1>
+        <p style={{ fontSize: 15, color: 'var(--color-text-secondary)', margin: '0 0 16px', lineHeight: 1.6 }}>
           {resource.description}
         </p>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
           <LabBadge kind="ressource" label="Ressource" />
           <LabBadge kind="formation" label={resource.formation} />
           <LabBadge kind="type" label={resource.type} />
         </div>
-        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border-default)', margin: '0 0 24px' }} />
-        <p style={{ fontSize: 15, color: 'var(--color-text-secondary)', lineHeight: 1.7, margin: '0 0 16px' }}>
-          Aperçu mocké : la carte est transportée vers cette page. Les contenus se
-          relaient sans jamais se chevaucher, la surface morphe en douceur.
+        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border-default)', margin: '0 0 22px' }} />
+        <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', lineHeight: 1.7, margin: '0 0 14px' }}>
+          Aperçu mocké : container transform « fade-through ». La surface morphe,
+          les contenus se relaient à leur taille naturelle, jamais superposés.
         </p>
-        <p style={{ fontSize: 15, color: 'var(--color-text-secondary)', lineHeight: 1.7, margin: 0 }}>
+        <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', lineHeight: 1.7, margin: 0 }}>
           Ferme avec la croix, le fond ou Échap.
         </p>
 
@@ -277,8 +278,8 @@ export function ZoomOverlay({
           aria-label="Fermer"
           style={{
             position: 'absolute',
-            top: 16,
-            right: 16,
+            top: 14,
+            right: 14,
             width: 34,
             height: 34,
             display: 'flex',
@@ -297,7 +298,7 @@ export function ZoomOverlay({
         </button>
       </div>
 
-      {/* Bloc CARTE (départ) — suit la surface, disparaît avant l'encadré */}
+      {/* Contenu CARTE — taille NATURELLE, suit la surface, sort en premier */}
       <div
         ref={cardRef}
         style={{
