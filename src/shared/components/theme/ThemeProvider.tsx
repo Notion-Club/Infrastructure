@@ -3,6 +3,7 @@
 import {
   createContext,
   useCallback,
+  useEffect,
   useMemo,
   useSyncExternalStore,
   type ReactNode,
@@ -152,6 +153,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const current = computeSnapshot().theme;
     writePreference(current === "dark" ? "light" : "dark");
   }, []);
+
+  // Raccourci clavier DESKTOP : ⌘/Ctrl + Shift + L bascule l'apparence.
+  // `e.code === "KeyL"` (insensible à la disposition clavier + au Shift qui
+  // transforme la touche). Gardé hors mobile (pas de clavier physique).
+  useEffect(() => {
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+    if (/Mobi|Android|iPhone|iPad|iPod|Windows Phone/i.test(ua)) return;
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === "KeyL") {
+        e.preventDefault();
+        toggleTheme();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleTheme]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({

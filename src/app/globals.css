@@ -1971,11 +1971,18 @@ html {
   --shimmer-dur: 1900ms;
   --shimmer-band: 360%;
   --shimmer-base: var(--color-text-secondary);
-  --shimmer-highlight: var(--color-brand);
+  /* Band gris léger (ex-rouge signature, jugé « cheap ») : sweep clair dans des
+     glyphes plus sombres → contraste visible, doux. Override dark juste après. */
+  --shimmer-highlight: #cdc6c4;
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--color-text-primary);
+}
+.dark .nc-payments-title {
+  /* Sur fond sombre, le texte de base est clair : on remonte le highlight vers
+     un gris quasi-blanc pour que le sweep reste perceptible. */
+  --shimmer-highlight: #ece7e4;
 }
 
 /* Tableau des paiements. Mobile : 2 lignes par item (titre + montant, puis
@@ -2198,6 +2205,19 @@ html {
   background: rgba(255, 255, 255, 0.08);
   color: var(--color-brand);
 }
+/* Modale Paiements — boutons de navigation (retour / fermer) : survol NEUTRE,
+   pas de teinte rouge (demande explicite). Scopé à .nc-pay-card → les autres
+   modales gardent leur hover par défaut. */
+.nc-pay-card .nc-modal-icon-btn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
+  background: var(--color-surface-raised);
+}
+.dark .nc-pay-card .nc-modal-icon-btn:hover {
+  color: var(--color-text-primary);
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+}
 
 /* ──────────────────────────────────────────────────────────────
    Modale Paiements — carte à 2 pages (liste ↔ détail facture) qui se
@@ -2263,28 +2283,33 @@ html {
   position: relative;
   display: flex;
   justify-content: center;
-  padding: 8px 18px 0;
+  /* Top 56px : on descend l'aperçu SOUS les boutons flottants retour/fermer
+     (top:12 + 36 = 48) — avant, le haut de la facture passait au-dessus d'eux. */
+  padding: 56px 18px 0;
 }
 .nc-invoice-hero__paper {
   filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.12));
 }
+/* Incrustation native : un SEUL dégradé flou léger, ancré au BAS de l'aperçu,
+   à la jonction avec la section des propriétés. Le corps de la facture reste
+   net (avant : un voile flou couvrait ~la moitié haute du papier, d'où l'effet
+   « bizarre »). Le flou monte en intensité vers le bas via un masque, et la
+   couleur fond vers la surface de la carte sur les mêmes arrêts → net. */
 .nc-invoice-hero__veil {
   position: absolute;
   left: 0;
   right: 0;
-  top: 0;
   bottom: 0;
+  height: 42%;
   pointer-events: none;
-  /* Flou progressif appliqué à partir de ~48 % de la hauteur (ligne du tableau). */
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 46%, #000 72%);
-  mask-image: linear-gradient(to bottom, transparent 46%, #000 72%);
-  /* Et fondu de couleur vers la surface de la carte tout en bas. */
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 72%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 72%);
   background: linear-gradient(
     to bottom,
-    transparent 44%,
-    var(--color-surface-card) 92%
+    transparent 0%,
+    var(--color-surface-card) 88%
   );
 }
 

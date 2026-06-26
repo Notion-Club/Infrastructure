@@ -1,13 +1,20 @@
 "use client";
 
-import { useEffect, useState, useTransition, type FormEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useTransition,
+  type FormEvent,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import type { ZodIssue } from "zod";
 
 import { cn } from "@/shared/lib/utils";
 import { GoogleButton } from "./GoogleButton";
+import { ResetPasswordRequestContent } from "./ResetPasswordRequestForm";
 import {
   signinSchema,
   signupSchema,
@@ -55,6 +62,32 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
   const [isPending, startTransition] = useTransition();
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Vue interne de la carte : « auth » (connexion / inscription) ⇄ « reset »
+  // (mot de passe oublié). Slide side-by-side (transitions.dev) + carte qui se
+  // redimensionne (card-resize), fusionnés : « mot de passe oublié » glisse SANS
+  // changer de route, le parcours reste fluide dès les premiers instants.
+  const [view, setView] = useState<"auth" | "reset">("auth");
+
+  // Hauteur de la carte animée : épouse la page active. Elle change au switch
+  // login↔signup (page 1 grandit/rétrécit) ET au slide vers « reset » (page 2,
+  // de taille différente). Un seul mécanisme couvre les deux animations.
+  const page1Ref = useRef<HTMLElement>(null);
+  const page2Ref = useRef<HTMLElement>(null);
+  const [slideHeight, setSlideHeight] = useState<number | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const el = view === "reset" ? page2Ref.current : page1Ref.current;
+    if (!el) return;
+    // useLayoutEffect + mesure synchrone → la hauteur initiale est posée avant
+    // peinture (pas de flash à 0). ResizeObserver suit ensuite tout changement
+    // de contenu (remontage du formulaire, pill d'erreur, message de succès…).
+    const update = () => setSlideHeight(el.offsetHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [view, mode]);
 
   // Si on revient sur /login après un échec OAuth Google (?error=…), l'erreur est
   // dérivée pendant le render. Pas d'useEffect : React 19 décourage setState
@@ -166,51 +199,77 @@ export function AuthCard({ state = "login-empty", onStateChange }: AuthCardProps
       className="nc-shine-card w-full max-w-[420px]"
       data-fb-label={mode === "login" ? "Carte auth · Connexion" : "Carte auth · Inscription"}
     >
-      <div className="nc-shine-card__inner flex flex-col gap-6">
-        <ModeToggle mode={mode} onChange={setMode} disabled={isPending} />
-
-        <form
-          key={mode}
-          onSubmit={handleSubmit}
-          className="nc-mode-in flex flex-col gap-5"
-          noValidate
-          data-fb-label={`Formulaire · ${formContext}`}
+      <div className="nc-shine-card__inner">
+        {/* Slide side-by-side + carte qui se redimensionne (hauteur animée sur la
+            page active). Page 1 = connexion/inscription, page 2 = mot de passe
+            oublié — toutes deux dans la même carte (pas de pop-up, pas de route). */}
+        <div
+          className="t-page-slide"
+          data-page={view === "reset" ? 2 : 1}
+          style={{
+            height: slideHeight,
+            transition: "height 280ms var(--nc-ease)",
+            overflow: "hidden",
+          }}
         >
-          <GoogleButton
-            label={
-              mode === "login"
-                ? "Continuer avec Google"
-                : "S'inscrire avec Google"
-            }
-            loading={isLoading}
-            onClick={handleGoogle}
-            data-fb-label={`Bouton Google · ${formContext}`}
-          />
+          {/* ── Page 1 — connexion / inscription ── */}
+          <section ref={page1Ref} className="t-page" data-page-id="1">
+            <div className="flex flex-col gap-6">
+              <ModeToggle mode={mode} onChange={setMode} disabled={isPending} />
 
-          <Divider />
+              <form
+                key={mode}
+                onSubmit={handleSubmit}
+                className="nc-mode-in flex flex-col gap-5"
+                noValidate
+                data-fb-label={`Formulaire · ${formContext}`}
+              >
+                <GoogleButton
+                  label={
+                    mode === "login"
+                      ? "Continuer avec Google"
+                      : "S'inscrire avec Google"
+                  }
+                  loading={isLoading}
+                  onClick={handleGoogle}
+                  data-fb-label={`Bouton Google · ${formContext}`}
+                />
 
-          {hasError && errorMessage && <ErrorPill message={errorMessage} />}
+                <Divider />
 
-          {mode === "login" ? (
-            <LoginFields
-              disabled={isLoading}
-              showPassword={showPassword}
-              onTogglePassword={() => setShowPassword((v) => !v)}
-              fieldErrors={fieldErrors}
-              context={formContext}
-            />
-          ) : (
-            <SignupFields
-              disabled={isLoading}
-              showPassword={showPassword}
-              onTogglePassword={() => setShowPassword((v) => !v)}
-              fieldErrors={fieldErrors}
-              context={formContext}
-            />
-          )}
+                {hasError && errorMessage && <ErrorPill message={errorMessage} />}
 
-          <SubmitButton mode={mode} loading={isLoading} context={formContext} />
-        </form>
+                {mode === "login" ? (
+                  <LoginFields
+                    disabled={isLoading}
+                    showPassword={showPassword}
+                    onTogglePassword={() => setShowPassword((v) => !v)}
+                    fieldErrors={fieldErrors}
+                    context={formContext}
+                    onForgot={() => setView("reset")}
+                  />
+                ) : (
+                  <SignupFields
+                    disabled={isLoading}
+                    showPassword={showPassword}
+                    onTogglePassword={() => setShowPassword((v) => !v)}
+                    fieldErrors={fieldErrors}
+                    context={formContext}
+                  />
+                )}
+
+                <SubmitButton mode={mode} loading={isLoading} context={formContext} />
+              </form>
+            </div>
+          </section>
+
+          {/* ── Page 2 — mot de passe oublié (slide depuis la connexion) ── */}
+          <section ref={page2Ref} className="t-page" data-page-id="2">
+            <div className="flex flex-col gap-6">
+              <ResetPasswordRequestContent onBack={() => setView("auth")} />
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );
@@ -259,7 +318,7 @@ function ModeToggle({
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
             )}
           >
-            {value === "login" ? "Login" : "Créer compte"}
+            {value === "login" ? "Se connecter" : "Créer compte"}
           </button>
         );
       })}
@@ -292,12 +351,14 @@ function LoginFields({
   onTogglePassword,
   fieldErrors,
   context,
+  onForgot,
 }: {
   disabled: boolean;
   showPassword: boolean;
   onTogglePassword: () => void;
   fieldErrors: FieldErrors;
   context: string;
+  onForgot: () => void;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -322,13 +383,14 @@ function LoginFields({
         error={fieldErrors.password}
         context={context}
         rightAction={
-          <Link
-            href="/reset-password"
+          <button
+            type="button"
+            onClick={onForgot}
             className="text-[14px] font-medium text-[var(--color-brand)] hover:underline"
-            data-fb-label={`Lien Mot de passe oublié · ${context}`}
+            data-fb-label={`Bouton Mot de passe oublié · ${context}`}
           >
             Mot de passe oublié ?
-          </Link>
+          </button>
         }
       />
     </div>

@@ -63,6 +63,7 @@ function PaymentsTitle({ loading }: { loading: boolean }) {
 
     if (loading) {
       setText(TITLE_LOADING);
+      el.classList.remove("is-exit", "is-enter-start");
       el.classList.add("t-shimmer");
       return;
     }
@@ -70,13 +71,19 @@ function PaymentsTitle({ loading }: { loading: boolean }) {
     // Chargement terminé → flip vers le titre statique, arrêt du shimmer.
     if (reduce) {
       setText(TITLE_DONE);
-      el.classList.remove("t-shimmer");
+      el.classList.remove("t-shimmer", "is-exit", "is-enter-start");
       return;
     }
+    // Phase 1 — sortie de l'ancien texte (blur + translateY + fade).
     el.classList.add("is-exit");
     const t = window.setTimeout(() => {
+      // Phase 2 — swap du texte puis entrée. On RETIRE `is-exit` (sinon
+      // l'élément reste figé à opacity:0 = le titre final ne s'affiche jamais,
+      // d'où le vide constaté). `is-enter-start` pose l'état de départ de
+      // l'entrée sans transition ; le reflow le fige ; on le retire pour animer
+      // jusqu'à l'état de base visible.
       setText(TITLE_DONE);
-      el.classList.remove("t-shimmer");
+      el.classList.remove("t-shimmer", "is-exit");
       el.classList.add("is-enter-start");
       void el.offsetWidth;
       el.classList.remove("is-enter-start");
