@@ -14,13 +14,9 @@ export function ZoomLab() {
 
   const open = (resource: LabResource, surface: HTMLElement) => {
     // Géométrie capturée AVANT tout changement DOM → la grille ne bouge pas,
-    // les rects restent valides. Positions via getBoundingClientRect (jamais vh).
+    // le rect reste valide. Position via getBoundingClientRect (jamais vh).
     const cardRect = surface.getBoundingClientRect();
-    const titleEl = surface.querySelector('[data-lab-card-title]') as HTMLElement | null;
-    if (!titleEl) return;
-    const titleRect = titleEl.getBoundingClientRect();
-    const titleFontSize = parseFloat(getComputedStyle(titleEl).fontSize) || 15;
-    setActive({ resource, cardRect, titleRect, titleFontSize });
+    setActive({ resource, cardRect });
   };
 
   return (
