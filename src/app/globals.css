@@ -684,18 +684,18 @@ html {
      l'animation qui se réduit, jamais le texte (cf. .nc-pwa-copy en 0 0 auto). */
   flex: 0 1 auto;
   width: 100%;
-  /* Hauteur RÉDUITE et stable → la fenêtre d'animation est recadrée serré sur
-     les notifications (cf. iframe : --win-top / --win-h). Plus de bande morte
-     au-dessus, et le titre (ancré juste dessous) remonte à hauteur du regard,
-     là où se trouvaient les contrôles iOS. */
-  height: clamp(180px, 26dvh, 230px);
+  /* Hauteur PLAFONNÉE (max 360px) → le téléphone, recadré « contain » et ancré
+     en bas, garde TOUJOURS des marges latérales (jamais bord-à-bord) et ne
+     vient donc pas chevaucher la croix. Assez haute pour laisser voir le bas
+     complet (contrôles + coins arrondis) ; le texte démarre juste dessous. */
+  height: clamp(300px, 46dvh, 360px);
   padding-top: 6px;
   background: transparent;
   overflow: hidden;
 }
 @media (min-width: 768px) {
   .nc-pwa-anim {
-    height: clamp(190px, 26vh, 240px);
+    height: clamp(300px, 42vh, 360px);
   }
 }
 .nc-pwa-anim iframe {
@@ -819,6 +819,17 @@ html {
 }
 .nc-pwa-btn-primary:active {
   transform: translateY(0) scale(0.99);
+}
+/* Variante « resserrée » : le bouton épouse son libellé (hug content) et reste
+   centré, au lieu de s'étirer sur toute la largeur de .nc-pwa-actions (qui est
+   en align-items:stretch). Utilisée par le pop-up notifications pour réduire le
+   vide à gauche/droite du bouton. */
+.nc-pwa-btn-compact {
+  align-self: center;
+  width: auto;
+  max-width: 100%;
+  padding-left: 36px;
+  padding-right: 36px;
 }
 .nc-pwa-btn-ghost {
   border: none;

@@ -34,24 +34,19 @@ body{
   color:var(--color-text-primary);
 }
 
-/* Stage = toute l'iframe ; fenêtre centrée sur les notifications. */
-.anim-stage{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-.scene{ transform-origin:center; }
+/* Stage = toute l'iframe ; téléphone ancré EN BAS (on garde le bas du
+   téléphone : notifications + contrôles lampe/photo + coins arrondis). */
+.anim-stage{ position:fixed; inset:0; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
+.scene{ transform-origin:bottom center; }
 
-/* Recadrage SERRÉ sur les notifications : on ne montre plus le haut vide
-   (wallpaper, ex-« zone rose ») ni le bas (contrôles lampe/photo, home
-   indicator). La fenêtre est une tranche du téléphone [--win-top → +--win-h]
-   en coordonnées « phone-y ». Résultat : les 2 notifications remontent en
-   haut du modal, sans bande morte au-dessus, et le bloc texte suit juste en
-   dessous (à la hauteur des ex-contrôles). */
-.frame{ position:relative; --win-top:528px; --win-h:196px; --gap-x:18px; --pad-y:14px;
-  width:calc(402px + var(--gap-x) * 2);
-  height:calc(var(--win-h) + var(--pad-y) * 2);
-  overflow:hidden; }
-/* Le téléphone est positionné pour que phone-y = --win-top tombe à --pad-y du
-   haut de la fenêtre (le reste, en haut comme en bas, est rogné par overflow). */
-.frame .ncb-phone{ position:absolute; left:var(--gap-x);
-  top:calc(var(--pad-y) - var(--win-top)); margin:0; }
+/* Recadrage : on rogne SEULEMENT le HAUT (l'ex-« zone rose » de wallpaper
+   au-dessus des notifications) en réduisant --view-h, tout en gardant le BAS
+   complet (--gap-bottom → coins arrondis + ombre + contrôles + home visibles).
+   Une fine bande de wallpaper reste au-dessus des notifications : c'est sur
+   elle que repose la croix liquid-glass, sans chevaucher les notifications. */
+.frame{ position:relative; --view-h:390px; --gap-x:18px; --gap-bottom:32px;
+  width:calc(402px + var(--gap-x) * 2); height:calc(var(--view-h) + var(--gap-bottom)); overflow:hidden; }
+.frame .ncb-phone{ position:absolute; left:var(--gap-x); bottom:var(--gap-bottom); margin:0; }
 
 /* Coque téléphone — radius/ombre repris de .ncb-phone. */
 .ncb-phone{

@@ -93,7 +93,7 @@ export function NotificationPermissionModal({
           <div className="nc-pwa-actions">
             <button
               type="button"
-              className="nc-pwa-btn-primary"
+              className="nc-pwa-btn-primary nc-pwa-btn-compact"
               onClick={onActivate}
               disabled={activating}
               data-fb-label="CTA activer notifications · Pop-up notifications"
