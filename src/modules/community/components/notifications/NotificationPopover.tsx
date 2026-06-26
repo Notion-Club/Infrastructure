@@ -194,12 +194,14 @@ export function NotificationPopover({
         aria-label={unread > 0 ? `${unread} notifications` : "Notifications"}
         onClick={() => toggle()}
         data-fb-label="Bouton Notifications · Communauté"
-        className={buttonClassName}
+        // .nc-notif-bell porte la couleur de l'icône (light: secondary,
+        // dark: primary = plus clair → contraste sur fond sombre, cf. globals.css).
+        className={`nc-notif-bell${buttonClassName ? ` ${buttonClassName}` : ""}`}
         style={
           isMobile
             ? // Le look (taille, fond frosted, bordure, shadow) vient de la
-              // class nc-mobile-action-btn — on n'écrase que la couleur d'icône.
-              { color: "var(--color-text-secondary)" }
+              // class nc-mobile-action-btn ; la couleur d'icône vient de nc-notif-bell.
+              undefined
             : {
                 width: 40,
                 height: 40,
@@ -210,7 +212,6 @@ export function NotificationPopover({
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
-                color: "var(--color-text-secondary)",
                 position: "relative",
                 flexShrink: 0,
                 transition: "background 150ms ease",

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import {
   LessonView,
+  LessonBackGuard,
   getLessonView,
   touchCourseAccess,
   fetchLessonContent,
@@ -34,5 +35,12 @@ export default async function LessonPage({ params }: { params: Params }) {
     touchCourseAccess(res.view.course.id),
   ]);
 
-  return <LessonView view={res.view} content={content} />;
+  return (
+    <>
+      {/* Retour arrière → page formation (module courant ouvert), jamais le cours
+          précédent. */}
+      <LessonBackGuard programSlug={programSlug} moduleSlug={moduleSlug} />
+      <LessonView view={res.view} content={content} />
+    </>
+  );
 }

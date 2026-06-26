@@ -5,6 +5,7 @@
 export { FormationIndex } from "./components/FormationIndex";
 export { ProgramView } from "./components/ProgramView";
 export { LessonView } from "./components/LessonView";
+export { LessonBackGuard } from "./components/LessonBackGuard";
 export { FormationToasts } from "./components/FormationToasts";
 export { LessonTransition, LessonReady } from "./components/LessonTransition";
 

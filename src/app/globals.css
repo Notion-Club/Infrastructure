@@ -250,6 +250,20 @@ html {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.22);
 }
 
+/* Cloche du centre de notifications. Light : icône en gris secondaire.
+   Dark : icône en couleur primaire (plus claire) → contraste suffisant sur le
+   fond sombre (avant, le gris secondaire se fondait dans le fond). Hover dark
+   éclairci aussi (l'overlay noir light était invisible sur fond sombre). */
+.nc-notif-bell {
+  color: var(--color-text-secondary);
+}
+.dark .nc-notif-bell {
+  color: var(--color-text-primary);
+}
+.dark .nc-notif-bell:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* ── Pill glissante nav (Topbar desktop + BottomNav mobile) ──
    La transition est définie ici (CSS class) pour que le pattern "snap"
    fonctionne : moveTo(false) sauvegarde pill.style.transition (""),
@@ -456,9 +470,11 @@ html {
 }
 .nc-profile-skel,
 .nc-profile-content {
+  /* 400ms ease-in-out, blur 2px : alignés sur l'avatar des coachings passés
+     (.nc-avatar-skel) et le reveal générique → même ressenti partout. */
   transition:
-    opacity var(--nc-duration-slow) ease-in-out,
-    filter var(--nc-duration-slow) ease-in-out;
+    opacity 400ms ease-in-out,
+    filter 400ms ease-in-out;
 }
 /* Tant qu'il n'y a pas de contenu monté, le skeleton reste en flux normal et
    définit la hauteur. Dès que le contenu est là, le skeleton passe en overlay
@@ -486,6 +502,47 @@ html {
   }
   .nc-profile-skel,
   .nc-profile-content {
+    transition: none !important;
+  }
+}
+
+/* ── Skeleton reveal générique (transitions.dev 14-skeleton-reveal) ──────────
+   Réutilisable via <SkeletonReveal> (feed communauté, messages privés…).
+   Skeleton + contenu empilés ; cross-fade + cross-blur au passage chargé.
+   Mêmes paramètres que .nc-avatar-skel (400ms, blur 2px, ease-in-out). */
+.nc-skel-reveal {
+  --reveal-dur: 400ms;
+  --reveal-blur: 2px;
+  --reveal-ease: ease-in-out;
+  position: relative;
+}
+.nc-skel-reveal__skel,
+.nc-skel-reveal__content {
+  transition:
+    opacity var(--reveal-dur) var(--reveal-ease),
+    filter var(--reveal-dur) var(--reveal-ease);
+}
+.nc-skel-reveal[data-has-content="true"] .nc-skel-reveal__skel {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.nc-skel-reveal__content {
+  opacity: 0;
+  filter: blur(var(--reveal-blur));
+}
+.nc-skel-reveal[data-revealed="true"] .nc-skel-reveal__skel {
+  opacity: 0;
+  filter: blur(var(--reveal-blur));
+}
+.nc-skel-reveal[data-revealed="true"] .nc-skel-reveal__content {
+  opacity: 1;
+  filter: blur(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-skel-reveal__skel,
+  .nc-skel-reveal__content {
     transition: none !important;
   }
 }

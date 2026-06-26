@@ -31,12 +31,17 @@ type NavItem = {
   iconSize?: number;
 };
 
+// Tailles agrandies + équilibrées optiquement : les glyphes courts/larges
+// (graduation-cap, person.2.wave.2) sont remontés d'un cran pour peser autant
+// que les glyphes pleins (house, rectangle, wrench). L'alignement vertical des
+// titres est garanti par le slot d'icône à hauteur fixe (cf. rendu), pas par
+// l'égalité des tailles.
 const NAV_ITEMS: NavItem[] = [
-  { label: "Accueil", icon: House, href: "/dashboard" },
-  { label: "Formation", icon: GraduationCap, href: "/formation", iconSize: 21 },
-  { label: "Communauté", icon: RectangleGroupBubble, href: "/communaute" },
-  { label: "Coaching", icon: PersonsWave, href: "/coaching", iconSize: 22 },
-  { label: "Ressources", icon: WrenchScrewdriver, href: "/ressources" },
+  { label: "Accueil", icon: House, href: "/dashboard", iconSize: 22 },
+  { label: "Formation", icon: GraduationCap, href: "/formation", iconSize: 23 },
+  { label: "Communauté", icon: RectangleGroupBubble, href: "/communaute", iconSize: 22 },
+  { label: "Coaching", icon: PersonsWave, href: "/coaching", iconSize: 25 },
+  { label: "Ressources", icon: WrenchScrewdriver, href: "/ressources", iconSize: 23 },
 ];
 
 export function BottomNav() {
@@ -246,14 +251,26 @@ export function BottomNav() {
               textDecoration: "none",
             }}
           >
-            <Icon
-              size={iconSize ?? 19}
-              strokeWidth={isActive ? 2.5 : 2}
-              style={{ color: "var(--color-text-primary)", flexShrink: 0 }}
-            />
+            {/* Slot d'icône à HAUTEUR FIXE : le glyphe est centré dedans quelle
+                que soit sa taille → le label dessous démarre TOUJOURS à la même
+                hauteur sur les 5 onglets (fin du décalage vertical des titres). */}
             <span
               style={{
-                fontSize: 9,
+                height: 26,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon
+                size={iconSize ?? 22}
+                strokeWidth={isActive ? 2.5 : 2}
+                style={{ color: "var(--color-text-primary)", flexShrink: 0 }}
+              />
+            </span>
+            <span
+              style={{
+                fontSize: 10,
                 fontWeight: isActive ? 600 : 500,
                 letterSpacing: "0.01em",
                 color: "var(--color-text-primary)",

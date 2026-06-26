@@ -3,6 +3,7 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useTransition } from "react";
 import { Loader2, Search } from "lucide-react";
 import { ArrowReturn } from "@/shared/components/icons";
+import { SkeletonReveal } from "@/shared/components/SkeletonReveal";
 import type { Conversation, Message } from "../../types/conversation.types";
 import type { User } from "../../types/user.types";
 import { REPLY_SNIPPET_MAX } from "../../lib/validation";
@@ -362,24 +363,31 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
             1. loading ET aucun message en local → skeleton (premier chargement).
             2. messages.length === 0 ET pas loading → vrai état vide (conv neuve).
             3. sinon → on rend les bulles. */}
-        {loading && messages.length === 0 ? (
-          <MessageBubbleSkeleton />
-        ) : messages.length === 0 ? (
-          <ConversationEmptyState />
-        ) : (
-          messages.map((msg) => (
-            <MessageBubble
-              key={msg.id}
-              message={msg}
-              isSelf={msg.senderId === currentUser.id}
-              currentUser={currentUser}
-              onReply={handleReply}
-              highlighted={highlightedId === msg.id}
-              lockedMessageId={lockedMessageId}
-              onLockChange={setLockedMessageId}
-            />
-          ))
-        )}
+        {/* Reveal skeleton → messages (transitions.dev 14) au premier chargement
+            de la conversation. contentStyle reprend le gap des bulles (le wrapper
+            de contenu n'impose sinon aucune mise en page). */}
+        <SkeletonReveal
+          loading={Boolean(loading) && messages.length === 0}
+          skeleton={<MessageBubbleSkeleton />}
+          contentStyle={{ display: "flex", flexDirection: "column", gap: 4 }}
+        >
+          {messages.length === 0 ? (
+            <ConversationEmptyState />
+          ) : (
+            messages.map((msg) => (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                isSelf={msg.senderId === currentUser.id}
+                currentUser={currentUser}
+                onReply={handleReply}
+                highlighted={highlightedId === msg.id}
+                lockedMessageId={lockedMessageId}
+                onLockChange={setLockedMessageId}
+              />
+            ))
+          )}
+        </SkeletonReveal>
         {/* Indicateur "X écrit…" — affiché en bas, dans le flux des messages
             mais hors du tableau lui-même, pour qu'il n'ait pas besoin d'un
             faux ID stable. */}

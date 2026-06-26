@@ -64,6 +64,55 @@ function ContentSkeleton() {
   );
 }
 
+// Barre de progression du haut. Remplissage FLUIDE via un seul tween CSS
+// (transform: scaleX, composité GPU — aucun layout) au lieu d'un setInterval qui
+// re-settait la largeur toutes les 60 ms contre une transition de 120 ms : les
+// deux se télescopaient → saccades. Un seul tween continu = progression lisse.
+//   • count (chargement)  : 0 → 90 % sur MIN_CROSS, façon pub YouTube ;
+//   • complete (prêt)      : 90 → 100 % rapide ;
+//   • empty (après envoi)  : 100 → 0 % sur CLOSE_MS.
+function LessonProgressBar({
+  mode,
+  complete,
+}: {
+  mode: "count" | "empty";
+  complete: boolean;
+}) {
+  const [scale, setScale] = useState(0);
+
+  useEffect(() => {
+    // Cible : empty → 0, prêt → 100 %, sinon remplissage → 90 %. setState déféré
+    // au frame suivant (règle react-hooks/set-state-in-effect du repo) — ce qui
+    // amorce aussi la transition CSS depuis le 0 initial déjà peint.
+    const target = mode === "empty" ? 0 : complete ? 1 : 0.9;
+    const raf = requestAnimationFrame(() => setScale(target));
+    return () => cancelAnimationFrame(raf);
+  }, [mode, complete]);
+
+  const transition =
+    mode === "empty"
+      ? `transform ${CLOSE_MS}ms linear`
+      : complete
+        ? "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)"
+        : `transform ${MIN_CROSS}ms cubic-bezier(0.33, 0.1, 0.25, 1)`;
+
+  return (
+    <div style={{ height: 4, background: "var(--color-border-default)", overflow: "hidden" }}>
+      <div
+        style={{
+          height: "100%",
+          width: "100%",
+          transformOrigin: "left",
+          transform: `scaleX(${scale})`,
+          background: "var(--color-brand)",
+          transition,
+          willChange: "transform",
+        }}
+      />
+    </div>
+  );
+}
+
 // Slot de transition leçon → leçon. Enveloppe le contenu de la section
 // formation : pendant le chargement du cours suivant, l'ancien contenu est
 // masqué (mais monté, pour que le nouveau émette `ready`) et une carte type
@@ -74,9 +123,10 @@ export function LessonTransition({ children }: { children: ReactNode }) {
   const [revealing, setRevealing] = useState(false);
   const [feedback, setFeedback] = useState<LessonFeedbackDetail | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [progress, setProgress] = useState(0);
-  // Barre du haut : "count" (minuteur qui se remplit sur les 12 s, façon pub
+  // Barre du haut : "count" (remplissage fluide sur MIN_CROSS, façon pub
   // YouTube), "empty" (se vide = compte à rebours de fermeture après envoi).
+  // `barComplete` complète le remplissage (→ 100 %) quand le cours est prêt.
+  const [barComplete, setBarComplete] = useState(false);
   const [barMode, setBarMode] = useState<"count" | "empty">("count");
   const [seq, setSeq] = useState(0);
 
@@ -89,17 +139,14 @@ export function LessonTransition({ children }: { children: ReactNode }) {
 
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const crossTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safetyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function clearTimers() {
-    if (progressTimer.current) clearInterval(progressTimer.current);
     if (revealTimer.current) clearTimeout(revealTimer.current);
     if (crossTimer.current) clearTimeout(crossTimer.current);
     if (safetyTimer.current) clearTimeout(safetyTimer.current);
-    progressTimer.current = null;
     revealTimer.current = null;
     crossTimer.current = null;
     safetyTimer.current = null;
@@ -116,7 +163,7 @@ export function LessonTransition({ children }: { children: ReactNode }) {
       setRevealing(false);
       setFeedback(null);
       setShowForm(false);
-      setProgress(0);
+      setBarComplete(false);
       setBarMode("count");
     }, FADE_MS);
   }
@@ -128,9 +175,7 @@ export function LessonTransition({ children }: { children: ReactNode }) {
     if (!activeRef.current || closingRef.current) return;
     if (crossTimer.current) clearTimeout(crossTimer.current);
     crossTimer.current = null;
-    if (progressTimer.current) clearInterval(progressTimer.current);
-    progressTimer.current = null;
-    setProgress(100);
+    setBarComplete(true);
     reveal();
   }
 
@@ -145,22 +190,14 @@ export function LessonTransition({ children }: { children: ReactNode }) {
 
     setFeedback(fb);
     setShowForm(!!fb);
-    setProgress(0);
+    setBarComplete(false);
     setBarMode("count");
     setRevealing(false);
     setSeq((s) => s + 1);
     setActive(true);
 
-    // Minuteur : la barre se remplit sur les 5 s du minimum (façon pub YouTube).
-    // Tant que le body Notion du cours suivant n'est pas entièrement chargé, elle
-    // plafonne à 90 % pour signaler « chargement en cours » ; le solde se
-    // complète quand la croix s'active, c.-à-d. à max(5 s, ready).
-    progressTimer.current = setInterval(() => {
-      const elapsed = performance.now() - startTimeRef.current;
-      const ceiling = readyRef.current ? 100 : 90;
-      const p = Math.min(ceiling, (elapsed / MIN_CROSS) * 100);
-      setProgress((prev) => Math.max(prev, p));
-    }, 60);
+    // La barre se remplit toute seule (CSS, 0 → 90 % sur MIN_CROSS) ; le solde
+    // (→ 100 %) est posé par autoAdvance/onReady quand le cours est prêt.
 
     // Garde-fou ultime si "ready" n'arrive jamais.
     safetyTimer.current = setTimeout(reveal, SAFETY_MS);
@@ -197,10 +234,8 @@ export function LessonTransition({ children }: { children: ReactNode }) {
   // Feedback envoyé : la barre du HAUT se vide (compte à rebours), puis révélation.
   function onFeedbackDone() {
     closingRef.current = true;
-    if (progressTimer.current) clearInterval(progressTimer.current);
     if (crossTimer.current) clearTimeout(crossTimer.current);
     if (safetyTimer.current) clearTimeout(safetyTimer.current);
-    progressTimer.current = null;
     crossTimer.current = null;
     safetyTimer.current = null;
     setBarMode("empty");
@@ -270,20 +305,8 @@ export function LessonTransition({ children }: { children: ReactNode }) {
                 boxShadow: "var(--nc-shadow-2)",
               }}
             >
-              {/* Barre du haut : "count" (remplissage sur le minimum 5 s, façon
-                  pub YouTube ; plafonne à 90 % tant que le contenu charge) →
-                  "empty" (se vide = compte à rebours de fermeture après envoi). */}
-              <div style={{ height: 4, background: "var(--color-border-default)" }}>
-                <div
-                  style={{
-                    height: "100%",
-                    width: barMode === "empty" ? "0%" : `${progress}%`,
-                    background: "var(--color-brand)",
-                    transition:
-                      barMode === "empty" ? `width ${CLOSE_MS}ms linear` : "width 120ms linear",
-                  }}
-                />
-              </div>
+              {/* Barre du haut — remplissage fluide (un seul tween CSS scaleX). */}
+              <LessonProgressBar key={seq} mode={barMode} complete={barComplete} />
 
               {/* Skeleton du contenu (toujours) + form de feedback par-dessus,
                   empilés dans la même cellule grid (la carte épouse le plus grand). */}

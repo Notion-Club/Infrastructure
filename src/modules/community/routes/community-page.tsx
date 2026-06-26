@@ -23,6 +23,7 @@ import { FeedTagFilters } from "../components/feed/FeedTagFilters";
 import { FeedPostList } from "../components/feed/FeedPostList";
 import { FeedSkeletonState } from "../components/feed/FeedSkeletonState";
 import { FeedErrorState } from "../components/feed/FeedErrorState";
+import { SkeletonReveal } from "@/shared/components/SkeletonReveal";
 import { PostComposerModal } from "../components/post-composer/PostComposerModal";
 import { MessagesLayout } from "../components/messages/MessagesLayout";
 import { DevRoleToggle } from "../components/dev/DevRoleToggle";
@@ -523,16 +524,18 @@ function FeedList({
       data-fb-label="Liste · Feed"
       style={{ padding: "0 16px 16px" }}
     >
-      {showSkeleton ? (
-        <FeedSkeletonState />
-      ) : showError ? (
+      {showError ? (
         <FeedErrorState onRetry={onRetry} />
       ) : (
-        <FeedPostList
-          posts={feedState === "empty" ? [] : allPosts}
-          currentUser={currentUser}
-          devRole={devRole}
-        />
+        // Reveal skeleton → posts (transitions.dev 14) : cross-fade + flou quand
+        // le feed est chargé, au lieu d'un swap sec.
+        <SkeletonReveal loading={showSkeleton} skeleton={<FeedSkeletonState />}>
+          <FeedPostList
+            posts={feedState === "empty" ? [] : allPosts}
+            currentUser={currentUser}
+            devRole={devRole}
+          />
+        </SkeletonReveal>
       )}
     </div>
   );

@@ -214,7 +214,7 @@ export function ProfileEditor({
 
 // Durée du cross-fade skeleton → contenu. Synchro avec --nc-duration-slow
 // (.nc-profile-skel / .nc-profile-content dans globals.css).
-const REVEAL_MS = 320;
+const REVEAL_MS = 400; // = durée du cross-fade .nc-profile-* (aligné sur l'avatar)
 
 // ============================================================================
 // ProfileEditorSkeleton — réplique EXACTE du gabarit d'EditorBody (mêmes
