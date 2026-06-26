@@ -12,6 +12,7 @@ export {
   updateBillingAction,
   getNotificationSettings,
   updateNotificationSettingsAction,
+  enablePushChannelAction,
   linkGoogleIdentityAction,
   type PasswordChangeResult,
   type ProfileUpdateResult,
