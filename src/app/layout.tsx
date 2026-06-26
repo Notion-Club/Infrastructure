@@ -141,24 +141,27 @@ export default function RootLayout({
         </ThemeProvider>
         <Toaster />
         <ServiceWorkerRegistrar />
-        {/* Voile de flou GLOBAL en haut — mobile uniquement, monté ici (root
-            layout) → actif sur TOUTES les pages, présentes et à venir.
-            `GradualBlurOverlay` = flou progressif PUR (aucune couleur → il
-            échantillonne le fond thème-correct, pas de bug de repaint iOS), max
-            en haut (zone heure/batterie/réseau) et fondu élégant vers le bas.
-            `pointer-events: none` → n'intercepte aucun clic.
+        {/* Frost du haut — mobile uniquement, monté ici (root layout) → actif
+            sur TOUTES les pages, présentes et à venir. DEUX calques séparés
+            (jamais couleur + flou ensemble = bug de repaint iOS) :
 
-            Hauteur = status-bar (`env(safe-area-inset-top)`) + ~52px : couvre
-            la zone système ET passe DERRIÈRE la rangée d'icônes (logo z41 /
-            actions z40 > ce voile z39) → le contenu ne défile plus « à nu »
-            derrière les boutons. ⚙️ Réglage : ajuster le `+52px` (plus court =
-            voile plus fin, limité à la status-bar) et le `zIndex`. */}
+            1. `GradualBlurOverlay` (z38) = le FLOU pur, dans tous les modes.
+               Hauteur = status-bar + ~52px : zone système + un peu en dessous.
+               ⚙️ Réglage : ajuster le `+52px` / le `zIndex`.
+            2. `.nc-top-tint` (z39, cf. globals.css) = la COULEUR du thème, sans
+               backdrop-filter (repeint correct), affichée UNIQUEMENT en Safari
+               navigateur pour se souder à la barre teintée par theme-color. En
+               PWA : flou pur seul.
+
+            `pointer-events: none` sur les deux → aucun clic intercepté. Les deux
+            sont SOUS la rangée d'icônes (logo z41 / actions z40). */}
         <div className="md:hidden">
           <GradualBlurOverlay
             anchor="top"
             height="calc(env(safe-area-inset-top, 0px) + 52px)"
-            zIndex={39}
+            zIndex={38}
           />
+          <div className="nc-top-tint" aria-hidden />
         </div>
       </body>
     </html>
