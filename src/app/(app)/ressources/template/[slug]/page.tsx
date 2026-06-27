@@ -1,4 +1,4 @@
-import { Suspense, ViewTransition } from 'react';
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { getTemplateBySlug, getRelatedTemplates } from '@/modules/ressources/lib/fetch';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
@@ -7,7 +7,6 @@ import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBa
 import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
 import { TemplatePageFooter } from '@/modules/ressources/components/shared/TemplatePageFooter';
 import { canAccess } from '@/modules/ressources/lib/access';
-import { heroVtName } from '@/modules/ressources/lib/heroTransition';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -38,27 +37,25 @@ const pulse: React.CSSProperties = {
   borderRadius: 'var(--nc-radius-xs)',
 };
 
-function TemplateDetailSkeleton({ slug }: { slug: string }) {
+function TemplateDetailSkeleton() {
   return (
     <>
       <div style={{ marginBottom: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ ...pulse, height: 30, width: 168, borderRadius: 9999 }} />
         <div style={{ ...pulse, height: 14, width: 200, borderRadius: 8, animationDelay: '60ms' }} />
       </div>
-      <ViewTransition name={heroVtName('tpl', slug)} share="morph" default="none">
-        <div style={{ ...encadreStyle, minHeight: 420 }}>
-          <div style={{ ...pulse, height: 46, width: '68%', borderRadius: 'var(--nc-radius-sm)' }} />
-          <div style={{ ...pulse, height: 16, width: '92%', marginTop: 20, borderRadius: 8, animationDelay: '60ms' }} />
-          <div style={{ ...pulse, height: 16, width: '54%', marginTop: 10, borderRadius: 8, animationDelay: '100ms' }} />
-          <div style={{ ...pulse, height: 13, width: 120, marginTop: 20, borderRadius: 8, animationDelay: '140ms' }} />
-          <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-            {[100, 92].map((w, i) => (
-              <div key={w} style={{ ...pulse, height: 24, width: w, borderRadius: 9999, animationDelay: `${160 + i * 40}ms` }} />
-            ))}
-          </div>
-          <div style={{ ...pulse, marginTop: 24, width: '100%', aspectRatio: '16 / 9', borderRadius: 'var(--nc-radius-sm)', animationDelay: '220ms' }} />
+      <div style={{ ...encadreStyle, minHeight: 420 }}>
+        <div style={{ ...pulse, height: 46, width: '68%', borderRadius: 'var(--nc-radius-sm)' }} />
+        <div style={{ ...pulse, height: 16, width: '92%', marginTop: 20, borderRadius: 8, animationDelay: '60ms' }} />
+        <div style={{ ...pulse, height: 16, width: '54%', marginTop: 10, borderRadius: 8, animationDelay: '100ms' }} />
+        <div style={{ ...pulse, height: 13, width: 120, marginTop: 20, borderRadius: 8, animationDelay: '140ms' }} />
+        <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+          {[100, 92].map((w, i) => (
+            <div key={w} style={{ ...pulse, height: 24, width: w, borderRadius: 9999, animationDelay: `${160 + i * 40}ms` }} />
+          ))}
         </div>
-      </ViewTransition>
+        <div style={{ ...pulse, marginTop: 24, width: '100%', aspectRatio: '16 / 9', borderRadius: 'var(--nc-radius-sm)', animationDelay: '220ms' }} />
+      </div>
     </>
   );
 }
@@ -84,8 +81,7 @@ async function TemplateDetailContent({ slug }: { slug: string }) {
         />
       </div>
 
-      <ViewTransition name={heroVtName('tpl', slug)} share="morph" default="none">
-        <div data-fb-label="Encadré contenu · Page template" style={encadreStyle}>
+      <div data-fb-label="Encadré contenu · Page template" style={encadreStyle}>
           <h1
             data-fb-label="Titre · Page template"
             style={{
@@ -127,8 +123,7 @@ async function TemplateDetailContent({ slug }: { slug: string }) {
               <TellaEmbed url={template.urlTella} />
             </div>
           )}
-        </div>
-      </ViewTransition>
+      </div>
 
       <TemplatePageFooter
         template={template}
@@ -151,7 +146,7 @@ export default async function TemplateDetailPage({ params }: PageProps) {
         <main style={{ position: 'relative', zIndex: 1 }}>
           <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
             <div style={{ maxWidth: 720, margin: '0 auto' }}>
-              <Suspense fallback={<TemplateDetailSkeleton slug={slug} />}>
+              <Suspense fallback={<TemplateDetailSkeleton />}>
                 <TemplateDetailContent slug={slug} />
               </Suspense>
             </div>
