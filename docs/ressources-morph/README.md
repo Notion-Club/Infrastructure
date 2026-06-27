@@ -84,12 +84,19 @@ e2e/run-morph.mjs            ← runner Playwright (build prod → next start �
   `document.body` pour échapper à l'`isolation: isolate` de `.nc-page-halo`.
 - **Fond** : `pageBg` réplique `.nc-app-bg` (échantillonné au runtime) → fond
   opaque qui masque la grille (pas d'effet « pop-up »).
-- **Scroll-lock** : pendant l'ouverture, `document.body` passe en
-  `position: fixed; top: -scrollY` (grille figée, iOS inclus) ; position
-  restaurée exactement au démontage.
+- **Scroll-lock NON déplaçant** : pendant l'ouverture, `overflow: hidden` sur
+  `html`/`body` **sans** `position: fixed` et **sans** `scrollTo`. La position de
+  scroll n'est **jamais** modifiée → à la fermeture la grille reste exactement où
+  elle était. Le fond reste figé via `touch-action: none` (backdrop) +
+  `overscroll-behavior: contain` (surface).
+  > ⚠️ Ne **pas** revenir au verrou `position: fixed; top: -scrollY` : il
+  > déplaçait le document (saut de scroll haut→bas à la fermeture) et reflowait
+  > le viewport/safe-area iOS (la BottomNav tressautait). Cf. #249.
 - **Bouton retour (mobile/PWA)** : `history.pushState` à la **même URL** à
   l'ouverture + `popstate` → ferme l'overlay. Aucune navigation Next, aucun
-  désync de routeur.
+  désync de routeur. On force `history.scrollRestoration = 'manual'` pendant
+  l'overlay → le `history.back()` de fermeture ne restaure pas le scroll de
+  l'entrée précédente (sinon retour en haut de page).
 
 ---
 
@@ -100,7 +107,11 @@ e2e/run-morph.mjs            ← runner Playwright (build prod → next start �
 - **Ouverture** : le focus entre dans le dialogue (annonce du titre).
 - **Focus-trap** : Tab / Shift+Tab bouclent dans la surface (jamais vers la
   grille gelée).
-- **Fermeture** : le focus revient sur la carte déclencheuse (`triggerEl`).
+- **Fermeture** : le focus revient sur la carte déclencheuse (`triggerEl`)
+  **uniquement si l'ouverture était au clavier** (`viaKeyboard = e.detail === 0`).
+  En souris/tactile on ne refocalise pas → pas d'encadré bleu de sélection iOS
+  (cf. #249). `-webkit-tap-highlight-color: transparent` sur les cartes en
+  complément.
 - `prefers-reduced-motion` : morph désactivé, états finaux posés directement.
 
 ---
@@ -126,7 +137,7 @@ La preview étant inaccessible (mur d'auth), la mécanique est prouvée par un t
 e2e qui exerce le **code réel** de l'overlay sur des données mockées.
 
 ```bash
-npm run e2e:morph            # build prod → next start → 7 assertions chromium
+npm run e2e:morph            # build prod → next start → 9 assertions chromium
 E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
 ```
 
@@ -134,10 +145,12 @@ E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
   `(app)`), monte la vraie grille + overlay sur 4 items mockés.
 - `e2e/run-morph.mjs` : **aucun secret** (Notion 401 → `[]`, Supabase factice).
   On teste un **build de prod + `next start`** car l'hydratation sous `next dev`
-  n'aboutit pas derrière le proxy Supabase.
-- Couverture : ouverture (titre + contenu), focus dans le dialogue, focus-trap,
-  fermeture (zéro résidu + focus restitué), **multi-cartes** (le bug d'origine),
-  verrou d'accès, resize.
+  n'aboutit pas derrière le proxy Supabase. Le runner libère le port avant de
+  démarrer (sinon un serveur fantôme d'un run précédent sert des chunks périmés).
+- **9 assertions** : ouverture (titre + contenu), focus dans le dialogue,
+  focus-trap, fermeture (zéro résidu), **multi-cartes** (le bug d'origine),
+  verrou d'accès, resize, **scroll préservé à l'ouverture/fermeture** (#249),
+  **focus restitué après ouverture clavier** (#249).
 - CI : `.github/workflows/e2e-morph.yml` sur chaque PR touchant `/ressources`
   (Playwright installé à la volée, hors deps repo).
 
@@ -148,10 +161,10 @@ E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
 - **Resize / rotation pendant l'ouverture** : la géométrie de fin est figée en
   px (`fill: both`) → tourner l'écran overlay ouvert ne re-dimensionne pas la
   surface. Edge-case rare, non corrigé.
-- **Scroll-document** : le corps long scrolle aujourd'hui **dans** la surface
-  (capée en hauteur). Le passage à un scroll au fil du document changerait la
-  **cible visuelle** du morph (encadré plein écran) — itération de design à
-  cadrer (de préférence d'abord dans le harnais `/lab/morph`).
+- **Scroll-document** : **statu quo décidé** — le corps long scrolle **dans** la
+  surface (capée en hauteur). Le passage à un scroll au fil du document
+  (encadré plein écran) reste possible mais changerait la **cible visuelle** du
+  morph → à cadrer d'abord dans le harnais `/lab/morph` si on le réactive.
 - **View Transition** : retiré de /ressources (inerte) ; reste **app-wide**
   (communauté/formation/réglages) via `next.config` + CSS global — ne pas y
   toucher depuis ce périmètre.
@@ -166,3 +179,5 @@ E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
 | #242 | Source unique du corps détail + retrait du View Transition mort |
 | #244 | Accessibilité : focus-trap, focus restitué, dialogue ARIA |
 | #247 | Filet e2e Playwright (7/7) + CI |
+| #248 | Doc archi (ce fichier) |
+| #249 | Fix fermeture : scroll figé (verrou non déplaçant + scrollRestoration manual), fin de l'encadré iOS (focus clavier-only) et du tressaut de la BottomNav ; e2e 9/9 |
