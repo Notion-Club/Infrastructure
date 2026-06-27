@@ -59,6 +59,7 @@ export function SecuritySection({
 
 function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const [innerHeight, setInnerHeight] = useState(0);
 
@@ -72,12 +73,37 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
     return () => ro.disconnect();
   }, []);
 
+  // Ouverture + recentrage : on amène l'encadré au centre du viewport, comme
+  // les modules de formation (cf. ModuleAccordion.toggleOpen). On vise la
+  // hauteur FINALE (en-tête replié + formulaire déjà mesuré dans
+  // `innerHeight`) pour que le scroll et le dépliage s'animent ensemble et
+  // atterrissent pile centrés — sinon, ouvert en bas de la page de réglages,
+  // le formulaire s'étend hors écran sans qu'on le voie.
+  function toggleOpen() {
+    setOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        requestAnimationFrame(() => {
+          const el = rootRef.current;
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          const finalHeight = rect.height + innerHeight;
+          const elTop = rect.top + window.scrollY;
+          const target = elTop - (window.innerHeight - finalHeight) / 2;
+          window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+        });
+      }
+      return next;
+    });
+  }
+
   // OPS-49 — fusion visuelle des 2 blocs (trigger + form) dans un seul
   // conteneur bordé. Le trigger n'a plus de border propre ; on ajoute juste
   // un filet bas (border-bottom) quand le panel est ouvert pour séparer le
   // header du formulaire à l'intérieur du même bloc.
   return (
     <div
+      ref={rootRef}
       className="nc-pw-modal"
       style={{
         display: "flex",
@@ -89,7 +115,7 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
     >
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
         aria-expanded={open}
         data-fb-label="Bouton changer mot de passe · Section sécurité"
         style={{

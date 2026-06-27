@@ -73,6 +73,21 @@ export function Tree({
   );
 }
 
+// Remonte jusqu'au premier ancêtre réellement scrollable (le conteneur
+// `overflow-auto` du Tree, p. ex. le dropdown du fil d'Ariane). Renvoie null
+// si rien n'a besoin de scroller — le repositionnement devient alors un no-op.
+function findScrollParent(el: HTMLElement): HTMLElement | null {
+  let node: HTMLElement | null = el.parentElement;
+  while (node) {
+    const oy = getComputedStyle(node).overflowY;
+    if ((oy === "auto" || oy === "scroll") && node.scrollHeight > node.clientHeight) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
 function renderElements(elements: TreeViewElement[]): React.ReactNode {
   return elements.map((el) => {
     const isFolder = el.type === "folder" || (el.children?.length ?? 0) > 0;
@@ -105,9 +120,42 @@ export function Folder({
 }: FolderProps) {
   const { expandedItems } = useTree();
   const expanded = expandedItems.includes(value);
+  const itemRef = React.useRef<HTMLDivElement>(null);
+
+  // Quand un module se déplie, on le ramène dans la zone visible du conteneur
+  // scrollable (dropdown du fil d'Ariane). Même intention que le recentrage des
+  // modules de formation : un module ouvert en bas de la liste n'est plus
+  // coupé — on scrolle juste ce qu'il faut pour révéler son contenu.
+  React.useEffect(() => {
+    if (!expanded) return;
+    const item = itemRef.current;
+    if (!item) return;
+    // Attendre la fin de l'animation d'ouverture (nc-accordion-down ≈ 240ms)
+    // pour mesurer la hauteur réelle du module déplié.
+    const t = setTimeout(() => {
+      const scroller = findScrollParent(item);
+      if (!scroller) return;
+      const itemRect = item.getBoundingClientRect();
+      const scRect = scroller.getBoundingClientRect();
+      const overflowBottom = itemRect.bottom - scRect.bottom;
+      const overflowTop = scRect.top - itemRect.top;
+      let delta = 0;
+      if (item.offsetHeight >= scroller.clientHeight) {
+        // Module plus grand que la fenêtre du dropdown : on aligne son en-tête
+        // en haut pour révéler un maximum de cours.
+        delta = -overflowTop;
+      } else if (overflowBottom > 0) {
+        delta = overflowBottom;
+      } else if (overflowTop > 0) {
+        delta = -overflowTop;
+      }
+      if (delta !== 0) scroller.scrollBy({ top: delta, behavior: "smooth" });
+    }, 260);
+    return () => clearTimeout(t);
+  }, [expanded]);
 
   return (
-    <AccordionPrimitive.Item value={value} className="relative">
+    <AccordionPrimitive.Item ref={itemRef} value={value} className="relative">
       <AccordionPrimitive.Header className="flex">
         <AccordionPrimitive.Trigger
           disabled={!isSelectable}
