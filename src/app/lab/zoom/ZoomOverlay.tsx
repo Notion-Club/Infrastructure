@@ -16,14 +16,15 @@ import { SPRING_EASING, SPRING_DURATION } from './spring';
 export interface ZoomSource {
   resource: LabResource;
   cardRect: DOMRect;
+  titleRect: DOMRect; // rect du titre DANS LA GRILLE (cible du hero côté carte)
 }
 
 const prefersReduced = () =>
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// IMPORTANT WAAPI : toute keyframe d'opacité DOIT aller jusqu'à offset 1, sinon
-// la valeur dérive vers la base au-delà du dernier offset (cf. bug doublage).
+// WAAPI : toute keyframe d'opacité DOIT aller jusqu'à offset 1 (sinon dérive
+// vers la base au-delà du dernier offset → doublage).
 const FADE = 'linear';
 
 const H1_STYLE: CSSProperties = {
@@ -64,20 +65,14 @@ export function ZoomOverlay({
   onClosed: () => void;
 }) {
   const pageBgRef = useRef<HTMLDivElement>(null);
-  const surfRef = useRef<HTMLDivElement>(null);
+  const surfRef = useRef<HTMLDivElement>(null); // surface qui morphe + CLIPPE le contenu
   const encRef = useRef<HTMLDivElement>(null);
-  const encTitleRef = useRef<HTMLHeadingElement>(null); // titre encadré (caché, gabarit + mesure)
+  const encTitleRef = useRef<HTMLHeadingElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const cardTitleRef = useRef<HTMLHeadingElement>(null);
-  const heroRef = useRef<HTMLHeadingElement>(null); // TITRE CONTINU qui voyage
+  const heroRef = useRef<HTMLHeadingElement>(null); // TITRE CONTINU
 
-  const gRef = useRef<{
-    surfFrom: Keyframe;
-    surfTo: Keyframe;
-    track: string;
-    cardOut: string;
-    heroFrom: string;
-  } | null>(null);
+  const gRef = useRef<{ surfFrom: Keyframe; surfTo: Keyframe; heroFrom: string } | null>(null);
   const animsRef = useRef<Animation[]>([]);
   const closingRef = useRef(false);
   const [interactive, setInteractive] = useState(false);
@@ -97,37 +92,39 @@ export function ZoomOverlay({
     const d = SPRING_DURATION;
     const c = source.cardRect;
 
-    // Mesures (tout à l'identité).
-    const destRect = enc.getBoundingClientRect();
+    // Mesures : surface CENTRÉE (gabarit naturel), contenu à l'identité.
+    const destRect = surf.getBoundingClientRect();
     const encTitleRect = encTitle.getBoundingClientRect();
-    const cardTitleRect = cardTitle.getBoundingClientRect();
+    // Position cible du hero côté carte = titre RÉEL dans la grille (le clone
+    // `cardTitle` est désormais mesuré à la position dest → inutilisable ici).
+    const gridTitleRect = source.titleRect;
     const destFont = parseFloat(getComputedStyle(encTitle).fontSize) || 36;
     const cardFont = parseFloat(getComputedStyle(cardTitle).fontSize) || 15;
 
     const dx = c.left - destRect.left;
     const dy = c.top - destRect.top;
 
-    // Surface VIDE : width/height/translate/radius (coins lisses).
+    // Fige la surface en px + largeur de contenu fixe (zéro reflow quand width anime).
     surf.style.top = `${destRect.top}px`;
     surf.style.left = `${destRect.left}px`;
+    surf.style.marginLeft = '0';
+    surf.style.transformOrigin = 'top left';
+    enc.style.width = `${destRect.width}px`;
+
     const surfFrom: Keyframe = { transform: `translate(${dx}px, ${dy}px)`, width: `${c.width}px`, height: `${c.height}px`, borderRadius: '16px' };
     const surfTo: Keyframe = { transform: 'none', width: `${destRect.width}px`, height: `${destRect.height}px`, borderRadius: '24px' };
     Object.assign(surf.style, surfFrom);
 
-    const track = `translate(${dx}px, ${dy}px)`;
-    const cardOut = `translate(${-dx}px, ${-dy}px)`;
-    enc.style.transform = track;
-
-    // TITRE CONTINU (hero) : gabarit ENCADRÉ (donc identique au titre encadré à
-    // la cible), ramené à la position/taille du titre CARTE par scale uniforme.
+    // TITRE CONTINU : gabarit encadré (= titre encadré à la cible), ramené au
+    // titre carte (scale uniforme + translate). Aligné top-left sur le titre carte.
     const hScale = cardFont / destFont;
-    const heroFrom = `translate(${cardTitleRect.left - encTitleRect.left}px, ${cardTitleRect.top - encTitleRect.top}px) scale(${hScale})`;
+    const heroFrom = `translate(${gridTitleRect.left - encTitleRect.left}px, ${gridTitleRect.top - encTitleRect.top}px) scale(${hScale})`;
     hero.style.top = `${encTitleRect.top}px`;
     hero.style.left = `${encTitleRect.left}px`;
     hero.style.width = `${encTitleRect.width}px`;
     hero.style.transform = heroFrom;
 
-    gRef.current = { surfFrom, surfTo, track, cardOut, heroFrom };
+    gRef.current = { surfFrom, surfTo, heroFrom };
 
     if (pageBg) {
       const real = document.querySelector('.nc-app-bg');
@@ -141,7 +138,6 @@ export function ZoomOverlay({
     if (prefersReduced()) {
       Object.assign(surf.style, surfTo);
       if (pageBg) pageBg.style.opacity = '1';
-      enc.style.transform = 'none';
       enc.style.opacity = '1';
       card.style.opacity = '0';
       hero.style.transform = 'none';
@@ -150,23 +146,18 @@ export function ZoomOverlay({
       return;
     }
 
-    // Fond opaque quasi-immédiat.
     anim(pageBg, [{ opacity: 0, offset: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 1 }], d, FADE, store);
-    // Surface.
     const surfAnim = anim(surf, [surfFrom, surfTo], d, SPRING_EASING, store);
 
-    // CONTENUS (desc/badges/body) en fade-through ; les TITRES sont gérés par le hero.
-    anim(card, [{ transform: 'none' }, { transform: cardOut }], d, SPRING_EASING, store);
-    anim(card, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 0, offset: 0.4 }, { opacity: 0, offset: 1 }], d, FADE, store);
-    anim(enc, [{ transform: track }, { transform: 'none' }], d, SPRING_EASING, store);
-    anim(enc, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.45 }, { opacity: 1, offset: 0.85 }, { opacity: 1, offset: 1 }], d, FADE, store);
+    // Contenus (desc/badges/body) en fade-through ; clippés par la surface.
+    anim(card, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 0, offset: 0.32 }, { opacity: 0, offset: 1 }], d, FADE, store);
+    anim(enc, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1, offset: 0.85 }, { opacity: 1, offset: 1 }], d, FADE, store);
 
-    // TITRE CONTINU : voyage+grandit (spring). Handoff NET avec le titre carte au
-    // tout début (le titre carte s'efface vite, le hero prend le relais) → 1 seul
-    // titre par frame.
-    anim(hero, [{ transform: heroFrom }, { transform: 'none' }], d, SPRING_EASING, store);
-    anim(hero, [{ opacity: 0, offset: 0 }, { opacity: 1, offset: 0.08 }, { opacity: 1, offset: 1 }], d, FADE, store);
+    // TITRE : carte s'efface (≤7%) → GAP → hero entre en fondu doux (10→22%),
+    // puis voyage+grandit. Un seul titre par frame.
     anim(cardTitle, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.07 }, { opacity: 0, offset: 1 }], d, FADE, store);
+    anim(hero, [{ transform: heroFrom }, { transform: 'none' }], d, SPRING_EASING, store);
+    anim(hero, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.1 }, { opacity: 1, offset: 0.22 }, { opacity: 1, offset: 1 }], d, FADE, store);
 
     surfAnim?.finished.then(() => setInteractive(true)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,19 +187,17 @@ export function ZoomOverlay({
     const d = SPRING_DURATION;
 
     const surfAnim = anim(surf, [g.surfTo, g.surfFrom], d, SPRING_EASING, store);
-    // Contenus : encadré part tôt, carte revient en fin (fade-through).
-    anim(encRef.current, [{ transform: 'none' }, { transform: g.track }], d, SPRING_EASING, store);
-    anim(encRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.35 }, { opacity: 0, offset: 1 }], d, FADE, store);
-    anim(cardRef.current, [{ transform: g.cardOut }, { transform: 'none' }], d, SPRING_EASING, store);
-    anim(cardRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.6 }, { opacity: 1, offset: 0.95 }, { opacity: 1, offset: 1 }], d, FADE, store);
+    // Encadré part TÔT et entièrement ; carte revient à la TOUTE FIN (gros gap →
+    // jamais texte de départ + texte cible ensemble).
+    anim(encRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.28 }, { opacity: 0, offset: 1 }], d, FADE, store);
+    anim(cardRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.84 }, { opacity: 1, offset: 1 }], d, FADE, store);
     anim(pageBgRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.5 }, { opacity: 0, offset: 1 }], d, FADE, store);
 
-    // TITRE CONTINU : voyage+rétrécit jusqu'à la position grille (spring), reste
-    // visible JUSQU'À L'ARRIVÉE (~88%), PUIS s'efface en douceur → ensuite seul le
-    // titre de carte/grille apparaît. Jamais deux titres sur la même frame.
+    // TITRE : hero voyage+rétrécit, reste visible JUSQU'À L'ARRIVÉE (~70%), puis
+    // fondu doux de sortie (70→82%) → GAP → le titre carte entre (88→100%).
     anim(heroRef.current, [{ transform: 'none' }, { transform: g.heroFrom }], d, SPRING_EASING, store);
-    anim(heroRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.88 }, { opacity: 0, offset: 0.96 }, { opacity: 0, offset: 1 }], d, FADE, store);
-    anim(cardTitleRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.95 }, { opacity: 1, offset: 1 }], d, FADE, store);
+    anim(heroRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.7 }, { opacity: 0, offset: 0.82 }, { opacity: 0, offset: 1 }], d, FADE, store);
+    anim(cardTitleRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.88 }, { opacity: 1, offset: 1 }], d, FADE, store);
 
     surfAnim?.finished.then(onClosed).catch(onClosed);
   }, [onClosed]);
@@ -238,26 +227,10 @@ export function ZoomOverlay({
         style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--color-surface-page)', opacity: 0, pointerEvents: interactive ? 'auto' : 'none' }}
       />
 
-      {/* Surface VIDE qui morphe */}
+      {/* Surface qui morphe + CLIPPE le contenu (overflow hidden → jamais hors-boîte) */}
       <div
         ref={surfRef}
         data-debug="surface"
-        style={{
-          position: 'fixed',
-          transformOrigin: 'top left',
-          background: 'var(--color-surface-card)',
-          border: '1px solid var(--color-border-default)',
-          boxShadow: 'var(--nc-shadow-3)',
-          borderRadius: 16,
-          willChange: 'width, height, transform, border-radius',
-          pointerEvents: 'none',
-        }}
-      />
-
-      {/* Contenu ENCADRÉ (titre caché : le hero le recouvre exactement à la cible) */}
-      <div
-        ref={encRef}
-        data-debug="enc-content"
         style={{
           position: 'fixed',
           top: 'calc(env(safe-area-inset-top, 0px) + 76px)',
@@ -265,57 +238,62 @@ export function ZoomOverlay({
           marginLeft: 'calc(min(640px, 100vw - 32px) * -0.5)',
           width: 'min(640px, calc(100vw - 32px))',
           transformOrigin: 'top left',
-          padding: 28,
-          boxSizing: 'border-box',
-          opacity: 0,
-          willChange: 'transform, opacity',
+          background: 'var(--color-surface-card)',
+          border: '1px solid var(--color-border-default)',
+          boxShadow: 'var(--nc-shadow-3)',
+          borderRadius: 16,
+          overflow: 'hidden',
+          willChange: 'width, height, transform, border-radius',
           pointerEvents: interactive ? 'auto' : 'none',
         }}
       >
-        <h1 ref={encTitleRef} style={{ ...H1_STYLE, opacity: 0, marginBottom: 14 }}>{resource.titre}</h1>
-        <p style={{ fontSize: 15, color: 'var(--color-text-secondary)', margin: '0 0 16px', lineHeight: 1.6 }}>{resource.description}</p>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
-          <LabBadge kind="ressource" label="Ressource" />
-          <LabBadge kind="formation" label={resource.formation} />
-          <LabBadge kind="type" label={resource.type} />
-        </div>
-        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border-default)', margin: '0 0 22px' }} />
-        <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', lineHeight: 1.7, margin: '0 0 14px' }}>
-          Aperçu mocké : le titre est un élément CONTINU qui voyage et se met à
-          l’échelle ; le reste se relaie sans superposition.
-        </p>
-        <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', lineHeight: 1.7, margin: 0 }}>Ferme avec la croix, le fond ou Échap.</p>
+        {/* Contenu ENCADRÉ — flux normal (définit la hauteur), titre caché (hero) */}
+        <div ref={encRef} data-debug="enc-content" style={{ padding: 28, opacity: 0, willChange: 'opacity' }}>
+          <h1 ref={encTitleRef} style={{ ...H1_STYLE, opacity: 0, marginBottom: 14 }}>{resource.titre}</h1>
+          <p style={{ fontSize: 15, color: 'var(--color-text-secondary)', margin: '0 0 16px', lineHeight: 1.6 }}>{resource.description}</p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
+            <LabBadge kind="ressource" label="Ressource" />
+            <LabBadge kind="formation" label={resource.formation} />
+            <LabBadge kind="type" label={resource.type} />
+          </div>
+          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border-default)', margin: '0 0 22px' }} />
+          <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', lineHeight: 1.7, margin: '0 0 14px' }}>
+            Aperçu mocké : titre continu qui voyage, contenu clippé dans la boîte,
+            relais des textes avec un léger gap (fondu naturel).
+          </p>
+          <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', lineHeight: 1.7, margin: 0 }}>Ferme avec la croix, le fond ou Échap.</p>
 
-        <button
-          type="button"
-          onClick={close}
-          aria-label="Fermer"
-          style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+          <button
+            type="button"
+            onClick={close}
+            aria-label="Fermer"
+            style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Contenu CARTE — absolu (overlay), suit la surface, clippé */}
+        <div
+          ref={cardRef}
+          data-debug="card-content"
+          style={{ position: 'absolute', top: 0, left: 0, width: source.cardRect.width, padding: 20, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 12, willChange: 'opacity' }}
         >
-          ✕
-        </button>
-      </div>
-
-      {/* Contenu CARTE (titre = relais NET avec le hero aux extrémités) */}
-      <div
-        ref={cardRef}
-        data-debug="card-content"
-        style={{ position: 'fixed', top: source.cardRect.top, left: source.cardRect.left, width: source.cardRect.width, height: source.cardRect.height, padding: 20, boxSizing: 'border-box', transformOrigin: 'top left', display: 'flex', flexDirection: 'column', gap: 12, willChange: 'transform, opacity', pointerEvents: 'none' }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-          <LabBadge kind="ressource" label="Ressource" />
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <h3 ref={cardTitleRef} style={CARD_TITLE_STYLE}>{resource.titre}</h3>
-          <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{resource.description}</p>
-        </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <LabBadge kind="formation" label={resource.formation} />
-          <LabBadge kind="type" label={resource.type} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+            <LabBadge kind="ressource" label="Ressource" />
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <h3 ref={cardTitleRef} style={CARD_TITLE_STYLE}>{resource.titre}</h3>
+            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{resource.description}</p>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <LabBadge kind="formation" label={resource.formation} />
+            <LabBadge kind="type" label={resource.type} />
+          </div>
         </div>
       </div>
 
-      {/* TITRE CONTINU (hero) — gabarit encadré, voyage entre carte et page */}
+      {/* TITRE CONTINU (hero) — hors surface, au-dessus, voyage entre carte et page */}
       <h1
         ref={heroRef}
         data-debug="hero-title"
