@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useTransition } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { User } from "../../types/user.types";
@@ -312,9 +312,37 @@ export function MessagesLayout({
     })();
   }, [currentUser.id]);
 
-  // Abonnement Realtime aux messages entrants. currentUser.id et
-  // handleIncomingMessage sont stables → l'abonnement se monte une seule fois.
-  useConversationsRealtime(currentUser.id, handleIncomingMessage);
+  // Découverte d'une nouvelle conversation reçue en Realtime (canal dm-user,
+  // mig. 047) : un premier message d'un inconnu crée une conversation à laquelle
+  // on n'est pas encore abonné. On la charge et on l'insère dans le state —
+  // l'abonnement à son canal `conv:<id>` suit automatiquement (idsKey change).
+  const handleNewConversation = useCallback((conversationId: string) => {
+    void (async () => {
+      if (conversationsRef.current.some((c) => c.id === conversationId)) return;
+      const conv = await getConversationAction(conversationId);
+      if (!conv) return;
+      loadedConvIds.current.add(conversationId);
+      setConversations((prev) => {
+        if (prev.some((c) => c.id === conversationId)) {
+          return prev.map((c) => (c.id === conversationId ? conv : c));
+        }
+        return [conv, ...prev].sort(byLastMessageDesc);
+      });
+    })();
+  }, []);
+
+  // Ensemble stable des ids de conversations abonnées (ne change qu'à l'ajout/
+  // retrait d'une conversation, pas à chaque message).
+  const conversationIds = useMemo(() => conversations.map((c) => c.id), [conversations]);
+
+  // Abonnement Realtime Broadcast : un canal privé par conversation + le canal
+  // dm-user pour les nouvelles conversations (mig. 047).
+  useConversationsRealtime(
+    currentUser.id,
+    conversationIds,
+    handleIncomingMessage,
+    handleNewConversation,
+  );
 
   // Username de deep-link d'une conversation (fallback id si pas de username
   // — défensif, username est en pratique toujours présent cf. migration 010).
