@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
-import type { Conversation } from "../../types/conversation.types";
+import type { Conversation, Message } from "../../types/conversation.types";
 import { useConversationsRealtime } from "../../hooks/useConversationsRealtime";
 import { ConversationList } from "./ConversationList";
 import { ConversationThread } from "./ConversationThread";
@@ -13,10 +13,24 @@ import { MessagesEmptyState } from "./MessagesEmptyState";
 import {
   createConversationAction,
   getConversationAction,
+  getNewMessagesAction,
   markConversationReadAction,
   resolveUsernameAction,
   sendMessageAction,
 } from "../../server/actions";
+
+// Aperçu du dernier message pour la sidebar — aligné sur le calcul serveur de
+// listConversations (texte tronqué à 140, libellé symbolique pour les fichiers).
+function previewForMessage(m: Message): string {
+  if (m.type === "image") return "📷 Image";
+  if (m.type === "pdf") return `📎 ${m.fileName ?? "Fichier"}`;
+  return m.body.slice(0, 140);
+}
+
+// Tri antichronologique (dernier message en haut), comme listConversations.
+function byLastMessageDesc(a: Conversation, b: Conversation): number {
+  return a.lastMessageAt < b.lastMessageAt ? 1 : a.lastMessageAt > b.lastMessageAt ? -1 : 0;
+}
 
 interface MessagesLayoutProps {
   currentUser: User;
@@ -172,43 +186,59 @@ export function MessagesLayout({
   // reply optionnel : alimente reply_to_message_id + snippet + author_name
   // (mig. 027). attachment optionnel : alimente type/file_url/file_name pour
   // les messages avec image/pdf attaché.
-  function handleSendMessage(
+  // Renvoie le message DB réconcilié (ou null si échec) pour que
+  // ConversationThread purge son optimistic `pending-…`. Plus de re-fetch
+  // intégral : on insère le message retourné directement dans le state local —
+  // latence constante quelle que soit la taille de la conversation.
+  async function handleSendMessage(
     conversationId: string,
     body: string,
     reply?: { messageId: string; authorName: string; snippet: string } | null,
     attachment?: { type: "text" | "image" | "pdf"; fileUrl?: string; fileName?: string },
-  ) {
+  ): Promise<Message | null> {
     const trimmed = body.trim();
     const isAttachment = attachment && attachment.type !== "text" && attachment.fileUrl;
     // Avant : on bloquait si body vide. Maintenant un message image-only
     // (body trimmed === "") est valide à condition que fileUrl soit fourni.
-    if (!trimmed && !isAttachment) return;
-    startTransition(async () => {
-      const result = await sendMessageAction({
-        conversation_id: conversationId,
-        type: isAttachment ? attachment.type : "text",
-        body: trimmed,
-        file_url: attachment?.fileUrl ?? null,
-        file_name: attachment?.fileName ?? null,
-        reply_to_message_id: reply?.messageId ?? null,
-        reply_snippet: reply?.snippet ?? null,
-        reply_author_name: reply?.authorName ?? null,
-      });
-      if (!result.ok) {
-        toast.error(result.message);
-        return;
-      }
-      // Re-fetch la conv pour récupérer le vrai message DB et purger
-      // l'optimistic local de ConversationThread. Pas de router.refresh() :
-      // le state local est déjà à jour, et un refresh re-rendrait le Server
-      // Component inutilement (latence + risque de re-montage du thread).
-      const conv = await getConversationAction(conversationId);
-      if (conv) {
-        setConversations((prev) =>
-          prev.map((c) => (c.id === conversationId ? conv : c)),
-        );
-      }
+    if (!trimmed && !isAttachment) return null;
+
+    const result = await sendMessageAction({
+      conversation_id: conversationId,
+      type: isAttachment ? attachment.type : "text",
+      body: trimmed,
+      file_url: attachment?.fileUrl ?? null,
+      file_name: attachment?.fileName ?? null,
+      reply_to_message_id: reply?.messageId ?? null,
+      reply_snippet: reply?.snippet ?? null,
+      reply_author_name: reply?.authorName ?? null,
     });
+    if (!result.ok) {
+      toast.error(result.message);
+      return null;
+    }
+
+    const message = result.message;
+    setConversations((prev) =>
+      prev
+        .map((c) => {
+          if (c.id !== conversationId) return c;
+          // Append dédupliqué (le delta Realtime ou un double envoi ne doivent
+          // jamais créer deux bulles pour le même id).
+          const messages = c.messages.some((m) => m.id === message.id)
+            ? c.messages
+            : [...c.messages, message];
+          return {
+            ...c,
+            messages,
+            lastMessageAt: message.createdAt,
+            lastMessagePreview: previewForMessage(message),
+            lastMessageType: message.type,
+            lastMessageFromMe: true,
+          };
+        })
+        .sort(byLastMessageDesc),
+    );
+    return message;
   }
 
   // Réception d'un message en TEMPS RÉEL (mig. 039 + useConversationsRealtime).
@@ -221,29 +251,66 @@ export function MessagesLayout({
   // résolution d'URL (qui ne dépend que de conversationUsername) → aucune boucle.
   const handleIncomingMessage = useCallback((conversationId: string) => {
     void (async () => {
-      const conv = await getConversationAction(conversationId);
-      if (!conv) return;
       const isActive = activeIdRef.current === conversationId;
-      // Conv ouverte à l'écran → le user lit le message : on marque lu et on
-      // force unreadCount à 0 (sinon le badge clignoterait une frame).
+      const current = conversationsRef.current.find((c) => c.id === conversationId);
+
+      // Conv inconnue ou jamais chargée → full-load (cas rare : 1ʳᵉ réception,
+      // ou conv absente du state). Bon marché car premier accès.
+      if (!current || !loadedConvIds.current.has(conversationId)) {
+        const conv = await getConversationAction(conversationId);
+        if (!conv) return;
+        loadedConvIds.current.add(conversationId);
+        if (isActive) {
+          markConversationReadAction({ conversation_id: conversationId }).catch(() => {});
+        }
+        setConversations((prev) => {
+          const merged = isActive ? { ...conv, unreadCount: 0 } : conv;
+          const next = prev.some((c) => c.id === conversationId)
+            ? prev.map((c) => (c.id === conversationId ? merged : c))
+            : [merged, ...prev];
+          return next.sort(byLastMessageDesc);
+        });
+        return;
+      }
+
+      // Cas normal : delta borné. On ne tire que les messages plus récents que
+      // le dernier connu, et on les append dédupliqués — plus de re-fetch de
+      // toute la conversation à chaque message entrant.
+      const lastKnown = current.messages.length
+        ? current.messages[current.messages.length - 1]!.createdAt
+        : current.lastMessageAt;
+      const fresh = await getNewMessagesAction(conversationId, lastKnown);
+      if (fresh.length === 0) return;
       if (isActive) {
         markConversationReadAction({ conversation_id: conversationId }).catch(() => {});
       }
-      loadedConvIds.current.add(conversationId);
-      setConversations((prev) => {
-        const merged = isActive ? { ...conv, unreadCount: 0 } : conv;
-        const exists = prev.some((c) => c.id === conversationId);
-        const next = exists
-          ? prev.map((c) => (c.id === conversationId ? merged : c))
-          : [merged, ...prev];
-        // Re-tri antichronologique (dernier message en haut), comme
-        // listConversations (order last_message_at desc).
-        return [...next].sort((a, b) =>
-          a.lastMessageAt < b.lastMessageAt ? 1 : a.lastMessageAt > b.lastMessageAt ? -1 : 0,
-        );
-      });
+      setConversations((prev) =>
+        prev
+          .map((c) => {
+            if (c.id !== conversationId) return c;
+            const seen = new Set(c.messages.map((m) => m.id));
+            const appended = [...c.messages];
+            let unreadDelta = 0;
+            for (const m of fresh) {
+              if (seen.has(m.id)) continue;
+              appended.push(m);
+              if (m.senderId !== currentUser.id) unreadDelta += 1;
+            }
+            const last = appended[appended.length - 1]!;
+            return {
+              ...c,
+              messages: appended,
+              lastMessageAt: last.createdAt,
+              lastMessagePreview: previewForMessage(last),
+              lastMessageType: last.type,
+              lastMessageFromMe: last.senderId === currentUser.id,
+              unreadCount: isActive ? 0 : c.unreadCount + unreadDelta,
+            };
+          })
+          .sort(byLastMessageDesc),
+      );
     })();
-  }, []);
+  }, [currentUser.id]);
 
   // Abonnement Realtime aux messages entrants. currentUser.id et
   // handleIncomingMessage sont stables → l'abonnement se monte une seule fois.

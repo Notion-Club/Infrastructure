@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { memo, useEffect, useRef, useState, useTransition } from "react";
 import { FileText, Forward, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Message } from "../../types/conversation.types";
@@ -37,7 +37,7 @@ interface MessageBubbleProps {
   onLockChange: (messageId: string | null) => void;
 }
 
-export function MessageBubble({
+function MessageBubbleInner({
   message,
   isSelf,
   currentUser,
@@ -600,3 +600,9 @@ export function MessageBubble({
     </div>
   );
 }
+
+// Mémoïsé : une bulle ne se re-rend que si ses props changent réellement. Quand
+// un message est envoyé/reçu, la liste grandit mais les bulles existantes
+// gardent les mêmes props (onReply/onLockChange stabilisés côté
+// ConversationThread) → plus de re-render en cascade de tout le thread.
+export const MessageBubble = memo(MessageBubbleInner);
