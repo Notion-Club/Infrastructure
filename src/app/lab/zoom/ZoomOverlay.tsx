@@ -34,6 +34,11 @@ const H1_STYLE: CSSProperties = {
   color: 'var(--color-text-primary)',
   margin: 0,
   lineHeight: 1.15,
+  // Réserve l'espace de la croix (cercle 34px à droite) → le titre ne passe
+  // jamais dessous. border-box pour que le hero (largeur fixée) garde le même
+  // retour à la ligne que le titre encadré.
+  paddingRight: 40,
+  boxSizing: 'border-box',
 };
 
 const CARD_TITLE_STYLE: CSSProperties = {
@@ -196,8 +201,9 @@ export function ZoomOverlay({
     // TITRE : hero voyage+rétrécit, reste visible JUSQU'À L'ARRIVÉE (~70%), puis
     // fondu doux de sortie (70→82%) → GAP → le titre carte entre (88→100%).
     anim(heroRef.current, [{ transform: 'none' }, { transform: g.heroFrom }], d, SPRING_EASING, store);
-    anim(heroRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.7 }, { opacity: 0, offset: 0.82 }, { opacity: 0, offset: 1 }], d, FADE, store);
-    anim(cardTitleRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.88 }, { opacity: 1, offset: 1 }], d, FADE, store);
+    // Fondu de sortie plus long (0.6→0.8) → ressenti plus doux ; gap 0.8→0.86.
+    anim(heroRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.6 }, { opacity: 0, offset: 0.8 }, { opacity: 0, offset: 1 }], d, FADE, store);
+    anim(cardTitleRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.86 }, { opacity: 1, offset: 1 }], d, FADE, store);
 
     surfAnim?.finished.then(onClosed).catch(onClosed);
   }, [onClosed]);
