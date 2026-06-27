@@ -41,6 +41,12 @@ export type RichSpan = {
   // Pour les rich text de type `equation` inline (KaTeX). Quand présent, le
   // renderer peut afficher l'expression mathématique plutôt que `text`.
   equation?: string;
+  // Emoji custom inline (mention `custom_emoji`). `isEmoji` discrimine le span ;
+  // `emojiUrl` est l'image à rendre (null si non résolue → le renderer masque
+  // le span plutôt que d'afficher le shortcode `:name:` brut). `text` porte le
+  // nom de l'emoji (alt).
+  isEmoji?: boolean;
+  emojiUrl?: string | null;
 };
 
 // Forme « large » volontairement permissive (et non une union discriminée
@@ -145,6 +151,10 @@ type RawRichText = {
   href: string | null;
   annotations?: RawAnnotations;
   equation?: { expression?: string };
+  mention?: {
+    type?: string;
+    custom_emoji?: { name?: string; url?: string };
+  };
 };
 
 type RawBlock = {
@@ -165,19 +175,34 @@ type ChildrenResponse = {
 // ─── Helpers d'extraction ───────────────────────────────────────────────
 
 function parseRich(rt?: RawRichText[]): RichSpan[] {
-  return (rt ?? []).map((t) => ({
-    text: t.plain_text,
-    href: t.href,
-    bold: t.annotations?.bold ?? false,
-    italic: t.annotations?.italic ?? false,
-    underline: t.annotations?.underline ?? false,
-    strikethrough: t.annotations?.strikethrough ?? false,
-    code: t.annotations?.code ?? false,
-    color: t.annotations?.color ?? "default",
-    ...(t.type === "equation" && t.equation?.expression
-      ? { equation: t.equation.expression }
-      : {}),
-  }));
+  return (rt ?? []).map((t) => {
+    const base: RichSpan = {
+      text: t.plain_text,
+      href: t.href,
+      bold: t.annotations?.bold ?? false,
+      italic: t.annotations?.italic ?? false,
+      underline: t.annotations?.underline ?? false,
+      strikethrough: t.annotations?.strikethrough ?? false,
+      code: t.annotations?.code ?? false,
+      color: t.annotations?.color ?? "default",
+    };
+    // Emoji custom inline : Notion renvoie un `mention` de type `custom_emoji`
+    // dont le `plain_text` est le shortcode `:name:`. On porte l'URL de l'image
+    // (rendue inline par le renderer) et on remplace le texte par le nom (alt).
+    // Si l'URL est absente, le renderer masque le span (pas de `:name:` brut).
+    if (t.type === "mention" && t.mention?.type === "custom_emoji") {
+      return {
+        ...base,
+        text: t.mention.custom_emoji?.name ?? "",
+        isEmoji: true,
+        emojiUrl: t.mention.custom_emoji?.url ?? null,
+      };
+    }
+    if (t.type === "equation" && t.equation?.expression) {
+      return { ...base, equation: t.equation.expression };
+    }
+    return base;
+  });
 }
 
 // URL d'un file object (external | file Notion-hosted | file_upload résolu).

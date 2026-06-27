@@ -32,7 +32,7 @@ import {
   Download,
   FileText,
   Database,
-  Link2,
+  ExternalLink,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -105,6 +105,26 @@ const useRender = () => useContext(RenderContext);
 // ─── Rich text inline (annotations complètes) ────────────────────────────
 
 function Span({ s }: { s: RichSpan }) {
+  // Emoji custom inline : image si résolue, sinon masqué (jamais le `:name:`).
+  if (s.isEmoji) {
+    if (!s.emojiUrl) return null;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={s.emojiUrl}
+        alt={s.text || ""}
+        style={{
+          display: "inline-block",
+          width: "1.2em",
+          height: "1.2em",
+          objectFit: "contain",
+          verticalAlign: "-0.22em",
+          margin: "0 1px",
+        }}
+      />
+    );
+  }
+
   // Équation inline (KaTeX absent du projet) : rendu lisible en mono italique.
   if (s.equation) {
     return (
@@ -185,7 +205,7 @@ function RichText({ spans }: { spans?: RichSpan[] }) {
 }
 
 const spansToText = (spans?: RichSpan[]): string =>
-  (spans ?? []).map((s) => s.equation ?? s.text).join("");
+  (spans ?? []).map((s) => (s.isEmoji ? "" : (s.equation ?? s.text))).join("");
 
 // ─── Médias ──────────────────────────────────────────────────────────────
 
@@ -325,46 +345,56 @@ function FileCard({ block, kind }: { block: NotionBlock; kind: "file" | "pdf" })
   );
 }
 
-// Carte de lien (bookmark / embed / link_preview).
+// Lien collé (bookmark / embed / link_preview) → bouton CTA cliquable.
+//
+// Note : les blocs Bouton NATIFS de Notion ne sont PAS exposés par l'API
+// (ils reviennent en `unsupported`, sans URL ni action — cf. router) ; ils sont
+// donc masqués. Pour obtenir un bouton dans l'app, coller un LIEN dans Notion :
+// son URL est portée ici et recomposée en CTA ci-dessous.
 function LinkCard({ block }: { block: NotionBlock }) {
   if (!block.url) return null;
+  let host = block.url;
+  try {
+    host = new URL(block.url).hostname.replace(/^www\./, "");
+  } catch {
+    /* URL non parsable : on garde la chaîne brute */
+  }
+  const caption = spansToText(block.caption);
+  const label = caption || host;
   return (
-    <a
-      href={block.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        border: "1px solid var(--color-border-default)",
-        borderRadius: 12,
-        padding: "12px 16px",
-        margin: "10px 0",
-        color: "var(--color-brand)",
-        textDecoration: "none",
-        fontSize: 14,
-        wordBreak: "break-all",
-        background: "var(--color-surface-raised, white)",
-      }}
-    >
-      <Link2 size={16} style={{ flexShrink: 0 }} />
-      <span style={{ flex: 1, minWidth: 0 }}>
-        {block.url}
-        {block.caption && block.caption.length > 0 && (
-          <span
-            style={{
-              display: "block",
-              fontSize: 12,
-              color: "var(--color-text-muted)",
-              marginTop: 2,
-            }}
-          >
-            <RichText spans={block.caption} />
-          </span>
-        )}
-      </span>
-    </a>
+    <div style={{ margin: "12px 0" }}>
+      <a
+        href={block.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hover:opacity-85"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "11px 20px",
+          borderRadius: 9999,
+          background: "var(--nc-btn-dark-bg, #1f1c1c)",
+          color: "var(--nc-btn-dark-text, #ffffff)",
+          fontSize: 14,
+          fontWeight: 600,
+          textDecoration: "none",
+          maxWidth: "100%",
+          transition: "opacity 150ms ease",
+        }}
+      >
+        <span
+          style={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {label}
+        </span>
+        <ExternalLink size={15} style={{ flexShrink: 0 }} />
+      </a>
+    </div>
   );
 }
 

@@ -15,7 +15,8 @@ import { TellaEmbed } from '../shared/TellaEmbed';
 import { ResourceContentBody } from '../shared/ResourceContentBody';
 import { canAccess } from '../../lib/access';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
-import type { Resource, Template } from '../../types';
+import { getResourceBody } from '../../server/getResourceBody';
+import type { Resource, Template, NotionBlock } from '../../types';
 import { SPRING_EASING, SPRING_DURATION } from '../../lib/spring';
 import type { MorphSource } from './MorphSourceContext';
 
@@ -73,6 +74,25 @@ function DuplicateButton({ url }: { url: string }) {
   );
 }
 
+// Skeleton du corps Notion, affiché le temps que la Server Action charge le
+// body (l'overlay s'ouvre avant que le contenu soit prêt). Réutilise le
+// keyframe global `nc-skeleton-pulse`.
+function ResourceBodySkeleton() {
+  const pulse: CSSProperties = {
+    animation: 'nc-skeleton-pulse 1.6s ease-in-out infinite',
+    background: 'var(--color-surface-raised)',
+    borderRadius: 8,
+  };
+  return (
+    <>
+      <hr style={{ border: 'none', borderTop: '1px solid var(--color-border-default)', margin: '28px 0' }} />
+      {['96%', '88%', '92%', '70%', '82%'].map((w, i) => (
+        <div key={w} style={{ ...pulse, height: 14, width: w, marginTop: i === 0 ? 0 : 12 }} />
+      ))}
+    </>
+  );
+}
+
 const anim = (el: Element | null, kf: Keyframe[], duration: number, easing: string, store: Animation[]): Animation | null => {
   if (!el) return null;
   const a = el.animate(kf, { duration, easing, fill: 'both' });
@@ -118,6 +138,31 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
   const closingRef = useRef(false);
   const poppedRef = useRef(false);
   const [interactive, setInteractive] = useState(false);
+
+  // Corps Notion de la ressource. La carte ne le fournit pas (liste = body vide)
+  // → on le charge via la Server Action à l'ouverture. `null` = en cours de
+  // chargement (skeleton) ; un tableau = chargé (corps OU [] si verrouillé/vide).
+  const [body, setBody] = useState<NotionBlock[] | null>(
+    () => (resource && resource.content.length > 0 ? resource.content : null),
+  );
+  const bodyFetchedRef = useRef(false);
+  useEffect(() => {
+    if (!resource || !hasAccess) return; // verrouillé → CapabilityLock, pas de fetch
+    if (resource.content.length > 0) return; // déjà fourni
+    if (bodyFetchedRef.current) return;
+    bodyFetchedRef.current = true;
+    let alive = true;
+    getResourceBody(resource.slug)
+      .then((blocks) => {
+        if (alive) setBody(blocks);
+      })
+      .catch(() => {
+        if (alive) setBody([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [resource, hasAccess]);
 
   // Fin de fermeture : retire notre entrée d'historique (si fermeture manuelle,
   // pas via le bouton « retour »), puis demande le démontage au provider.
@@ -407,8 +452,16 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
             {template && <ResourceBadge variant="type" label={template.type} />}
           </div>
 
-          {/* CORPS — source unique partagée avec la vraie page détail */}
-          {resource && <ResourceContentBody resource={resource} />}
+          {/* CORPS — source unique partagée avec la vraie page détail.
+              Chargé via Server Action (skeleton tant que `body === null`). */}
+          {resource &&
+            (hasAccess && body === null ? (
+              <ResourceBodySkeleton />
+            ) : (
+              <ResourceContentBody
+                resource={body ? { ...resource, content: body } : resource}
+              />
+            ))}
           {template && (
             <div style={{ marginTop: 24 }}>
               {template.urlTella && (
