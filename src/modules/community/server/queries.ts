@@ -731,6 +731,17 @@ const CONVERSATIONS_SELECT = `
   )
 `;
 
+// Forme de retour du RPC community_conversation_summaries (mig. 045).
+type ConversationSummaryRow = {
+  conversation_id: string;
+  last_message_sender_id: string | null;
+  last_message_type: string | null;
+  last_message_body: string | null;
+  last_message_file_name: string | null;
+  last_message_created_at: string | null;
+  unread: number;
+};
+
 export async function listConversations(): Promise<Conversation[]> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -752,58 +763,52 @@ export async function listConversations(): Promise<Conversation[]> {
   }
   if (!rows || rows.length === 0) return [];
 
-  // Pour calculer unreadCount sans tirer tous les messages, on fetche
-  // uniquement ceux postérieurs au plus ancien last_read par viewer.
-  // En pratique, la liste-vue n'affiche que le count : on garde une query
-  // light qui ne ramène que conversation_id + sender_id + created_at.
+  // Résumé par conversation (dernier message non supprimé + unreadCount) en UNE
+  // requête bornée via le RPC community_conversation_summaries (mig. 045).
+  // AVANT : on chargeait TOUS les messages des 100 convs (O(total messages)) pour
+  // dériver ces deux infos en JS. Désormais le calcul est fait en base, indexé,
+  // borné aux convs de la page → la sidebar ne dépend plus du volume d'historique.
   const convIds = rows.map((r) => r.id);
-  const { data: lightMessages } = await supabase
-    .from("messages")
-    .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name")
-    .in("conversation_id", convIds)
-    .returns<MessageRow[]>();
-
-  const messages = lightMessages ?? [];
-
-  // Index du dernier message par conversation (le plus récent non-supprimé).
-  // O(N) sur tous les messages des 100 dernières convs — acceptable pour
-  // la liste latérale, qu'on garde rapide à charger.
-  const lastByConv = new Map<string, MessageRow>();
-  for (const m of messages) {
-    if (m.deleted) continue;
-    const current = lastByConv.get(m.conversation_id);
-    if (!current || m.created_at > current.created_at) {
-      lastByConv.set(m.conversation_id, m);
-    }
+  const { data: summaries, error: sumError } = await supabase.rpc(
+    "community_conversation_summaries",
+    { p_conversation_ids: convIds },
+  );
+  if (sumError) {
+    console.error("[listConversations] summaries failed:", sumError.message);
   }
+  const summaryRows = (summaries ?? []) as ConversationSummaryRow[];
+  const summaryById = new Map<string, ConversationSummaryRow>();
+  for (const s of summaryRows) summaryById.set(s.conversation_id, s);
 
   return rows.map((row) => {
     const isA = row.participant_a_id === viewerId;
     const other = isA ? row.participant_b : row.participant_a;
     const otherId = isA ? row.participant_b_id : row.participant_a_id;
-    const last = lastByConv.get(row.id);
-    // Preview troncage côté serveur à 140 chars (l'UI affichera ~50 via
-    // CSS text-overflow). Pour les attachments (image/pdf), on fournit
-    // un libellé symbolique pour que l'UI affiche "📷 Image" / "📎 Fichier".
+    const summary = summaryById.get(row.id);
+
+    // Preview tronquée côté serveur à 140 chars (l'UI affiche ~50 via CSS).
+    // Libellé symbolique pour les attachments (📷 Image / 📎 Fichier).
     let preview: string | undefined;
-    if (last) {
-      if (last.type === "text") {
-        preview = last.body.slice(0, 140);
-      } else if (last.type === "image") {
-        preview = "📷 Image";
-      } else {
-        preview = `📎 ${last.file_name ?? "Fichier"}`;
-      }
+    const t = summary?.last_message_type;
+    if (t === "text") {
+      preview = (summary?.last_message_body ?? "").slice(0, 140);
+    } else if (t === "image") {
+      preview = "📷 Image";
+    } else if (t) {
+      preview = `📎 ${summary?.last_message_file_name ?? "Fichier"}`;
     }
+
     return {
       id: row.id,
       participant: other ? mapProfileToUser(other) : deletedUserShape(otherId),
       messages: [],
-      unreadCount: computeUnreadCount(row, viewerId, messages),
+      unreadCount: summary?.unread ?? 0,
       lastMessageAt: row.last_message_at,
       lastMessagePreview: preview,
-      lastMessageFromMe: last ? last.sender_id === viewerId : undefined,
-      lastMessageType: last ? (last.type as MessageType) : undefined,
+      lastMessageFromMe: summary?.last_message_sender_id
+        ? summary.last_message_sender_id === viewerId
+        : undefined,
+      lastMessageType: t ? (t as MessageType) : undefined,
     };
   });
 }
