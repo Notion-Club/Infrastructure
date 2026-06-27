@@ -30,6 +30,7 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
       item: resource,
       cardRect: cardRef.current.getBoundingClientRect(),
       titleRect: (titleRef.current ?? cardRef.current).getBoundingClientRect(),
+      triggerEl: e.currentTarget as HTMLElement,
     });
   };
 

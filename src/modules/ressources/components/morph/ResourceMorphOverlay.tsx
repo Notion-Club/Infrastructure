@@ -83,6 +83,15 @@ const anim = (el: Element | null, kf: Keyframe[], duration: number, easing: stri
 const prefersReduced = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),iframe,[tabindex]:not([tabindex="-1"])';
+// Éléments focusables visibles à l'intérieur de la surface (pour le focus-trap).
+function getFocusable(root: HTMLElement | null): HTMLElement[] {
+  if (!root) return [];
+  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+    (el) => el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement,
+  );
+}
+
 interface OverlayProps {
   source: MorphSource;
   /** Appelé UNE fois l'animation de fermeture terminée → le provider démonte. */
@@ -120,8 +129,15 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
         /* noop */
       }
     }
+    // Restitue le focus à la carte déclencheuse (a11y) — la grille n'a jamais été
+    // démontée donc l'élément existe toujours. preventScroll : pas de saut.
+    try {
+      source.triggerEl?.focus?.({ preventScroll: true });
+    } catch {
+      /* noop */
+    }
     onClose();
-  }, [onClose]);
+  }, [onClose, source]);
 
   // ── Fermeture (joue le morph inverse, puis finishClose) ────────────────────
   const startClose = useCallback(() => {
@@ -248,14 +264,47 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     return () => window.removeEventListener('popstate', onPop);
   }, [startClose]);
 
-  // Échap ferme.
+  // Clavier : Échap ferme ; Tab est piégé DANS la surface (focus-trap modal) →
+  // on ne peut pas tabuler vers la grille gelée derrière.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') startClose();
+      if (e.key === 'Escape') {
+        startClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const surf = surfRef.current;
+      if (!surf) return;
+      const f = getFocusable(surf);
+      if (f.length === 0) {
+        e.preventDefault();
+        surf.focus({ preventScroll: true });
+        return;
+      }
+      const first = f[0];
+      const last = f[f.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || active === surf || !surf.contains(active))) {
+        e.preventDefault();
+        last.focus({ preventScroll: true });
+      } else if (!e.shiftKey && (active === last || !surf.contains(active))) {
+        e.preventDefault();
+        first.focus({ preventScroll: true });
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [startClose]);
+
+  // À l'ouverture : déplace le focus DANS le dialogue (la surface, tabindex -1)
+  // → le lecteur d'écran annonce le titre (aria-label) et le focus ne reste pas
+  // sur la carte masquée.
+  useEffect(() => {
+    const t = requestAnimationFrame(() => {
+      surfRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(t);
+  }, []);
 
   // Scroll-lock du DOCUMENT pendant l'overlay (grille figée derrière, iOS inclus)
   // + restauration exacte de la position au démontage.
@@ -287,17 +336,24 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
   const badgeLabel = isResource ? 'Ressource' : 'Template';
 
   const overlay = (
-    <div role="dialog" aria-modal style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}>
       <div
         ref={pageBgRef}
         onClick={startClose}
         style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--color-surface-page)', opacity: 0, pointerEvents: interactive ? 'auto' : 'none' }}
       />
 
-      {/* Surface qui morphe + clippe ; scroll interne du corps quand ouvert */}
+      {/* Surface qui morphe + clippe ; scroll interne du corps quand ouvert.
+          C'est le DIALOGUE a11y : role/aria-modal/label + tabindex pour recevoir
+          le focus à l'ouverture. */}
       <div
         ref={surfRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={item.titre}
+        tabIndex={-1}
         style={{
+          outline: 'none',
           position: 'fixed',
           top: 'calc(env(safe-area-inset-top, 0px) + 76px)',
           left: '50%',

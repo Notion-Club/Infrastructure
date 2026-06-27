@@ -28,6 +28,7 @@ export function TemplateCard({ template, currentCapability }: TemplateCardProps)
       item: template,
       cardRect: cardRef.current.getBoundingClientRect(),
       titleRect: (titleRef.current ?? cardRef.current).getBoundingClientRect(),
+      triggerEl: e.currentTarget as HTMLElement,
     });
   };
 
