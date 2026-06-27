@@ -7,19 +7,22 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter } from 'next/navigation';
 import { ResourceBadge } from '../shared/ResourceBadge';
-import { useMorphSourceRef, type MorphSource } from './MorphSourceContext';
-import type { Resource } from '../../types';
+import { CapabilityLock } from '../shared/CapabilityLock';
+import { TellaEmbed } from '../shared/TellaEmbed';
+import { canAccess } from '../../lib/access';
+import { mockCurrentUser } from '@/shared/lib/mock/current-user';
+import type { ContentBlock, Resource, Template } from '../../types';
 import { SPRING_EASING, SPRING_DURATION } from '../../lib/spring';
+import type { MorphSource } from './MorphSourceContext';
 
-// Morph WAAPI (mécanique validée au lab v9) appliqué au vrai /Ressources :
-// surface clippée qui morphe (coins lisses), titre CONTINU (hero) qui voyage,
-// fade-through à gap des contenus. Le CORPS réel Notion est passé en `children`
-// (RSC, Suspense). Fermeture → router.back() (route intercoptée).
+// Morph WAAPI (mécanique validée au lab v9) — surface clippée qui morphe (coins
+// lisses), titre CONTINU (hero) qui voyage, fade-through à gap des contenus.
+// Différence vs scaffold intercepté : la donnée (resource OU template) vient des
+// props (déjà en mémoire, zéro fetch) et la fermeture est purement cliente
+// (onClose après l'anim) — aucune navigation, la grille derrière reste montée.
 
 const FADE = 'linear';
 
@@ -47,6 +50,83 @@ function formatDate(iso: string): string {
   return `${d.getDate()} ${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+// renderBlock client (copie compacte de ResourceDetailBody, sans dépendance
+// serveur) — les blocs Notion sont déjà en mémoire côté grille.
+function renderBlock(block: ContentBlock, idx: number) {
+  switch (block.type) {
+    case 'heading':
+      if (block.level === 2) {
+        return <h2 key={idx} style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-text-primary)', margin: '32px 0 12px', lineHeight: 1.3 }}>{block.text}</h2>;
+      }
+      return <h3 key={idx} style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text-primary)', margin: '24px 0 10px', lineHeight: 1.4 }}>{block.text}</h3>;
+    case 'paragraph':
+      return <p key={idx} style={{ fontSize: 15, color: 'var(--color-text-secondary)', margin: '0 0 16px', lineHeight: 1.7 }}>{block.text}</p>;
+    case 'list':
+      return (
+        <ul key={idx} style={{ margin: '0 0 16px', paddingLeft: 24, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {block.items.map((item, i) => (
+            <li key={i} style={{ fontSize: 15, color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+              {item.text}
+              {item.children && item.children.length > 0 && <div style={{ marginTop: 6 }}>{item.children.map((child, j) => renderBlock(child, j))}</div>}
+            </li>
+          ))}
+        </ul>
+      );
+    case 'callout':
+      return (
+        <div key={idx} style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border-default)', borderRadius: 12, padding: '14px 16px', margin: '0 0 12px', display: 'flex', gap: 10 }}>
+          {block.icon && <span style={{ flexShrink: 0, fontSize: 16, lineHeight: '24px' }}>{block.icon}</span>}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {block.text && <p style={{ fontSize: 15, color: 'var(--color-text-secondary)', margin: '0 0 8px', lineHeight: 1.7 }}>{block.text}</p>}
+            {block.children.map((child, i) => renderBlock(child, i))}
+          </div>
+        </div>
+      );
+    case 'quote':
+      return (
+        <blockquote key={idx} style={{ borderLeft: '3px solid var(--color-border-default)', paddingLeft: 16, margin: '0 0 16px' }}>
+          {block.text && <p style={{ fontSize: 15, color: 'var(--color-text-muted)', margin: 0, lineHeight: 1.7, fontStyle: 'italic' }}>{block.text}</p>}
+          {block.children.length > 0 && <div>{block.children.map((child, i) => renderBlock(child, i))}</div>}
+        </blockquote>
+      );
+    case 'code':
+      return (
+        <pre key={idx} style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border-default)', borderRadius: 8, padding: '12px 16px', margin: '0 0 16px', overflowX: 'auto' }}>
+          <code style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontFamily: 'monospace', lineHeight: 1.6 }}>{block.text}</code>
+        </pre>
+      );
+    case 'tella_embed':
+      return <div key={idx} style={{ margin: '24px 0' }}><TellaEmbed url={block.url} /></div>;
+    case 'image':
+      // eslint-disable-next-line @next/next/no-img-element
+      return <img key={idx} src={block.url} alt={block.alt ?? ''} style={{ width: '100%', borderRadius: 12, margin: '24px 0' }} />;
+    default:
+      return null;
+  }
+}
+
+// Bouton « Dupliquer ce template » — inline pour respecter l'isolation modules
+// (le composant d'origine vit sous src/app/, hors périmètre importable).
+const NotionIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+    <rect width="100" height="100" rx="14" fill="black" />
+    <path d="M24 20h52v8L48 72H76v8H24v-8l28-44H24V20z" fill="white" />
+  </svg>
+);
+function DuplicateButton({ url }: { url: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10, marginTop: 24 }}>
+      <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '12px 24px', borderRadius: 9999, background: 'var(--nc-btn-dark-bg)', color: 'var(--nc-btn-dark-text)', fontSize: 15, fontWeight: 600, textDecoration: 'none', transition: 'opacity 150ms ease' }} className="hover:opacity-80">
+        <NotionIcon />
+        Dupliquer ce template
+      </a>
+      <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0, lineHeight: 1.5 }}>
+        Ouvre la page Notion publique du template. Clique sur &ldquo;Dupliquer&rdquo; en haut à droite pour l&rsquo;ajouter à ton espace.
+      </p>
+    </div>
+  );
+}
+
 const anim = (el: Element | null, kf: Keyframe[], duration: number, easing: string, store: Animation[]): Animation | null => {
   if (!el) return null;
   const a = el.animate(kf, { duration, easing, fill: 'both' });
@@ -57,11 +137,18 @@ const anim = (el: Element | null, kf: Keyframe[], duration: number, easing: stri
 const prefersReduced = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export function ResourceMorphOverlay({ children }: { children: ReactNode }) {
-  const router = useRouter();
-  const sourceRef = useMorphSourceRef();
-  // Lu UNE fois au montage : la géométrie + données de la carte cliquée.
-  const [source] = useState<MorphSource | null>(() => sourceRef.current);
+interface OverlayProps {
+  source: MorphSource;
+  /** Appelé UNE fois l'animation de fermeture terminée → le provider démonte. */
+  onClose: () => void;
+}
+
+export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
+  const item = source.item;
+  const isResource = item.category === 'resource';
+  const resource = isResource ? (item as Resource) : null;
+  const template = isResource ? null : (item as Template);
+  const hasAccess = canAccess(mockCurrentUser.capability, item.visibilite);
 
   const pageBgRef = useRef<HTMLDivElement>(null);
   const surfRef = useRef<HTMLDivElement>(null);
@@ -74,24 +161,57 @@ export function ResourceMorphOverlay({ children }: { children: ReactNode }) {
   const gRef = useRef<{ surfFrom: Keyframe; surfTo: Keyframe; heroFrom: string } | null>(null);
   const animsRef = useRef<Animation[]>([]);
   const closingRef = useRef(false);
+  const poppedRef = useRef(false);
   const [interactive, setInteractive] = useState(false);
-  // Auto-masquage après fermeture : même si le slot @modal ne se réinitialise
-  // pas au router.back() (réutilisation parallel-route), l'overlay rend null →
-  // zéro résidu de l'animation précédente.
-  const [hidden, setHidden] = useState(false);
 
-  const onClosed = useCallback(() => {
-    setHidden(true);
-    router.back();
-  }, [router]);
-
-  // ── Ouverture ───────────────────────────────────────────────────────────
-  useLayoutEffect(() => {
-    if (!source) {
-      // Pas de carte source (accès direct improbable via intercept) → pas de morph.
-      requestAnimationFrame(() => setInteractive(true));
-      return;
+  // Fin de fermeture : retire notre entrée d'historique (si fermeture manuelle,
+  // pas via le bouton « retour »), puis demande le démontage au provider.
+  const finishClose = useCallback(() => {
+    if (!poppedRef.current) {
+      try {
+        window.history.back();
+      } catch {
+        /* noop */
+      }
     }
+    onClose();
+  }, [onClose]);
+
+  // ── Fermeture (joue le morph inverse, puis finishClose) ────────────────────
+  const startClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    setInteractive(false);
+
+    const g = gRef.current;
+    const surf = surfRef.current;
+    if (!g || !surf || prefersReduced()) return finishClose();
+
+    animsRef.current.forEach((a) => {
+      try {
+        a.commitStyles();
+      } catch {
+        /* anim non démarrée */
+      }
+      a.cancel();
+    });
+    animsRef.current = [];
+    const store = animsRef.current;
+    const d = SPRING_DURATION;
+
+    const surfAnim = anim(surf, [g.surfTo, g.surfFrom], d, SPRING_EASING, store);
+    anim(encRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.28 }, { opacity: 0, offset: 1 }], d, FADE, store);
+    anim(cardRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.84 }, { opacity: 1, offset: 1 }], d, FADE, store);
+    anim(pageBgRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.5 }, { opacity: 0, offset: 1 }], d, FADE, store);
+    anim(heroRef.current, [{ transform: 'none' }, { transform: g.heroFrom }], d, SPRING_EASING, store);
+    anim(heroRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.6 }, { opacity: 0, offset: 0.8 }, { opacity: 0, offset: 1 }], d, FADE, store);
+    anim(cardTitleRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.86 }, { opacity: 1, offset: 1 }], d, FADE, store);
+
+    surfAnim?.finished.then(finishClose).catch(finishClose);
+  }, [finishClose]);
+
+  // ── Ouverture ──────────────────────────────────────────────────────────────
+  useLayoutEffect(() => {
     const surf = surfRef.current;
     const enc = encRef.current;
     const encTitle = encTitleRef.current;
@@ -165,50 +285,34 @@ export function ResourceMorphOverlay({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Fermeture ───────────────────────────────────────────────────────────
-  const close = useCallback(() => {
-    if (closingRef.current) return;
-    closingRef.current = true;
-    setInteractive(false);
+  // Bouton « retour » (mobile/PWA) ferme l'overlay : on pousse une entrée
+  // d'historique à la MÊME URL (aucune nav Next, aucun désync de router) ; le
+  // popstate déclenche le morph de fermeture.
+  useEffect(() => {
+    try {
+      window.history.pushState({ ncMorph: true }, '');
+    } catch {
+      /* noop */
+    }
+    const onPop = () => {
+      poppedRef.current = true; // l'entrée a déjà été retirée par le navigateur
+      startClose();
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [startClose]);
 
-    const g = gRef.current;
-    const surf = surfRef.current;
-    if (!g || !surf || !source) return onClosed();
-    if (prefersReduced()) return onClosed();
-
-    animsRef.current.forEach((a) => {
-      try {
-        a.commitStyles();
-      } catch {
-        /* anim non démarrée */
-      }
-      a.cancel();
-    });
-    animsRef.current = [];
-    const store = animsRef.current;
-    const d = SPRING_DURATION;
-
-    const surfAnim = anim(surf, [g.surfTo, g.surfFrom], d, SPRING_EASING, store);
-    anim(encRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.28 }, { opacity: 0, offset: 1 }], d, FADE, store);
-    anim(cardRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.84 }, { opacity: 1, offset: 1 }], d, FADE, store);
-    anim(pageBgRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.5 }, { opacity: 0, offset: 1 }], d, FADE, store);
-    anim(heroRef.current, [{ transform: 'none' }, { transform: g.heroFrom }], d, SPRING_EASING, store);
-    anim(heroRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.6 }, { opacity: 0, offset: 0.8 }, { opacity: 0, offset: 1 }], d, FADE, store);
-    anim(cardTitleRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.86 }, { opacity: 1, offset: 1 }], d, FADE, store);
-
-    surfAnim?.finished.then(onClosed).catch(onClosed);
-  }, [onClosed, source]);
-
+  // Échap ferme.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape') startClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [close]);
+  }, [startClose]);
 
-  // Scroll-lock du DOCUMENT pendant que l'overlay est ouvert (la grille derrière
-  // ne défile plus, y compris iOS) + restauration exacte de la position.
+  // Scroll-lock du DOCUMENT pendant l'overlay (grille figée derrière, iOS inclus)
+  // + restauration exacte de la position au démontage.
   useEffect(() => {
     const body = document.body;
     const scrollY = window.scrollY;
@@ -233,17 +337,15 @@ export function ResourceMorphOverlay({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  if (hidden) return null;
-
-  // Données carte (header instantané, sans fetch). On suppose une Resource.
-  const resource = source?.resource as Resource | undefined;
+  const badgeVariant = isResource ? 'ressource' : 'template';
+  const badgeLabel = isResource ? 'Ressource' : 'Template';
 
   const overlay = (
     <div role="dialog" aria-modal style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}>
       <div
         ref={pageBgRef}
-        onClick={close}
-        style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--color-surface-page)', opacity: source ? 0 : 1, pointerEvents: interactive ? 'auto' : 'none' }}
+        onClick={startClose}
+        style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--color-surface-page)', opacity: 0, pointerEvents: interactive ? 'auto' : 'none' }}
       />
 
       {/* Surface qui morphe + clippe ; scroll interne du corps quand ouvert */}
@@ -260,66 +362,82 @@ export function ResourceMorphOverlay({ children }: { children: ReactNode }) {
           background: 'var(--color-surface-card)',
           border: '1px solid var(--color-border-default)',
           boxShadow: 'var(--nc-shadow-3)',
-          borderRadius: source ? 16 : 24,
+          borderRadius: 16,
           overflowX: 'hidden',
           overflowY: interactive ? 'auto' : 'hidden',
           willChange: 'width, height, transform, border-radius',
           pointerEvents: interactive ? 'auto' : 'none',
         }}
       >
-        {/* Contenu ENCADRÉ (header carte + corps Notion réel en children) */}
-        <div ref={encRef} style={{ padding: 32, opacity: source ? 0 : 1, willChange: 'opacity' }}>
-          <h1 ref={encTitleRef} style={{ ...H1_STYLE, opacity: 0, marginBottom: 16 }}>{resource?.titre}</h1>
-          <p style={{ fontSize: 16, color: 'var(--color-text-secondary)', margin: '0 0 16px', lineHeight: 1.6 }}>{resource?.description}</p>
-          {resource && (
-            <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 16 }}>{formatDate(resource.dateCreation)}</div>
-          )}
+        {/* Contenu ENCADRÉ (header + corps réel, déjà en mémoire) */}
+        <div ref={encRef} style={{ padding: 32, opacity: 0, willChange: 'opacity' }}>
+          <h1 ref={encTitleRef} style={{ ...H1_STYLE, opacity: 0, marginBottom: 16 }}>{item.titre}</h1>
+          <p style={{ fontSize: 16, color: 'var(--color-text-secondary)', margin: '0 0 16px', lineHeight: 1.6 }}>{item.description}</p>
+          <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 16 }}>{formatDate(item.dateCreation)}</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <ResourceBadge variant="ressource" label="Ressource" />
+            <ResourceBadge variant={badgeVariant} label={badgeLabel} />
             {resource?.formation?.map((f) => <ResourceBadge key={f} variant="formation" label={f} />)}
             {resource?.type?.map((t) => <ResourceBadge key={t} variant="type" label={t} />)}
+            {template && <ResourceBadge variant="type" label={template.type} />}
           </div>
 
-          {/* CORPS NOTION RÉEL (RSC, Suspense) */}
-          {children}
+          {/* CORPS */}
+          {resource && (
+            <>
+              <hr style={{ border: 'none', borderTop: '1px solid var(--color-border-default)', margin: '28px 0' }} />
+              {hasAccess ? (
+                <div>{resource.content.map((block, idx) => renderBlock(block, idx))}</div>
+              ) : (
+                <CapabilityLock
+                  title={`Contenu réservé aux membres ${resource.visibilite}`}
+                  description={`Cette ressource est accessible à partir de l'offre ${resource.visibilite}. Rejoins le programme pour la débloquer ainsi que toute la bibliothèque correspondante.`}
+                  ctaLabel="Découvrir les offres"
+                  ctaHref="/offres"
+                />
+              )}
+            </>
+          )}
+          {template && (
+            <div style={{ marginTop: 24 }}>
+              {template.urlTella && <div style={{ marginBottom: 8 }}><TellaEmbed url={template.urlTella} /></div>}
+              <DuplicateButton url={template.urlNotionPublicPage} />
+            </div>
+          )}
         </div>
 
         <button
           type="button"
-          onClick={close}
+          onClick={startClose}
           aria-label="Fermer"
           style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 18, lineHeight: 1, zIndex: 2 }}
         >
           ✕
         </button>
 
-        {/* Clone du CONTENU CARTE (départ) — réplique ResourceCard */}
-        {resource && (
-          <div
-            ref={cardRef}
-            style={{ position: 'absolute', top: 0, left: 0, width: source!.cardRect.width, padding: 20, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 12, willChange: 'opacity', pointerEvents: 'none' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <ResourceBadge variant="ressource" label="Ressource" />
-            </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <h3 ref={cardTitleRef} style={CARD_TITLE_STYLE}>{resource.titre}</h3>
-              <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{resource.description}</p>
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {resource.formation?.map((f) => <ResourceBadge key={f} variant="formation" label={f} />)}
-              {resource.type?.map((t) => <ResourceBadge key={t} variant="type" label={t} />)}
-            </div>
+        {/* Clone du CONTENU CARTE (départ) — réplique la carte de la grille */}
+        <div
+          ref={cardRef}
+          style={{ position: 'absolute', top: 0, left: 0, width: source.cardRect.width, padding: 20, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 12, willChange: 'opacity', pointerEvents: 'none' }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+            <ResourceBadge variant={badgeVariant} label={badgeLabel} />
           </div>
-        )}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <h3 ref={cardTitleRef} style={CARD_TITLE_STYLE}>{item.titre}</h3>
+            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</p>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {resource?.formation?.map((f) => <ResourceBadge key={f} variant="formation" label={f} />)}
+            {resource?.type?.map((t) => <ResourceBadge key={t} variant="type" label={t} />)}
+            {template && <ResourceBadge variant="type" label={template.type} />}
+          </div>
+        </div>
       </div>
 
       {/* TITRE CONTINU (hero) */}
-      {resource && (
-        <h1 ref={heroRef} style={{ ...H1_STYLE, position: 'fixed', transformOrigin: 'top left', willChange: 'transform, opacity', pointerEvents: 'none' }}>
-          {resource.titre}
-        </h1>
-      )}
+      <h1 ref={heroRef} style={{ ...H1_STYLE, position: 'fixed', transformOrigin: 'top left', willChange: 'transform, opacity', pointerEvents: 'none' }}>
+        {item.titre}
+      </h1>
     </div>
   );
 

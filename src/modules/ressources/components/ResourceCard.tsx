@@ -1,12 +1,11 @@
 'use client';
 
-import Link from 'next/link';
 import { useRef } from 'react';
 import { Lock } from 'lucide-react';
 import type { Resource, UserCapability } from '../types';
 import { canAccess } from '../lib/access';
 import { ResourceBadge } from './shared/ResourceBadge';
-import { useMorphSourceRef } from './morph/MorphSourceContext';
+import { useMorph } from './morph/MorphSourceContext';
 
 interface ResourceCardProps {
   resource: Resource;
@@ -15,24 +14,27 @@ interface ResourceCardProps {
 
 export function ResourceCard({ resource, currentCapability }: ResourceCardProps) {
   const isLocked = !canAccess(currentCapability, resource.visibilite);
-  const sourceRef = useMorphSourceRef();
+  const { open } = useMorph();
   const cardRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
 
-  // Au clic : on capture la géométrie de la carte + du titre AVANT la navigation
-  // intercoptée → l'overlay de morph les lit dans le contexte. Le <Link> route
-  // ensuite vers la page détail (intercoptée en overlay au-dessus de la grille).
-  const handleClick = () => {
+  // Clic gauche simple : on ouvre l'overlay de morph EN PLACE (aucune navigation,
+  // la donnée est déjà en mémoire). On capture la géométrie carte + titre comme
+  // point de départ. Cmd/Ctrl/clic-milieu : on laisse le navigateur ouvrir la
+  // vraie page (`href`) dans un nouvel onglet.
+  const handleClick = (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
     if (!cardRef.current) return;
-    sourceRef.current = {
-      resource,
+    e.preventDefault();
+    open({
+      item: resource,
       cardRect: cardRef.current.getBoundingClientRect(),
       titleRect: (titleRef.current ?? cardRef.current).getBoundingClientRect(),
-    };
+    });
   };
 
   return (
-    <Link
+    <a
       href={'/ressources/ressource/' + resource.slug}
       onClick={handleClick}
       style={{ display: 'block', height: '100%', textDecoration: 'none', color: 'inherit' }}
@@ -95,6 +97,6 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
           ))}
         </div>
       </div>
-    </Link>
+    </a>
   );
 }
