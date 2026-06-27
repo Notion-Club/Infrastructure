@@ -498,13 +498,19 @@ export function MessagesLayout({
         </div>
       </div>
 
-      {/* Mobile: liste OU thread */}
+      {/* Mobile: liste OU thread.
+          Hauteur = 100% en embedded → on REMPLIT exactement `.nc-messages-embed`
+          (seule source de vérité de la hauteur, qui tient compte de la safe-area
+          PWA). Avant, ce div forçait son propre `calc(100dvh - 200px)` — 24px de
+          plus que l'embed (`100dvh - 224px`) → le bas du thread (derniers messages
+          + composer) débordait sous la BottomNav, d'où « pas tout en bas » à
+          l'ouverture. Le `calc` ne sert plus que le cas non-embedded (théorique). */}
       <div
         className="md:hidden"
         style={{
           ...containerStyle,
           background: "var(--color-surface-card)",
-          height: "calc(100dvh - 200px)",
+          height: embedded ? "100%" : "calc(100dvh - 200px)",
         }}
       >
         {mobileView === "list" ? (
