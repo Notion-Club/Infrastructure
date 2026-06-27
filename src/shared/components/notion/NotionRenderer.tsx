@@ -554,11 +554,23 @@ function SingleBlock({ block }: { block: NotionBlock }) {
       const hasText = (block.rich ?? []).some((s) => spansToText([s]).length > 0);
       const hasChildren = (block.children ?? []).length > 0;
       if (!hasText && !hasChildren) return null;
+      // Les enfants d'un paragraphe (contenu indenté sous une ligne de texte)
+      // sont rendus EN FRÈRES du <p>, jamais dedans : BlockList produit des
+      // éléments bloc (<div>, <ul>, <blockquote>…) et un bloc dans un <p> est
+      // du HTML invalide → le navigateur ferme le <p> → mismatch d'hydratation.
       return (
-        <p data-fb-label="Paragraphe Notion · Corps Notion" style={paragraphStyle}>
-          <RichText spans={block.rich} />
-          {hasChildren && <BlockList blocks={block.children!} />}
-        </p>
+        <>
+          {hasText && (
+            <p data-fb-label="Paragraphe Notion · Corps Notion" style={paragraphStyle}>
+              <RichText spans={block.rich} />
+            </p>
+          )}
+          {hasChildren && (
+            <div style={{ paddingLeft: 22 }}>
+              <BlockList blocks={block.children!} />
+            </div>
+          )}
+        </>
       );
     }
 
