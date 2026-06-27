@@ -205,4 +205,4 @@ E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
 | #249 | Fix fermeture : scroll figé (verrou non déplaçant + scrollRestoration manual), fin de l'encadré iOS (focus clavier-only) et du tressaut de la BottomNav ; e2e 9/9 |
 | #250 | MAJ doc |
 | #253 | Scroll-document : encadré = longueur du contenu (conteneur de scroll dédié), titre qui défile, croix fixe ; e2e 10/10 |
-| #254 | Croix ancrée à la carte (défile), resize fluide + reveal du corps async (skills 01/18), fermeture pointer-events avec détente |
+| #255 | Croix ancrée à la carte (défile), resize fluide + reveal du corps async (skills 01/18), fermeture pointer-events avec détente |
