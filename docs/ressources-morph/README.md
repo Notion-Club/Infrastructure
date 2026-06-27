@@ -182,11 +182,15 @@ E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
   de la carte (skill `01-card-resize`, tween height) + **reveal** du corps
   (skill `18-texts-reveal` : fade + translateY + blur). Ne joue qu'en chargement
   async (`startedEmpty`) ; en synchrone le morph révèle déjà tout.
-- **iOS — tap status-bar pour remonter en haut** : NON disponible. Le scroll est
-  dans un conteneur dédié (grille gelée derrière) ; iOS ne remonte que le
-  scroller du *document*. Réconcilier les deux = scroll document (la grille
-  défilerait → conflit avec le gel). Tradeoff ouvert.
-- **Flou haut/bas en PWA pendant le scroll** : pas encore traité.
+- **Flou haut (PWA)** : ✅ bande `backdrop-filter: blur` en haut, masquée en
+  dégradé (fort en haut → nul en bas) → le contenu se brouille en remontant, sans
+  couvrir la croix/le titre au repos (situés sous la bande). Visible seulement
+  une fois l'overlay ouvert.
+- **iOS — tap status-bar pour remonter en haut** : NON disponible (choix assumé).
+  Le scroll est dans un conteneur dédié (grille gelée derrière, fix #249) ; iOS ne
+  remonte que le scroller du *document*. On préserve le gel de la grille plutôt
+  que le confort status-bar. Bascule en scroll-document possible si on inverse ce
+  choix.
 - **View Transition** : retiré de /ressources (inerte) ; reste **app-wide**
   (communauté/formation/réglages) via `next.config` + CSS global — ne pas y
   toucher depuis ce périmètre.
