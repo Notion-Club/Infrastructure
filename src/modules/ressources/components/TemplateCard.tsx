@@ -29,6 +29,8 @@ export function TemplateCard({ template, currentCapability }: TemplateCardProps)
       cardRect: cardRef.current.getBoundingClientRect(),
       titleRect: (titleRef.current ?? cardRef.current).getBoundingClientRect(),
       triggerEl: e.currentTarget as HTMLElement,
+      // `detail === 0` = activation clavier (Entrée/Espace) ; souris/tactile ≥ 1.
+      viaKeyboard: e.detail === 0,
     });
   };
 
@@ -36,7 +38,7 @@ export function TemplateCard({ template, currentCapability }: TemplateCardProps)
     <a
       href={'/ressources/template/' + template.slug}
       onClick={handleClick}
-      style={{ display: 'block', height: '100%', textDecoration: 'none', color: 'inherit' }}
+      style={{ display: 'block', height: '100%', textDecoration: 'none', color: 'inherit', WebkitTapHighlightColor: 'transparent' }}
     >
       <div
         ref={cardRef}

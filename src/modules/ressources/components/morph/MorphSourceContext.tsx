@@ -24,6 +24,9 @@ export interface MorphSource {
   titleRect: DOMRect;
   /** Élément déclencheur (le lien de la carte) — pour restituer le focus à la fermeture (a11y). */
   triggerEl?: HTMLElement | null;
+  /** Ouverture au CLAVIER (Entrée/Espace) ? Sinon (souris/tactile) on ne restitue
+   *  pas le focus à la fermeture → pas d'encadré bleu de sélection iOS. */
+  viaKeyboard?: boolean;
 }
 
 interface MorphCtx {

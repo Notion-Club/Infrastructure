@@ -82,6 +82,9 @@ export function MorphTestHarness() {
       <div className="nc-app-bg" aria-hidden />
       <div style={{ position: 'relative', zIndex: 0, minHeight: '100vh', padding: 24 }}>
         <h1 style={{ fontSize: 18, marginBottom: 16 }}>Lab — morph e2e (dev only)</h1>
+        {/* Espaceur haut : décale la grille vers le bas → après un scroll modéré,
+            les cartes restent visibles (le test clique sans auto-scroll). */}
+        <div data-testid="spacer-top" style={{ height: 400 }} />
         <div
           className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
           style={{ position: 'relative', zIndex: 1, maxWidth: 920, margin: '0 auto', display: 'grid', gap: 16 }}
@@ -99,6 +102,9 @@ export function MorphTestHarness() {
             <TemplateCard template={TPL_LOCKED} currentCapability={cap} />
           </div>
         </div>
+        {/* Espaceur : rend la page défilable → le test e2e peut vérifier que le
+            scroll est préservé à la fermeture (pas de saut). */}
+        <div data-testid="spacer" style={{ height: 1600 }} />
       </div>
     </MorphSourceProvider>
   );

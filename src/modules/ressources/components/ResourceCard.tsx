@@ -31,6 +31,8 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
       cardRect: cardRef.current.getBoundingClientRect(),
       titleRect: (titleRef.current ?? cardRef.current).getBoundingClientRect(),
       triggerEl: e.currentTarget as HTMLElement,
+      // `detail === 0` = activation clavier (Entrée/Espace) ; souris/tactile ≥ 1.
+      viaKeyboard: e.detail === 0,
     });
   };
 
@@ -38,7 +40,7 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
     <a
       href={'/ressources/ressource/' + resource.slug}
       onClick={handleClick}
-      style={{ display: 'block', height: '100%', textDecoration: 'none', color: 'inherit' }}
+      style={{ display: 'block', height: '100%', textDecoration: 'none', color: 'inherit', WebkitTapHighlightColor: 'transparent' }}
     >
       <div
         ref={cardRef}
