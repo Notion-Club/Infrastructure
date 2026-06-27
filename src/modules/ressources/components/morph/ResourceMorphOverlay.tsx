@@ -187,6 +187,44 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     };
   }, [resource, hasAccess]);
 
+  // Apparition du contenu (skeleton → contenu réel) : redimensionnement FLUIDE de
+  // la carte (skill 01-card-resize) + reveal du corps (skill 18-texts-reveal).
+  // Ne joue que pour le chargement ASYNC (corps absent au départ) ; en synchrone
+  // le morph révèle déjà tout.
+  // Corps chargé en ASYNC (absent au départ) ? Stable pour l'instance (key=slug).
+  const startedEmpty = !!resource && hasAccess && resource.content.length === 0;
+  const [reduced] = useState(prefersReduced);
+  const [contentIn, setContentIn] = useState(false);
+  const skelHRef = useRef<number | null>(null);
+
+  // Mémorise la hauteur du skeleton tant que le corps n'est pas arrivé.
+  useLayoutEffect(() => {
+    if (body === null && surfRef.current) skelHRef.current = surfRef.current.offsetHeight;
+  });
+
+  // À l'arrivée du corps (post-ouverture) : tween de la hauteur skeleton → contenu.
+  useLayoutEffect(() => {
+    if (body === null || !interactive) return;
+    const surf = surfRef.current;
+    const oldH = skelHRef.current;
+    if (surf && oldH != null && startedEmpty && !reduced) {
+      const newH = surf.offsetHeight;
+      if (Math.abs(newH - oldH) > 4) {
+        surf.animate([{ height: `${oldH}px` }, { height: `${newH}px` }], { duration: 300, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+      }
+    }
+    skelHRef.current = null;
+  }, [body, interactive, reduced, startedEmpty]);
+
+  // Déclenche le reveal du corps une fois la carte redimensionnée (double rAF).
+  // Uniquement quand le reveal est ACTIF (corps async + motion autorisé) ; sinon
+  // le style de reveal n'est pas appliqué et `contentIn` n'a aucun effet.
+  useEffect(() => {
+    if (body === null || !interactive || !startedEmpty || reduced) return;
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => setContentIn(true)));
+    return () => cancelAnimationFrame(id);
+  }, [body, interactive, reduced, startedEmpty]);
+
   // Fin de fermeture : retire notre entrée d'historique (si fermeture manuelle,
   // pas via le bouton « retour »), puis demande le démontage au provider.
   const finishClose = useCallback(() => {
@@ -519,9 +557,22 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
   const badgeVariant = isResource ? 'ressource' : 'template';
   const badgeLabel = isResource ? 'Ressource' : 'Template';
 
-  // Ferme si le clic atterrit sur le conteneur/zone vide (pas sur la surface).
-  const onScrollAreaClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) startClose();
+  // Fermeture au tap sur le fond (hors surface) — basée sur les POINTER events
+  // (le `click` sur un conteneur scrollable est avalé/différé sur iOS) avec une
+  // DÉTENTE : on ferme seulement si le doigt n'a quasi pas bougé entre down et up
+  // (sinon = scroll/drag → on ne ferme pas). Fiable et pas hypersensible.
+  const pressRef = useRef<{ x: number; y: number; onBackdrop: boolean } | null>(null);
+  const onPointerDown = (e: React.PointerEvent) => {
+    const onBackdrop = !surfRef.current?.contains(e.target as Node);
+    pressRef.current = { x: e.clientX, y: e.clientY, onBackdrop };
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    const p = pressRef.current;
+    pressRef.current = null;
+    if (!p || !p.onBackdrop) return;
+    if (surfRef.current?.contains(e.target as Node)) return; // relâché sur la surface
+    const moved = Math.abs(e.clientX - p.x) + Math.abs(e.clientY - p.y);
+    if (moved < 12) startClose();
   };
 
   const overlay = (
@@ -536,7 +587,8 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
       <div
         ref={scrollRef}
         data-testid="morph-scroll"
-        onClick={onScrollAreaClick}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
         style={{
           position: 'fixed',
           inset: 0,
@@ -601,9 +653,24 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
                 (hasAccess && body === null ? (
                   <ResourceBodySkeleton />
                 ) : (
-                  <ResourceContentBody
-                    resource={body ? { ...resource, content: body } : resource}
-                  />
+                  <div
+                    style={
+                      startedEmpty && !reduced
+                        ? {
+                            opacity: contentIn ? 1 : 0,
+                            transform: contentIn ? 'none' : 'translateY(12px)',
+                            filter: contentIn ? 'blur(0px)' : 'blur(3px)',
+                            transition:
+                              'opacity 600ms cubic-bezier(0.22, 1, 0.36, 1), transform 600ms cubic-bezier(0.22, 1, 0.36, 1), filter 600ms cubic-bezier(0.22, 1, 0.36, 1)',
+                            willChange: 'opacity, transform, filter',
+                          }
+                        : undefined
+                    }
+                  >
+                    <ResourceContentBody
+                      resource={body ? { ...resource, content: body } : resource}
+                    />
+                  </div>
                 ))}
               {template && (
                 <div style={{ marginTop: 24 }}>
@@ -623,6 +690,17 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
                 </div>
               )}
             </div>
+
+            {/* CROIX — ancrée en haut à droite de la CARTE (défile avec elle :
+                visible en haut, disparaît quand on descend). */}
+            <button
+              type="button"
+              onClick={startClose}
+              aria-label="Fermer"
+              style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 18, lineHeight: 1, zIndex: 2, opacity: interactive ? 1 : 0, pointerEvents: interactive ? 'auto' : 'none', transition: 'opacity 160ms ease' }}
+            >
+              ✕
+            </button>
 
             {/* Clone du CONTENU CARTE (départ) — réplique la carte de la grille */}
             <div
@@ -645,16 +723,6 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
           </div>
         </div>
       </div>
-
-      {/* CROIX — FIXE à l'écran (hors du conteneur de scroll) → toujours visible. */}
-      <button
-        type="button"
-        onClick={startClose}
-        aria-label="Fermer"
-        style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 16px)', right: 16, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 18, lineHeight: 1, zIndex: 2, pointerEvents: interactive ? 'auto' : 'none', opacity: interactive ? 1 : 0, transition: 'opacity 160ms ease' }}
-      >
-        ✕
-      </button>
 
       {/* TITRE CONTINU (hero) — uniquement pendant le morph */}
       <h1 ref={heroRef} style={{ ...H1_STYLE, position: 'fixed', transformOrigin: 'top left', willChange: 'transform, opacity', pointerEvents: 'none', zIndex: 1 }}>
