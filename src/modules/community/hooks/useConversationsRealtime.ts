@@ -25,16 +25,11 @@ import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 // avant de souscrire, et on le ré-applique au refresh de session (TOKEN_REFRESHED)
 // pour ne pas perdre la livraison après expiration (~1 h).
 //
-// FILET DE SÉCURITÉ (transitoire) : tant que le broadcast n'est pas confirmé en
-// prod, on garde EN PARALLÈLE l'ancien abonnement table-wide postgres_changes
-// (mig. 039). Les deux chemins alimentent le même coalescing → aucun doublon
-// (un message → au plus un callback par conversation). Si le broadcast échoue
-// silencieusement (auth canal privé, RLS…), la livraison reste assurée. À
-// retirer dans une migration de nettoyage une fois le broadcast validé en prod.
-
-// Compteur global → topic unique par montage pour le canal fallback (évite la
-// collision Strict Mode "cannot add postgres_changes callbacks after subscribe()").
-let channelSeq = 0;
+// Historique : la mig. 047 a d'abord conservé EN PARALLÈLE l'ancien abonnement
+// table-wide postgres_changes (mig. 039) comme filet de sécurité, le temps de
+// valider le broadcast en prod. Broadcast confirmé → filet retiré (mig. 048 :
+// messages sorti de la publication supabase_realtime). Le DM ne repose plus que
+// sur le broadcast par conversation.
 
 export function useConversationsRealtime(
   currentUserId: string,
@@ -67,7 +62,6 @@ export function useConversationsRealtime(
   useEffect(() => {
     if (!currentUserId) return;
     const supabase = createSupabaseBrowserClient();
-    const nonce = ++channelSeq;
 
     // Coalescing local 300 ms (dédupliqué par conversation_id) : un burst de
     // messages → un seul appel du callback par conversation.
@@ -131,25 +125,6 @@ export function useConversationsRealtime(
         })
         .subscribe();
       channels.push(userCh);
-
-      // 3. FILET DE SÉCURITÉ — ancien chemin postgres_changes table-wide (mig. 039).
-      // Couvre AUSSI les nouvelles conversations (un message dans une conv inconnue
-      // → schedule → handleIncomingMessage charge la conv). Même coalescing que le
-      // broadcast → pas de doublon. À retirer une fois le broadcast confirmé.
-      const fallbackCh = supabase
-        .channel(`nc-messages-fallback:${currentUserId}:${nonce}`)
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "messages" },
-          (payload) => {
-            const row = payload.new as { conversation_id?: string; sender_id?: string };
-            if (!row?.conversation_id) return;
-            if (row.sender_id === currentUserId) return;
-            schedule(row.conversation_id);
-          },
-        )
-        .subscribe();
-      channels.push(fallbackCh);
     })();
 
     return () => {
