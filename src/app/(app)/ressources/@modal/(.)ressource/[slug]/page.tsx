@@ -12,8 +12,11 @@ interface Props {
 export default async function InterceptedResourcePage({ params }: Props) {
   const { slug } = await params;
 
+  // key={slug} : remonte un overlay NEUF à chaque ressource → l'effet de morph
+  // re-tourne et aucune animation de la précédente ne persiste (le slot @modal
+  // peut réutiliser/garder l'instance entre deux ressources).
   return (
-    <ResourceMorphOverlay>
+    <ResourceMorphOverlay key={slug}>
       <Suspense fallback={<BodySkeleton />}>
         <ResourceDetailBody slug={slug} />
       </Suspense>

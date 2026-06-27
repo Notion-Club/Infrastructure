@@ -75,8 +75,15 @@ export function ResourceMorphOverlay({ children }: { children: ReactNode }) {
   const animsRef = useRef<Animation[]>([]);
   const closingRef = useRef(false);
   const [interactive, setInteractive] = useState(false);
+  // Auto-masquage après fermeture : même si le slot @modal ne se réinitialise
+  // pas au router.back() (réutilisation parallel-route), l'overlay rend null →
+  // zéro résidu de l'animation précédente.
+  const [hidden, setHidden] = useState(false);
 
-  const onClosed = useCallback(() => router.back(), [router]);
+  const onClosed = useCallback(() => {
+    setHidden(true);
+    router.back();
+  }, [router]);
 
   // ── Ouverture ───────────────────────────────────────────────────────────
   useLayoutEffect(() => {
@@ -200,12 +207,33 @@ export function ResourceMorphOverlay({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [close]);
 
+  // Scroll-lock du DOCUMENT pendant que l'overlay est ouvert (la grille derrière
+  // ne défile plus, y compris iOS) + restauration exacte de la position.
+  useEffect(() => {
+    const body = document.body;
+    const scrollY = window.scrollY;
+    const prev = { position: body.style.position, top: body.style.top, width: body.style.width, overflow: body.style.overflow };
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    return () => {
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.width = prev.width;
+      body.style.overflow = prev.overflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   useEffect(() => {
     return () => {
       animsRef.current.forEach((a) => a.cancel());
       animsRef.current = [];
     };
   }, []);
+
+  if (hidden) return null;
 
   // Données carte (header instantané, sans fetch). On suppose une Resource.
   const resource = source?.resource as Resource | undefined;
