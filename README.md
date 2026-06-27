@@ -125,9 +125,10 @@ src/
 │   ├── community/           #   feed · réactions · commentaires · messagerie
 │   ├── coaching/            #   appels · éligibilité · transcriptions Notion
 │   ├── ressources/          #   bibliothèque · gating par capability
-│   ├── onboarding/          #   parcours d'onboarding
-│   ├── notion-sync/         #   socle de synchro Notion ↔ Supabase
-│   └── settings/            #   réglages du compte
+│   ├── onboarding/          #   parcours d'onboarding (pré-écrit, à câbler)
+│   ├── notion-sync/         #   socle de synchro Notion ↔ Supabase (amorce)
+│   ├── settings/            #   réglages du compte
+│   └── admin/               #   actions admin (listes, membres, push)
 │
 └── shared/                  # transverse : ui/, components/, lib/, hooks/, types/
     ├── components/          #   dashboard, settings, coaching, feedback-widget, theme, pwa…

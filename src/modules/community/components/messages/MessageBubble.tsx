@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { FileText, Forward, Pencil, Check, X } from "lucide-react";
+import { FileText, Forward, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Message } from "../../types/conversation.types";
 import { timeAgo, fullDateTime } from "../../utils/date-helpers";

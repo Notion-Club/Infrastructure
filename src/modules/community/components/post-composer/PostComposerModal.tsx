@@ -180,14 +180,24 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
     } catch {}
   }, [title, bodyHtml, tag, isEditMode]);
 
+  // Miroir toujours à jour de handlePublish. Sans lui, le listener keydown
+  // (attaché une seule fois, deps [onClose]) figerait le handlePublish du
+  // premier rendu — où title/body sont vides et canPublish === false. Le
+  // raccourci Cmd/Ctrl+Enter ne publiait alors jamais, même formulaire rempli.
+  const handlePublishRef = useRef(handlePublish);
+  useEffect(() => {
+    handlePublishRef.current = handlePublish;
+  });
+
   // Esc to close, Cmd/Ctrl+Enter to publish
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") { requestClose(onClose); return; }
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
         // handlePublish gère lui-même la validation : il déclenchera
-        // setSubmitAttempted si invalide, sinon publiera.
-        handlePublish();
+        // setSubmitAttempted si invalide, sinon publiera. On passe par la ref
+        // pour toujours appeler la version courante (état frais).
+        handlePublishRef.current();
       }
     }
     document.addEventListener("keydown", onKey);

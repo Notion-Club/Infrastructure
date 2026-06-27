@@ -27,9 +27,10 @@ const FALLBACK_HEIGHT = 560;
 // Délai avant fermeture auto après la confirmation (on laisse voir la page de
 // remerciement native Fillout pendant ce temps).
 const AUTO_CLOSE_MS = 2500;
-// TEMP — logue les postMessages reçus pour identifier le format exact de
-// l'event de soumission Fillout (à repasser à false une fois calé).
-const FILLOUT_DEBUG = true;
+// Logue les postMessages reçus pour identifier le format exact de l'event de
+// soumission Fillout. Désactivé en prod (bruit console + données postMessage
+// tierces) ; repasser temporairement à true en local pour diagnostiquer.
+const FILLOUT_DEBUG = false;
 
 // Recherche une valeur de hauteur dans le payload, quel que soit le format de
 // l'embed :
