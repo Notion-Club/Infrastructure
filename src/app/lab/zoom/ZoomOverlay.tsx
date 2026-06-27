@@ -225,6 +225,7 @@ export function ZoomOverlay({
       {/* Surface VIDE qui morphe (container) */}
       <div
         ref={surfRef}
+        data-debug="surface"
         style={{
           position: 'fixed',
           transformOrigin: 'top left',
@@ -240,6 +241,7 @@ export function ZoomOverlay({
       {/* Contenu ENCADRÉ — taille NATURELLE (jamais agrandie) */}
       <div
         ref={encRef}
+        data-debug="enc-content"
         style={{
           position: 'fixed',
           top: 'calc(env(safe-area-inset-top, 0px) + 76px)',
@@ -301,6 +303,7 @@ export function ZoomOverlay({
       {/* Contenu CARTE — taille NATURELLE, suit la surface, sort en premier */}
       <div
         ref={cardRef}
+        data-debug="card-content"
         style={{
           position: 'fixed',
           top: source.cardRect.top,
