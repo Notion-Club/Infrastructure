@@ -1,0 +1,28 @@
+name: e2e-morph
+
+# Filet de fiabilité du morph /Ressources : exécute le code RÉEL de l'overlay
+# (via la route dev-only /lab/morph sur données mockées) en chromium headless.
+# Aucun secret requis — le runner injecte des valeurs factices (Notion 401 → []
+# / Supabase getUser sans effet), cf. e2e/run-morph.mjs.
+on:
+  pull_request:
+    paths:
+      - 'src/modules/ressources/**'
+      - 'src/app/(app)/ressources/**'
+      - 'src/app/lab/morph/**'
+      - 'e2e/**'
+  workflow_dispatch:
+
+jobs:
+  morph:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e:morph
