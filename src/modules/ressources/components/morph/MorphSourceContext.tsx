@@ -22,6 +22,8 @@ export interface MorphSource {
   cardRect: DOMRect;
   /** Géométrie du titre de la carte (ancre du titre continu). */
   titleRect: DOMRect;
+  /** Élément déclencheur (le lien de la carte) — pour restituer le focus à la fermeture (a11y). */
+  triggerEl?: HTMLElement | null;
 }
 
 interface MorphCtx {
