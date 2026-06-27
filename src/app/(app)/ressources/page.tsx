@@ -28,17 +28,8 @@ export default async function RessourcesPage() {
                 gap: 28,
               }}
             >
-              {/* Header */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: 'var(--color-text-muted)',
-                    margin: 0,
-                  }}
-                >
-                  Bibliothèque
-                </p>
+              {/* Header — titre + sous-titre (même schéma que /Formation). */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <h1
                   style={{
                     fontSize: 'clamp(32px, 4vw, 44px)',
@@ -51,6 +42,17 @@ export default async function RessourcesPage() {
                 >
                   Ressources
                 </h1>
+                <p
+                  style={{
+                    fontSize: 15,
+                    color: 'var(--color-text-secondary)',
+                    margin: 0,
+                    maxWidth: 560,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Retrouve les process, rediffusions et templates disponibles
+                </p>
               </div>
 
               {/* Grid */}

@@ -2406,7 +2406,18 @@ html {
   padding: 56px 18px 0;
 }
 .nc-invoice-hero__paper {
-  filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.12));
+  /* AUCUNE ombre projetée. L'ancienne `drop-shadow(0 12px 30px …)` se projetait
+     ~12px SOUS le papier, dans la section propriétés → bande horizontale sombre
+     qui « cassait le modal en deux ». L'aperçu se fond désormais dans la surface
+     uniquement via le dégradé du bas (.nc-invoice-hero__veil) ; sa bordure
+     interne suffit à le définir. */
+  filter: none;
+}
+/* Neutralise aussi l'ombre INLINE de l'InvoicePreview (box-shadow projeté vers
+   le bas) — sinon elle recrée la même bande. Scopé au modal détail → l'aperçu
+   du CTA « Voir mes paiements » (Facturation) garde, lui, son ombre. */
+.nc-invoice-hero__paper > * {
+  box-shadow: none !important;
 }
 /* Fondu aperçu ↔ propriétés : un SEUL dégradé opaque, transparent en haut →
    couleur EXACTE de la surface de la modale (--color-surface-card) en bas, sur
@@ -3402,7 +3413,12 @@ html.dark .nc-lt-scrim {
 .nc-pwa-bottom-frost {
   display: none;
 }
-@media (display-mode: standalone) {
+/* Mobile UNIQUEMENT (la BottomNav flottante n'existe qu'en < md). Le combo
+   `standalone AND max-width:767px` est nécessaire : à spécificité égale, ce bloc
+   l'emportait sur le `md:hidden` de l'élément (ordre source) → le flou
+   s'affichait en PWA DESKTOP et passait DEVANT l'encadré /Communauté et
+   /Coaching. Borné au mobile, il ne couvre plus rien sur desktop. */
+@media (display-mode: standalone) and (max-width: 767px) {
   .nc-pwa-bottom-frost {
     display: block;
   }

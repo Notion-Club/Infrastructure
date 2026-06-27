@@ -20,10 +20,10 @@ export function FormationIndex({ programs }: { programs: ProgramSummary[] }) {
             lineHeight: 1.1,
           }}
         >
-          Tes programmes
+          Formations
         </h1>
         <p style={{ fontSize: 15, color: "var(--color-text-secondary)", margin: 0, maxWidth: 560, lineHeight: 1.5 }}>
-          Reprends là où tu en étais, ou démarre un nouveau programme.
+          Retrouve les programmes du Notion Club pour te former.
         </p>
       </header>
 

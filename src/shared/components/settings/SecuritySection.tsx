@@ -124,7 +124,7 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
               color: "var(--color-text-secondary)",
             }}
           >
-            <LockCircleDotted size={14} />
+            <LockCircleDotted size={18} />
           </span>
           <span
             style={{
