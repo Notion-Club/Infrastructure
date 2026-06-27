@@ -724,8 +724,31 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
         </div>
       </div>
 
+      {/* FLOU HAUT (PWA) : bande floutée en haut → le contenu se brouille en
+          remontant. Masquée en dégradé (fort en haut, nul en bas) pour ne PAS
+          couvrir la croix/le titre au repos (situés sous la bande). Non
+          interactive ; visible seulement une fois l'overlay ouvert. */}
+      <div
+        aria-hidden
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: TOP_OFFSET,
+          pointerEvents: 'none',
+          zIndex: 1,
+          opacity: interactive ? 1 : 0,
+          transition: 'opacity 200ms ease',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          WebkitMaskImage: 'linear-gradient(to bottom, #000 35%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, #000 35%, transparent 100%)',
+        }}
+      />
+
       {/* TITRE CONTINU (hero) — uniquement pendant le morph */}
-      <h1 ref={heroRef} style={{ ...H1_STYLE, position: 'fixed', transformOrigin: 'top left', willChange: 'transform, opacity', pointerEvents: 'none', zIndex: 1 }}>
+      <h1 ref={heroRef} style={{ ...H1_STYLE, position: 'fixed', transformOrigin: 'top left', willChange: 'transform, opacity', pointerEvents: 'none', zIndex: 2 }}>
         {item.titre}
       </h1>
     </div>
