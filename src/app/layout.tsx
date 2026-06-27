@@ -163,6 +163,19 @@ export default function RootLayout({
           />
           <div className="nc-top-tint" aria-hidden />
         </div>
+        {/* Frost du BAS — PWA standalone UNIQUEMENT (cf. .nc-pwa-bottom-frost,
+            display:none par défaut, block en display-mode:standalone). Même
+            composant que le frost du haut : le contenu qui défile sous la
+            BottomNav flottante est flouté → on ne le voit plus passer dessous.
+            Monté ici (root layout) → actif sur TOUTES les pages. z38 < nav (z50)
+            → la pilule de nav reste nette par-dessus. */}
+        <div className="nc-pwa-bottom-frost md:hidden">
+          <GradualBlurOverlay
+            anchor="bottom"
+            height="calc(env(safe-area-inset-bottom, 0px) + 100px)"
+            zIndex={38}
+          />
+        </div>
       </body>
     </html>
   );

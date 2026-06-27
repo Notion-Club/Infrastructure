@@ -3394,6 +3394,52 @@ html.dark .nc-lt-scrim {
   }
 }
 
+/* Frost du BAS — PWA standalone UNIQUEMENT. Gate par display-mode : masqué en
+   Safari navigateur (où un voile bas créait un halo blanchâtre, cf.
+   docs/pwa/safari-web-pwa-integration.md), affiché en app installée pour cacher
+   le contenu qui défile sous la BottomNav flottante. Le composant
+   GradualBlurOverlay (flou pur, sans couleur) est rendu dans le root layout. */
+.nc-pwa-bottom-frost {
+  display: none;
+}
+@media (display-mode: standalone) {
+  .nc-pwa-bottom-frost {
+    display: block;
+  }
+}
+
+/* Coaching — MOBILE : page NON scrollable. L'encadré est borné entre la rangée
+   d'actions (haut) et la BottomNav (bas) avec un ESPACEMENT VIDE IDENTIQUE en
+   haut et en bas (14px) ; la liste d'historique (slot2) scrolle en INTERNE au
+   lieu d'allonger le document → l'encadré ne descend plus sous la barre de nav.
+   Desktop INCHANGÉ (scroll-document, l'encadré grandit avec le contenu). */
+.nc-coaching-shell {
+  min-height: 100lvh;
+}
+@media (max-width: 767px) {
+  .nc-coaching-shell {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .nc-coaching-content {
+    /* Haut : 64px. Le halo (.nc-page-halo) porte déjà le safe-area-inset-top et
+       les actions finissent à 50px + safe-top → écart visible = 14px. */
+    padding-top: 64px;
+    /* Bas : haut de la BottomNav = 66px + safe-bottom (10 bottom + 56 hauteur),
+       + le MÊME écart de 14px = 80px + safe-bottom. */
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    min-height: 0;
+  }
+  .nc-coaching-card {
+    min-height: 0;
+  }
+  .nc-coaching-slot2 {
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
 /* Modale détail d'appel coaching (plan d'action + transcription). Sur mobile,
    on raccourcit légèrement la fenêtre (88vh → 82dvh) pour qu'elle respire
    au-dessus de la BottomNav ; le contenu scrolle déjà en interne. */

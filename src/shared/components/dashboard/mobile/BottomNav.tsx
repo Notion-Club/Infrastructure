@@ -227,11 +227,19 @@ export function BottomNav() {
               // Animation immédiate au clic — avant que Next.js charge la page.
               lastClickedRef.current = i;
               moveTo(i, true);
-              // Comportement Communauté : scroll vers le haut si déjà sur la page.
+              // Communauté : depuis une sous-route (messages…), revenir au feed
+              // ET remonter en haut.
               if (isCommunaute && pathname.startsWith("/communaute")) {
                 e.preventDefault();
                 window.scrollTo({ top: 0, behavior: "smooth" });
                 router.push("/communaute");
+                return;
+              }
+              // Clic sur l'onglet DÉJÀ actif → remonter en haut de la page
+              // courante au lieu de re-naviguer.
+              if (isActive) {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: "smooth" });
               }
             }}
             style={{

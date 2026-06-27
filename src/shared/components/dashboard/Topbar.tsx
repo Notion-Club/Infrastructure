@@ -240,7 +240,16 @@ export function Topbar() {
                   key={href}
                   href={href}
                   ref={(el) => { itemRefs.current[i] = el; }}
-                  onClick={() => { lastClickedRef.current = i; moveTo(i, true); }}
+                  onClick={(e) => {
+                    lastClickedRef.current = i;
+                    moveTo(i, true);
+                    // Clic sur l'onglet DÉJÀ actif → remonter en haut de la page
+                    // courante au lieu de re-naviguer.
+                    if (isActive) {
+                      e.preventDefault();
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }
+                  }}
                   data-fb-label={`Onglet « ${label} » · Barre de navigation`}
                   style={{
                     position: "relative",

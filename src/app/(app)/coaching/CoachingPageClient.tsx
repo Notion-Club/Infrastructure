@@ -513,19 +513,21 @@ export default function CoachingPageClient({
           scroller (`minHeight: 100lvh`), Safari replie sa barre et l'encadré
           descend pleinement comme en PWA. `flex-1` (sans `min-h-0`) → l'encadré
           remplit au moins le viewport puis grandit avec l'historique. */}
-      <div className="nc-page-halo flex flex-col" style={{ minHeight: "100lvh" }}>
+      <div className="nc-page-halo nc-coaching-shell flex flex-col">
         <main
           className="flex flex-col flex-1"
           style={{ position: "relative", zIndex: 1 }}
         >
-          {/* Contenu principal */}
+          {/* Contenu principal. Mobile : paddings haut/bas symétriques + hauteur
+              bornée via .nc-coaching-content (cf. globals.css) → page non
+              scrollable. Desktop : md:pt/pb conservés (scroll-document). */}
           <div
-            className="px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8 w-full flex flex-col flex-1"
+            className="nc-coaching-content px-4 md:px-10 md:pt-[104px] md:pb-8 w-full flex flex-col flex-1"
             style={{ maxWidth: 1000, margin: "0 auto" }}
           >
             {/* Encadré global unique — Slot 1 (bannière) + Slot 2 (historique) */}
             <div
-              className="nc-mode-in flex flex-col flex-1"
+              className="nc-mode-in nc-coaching-card flex flex-col flex-1"
               data-fb-label="Encadré global · Coaching"
               style={{
                 background: "var(--color-surface-card)",
@@ -546,10 +548,12 @@ export default function CoachingPageClient({
                 />
               </div>
 
-              {/* Slot 2 — Historique / teaser / état vide. Flux naturel (plus de
-                  scroll interne) : la liste grandit et le DOCUMENT scrolle. */}
+              {/* Slot 2 — Historique / teaser / état vide. Mobile : scroll
+                  INTERNE (.nc-coaching-slot2 → overflow-y:auto + min-h-0) pour
+                  que l'encadré reste borné au viewport. Desktop : flux naturel
+                  (la liste grandit, le document scrolle). */}
               <div
-                className="flex-1"
+                className="nc-coaching-slot2 flex-1"
                 style={{ padding: "20px 10px 8px" }}
               >
                 {slot2}
