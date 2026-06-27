@@ -99,8 +99,8 @@ export function LabCard({ resource, onOpen }: LabCardProps) {
             flexWrap: 'wrap',
           }}
         >
-          <LabBadge kind="formation" label={resource.formation} />
-          <LabBadge kind="type" label={resource.type} />
+          {resource.formation && <LabBadge kind="formation" label={resource.formation} />}
+          {resource.type && <LabBadge kind="type" label={resource.type} />}
         </div>
       </div>
     </button>

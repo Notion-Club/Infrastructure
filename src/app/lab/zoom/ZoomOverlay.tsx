@@ -259,8 +259,8 @@ export function ZoomOverlay({
           <p style={{ fontSize: 15, color: 'var(--color-text-secondary)', margin: '0 0 16px', lineHeight: 1.6 }}>{resource.description}</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
             <LabBadge kind="ressource" label="Ressource" />
-            <LabBadge kind="formation" label={resource.formation} />
-            <LabBadge kind="type" label={resource.type} />
+            {resource.formation && <LabBadge kind="formation" label={resource.formation} />}
+            {resource.type && <LabBadge kind="type" label={resource.type} />}
           </div>
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border-default)', margin: '0 0 22px' }} />
           <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', lineHeight: 1.7, margin: '0 0 14px' }}>
@@ -293,8 +293,8 @@ export function ZoomOverlay({
             <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{resource.description}</p>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <LabBadge kind="formation" label={resource.formation} />
-            <LabBadge kind="type" label={resource.type} />
+            {resource.formation && <LabBadge kind="formation" label={resource.formation} />}
+            {resource.type && <LabBadge kind="type" label={resource.type} />}
           </div>
         </div>
       </div>

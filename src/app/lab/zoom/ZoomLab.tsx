@@ -1,15 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { LAB_RESOURCES, type LabResource } from './mock';
+import type { LabResource } from './mock';
 import { LabCard } from './LabCard';
 import { ZoomOverlay, type ZoomSource } from './ZoomOverlay';
 
-// Étape 2 — le morph. Clic carte → clone `position: fixed` qui grandit (spring
-// WAAPI) depuis le rect EXACT de la carte vers l'encadré, titre ancré + cross-
-// fade temporisé. La grille reste montée et IMMOBILE derrière. Fond = vrai
-// `.nc-app-bg` hérité du root layout.
-export function ZoomLab() {
+// Morph zoom-transition sur données RÉELLES : la grille reçoit les ressources
+// Notion (ou les mocks en fallback) depuis le RSC parent. `source` indique
+// d'où viennent les données pour le débogage en conditions réelles.
+export function ZoomLab({
+  resources,
+  source,
+}: {
+  resources: LabResource[];
+  source: 'notion' | 'mock';
+}) {
   const [active, setActive] = useState<ZoomSource | null>(null);
 
   const open = (resource: LabResource, surface: HTMLElement) => {
@@ -41,7 +46,7 @@ export function ZoomLab() {
                 color: '#c0392b',
               }}
             >
-              Lab · dev-only
+              Lab · dev-only · {source === 'notion' ? 'données Notion réelles' : 'mock (fallback)'}
             </span>
             <h1
               style={{
@@ -56,12 +61,12 @@ export function ZoomLab() {
               Zoom-transition — prototype
             </h1>
             <p style={{ fontSize: 15, color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.6 }}>
-              Étape 2 : clique une carte → morph spring vers l’encadré, titre ancré, grille immobile.
+              {resources.length} ressources · clique une carte → morph spring vers l’encadré.
             </p>
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {LAB_RESOURCES.map((resource) => (
+            {resources.map((resource) => (
               <div key={resource.slug} className="nc-grid-card" data-card-id={resource.slug}>
                 <LabCard resource={resource} onOpen={open} />
               </div>
