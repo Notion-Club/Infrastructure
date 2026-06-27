@@ -1,90 +1,167 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 
-// Abonnement Supabase Realtime sur la table messages (mig. 039), pour injecter
-// les nouveaux messages en live dans le thread + la liste des conversations.
+// DM temps réel via Broadcast from Database (mig. 047) — remplace l'abonnement
+// table-wide postgres_changes de la mig. 039.
 //
-// Calqué sur useNotifications (centre de notifications) :
-//   1. Abonnement postgres_changes (INSERT) sur public.messages. La RLS
-//      messages_select_in_conv (mig. 014) fait le filtrage de sécurité : on
-//      ne reçoit en Realtime QUE les messages de nos conversations. Pas de
-//      filtre postgres explicite (on ne peut pas filtrer par participant via
-//      postgres_changes — la RLS s'en charge).
-//   2. À chaque INSERT : on ignore ses PROPRES messages (sender_id === me,
-//      déjà gérés par l'optimistic + re-fetch du flux d'envoi), sinon on
-//      planifie un refresh de la conversation via le callback.
-//   3. Coalescing 300 ms (dédupliqué par conversation_id) : un burst de
-//      messages → un seul appel du callback par conversation.
+// Pourquoi ce changement
+// ----------------------
+// postgres_changes obligeait CHAQUE client à écouter TOUTE la table messages, la
+// RLS filtrant la livraison côté serveur → fan-out O(users connectés) par message
+// (mode d'échec connu à l'échelle). Ici, un trigger DB diffuse chaque message sur
+// un canal PRIVÉ propre à sa conversation (`conv:<id>`). Le client ne s'abonne
+// qu'aux canaux de SES conversations → fan-out O(participants) = 2.
 //
-// Le callback est lu via callbackRef pour ne PAS relancer l'abonnement quand
-// MessagesLayout re-render et passe une nouvelle référence de fonction.
-// L'abonnement ne dépend que de currentUserId.
+// Deux types de canaux privés (Realtime Authorization, RLS sur realtime.messages) :
+//   - `conv:<conversationId>` : reçoit les nouveaux messages d'une conversation.
+//   - `dm-user:<currentUserId>` : reçoit la création d'une nouvelle conversation
+//     (un premier message d'un inconnu : on n'est pas encore abonné à son canal
+//     conv, donc le serveur nous prévient via notre canal user pour qu'on la charge).
+//
+// Les canaux privés exigent un token : on appelle supabase.realtime.setAuth()
+// avant de souscrire, et on le ré-applique au refresh de session (TOKEN_REFRESHED)
+// pour ne pas perdre la livraison après expiration (~1 h).
+//
+// FILET DE SÉCURITÉ (transitoire) : tant que le broadcast n'est pas confirmé en
+// prod, on garde EN PARALLÈLE l'ancien abonnement table-wide postgres_changes
+// (mig. 039). Les deux chemins alimentent le même coalescing → aucun doublon
+// (un message → au plus un callback par conversation). Si le broadcast échoue
+// silencieusement (auth canal privé, RLS…), la livraison reste assurée. À
+// retirer dans une migration de nettoyage une fois le broadcast validé en prod.
 
-// Compteur global → topic de channel unique par montage (même raison que
-// useNotifications : monter→démonter→remonter sur le même topic en Strict Mode
-// déclenche "cannot add postgres_changes callbacks after subscribe()").
+// Compteur global → topic unique par montage pour le canal fallback (évite la
+// collision Strict Mode "cannot add postgres_changes callbacks after subscribe()").
 let channelSeq = 0;
 
 export function useConversationsRealtime(
   currentUserId: string,
+  conversationIds: string[],
   onIncomingMessage: (conversationId: string) => void,
+  onNewConversation: (conversationId: string) => void,
 ): void {
-  const callbackRef = useRef(onIncomingMessage);
+  // Callbacks lus via refs → l'abonnement ne se relance pas quand le parent
+  // re-render et passe de nouvelles références de fonction.
+  const onIncomingRef = useRef(onIncomingMessage);
+  const onNewConvRef = useRef(onNewConversation);
   useEffect(() => {
-    callbackRef.current = onIncomingMessage;
-  }, [onIncomingMessage]);
+    onIncomingRef.current = onIncomingMessage;
+    onNewConvRef.current = onNewConversation;
+  }, [onIncomingMessage, onNewConversation]);
+
+  // Clé valeur-stable du SET de conversations : ne change que si l'ensemble des
+  // ids change (pas à chaque nouveau message, qui ne fait que muter lastMessageAt).
+  const idsKey = useMemo(
+    () => [...conversationIds].sort().join(","),
+    [conversationIds],
+  );
+  // Miroir des ids, mis à jour en effet (jamais pendant le render — règle
+  // react-hooks/refs du repo), lu par l'effet d'abonnement via la clé.
+  const idsRef = useRef(conversationIds);
+  useEffect(() => {
+    idsRef.current = conversationIds;
+  }, [conversationIds]);
 
   useEffect(() => {
     if (!currentUserId) return;
     const supabase = createSupabaseBrowserClient();
     const nonce = ++channelSeq;
 
-    // Coalescing local à l'effet (réinitialisé si le user change).
+    // Coalescing local 300 ms (dédupliqué par conversation_id) : un burst de
+    // messages → un seul appel du callback par conversation.
     const pending = new Set<string>();
     let timer: number | null = null;
-
     const flush = () => {
       timer = null;
       const ids = Array.from(pending);
       pending.clear();
-      for (const id of ids) callbackRef.current(id);
+      for (const id of ids) onIncomingRef.current(id);
     };
-
     const schedule = (conversationId: string) => {
       pending.add(conversationId);
       if (timer) return;
       timer = window.setTimeout(flush, 300);
     };
 
-    const channel: RealtimeChannel = supabase
-      .channel(`nc-messages:${currentUserId}:${nonce}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const row = payload.new as {
-            conversation_id?: string;
-            sender_id?: string;
-          };
-          if (!row?.conversation_id) return;
-          // Mes propres messages : déjà gérés par l'optimistic + re-fetch du
-          // flux d'envoi. On les ignore pour éviter le double round-trip.
-          if (row.sender_id === currentUserId) return;
-          schedule(row.conversation_id);
-        },
-      )
-      .subscribe();
+    let cancelled = false;
+    let channels: RealtimeChannel[] = [];
+    let authSub: { unsubscribe: () => void } | null = null;
+
+    (async () => {
+      // Token requis pour les canaux privés (RLS realtime.messages).
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (token) await supabase.realtime.setAuth(token);
+      if (cancelled) return;
+
+      // Ré-applique le token au refresh de session, sinon les canaux privés
+      // cessent silencieusement de recevoir après expiration (~1 h).
+      const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === "TOKEN_REFRESHED" && session?.access_token) {
+          void supabase.realtime.setAuth(session.access_token);
+        }
+      });
+      authSub = sub.subscription;
+
+      const ids = idsRef.current;
+
+      // 1. Un canal privé par conversation → nouveaux messages.
+      for (const convId of ids) {
+        const ch = supabase
+          .channel(`conv:${convId}`, { config: { private: true } })
+          .on("broadcast", { event: "INSERT" }, (payload) => {
+            const record = (payload?.payload as { record?: { sender_id?: string } } | undefined)?.record;
+            // On ignore ses propres messages (déjà gérés par l'optimistic +
+            // réconciliation du flux d'envoi — mig. 047 / Phase 1).
+            if (record?.sender_id === currentUserId) return;
+            schedule(convId);
+          })
+          .subscribe();
+        channels.push(ch);
+      }
+
+      // 2. Canal privé de l'utilisateur → découverte des nouvelles conversations.
+      const userCh = supabase
+        .channel(`dm-user:${currentUserId}`, { config: { private: true } })
+        .on("broadcast", { event: "new_conversation" }, (payload) => {
+          const convId = (payload?.payload as { conversation_id?: string } | undefined)?.conversation_id;
+          if (convId) onNewConvRef.current(convId);
+        })
+        .subscribe();
+      channels.push(userCh);
+
+      // 3. FILET DE SÉCURITÉ — ancien chemin postgres_changes table-wide (mig. 039).
+      // Couvre AUSSI les nouvelles conversations (un message dans une conv inconnue
+      // → schedule → handleIncomingMessage charge la conv). Même coalescing que le
+      // broadcast → pas de doublon. À retirer une fois le broadcast confirmé.
+      const fallbackCh = supabase
+        .channel(`nc-messages-fallback:${currentUserId}:${nonce}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "messages" },
+          (payload) => {
+            const row = payload.new as { conversation_id?: string; sender_id?: string };
+            if (!row?.conversation_id) return;
+            if (row.sender_id === currentUserId) return;
+            schedule(row.conversation_id);
+          },
+        )
+        .subscribe();
+      channels.push(fallbackCh);
+    })();
 
     return () => {
+      cancelled = true;
       if (timer) {
         window.clearTimeout(timer);
         timer = null;
       }
       pending.clear();
-      supabase.removeChannel(channel);
+      authSub?.unsubscribe();
+      for (const ch of channels) supabase.removeChannel(ch);
+      channels = [];
     };
-  }, [currentUserId]);
+  }, [currentUserId, idsKey]);
 }
