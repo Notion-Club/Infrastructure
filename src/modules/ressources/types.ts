@@ -12,17 +12,11 @@ export type TemplateType = 'Pour les Consultants Notion' | 'Système Généralis
 export type UserCapability = 'challenge' | 'formation' | 'accompagnement';
 export type ResourceVisibility = 'Publique' | 'Challenge Gratuit' | 'Formation' | 'Accompagnement';
 
-export type ListItem = { text: string; children?: ContentBlock[] };
-
-export type ContentBlock =
-  | { type: 'paragraph'; text: string }
-  | { type: 'heading'; level: 2 | 3; text: string }
-  | { type: 'tella_embed'; url: string }
-  | { type: 'image'; url: string; alt?: string }
-  | { type: 'list'; items: ListItem[] }
-  | { type: 'callout'; icon: string | null; text: string; children: ContentBlock[] }
-  | { type: 'quote'; text: string; children: ContentBlock[] }
-  | { type: 'code'; language: string; text: string };
+// Le corps des ressources est désormais l'arbre normalisé du routeur Notion
+// unifié (rich text + annotations complètes, tous types de blocs supportés),
+// rendu par <NotionRenderer />. Remplace l'ancien `ContentBlock` lossy.
+import type { NotionBlock } from '@/shared/lib/notion/router';
+export type { NotionBlock };
 
 export interface Resource {
   category: 'resource';
@@ -34,7 +28,7 @@ export interface Resource {
   type: ResourceMetierType[];
   visibilite: ResourceVisibility;
   dateCreation: string;
-  content: ContentBlock[];
+  content: NotionBlock[];
 }
 
 export interface Template {

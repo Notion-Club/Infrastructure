@@ -4,7 +4,7 @@ export type {
   ResourceMetierType,
   TemplateType,
   UserCapability,
-  ContentBlock,
+  NotionBlock,
   Resource,
   Template,
   ResourceItem,
