@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useCollapseTransition } from "@/shared/lib/hooks/useCollapseTransition";
 import type { Comment } from "../../types/comment.types";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
@@ -47,6 +48,14 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAllReplies, setShowAllReplies] = useState(false);
   const [updating, startUpdate] = useTransition();
+
+  // Montage/démontage animé en collapse (entrée + sortie) des composers inline,
+  // pour qu'« Annuler »/envoi ne démonte plus le champ sec. Cf. globals.css
+  // `.nc-composer-collapse`.
+  const reply = useCollapseTransition(replyOpen);
+  // Édition : même collapse, mais en crossfade au-dessus du corps du commentaire
+  // (grille `.nc-composer-swap`) pour éviter le bounce du swap composer ↔ texte.
+  const edit = useCollapseTransition(editOpen);
 
   const isAuthor = comment.author.id === currentUser.id;
   const isPrivileged = currentUser.role === "admin" || currentUser.role === "mentor";
@@ -171,23 +180,32 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
             )}
           </div>
 
-          {editOpen ? (
-            <CommentComposer
-              currentUser={currentUser}
-              devRole={devRole}
-              placeholder="Modifier votre commentaire…"
-              initialValue={commentData.body}
-              onCancelReply={() => setEditOpen(false)}
-              onSubmit={handleEditSubmit}
-              compact
-              submitLabel={updating ? "Enregistrement…" : "Enregistrer"}
-              disabled={updating}
-            />
-          ) : (
-            <div style={{ fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>
+          {/* Crossfade en place : le composer d'édition (collapse) et le corps
+              du commentaire partagent la même cellule de grille → la hauteur
+              suit le plus grand des deux, sans bounce au swap. */}
+          <div className="nc-composer-swap">
+            {edit.mounted && (
+              <div className={`nc-composer-collapse ${edit.stateClass}`}>
+                <CommentComposer
+                  currentUser={currentUser}
+                  devRole={devRole}
+                  placeholder="Modifier votre commentaire…"
+                  initialValue={commentData.body}
+                  onCancelReply={() => setEditOpen(false)}
+                  onSubmit={handleEditSubmit}
+                  compact
+                  submitLabel={updating ? "Enregistrement…" : "Enregistrer"}
+                  disabled={updating}
+                />
+              </div>
+            )}
+            <div
+              className={`nc-composer-underlay ${editOpen ? "is-hidden" : ""}`}
+              style={{ fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}
+            >
               {renderBodyRich(commentData.body, commentData.mentions)}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Actions */}
@@ -215,13 +233,13 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
           </div>
         )}
 
-        {/* Inline reply composer — opens directly below this comment */}
-        {replyOpen && (
+        {/* Inline reply composer — opens directly below this comment.
+            Monté tant que l'animation de sortie n'est pas finie (collapse en
+            entrée comme en sortie) pour ne plus démonter le champ sec. */}
+        {reply.mounted && (
           <div
-            style={{
-              animation: "nc-mode-in 180ms var(--nc-ease) both",
-              paddingLeft: 4,
-            }}
+            className={`nc-composer-collapse ${reply.stateClass}`}
+            style={{ paddingLeft: 4 }}
           >
             <CommentComposer
               currentUser={currentUser}
