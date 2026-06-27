@@ -11,7 +11,6 @@ export { UpdatePasswordForm } from "./components/UpdatePasswordForm";
 // Mockup statique (étape 1 — zéro logique Supabase).
 export { AuthCard, type AuthCardState } from "./components/AuthCard";
 export { AuthMockup } from "./components/AuthMockup";
-export { GoogleButton } from "./components/GoogleButton";
 
 export {
   signUpAction,

@@ -1,5 +1,4 @@
 // Library d'icônes in-app (SF Symbols Apple), normalisées 24×24. SVG d'origine dans ./source/
-export { ClockArrowRight } from "./ClockArrowRight";
 export { ArrowReturn } from "./ArrowReturn";
 export { At } from "./At";
 export { Bell } from "./Bell";
@@ -42,6 +41,5 @@ export { Sparkles } from "./Sparkles";
 export { SunMax } from "./SunMax";
 export { Templates } from "./Templates";
 export { Trash } from "./Trash";
-export { Waveform } from "./Waveform";
 export { WaveformBadgeSearch } from "./WaveformBadgeSearch";
 export { WrenchScrewdriver } from "./WrenchScrewdriver";
