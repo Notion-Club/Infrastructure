@@ -151,7 +151,7 @@ E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
   focus-trap, fermeture (zéro résidu), **multi-cartes** (le bug d'origine),
   verrou d'accès, resize, **scroll préservé à l'ouverture/fermeture** (#249),
   **focus restitué après ouverture clavier** (#249), **scroll-document** (titre
-  qui défile, croix fixe, contenu défilable).
+  + croix qui défilent avec la carte, contenu défilable).
 - CI : `.github/workflows/e2e-morph.yml` sur chaque PR touchant `/ressources`
   (Playwright installé à la volée, hors deps repo).
 
@@ -166,14 +166,27 @@ E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
   (pas de scroll interne) et défile dans un conteneur dédié plein écran
   (`scrollRef`). Mécanique : pendant le morph la surface est `position: fixed`
   (géométrie au pixel) ; à la fin de l'ouverture elle est **relâchée en flux**
-  (`position: relative`) dans le conteneur (le `release()`), le **titre** (vrai
-  `<h1>`, le hero s'efface) défile avec le contenu, la **croix** est `fixed` hors
-  du conteneur. Fermeture : retour en haut du conteneur (`scrollTo(0,0)`) +
-  ré-ancrage en `fixed` → on rejoue le morph inverse depuis la géométrie d'ouverture.
+  (`position: relative`) dans le conteneur (le `release()`). Le **titre** (vrai
+  `<h1>`, le hero s'efface) ET la **croix** sont **ancrés à la carte** → ils
+  défilent avec elle (visibles en haut seulement). Fermeture : retour en haut du
+  conteneur (`scrollTo(0,0)`) + ré-ancrage en `fixed` → morph inverse depuis la
+  géométrie d'ouverture.
   > ⚠️ La surface ne porte **aucune** propriété de layout via le prop React
   > (position/width/height/overflow/border-radius/top/left/transform) : tout est
   > inline JS, sinon un re-render (arrivée async du body) réinitialiserait la
   > géométrie en plein morph.
+- **Fermeture au fond** : tap basé sur les **pointer events** (le `click` est
+  avalé/différé sur conteneur scrollable iOS) avec une **détente** (< 12px de
+  mouvement entre down/up) → fiable sans être hypersensible.
+- **Apparition du contenu async** (skeleton → corps Notion) : **resize fluide**
+  de la carte (skill `01-card-resize`, tween height) + **reveal** du corps
+  (skill `18-texts-reveal` : fade + translateY + blur). Ne joue qu'en chargement
+  async (`startedEmpty`) ; en synchrone le morph révèle déjà tout.
+- **iOS — tap status-bar pour remonter en haut** : NON disponible. Le scroll est
+  dans un conteneur dédié (grille gelée derrière) ; iOS ne remonte que le
+  scroller du *document*. Réconcilier les deux = scroll document (la grille
+  défilerait → conflit avec le gel). Tradeoff ouvert.
+- **Flou haut/bas en PWA pendant le scroll** : pas encore traité.
 - **View Transition** : retiré de /ressources (inerte) ; reste **app-wide**
   (communauté/formation/réglages) via `next.config` + CSS global — ne pas y
   toucher depuis ce périmètre.
@@ -192,3 +205,4 @@ E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
 | #249 | Fix fermeture : scroll figé (verrou non déplaçant + scrollRestoration manual), fin de l'encadré iOS (focus clavier-only) et du tressaut de la BottomNav ; e2e 9/9 |
 | #250 | MAJ doc |
 | #253 | Scroll-document : encadré = longueur du contenu (conteneur de scroll dédié), titre qui défile, croix fixe ; e2e 10/10 |
+| #254 | Croix ancrée à la carte (défile), resize fluide + reveal du corps async (skills 01/18), fermeture pointer-events avec détente |

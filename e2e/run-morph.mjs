@@ -194,9 +194,9 @@ async function run() {
     assert(onTrigger, 'le focus n’est pas revenu sur la carte après ouverture clavier');
   });
 
-  // 10 — Scroll-document : contenu défilable, TITRE qui défile (pas figé), CROIX
-  //      qui reste FIXE. Couvre les 3 demandes du redesign.
-  await check('scroll-document : titre défile, croix fixe, contenu défilable', async () => {
+  // 10 — Scroll-document : contenu défilable, TITRE et CROIX ancrés à la carte
+  //      (ils DÉFILENT avec elle — visibles en haut seulement).
+  await check('scroll-document : titre + croix défilent avec la carte, contenu défilable', async () => {
     await page.setViewportSize({ width: 1280, height: 700 });
     await page.evaluate(() => window.scrollTo(0, 0));
     await open(page, HREF.resOpen);
@@ -230,7 +230,7 @@ async function run() {
 
     assert(after.scrollTop >= 290, 'le conteneur n’a pas défilé');
     assert(after.titleTop < before.titleTop - 100, `le titre n’a pas défilé (${before.titleTop} → ${after.titleTop})`);
-    assert(Math.abs(after.closeTop - before.closeTop) <= 2, `la croix a bougé au scroll (${before.closeTop} → ${after.closeTop})`);
+    assert(after.closeTop < before.closeTop - 100, `la croix n’a pas défilé avec la carte (${before.closeTop} → ${after.closeTop})`);
 
     await page.keyboard.press('Escape');
     await waitClosed(page);
