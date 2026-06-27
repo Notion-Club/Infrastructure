@@ -130,6 +130,8 @@ html {
   --nc-duration-fast: 200ms;
   --nc-duration-normal: 250ms;
   --nc-duration-slow: 300ms;
+  /* Collapse des composers inline (reply / edit) — cf. useCollapseTransition. */
+  --nc-composer-collapse-dur: 250ms;
   --nc-nav-active-bg: rgba(0, 0, 0, 0.07);
   --nc-nav-hover-bg: rgba(0, 0, 0, 0.04);
   --nc-segmented-active-bg: #ffffff;
@@ -1430,6 +1432,37 @@ html {
 }
 @media (prefers-reduced-motion: reduce) {
   .nc-notif-card {
+    transition: none !important;
+  }
+}
+
+/* ── Composer inline (reply / edit) — collapse à l'ouverture ET à la sortie ── */
+/* Même mécanique que .nc-notif-card mais pilotée par useCollapseTransition :
+   - .is-entering  : état replié de départ → promu à l'état déplié au frame
+                     suivant (entrée animée) ;
+   - état de repos : déplié (max-height généreux, opacité 1) ;
+   - .is-leaving   : repli vers 0 avant démontage → le contenu en dessous
+                     remonte sans saut.
+   Durée alignée sur --nc-composer-collapse-dur (lue par le hook). */
+.nc-composer-collapse {
+  overflow: hidden;
+  max-height: 600px;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    max-height var(--nc-composer-collapse-dur) var(--tabs-ease),
+    opacity var(--nc-duration-fast) ease,
+    transform var(--nc-composer-collapse-dur) var(--tabs-ease);
+  will-change: max-height, opacity, transform;
+}
+.nc-composer-collapse.is-entering,
+.nc-composer-collapse.is-leaving {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-composer-collapse {
     transition: none !important;
   }
 }

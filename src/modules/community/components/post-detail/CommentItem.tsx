@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useCollapseTransition } from "@/shared/lib/hooks/useCollapseTransition";
 import type { Comment } from "../../types/comment.types";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
@@ -47,6 +48,11 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAllReplies, setShowAllReplies] = useState(false);
   const [updating, startUpdate] = useTransition();
+
+  // Montage/démontage animé en collapse (entrée + sortie) des composers inline,
+  // pour qu'« Annuler »/envoi ne démonte plus le champ sec. Cf. globals.css
+  // `.nc-composer-collapse`.
+  const reply = useCollapseTransition(replyOpen);
 
   const isAuthor = comment.author.id === currentUser.id;
   const isPrivileged = currentUser.role === "admin" || currentUser.role === "mentor";
@@ -215,13 +221,13 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
           </div>
         )}
 
-        {/* Inline reply composer — opens directly below this comment */}
-        {replyOpen && (
+        {/* Inline reply composer — opens directly below this comment.
+            Monté tant que l'animation de sortie n'est pas finie (collapse en
+            entrée comme en sortie) pour ne plus démonter le champ sec. */}
+        {reply.mounted && (
           <div
-            style={{
-              animation: "nc-mode-in 180ms var(--nc-ease) both",
-              paddingLeft: 4,
-            }}
+            className={`nc-composer-collapse ${reply.stateClass}`}
+            style={{ paddingLeft: 4 }}
           >
             <CommentComposer
               currentUser={currentUser}
