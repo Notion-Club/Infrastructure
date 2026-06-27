@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { PlusMessage } from "@/shared/components/icons";
 import type { Conversation } from "../../types/conversation.types";
@@ -32,15 +32,18 @@ export function ConversationList({
   const [query, setQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
 
-  const filtered = query
-    ? conversations.filter((c) =>
-        c.participant.name.toLowerCase().includes(query.toLowerCase())
-      )
-    : conversations;
-
-  const sorted = [...filtered].sort(
-    (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
-  );
+  // Mémoïsé : le filtre + tri ne se recalcule que si la liste ou la recherche
+  // changent, pas à chaque frappe sans rapport ou re-render parent.
+  const sorted = useMemo(() => {
+    const filtered = query
+      ? conversations.filter((c) =>
+          c.participant.name.toLowerCase().includes(query.toLowerCase()),
+        )
+      : conversations;
+    return [...filtered].sort(
+      (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime(),
+    );
+  }, [conversations, query]);
 
   return (
     <div

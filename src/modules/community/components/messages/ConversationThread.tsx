@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useMemo, useRef, useTransition } from "react";
+import { useCallback, useState, useEffect, useLayoutEffect, useMemo, useRef, useTransition } from "react";
 import { Loader2, Search } from "lucide-react";
 import { ArrowReturn } from "@/shared/components/icons";
 import { SkeletonReveal } from "@/shared/components/SkeletonReveal";
@@ -37,7 +37,7 @@ interface ConversationThreadProps {
       fileUrl?: string;
       fileName?: string;
     },
-  ) => void;
+  ) => Promise<Message | null>;
   onBack?: () => void;
 }
 
@@ -69,6 +69,11 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
   // Container du thread — utilisé pour préserver la position de scroll lors
   // du chargement des messages précédents (sinon le scroll saute en haut).
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Ancre de scroll pour le prepend pagination : géométrie capturée AVANT
+  // l'insertion des anciens messages, ré-appliquée en useLayoutEffect (+ courte
+  // boucle rAF) pour que le 1er message visible reste en place même quand des
+  // images chargent en différé. Remplace l'ancien rAF unique (cause du saut).
+  const prependAnchorRef = useRef<{ prevHeight: number; prevTop: number } | null>(null);
   // Typing presence — channel Realtime broadcast par conv. emitTyping est
   // appelé par le composer à chaque frappe (throttled à 2s en interne).
   const { otherIsTyping, emitTyping } = useTypingPresence(
@@ -143,28 +148,61 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
   async function handleLoadOlder() {
     if (!messages.length || isLoadingOlder || !hasMore) return;
     const cursorId = messages[0]!.id;
-    // Capture la hauteur courante AVANT le prepend, pour restorer la
-    // position de scroll après que React ait rendu les nouveaux messages.
+    // Capture la géométrie AVANT le prepend. Le ré-ancrage réel se fait dans le
+    // useLayoutEffect ci-dessous (déclenché par la mise à jour d'olderMessages),
+    // pour absorber l'arrivée différée des images.
     const container = scrollRef.current;
-    const prevScrollHeight = container?.scrollHeight ?? 0;
-    const prevScrollTop = container?.scrollTop ?? 0;
+    prependAnchorRef.current = {
+      prevHeight: container?.scrollHeight ?? 0,
+      prevTop: container?.scrollTop ?? 0,
+    };
 
     startLoadOlder(async () => {
       const result = await loadOlderMessagesAction(conversation.id, cursorId);
-      if (!result.ok) return;
+      if (!result.ok) {
+        prependAnchorRef.current = null;
+        return;
+      }
       setOlderMessages((prev) => [...result.messages, ...prev]);
       setHasMore(result.hasMore);
-
-      // Après le prepend, on aligne le scroll pour que le 1er message
-      // précédemment visible reste à la même position visuelle.
-      requestAnimationFrame(() => {
-        const c = scrollRef.current;
-        if (!c) return;
-        const newScrollHeight = c.scrollHeight;
-        c.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
-      });
     });
   }
+
+  // Ré-ancrage du scroll après un prepend de messages plus anciens. Une courte
+  // boucle rAF maintient le 1er message précédemment visible à sa place tant que
+  // la hauteur du flux évolue encore (images qui finissent de peindre), bornée à
+  // 1 s pour ne jamais lutter durablement contre un scroll utilisateur.
+  useLayoutEffect(() => {
+    const anchor = prependAnchorRef.current;
+    const c = scrollRef.current;
+    if (!anchor || !c) return;
+    prependAnchorRef.current = null;
+
+    let cancelled = false;
+    const start = performance.now();
+    let lastHeight = c.scrollHeight;
+    let stableFrames = 0;
+
+    const reanchor = () => {
+      if (cancelled || !scrollRef.current) return;
+      const el = scrollRef.current;
+      el.scrollTop = anchor.prevTop + (el.scrollHeight - anchor.prevHeight);
+      if (el.scrollHeight === lastHeight) {
+        stableFrames += 1;
+      } else {
+        stableFrames = 0;
+        lastHeight = el.scrollHeight;
+      }
+      if (stableFrames < 3 && performance.now() - start < 1000) {
+        requestAnimationFrame(reanchor);
+      }
+    };
+    requestAnimationFrame(reanchor);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [olderMessages]);
 
   function handleJumpToMessage(messageId: string) {
     const el = document.getElementById(`nc-msg-${messageId}`);
@@ -181,27 +219,33 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
     ? "Cet utilisateur n'est plus membre du Notion Club"
     : undefined;
 
-  function handleReply(target: Message) {
-    // Snippet : tronqué côté front à REPLY_SNIPPET_MAX, le serveur retrim.
-    // Pour un message non-texte (image/pdf), on affiche le nom de fichier
-    // ou un libellé générique pour donner du contexte dans la quote.
-    const rawSnippet =
-      target.type === "text"
-        ? target.body
-        : target.fileName ?? (target.type === "image" ? "[Image]" : "[Fichier]");
-    const snippet = rawSnippet.slice(0, REPLY_SNIPPET_MAX);
-    const authorName =
-      target.senderId === currentUser.id
-        ? currentUser.name
-        : conversation.participant.name;
-    setReplyContext({
-      messageId: target.id,
-      authorName,
-      snippet,
-    });
-  }
+  // useCallback : référence stable passée en prop à chaque MessageBubble (memo)
+  // → les bulles ne se re-rendent pas quand ConversationThread re-render pour
+  // une raison sans rapport.
+  const handleReply = useCallback(
+    (target: Message) => {
+      // Snippet : tronqué côté front à REPLY_SNIPPET_MAX, le serveur retrim.
+      // Pour un message non-texte (image/pdf), on affiche le nom de fichier
+      // ou un libellé générique pour donner du contexte dans la quote.
+      const rawSnippet =
+        target.type === "text"
+          ? target.body
+          : target.fileName ?? (target.type === "image" ? "[Image]" : "[Fichier]");
+      const snippet = rawSnippet.slice(0, REPLY_SNIPPET_MAX);
+      const authorName =
+        target.senderId === currentUser.id
+          ? currentUser.name
+          : conversation.participant.name;
+      setReplyContext({
+        messageId: target.id,
+        authorName,
+        snippet,
+      });
+    },
+    [currentUser.id, currentUser.name, conversation.participant.name],
+  );
 
-  function handleSend(
+  async function handleSend(
     body: string,
     type: "text" | "pdf" | "image" = "text",
     fileUrl?: string,
@@ -209,16 +253,18 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
   ) {
     // Capture le replyContext avant reset, pour le passer au parent ET dans
     // le state optimistic (les nouveaux messages doivent afficher la quote
-    // immédiatement, sans attendre router.refresh).
+    // immédiatement, sans attendre la réponse serveur).
     const reply = replyContext;
     setReplyContext(null);
 
-    // Optimistic — sera remplacé au router.refresh() côté parent. On stocke
-    // fileUrl en fileUrl ET fileName en fileName pour matcher le shape DB.
+    // Optimistic — affiché instantanément. On stocke fileUrl/fileName pour
+    // matcher le shape DB. L'id `pending-…` sera purgé une fois la vraie ligne
+    // DB réconciliée par le parent (qui l'insère dans conversation.messages).
+    const pendingId = `pending-${Date.now()}`;
     setOptimisticMessages((prev) => [
       ...prev,
       {
-        id: `pending-${Date.now()}`,
+        id: pendingId,
         senderId: currentUser.id,
         type,
         body,
@@ -231,7 +277,11 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
         replyAuthorName: reply?.authorName ?? null,
       },
     ]);
-    onSendMessage(body, reply, type !== "text" ? { type, fileUrl, fileName } : undefined);
+    // Le parent renvoie le message DB (ou null si échec). Succès → la vraie
+    // ligne arrive via conversation.messages, on retire le pending (pas de
+    // doublon). Échec → on retire aussi le pending (le toast est déjà affiché).
+    await onSendMessage(body, reply, type !== "text" ? { type, fileUrl, fileName } : undefined);
+    setOptimisticMessages((prev) => prev.filter((m) => m.id !== pendingId));
   }
 
   return (

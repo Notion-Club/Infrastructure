@@ -45,6 +45,7 @@ import {
 } from "../lib/validation";
 import {
   getConversation,
+  getMessagesSince,
   loadOlderMessages,
   mapProfileMember,
   searchMessagesInConversation,
@@ -176,7 +177,7 @@ export type CreateConversationResult =
     };
 
 export type SendMessageResult =
-  | { ok: true; messageId: string }
+  | { ok: true; messageId: string; message: Message }
   | {
       ok: false;
       code: "validation" | "not_authenticated" | "forbidden" | "unknown";
@@ -1442,8 +1443,8 @@ export async function sendMessageAction(
       reply_snippet: parsed.data.reply_snippet ?? null,
       reply_author_name: parsed.data.reply_author_name ?? null,
     })
-    .select("id")
-    .single<{ id: string }>();
+    .select("id, created_at")
+    .single<{ id: string; created_at: string }>();
 
   if (error || !data) {
     console.error("[sendMessage] failed:", error?.message);
@@ -1453,6 +1454,25 @@ export async function sendMessageAction(
       message: error?.message ?? "Impossible d'envoyer le message.",
     };
   }
+
+  // Message réconcilié renvoyé au client : il remplace l'optimistic `pending-…`
+  // sans re-fetch de toute la conversation (un message neuf n'a ni réaction, ni
+  // édition, ni forward). Le client purge le pending et affiche cette ligne DB.
+  const message: Message = {
+    id: data.id,
+    senderId: caller.userId,
+    type: parsed.data.type,
+    body: parsed.data.body,
+    fileUrl: parsed.data.file_url ?? undefined,
+    fileName: parsed.data.file_name ?? undefined,
+    reactions: [],
+    createdAt: data.created_at,
+    replyToMessageId: parsed.data.reply_to_message_id ?? null,
+    replySnippet: parsed.data.reply_snippet ?? null,
+    replyAuthorName: parsed.data.reply_author_name ?? null,
+    forwardedFromMessageId: null,
+    forwardedFromAuthorName: null,
+  };
 
   // Bump last_message_at — RLS conversations_update_participants gère l'auth.
   await supabase
@@ -1492,7 +1512,7 @@ export async function sendMessageAction(
   // initialConversations). Le message sortant est géré par l'optimistic +
   // re-fetch local de la conv ; le message entrant arrive en Realtime chez le
   // destinataire (mig. 039 + useConversationsRealtime).
-  return { ok: true, messageId: data.id };
+  return { ok: true, messageId: data.id, message };
 }
 
 // ============================================================================
@@ -1579,6 +1599,19 @@ export async function getConversationAction(
   conversationId: string,
 ): Promise<Conversation | null> {
   return getConversation(conversationId);
+}
+
+// ============================================================================
+// getNewMessagesAction — delta des messages entrants (Realtime)
+// ============================================================================
+// Exposé pour que handleIncomingMessage (client) n'ajoute QUE les messages plus
+// récents que ceux déjà en main, au lieu de re-fetcher toute la conversation.
+// RLS gère l'autorisation (tableau vide si non participant).
+export async function getNewMessagesAction(
+  conversationId: string,
+  afterIso: string,
+): Promise<Message[]> {
+  return getMessagesSince(conversationId, afterIso);
 }
 
 // ============================================================================

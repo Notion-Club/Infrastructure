@@ -374,16 +374,18 @@ export async function listPosts(): Promise<Post[]> {
 
   const postIds = posts.map((p) => p.id);
 
-  // Réactions + counts comments + mentions en parallèle (1 query chacune).
+  // Réactions + mentions en parallèle (1 query chacune). Le nombre de
+  // commentaires vient de posts.comment_count (dénormalisé, maintenu par les
+  // triggers comments_bump/drop/move_post_count — mig. 020) : plus besoin de
+  // re-fetcher toutes les lignes `comments` juste pour les compter.
   // Les mentions joignent profiles pour disposer du name au rendu (matching
   // @nom dans le body).
-  const [reactionsRes, commentsForCountRes, mentionsRes] = await Promise.all([
+  const [reactionsRes, mentionsRes] = await Promise.all([
     supabase
       .from("post_reactions")
       .select("post_id, user_id, emoji")
       .in("post_id", postIds)
       .returns<PostReactionRow[]>(),
-    supabase.from("comments").select("post_id").in("post_id", postIds),
     supabase
       .from("post_mentions")
       .select(
@@ -395,11 +397,6 @@ export async function listPosts(): Promise<Post[]> {
       .in("post_id", postIds)
       .returns<PostMentionRow[]>(),
   ]);
-
-  const commentCountByPost = new Map<string, number>();
-  for (const c of commentsForCountRes.data ?? []) {
-    commentCountByPost.set(c.post_id, (commentCountByPost.get(c.post_id) ?? 0) + 1);
-  }
 
   // Charge en une seule requête les profils de tous les users qui ont
   // réagi à au moins un post — alimente Reaction.reactors pour le hover
@@ -414,7 +411,7 @@ export async function listPosts(): Promise<Post[]> {
     mapPostRow(
       row,
       reactionsRes.data ?? [],
-      commentCountByPost.get(row.id) ?? 0,
+      row.comment_count ?? 0,
       viewerId,
       mentionsRes.data ?? [],
       reactorProfilesById,
@@ -477,13 +474,14 @@ export async function getPostById(id: string): Promise<Post | null> {
   }
   if (!row) return null;
 
-  const [reactionsRes, commentsForCountRes, mentionsRes] = await Promise.all([
+  // Réactions + mentions en parallèle. Le nombre de commentaires vient de
+  // posts.comment_count (dénormalisé, trigger-maintenu) — plus de count SQL.
+  const [reactionsRes, mentionsRes] = await Promise.all([
     supabase
       .from("post_reactions")
       .select("post_id, user_id, emoji")
       .eq("post_id", id)
       .returns<PostReactionRow[]>(),
-    supabase.from("comments").select("id", { count: "exact", head: true }).eq("post_id", id),
     supabase
       .from("post_mentions")
       .select(
@@ -504,7 +502,7 @@ export async function getPostById(id: string): Promise<Post | null> {
   return mapPostRow(
     row,
     reactionsRes.data ?? [],
-    commentsForCountRes.count ?? 0,
+    row.comment_count ?? 0,
     viewerId,
     mentionsRes.data ?? [],
     reactorProfilesById,
@@ -926,6 +924,46 @@ export async function loadOlderMessages(
     messages: messages.map((m) => mapMessageRow(m, reactions)),
     hasMore,
   };
+}
+
+// ============================================================================
+// getMessagesSince — delta des messages plus récents qu'un timestamp
+// ============================================================================
+// Utilisé par la réception Realtime (handleIncomingMessage) pour n'ajouter QUE
+// les nouveaux messages au lieu de re-fetcher toute la conversation. Borné à
+// MESSAGES_PAGE_SIZE (au-delà, le client retombera sur un open/full-load). RLS
+// messages_select_participants couvre l'autorisation. Ordre chronologique ASC.
+export async function getMessagesSince(
+  conversationId: string,
+  afterIso: string,
+): Promise<Message[]> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: rawMessages } = await supabase
+    .from("messages")
+    .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name")
+    .eq("conversation_id", conversationId)
+    .gt("created_at", afterIso)
+    .order("created_at", { ascending: true })
+    .limit(MESSAGES_PAGE_SIZE)
+    .returns<MessageRow[]>();
+
+  const rows = rawMessages ?? [];
+  if (rows.length === 0) return [];
+
+  const ids = rows.map((m) => m.id);
+  const { data: rxs } = await supabase
+    .from("message_reactions")
+    .select("message_id, user_id, emoji")
+    .in("message_id", ids)
+    .returns<MessageReactionRow[]>();
+  const reactions = rxs ?? [];
+
+  return rows.map((m) => mapMessageRow(m, reactions));
 }
 
 // ============================================================================
