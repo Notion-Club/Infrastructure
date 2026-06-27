@@ -10,7 +10,7 @@
 // Le script démarre `next dev` sur un port dédié, joue les assertions en
 // chromium headless, puis nettoie. Sort 1 si une assertion échoue.
 
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
 
 // Playwright n'est pas une dépendance déclarée (cf. .github/workflows/e2e-morph.yml).
 // Import dynamique avec message clair si absent en local.
@@ -110,16 +110,11 @@ async function run() {
     }
   });
 
-  // 4 — Fermeture (Échap) : zéro résidu + focus restitué à la carte.
-  await check('fermeture Échap → zéro résidu + focus restitué à la carte', async () => {
+  // 4 — Fermeture (Échap) : zéro résidu.
+  await check('fermeture Échap → zéro résidu', async () => {
     await page.keyboard.press('Escape');
     await waitClosed(page);
     assert((await dialog(page).count()) === 0, 'résidu de dialogue après fermeture');
-    const onTrigger = await page.evaluate(
-      (href) => document.activeElement?.getAttribute('href') === href,
-      HREF.resOpen,
-    );
-    assert(onTrigger, 'le focus n’est pas revenu sur la carte déclencheuse');
   });
 
   // 5 — Multi-cartes : ouvrir une 2ᵉ carte après fermeture → aucun résidu de la 1ʳᵉ.
@@ -162,6 +157,37 @@ async function run() {
     await waitClosed(page);
   });
 
+  // 8 — Scroll préservé à la fermeture (bug : le scroll sautait en haut puis
+  //     revenait). On scrolle, on ouvre, on ferme → la position ne doit PAS bouger.
+  await check('scroll préservé à l’ouverture/fermeture', async () => {
+    await page.setViewportSize({ width: 1280, height: 700 });
+    await page.evaluate(() => window.scrollTo(0, 250));
+    await page.waitForFunction(() => window.scrollY === 250, { timeout: 4000 });
+    await open(page, HREF.resOpen);
+    await waitOpen(page);
+    const yOpen = await page.evaluate(() => window.scrollY);
+    assert(yOpen === 250, `le scroll a bougé à l’ouverture (${yOpen} ≠ 250)`);
+    await page.keyboard.press('Escape');
+    await waitClosed(page);
+    const yClose = await page.evaluate(() => window.scrollY);
+    assert(yClose === 250, `le scroll a sauté à la fermeture (${yClose} ≠ 250)`);
+  });
+
+  // 9 — Ouverture CLAVIER : le focus est restitué à la carte à la fermeture.
+  await check('clavier : focus restitué à la carte (Entrée → Échap)', async () => {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.focus(`a[href="${HREF.resOpen}"]`);
+    await page.keyboard.press('Enter');
+    await waitOpen(page);
+    await page.keyboard.press('Escape');
+    await waitClosed(page);
+    const onTrigger = await page.evaluate(
+      (href) => document.activeElement?.getAttribute('href') === href,
+      HREF.resOpen,
+    );
+    assert(onTrigger, 'le focus n’est pas revenu sur la carte après ouverture clavier');
+  });
+
   await browser.close();
 
   const passed = results.filter(Boolean).length;
@@ -196,6 +222,13 @@ function buildOnce() {
 let server;
 let code = 1;
 try {
+  // Libère le port au cas où un serveur d'un run précédent y traîne (sinon
+  // waitServer toperait l'ancien serveur servant des chunks périmés → 500).
+  try {
+    execSync(`lsof -ti tcp:${PORT} | xargs kill -9`, { stdio: 'ignore' });
+  } catch {
+    /* rien à tuer, ou lsof absent (CI) → port déjà libre */
+  }
   if (process.env.E2E_SKIP_BUILD !== '1') {
     console.log('→ build de production (env factice)…');
     await buildOnce();

@@ -129,12 +129,15 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
         /* noop */
       }
     }
-    // Restitue le focus à la carte déclencheuse (a11y) — la grille n'a jamais été
-    // démontée donc l'élément existe toujours. preventScroll : pas de saut.
-    try {
-      source.triggerEl?.focus?.({ preventScroll: true });
-    } catch {
-      /* noop */
+    // Restitue le focus à la carte UNIQUEMENT si l'ouverture était au clavier.
+    // En tactile/souris, refocaliser la carte affiche un encadré bleu de sélection
+    // iOS au moment de la fermeture → on s'en abstient. preventScroll : pas de saut.
+    if (source.viaKeyboard) {
+      try {
+        source.triggerEl?.focus?.({ preventScroll: true });
+      } catch {
+        /* noop */
+      }
     }
     onClose();
   }, [onClose, source]);
@@ -306,22 +309,42 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     return () => cancelAnimationFrame(t);
   }, []);
 
-  // Scroll-lock du DOCUMENT pendant l'overlay (grille figée derrière, iOS inclus)
-  // + restauration exacte de la position au démontage.
+  // Verrou de scroll NON déplaçant : on fige l'overflow SANS `position: fixed`.
+  // L'ancienne approche (position:fixed + top:-scrollY + scrollTo au démontage)
+  // déplaçait le document → à la fermeture le scroll sautait en haut puis
+  // revenait, et la BottomNav tressautait en PWA iOS (reflow du viewport/safe-area).
+  // Ici la position de scroll n'est JAMAIS modifiée → la grille reste exactement
+  // où elle était à la fermeture. `scrollRestoration: manual` empêche le
+  // history.back() (bouton retour) de restaurer le scroll de l'entrée précédente
+  // (qui ramenait en haut de page). Le fond de l'overlay reste figé via
+  // overflow:hidden + touch-action sur le backdrop + overscroll-behavior sur la
+  // surface (cf. styles).
   useEffect(() => {
+    const html = document.documentElement;
     const body = document.body;
-    const scrollY = window.scrollY;
-    const prev = { position: body.style.position, top: body.style.top, width: body.style.width, overflow: body.style.overflow };
-    body.style.position = 'fixed';
-    body.style.top = `-${scrollY}px`;
-    body.style.width = '100%';
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: body.style.overflow,
+      bodyOverscroll: body.style.overscrollBehavior,
+      scrollRestoration: history.scrollRestoration,
+    };
+    html.style.overflow = 'hidden';
     body.style.overflow = 'hidden';
+    body.style.overscrollBehavior = 'none';
+    try {
+      history.scrollRestoration = 'manual';
+    } catch {
+      /* noop */
+    }
     return () => {
-      body.style.position = prev.position;
-      body.style.top = prev.top;
-      body.style.width = prev.width;
-      body.style.overflow = prev.overflow;
-      window.scrollTo(0, scrollY);
+      html.style.overflow = prev.htmlOverflow;
+      body.style.overflow = prev.bodyOverflow;
+      body.style.overscrollBehavior = prev.bodyOverscroll;
+      try {
+        history.scrollRestoration = prev.scrollRestoration;
+      } catch {
+        /* noop */
+      }
     };
   }, []);
 
@@ -340,7 +363,7 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
       <div
         ref={pageBgRef}
         onClick={startClose}
-        style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--color-surface-page)', opacity: 0, pointerEvents: interactive ? 'auto' : 'none' }}
+        style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--color-surface-page)', opacity: 0, pointerEvents: interactive ? 'auto' : 'none', touchAction: 'none' }}
       />
 
       {/* Surface qui morphe + clippe ; scroll interne du corps quand ouvert.
@@ -367,6 +390,7 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
           borderRadius: 16,
           overflowX: 'hidden',
           overflowY: interactive ? 'auto' : 'hidden',
+          overscrollBehavior: 'contain',
           willChange: 'width, height, transform, border-radius',
           pointerEvents: interactive ? 'auto' : 'none',
         }}
