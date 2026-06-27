@@ -24,5 +24,9 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # Playwright n'est PAS une dépendance du repo (sinon son postinstall
+      # télécharge un navigateur à CHAQUE install, y compris sur Vercel). On
+      # l'installe ici à la volée, sans toucher package.json/lock.
+      - run: npm install --no-save playwright@1.61.1
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e:morph

@@ -11,7 +11,18 @@
 // chromium headless, puis nettoie. Sort 1 si une assertion échoue.
 
 import { spawn } from 'node:child_process';
-import { chromium } from 'playwright';
+
+// Playwright n'est pas une dépendance déclarée (cf. .github/workflows/e2e-morph.yml).
+// Import dynamique avec message clair si absent en local.
+let chromium;
+try {
+  ({ chromium } = await import('playwright'));
+} catch {
+  console.error(
+    'Playwright manquant. Installe-le :\n  npm install --no-save playwright && npx playwright install chromium',
+  );
+  process.exit(2);
+}
 
 const PORT = 3123;
 const BASE = `http://127.0.0.1:${PORT}`;
