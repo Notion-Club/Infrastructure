@@ -137,7 +137,7 @@ La preview étant inaccessible (mur d'auth), la mécanique est prouvée par un t
 e2e qui exerce le **code réel** de l'overlay sur des données mockées.
 
 ```bash
-npm run e2e:morph            # build prod → next start → 9 assertions chromium
+npm run e2e:morph            # build prod → next start → 10 assertions chromium
 E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
 ```
 
@@ -147,10 +147,11 @@ E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
   On teste un **build de prod + `next start`** car l'hydratation sous `next dev`
   n'aboutit pas derrière le proxy Supabase. Le runner libère le port avant de
   démarrer (sinon un serveur fantôme d'un run précédent sert des chunks périmés).
-- **9 assertions** : ouverture (titre + contenu), focus dans le dialogue,
+- **10 assertions** : ouverture (titre + contenu), focus dans le dialogue,
   focus-trap, fermeture (zéro résidu), **multi-cartes** (le bug d'origine),
   verrou d'accès, resize, **scroll préservé à l'ouverture/fermeture** (#249),
-  **focus restitué après ouverture clavier** (#249).
+  **focus restitué après ouverture clavier** (#249), **scroll-document** (titre
+  qui défile, croix fixe, contenu défilable).
 - CI : `.github/workflows/e2e-morph.yml` sur chaque PR touchant `/ressources`
   (Playwright installé à la volée, hors deps repo).
 
@@ -161,10 +162,18 @@ E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
 - **Resize / rotation pendant l'ouverture** : la géométrie de fin est figée en
   px (`fill: both`) → tourner l'écran overlay ouvert ne re-dimensionne pas la
   surface. Edge-case rare, non corrigé.
-- **Scroll-document** : **statu quo décidé** — le corps long scrolle **dans** la
-  surface (capée en hauteur). Le passage à un scroll au fil du document
-  (encadré plein écran) reste possible mais changerait la **cible visuelle** du
-  morph → à cadrer d'abord dans le harnais `/lab/morph` si on le réactive.
+- **Scroll-document** : ✅ **implémenté**. L'encadré fait la longueur du contenu
+  (pas de scroll interne) et défile dans un conteneur dédié plein écran
+  (`scrollRef`). Mécanique : pendant le morph la surface est `position: fixed`
+  (géométrie au pixel) ; à la fin de l'ouverture elle est **relâchée en flux**
+  (`position: relative`) dans le conteneur (le `release()`), le **titre** (vrai
+  `<h1>`, le hero s'efface) défile avec le contenu, la **croix** est `fixed` hors
+  du conteneur. Fermeture : retour en haut du conteneur (`scrollTo(0,0)`) +
+  ré-ancrage en `fixed` → on rejoue le morph inverse depuis la géométrie d'ouverture.
+  > ⚠️ La surface ne porte **aucune** propriété de layout via le prop React
+  > (position/width/height/overflow/border-radius/top/left/transform) : tout est
+  > inline JS, sinon un re-render (arrivée async du body) réinitialiserait la
+  > géométrie en plein morph.
 - **View Transition** : retiré de /ressources (inerte) ; reste **app-wide**
   (communauté/formation/réglages) via `next.config` + CSS global — ne pas y
   toucher depuis ce périmètre.
@@ -181,3 +190,5 @@ E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
 | #247 | Filet e2e Playwright (7/7) + CI |
 | #248 | Doc archi (ce fichier) |
 | #249 | Fix fermeture : scroll figé (verrou non déplaçant + scrollRestoration manual), fin de l'encadré iOS (focus clavier-only) et du tressaut de la BottomNav ; e2e 9/9 |
+| #250 | MAJ doc |
+| #253 | Scroll-document : encadré = longueur du contenu (conteneur de scroll dédié), titre qui défile, croix fixe ; e2e 10/10 |
