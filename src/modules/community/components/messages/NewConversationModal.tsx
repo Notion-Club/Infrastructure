@@ -6,7 +6,39 @@ import type { User } from "../../types/user.types";
 import { listMembersAction } from "../../server/actions";
 import type { CommunityMember } from "../../server/queries";
 import { UserAvatar } from "../shared/UserAvatar";
+import { SkeletonReveal } from "@/shared/components/SkeletonReveal";
 import { useModalTransition } from "@/shared/lib/hooks/useModalTransition";
+
+// Ligne squelette d'un membre — calquée sur la vraie carte membre (avatar 40 +
+// nom + sous-titre, mêmes paddings/gap) pour que la modale s'ouvre à sa TAILLE
+// FINALE et que la liste se révèle (transitions.dev 14-skeleton-reveal) sans
+// saut de hauteur quand les membres arrivent.
+const SKEL_PULSE = {
+  background: "var(--color-surface-raised)",
+  animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
+} as const;
+
+function MemberRowSkeleton() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px" }}>
+      <div style={{ ...SKEL_PULSE, width: 40, height: 40, borderRadius: "50%", flexShrink: 0 }} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ ...SKEL_PULSE, height: 12, width: "45%", borderRadius: 6 }} />
+        <div style={{ ...SKEL_PULSE, height: 10, width: "28%", borderRadius: 6 }} />
+      </div>
+    </div>
+  );
+}
+
+function MemberListSkeleton() {
+  return (
+    <div aria-hidden>
+      {Array.from({ length: 6 }, (_, i) => (
+        <MemberRowSkeleton key={i} />
+      ))}
+    </div>
+  );
+}
 
 interface NewConversationModalProps {
   currentUser: User;
@@ -39,13 +71,22 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
   // member d'un autre tier. UX simple : on n'expose pas la règle ici, on
   // affiche un toast d'erreur si la création échoue.
   const [members, setMembers] = useState<CommunityMember[]>([]);
+  // true tant que la Server Action n'a pas répondu → on affiche un squelette de
+  // liste (et non « Aucun membre trouvé », qui s'affichait instantanément à tort
+  // puis se faisait remplacer en changeant la taille de la modale).
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    listMembersAction().then((list) => {
-      if (cancelled) return;
-      setMembers(list.filter((m) => m.id !== currentUser.id));
-    });
+    listMembersAction()
+      .then((list) => {
+        if (cancelled) return;
+        setMembers(list.filter((m) => m.id !== currentUser.id));
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -114,8 +155,10 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
           </div>
         </div>
 
-        {/* List */}
+        {/* List — squelette pendant le chargement (la modale s'ouvre à sa
+            taille finale), puis révélation en fondu/flou (transitions.dev 14). */}
         <div style={{ maxHeight: 320, overflowY: "auto" }}>
+          <SkeletonReveal loading={loading} skeleton={<MemberListSkeleton />}>
           {filtered.map((m) => (
             <button
               key={m.id}
@@ -164,6 +207,7 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
               Aucun membre trouvé
             </div>
           )}
+          </SkeletonReveal>
         </div>
       </div>
     </div>

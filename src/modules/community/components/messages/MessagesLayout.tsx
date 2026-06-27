@@ -10,6 +10,7 @@ import { useConversationsRealtime } from "../../hooks/useConversationsRealtime";
 import { ConversationList } from "./ConversationList";
 import { ConversationThread } from "./ConversationThread";
 import { MessagesEmptyState } from "./MessagesEmptyState";
+import { NewConversationModal } from "./NewConversationModal";
 import {
   createConversationAction,
   getConversationAction,
@@ -52,6 +53,10 @@ export function MessagesLayout({
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
+  // Sélecteur de membres ouvert depuis le bouton inline de l'état vide du
+  // panneau thread (desktop) / vue thread (mobile). La liste a son propre
+  // sélecteur (ConversationList) ; celui-ci sert les états vides de ce composant.
+  const [newConvPickerOpen, setNewConvPickerOpen] = useState(false);
   const [, startTransition] = useTransition();
   // IDs de conversations dont les messages sont en cours de chargement
   // (getConversationAction en vol). Sert à afficher le skeleton dans le
@@ -488,7 +493,7 @@ export function MessagesLayout({
               onSendMessage={(body, reply, attachment) => handleSendMessage(activeConv.id, body, reply, attachment)}
             />
           ) : (
-            <MessagesEmptyState />
+            <MessagesEmptyState onNewConversation={() => setNewConvPickerOpen(true)} />
           )}
         </div>
       </div>
@@ -520,9 +525,20 @@ export function MessagesLayout({
             onBack={navigateToList}
           />
         ) : (
-          <MessagesEmptyState />
+          <MessagesEmptyState onNewConversation={() => setNewConvPickerOpen(true)} />
         )}
       </div>
+
+      {newConvPickerOpen && (
+        <NewConversationModal
+          currentUser={currentUser}
+          onClose={() => setNewConvPickerOpen(false)}
+          onSelect={(userId) => {
+            handleNewConversationByUser(userId);
+            setNewConvPickerOpen(false);
+          }}
+        />
+      )}
     </>
   );
 }

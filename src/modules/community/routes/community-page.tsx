@@ -563,14 +563,12 @@ function MessagesContent({
   conversationUsername: string | null;
 }) {
   const initialConversations = use(conversationsPromise);
-  // Le shell de /communaute est passé en scroll-DOCUMENT (pour le feed). La vue
-  // Messages, elle, a besoin d'un conteneur à hauteur DÉFINIE (liste + composer
-  // à scroll interne, façon chat) : on la lui redonne explicitement ici, au lieu
-  // de dépendre de la chaîne flex `flex-1 min-h-0` du shell (supprimée).
-  // ⚙️ Offset à ajuster sur device si la zone de chat dépasse/sous-dépasse la
-  // BottomNav (chrome haut + switcher ≈ 224px).
+  // Mobile : hauteur DÉFINIE (chat à scroll interne, cf. .nc-messages-embed).
+  // Desktop : on REMPLIT la carte (flex-1) au lieu d'une hauteur calc fixe plus
+  // courte que la carte → fini la bande grise (fond de carte) sous le panneau
+  // messages, qui laissait apparaître les coins arrondis vides en bas.
   return (
-    <div style={{ height: MESSAGES_EMBED_HEIGHT, overflow: "hidden" }}>
+    <div className="nc-messages-embed">
       <MessagesLayout
         currentUser={currentUser}
         devRole={devRole}
@@ -582,10 +580,9 @@ function MessagesContent({
   );
 }
 
-// Hauteur de la zone Messages embarquée (chat à scroll interne) dans le shell
-// scroll-document de /communaute. Doit rester synchro entre MessagesContent et
-// son fallback. ⚙️ Ajustable sur device.
-const MESSAGES_EMBED_HEIGHT = "calc(100dvh - 224px)";
+// La hauteur de la zone Messages embarquée vit désormais dans `.nc-messages-embed`
+// (globals.css) : hauteur calc fixe sur mobile (chat à scroll interne), flex-1
+// sur desktop (remplit la carte → plus de bande grise).
 
 // ── Fallbacks Suspense — occupent la zone de contenu le temps que les données
 //    streament. Le cadre (switcher/filtres) reste, lui, déjà affiché.
@@ -635,7 +632,8 @@ function FeedListFallback() {
 function MessagesFallback() {
   return (
     <div
-      style={{ height: MESSAGES_EMBED_HEIGHT, overflow: "hidden", padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}
+      className="nc-messages-embed"
+      style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}
       aria-hidden
     >
       {Array.from({ length: 6 }, (_, i) => (

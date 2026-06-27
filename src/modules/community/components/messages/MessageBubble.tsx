@@ -184,6 +184,13 @@ function MessageBubbleInner({
         display: "flex",
         flexDirection: "column",
         alignItems: isSelf ? "flex-end" : "flex-start",
+        // Le conteneur HUG son contenu (largeur de la bulle) et se cale à droite
+        // (mes messages) / gauche (reçus) via alignSelf. Avant, il était pleine
+        // largeur → survoler la gouttière vide déclenchait la toolbar (« trop
+        // sensible »). Maintenant, seul le survol de la colonne-bulle l'arme.
+        alignSelf: isSelf ? "flex-end" : "flex-start",
+        width: "fit-content",
+        maxWidth: "100%",
         margin: "2px 0",
         position: "relative",
         // Highlight déclenché par un clic sur un résultat de recherche.
@@ -505,17 +512,23 @@ function MessageBubbleInner({
         </div>
       </div>
 
-      {/* Toolbar hover — positionnée SOUS la bulle plutôt qu'à côté. Avant :
-          la toolbar était dans le flex row à droite de la bulle (gauche
-          pour les msgs reçus), ce qui masquait les bulles voisines au
-          hover. Maintenant : alignée comme les pastilles réactions, juste
-          sous la bulle, alignée à droite (mes msgs) ou à gauche (reçus). */}
+      {/* Toolbar hover — OVERLAY absolu flottant JUSTE AU-DESSUS de la bulle,
+          HORS du flux : son apparition ne pousse plus les pastilles/timestamp
+          ni les bulles suivantes (fin de l'effet « tout tremble » au survol).
+          `paddingBottom` = pont de survol : la zone reste contiguë de la bulle
+          jusqu'à la toolbar (pas de trou qui couperait le hover). L'entrée est
+          animée par .nc-mode-in (déjà sur la racine de MessageToolbar). */}
       {(showToolbar || isThisLocked) && !editing && !isPending && (
         <div
           style={{
-            marginTop: 6,
+            position: "absolute",
+            bottom: "100%",
+            left: 0,
+            right: 0,
+            paddingBottom: 6,
             display: "flex",
             justifyContent: isSelf ? "flex-end" : "flex-start",
+            zIndex: 3,
           }}
         >
           <MessageToolbar

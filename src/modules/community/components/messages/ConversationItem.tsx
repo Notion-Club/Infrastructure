@@ -67,7 +67,7 @@ export function ConversationItem({ conversation, active, onClick, onPrefetch }: 
         textAlign: "left",
         transition: "background 150ms ease",
       }}
-      className={!active ? "hover:bg-[rgba(0,0,0,0.04)]" : ""}
+      className={!active ? "hover:bg-[var(--nc-nav-hover-bg)]" : ""}
     >
       <div style={{ position: "relative", flexShrink: 0 }}>
         <UserAvatar user={conversation.participant} size={44} />

@@ -3456,6 +3456,25 @@ html.dark .nc-lt-scrim {
   }
 }
 
+/* Zone Messages embarquée dans la carte /communaute.
+   • Mobile : hauteur DÉFINIE (chat à scroll interne, façon messagerie). Le
+     `calc(100dvh - 224px)` ≈ chrome haut + switcher.
+   • Desktop : on REMPLIT la carte (flex-1) au lieu d'une hauteur fixe plus
+     courte que la carte → la bande grise (fond de carte) sous le panneau et les
+     coins arrondis vides en bas disparaissent ; le panneau messages va jusqu'en
+     bas de l'encadré. */
+.nc-messages-embed {
+  height: calc(100dvh - 224px);
+  overflow: hidden;
+}
+@media (min-width: 768px) {
+  .nc-messages-embed {
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+}
+
 /* Modale détail d'appel coaching (plan d'action + transcription). Sur mobile,
    on raccourcit légèrement la fenêtre (88vh → 82dvh) pour qu'elle respire
    au-dessus de la BottomNav ; le contenu scrolle déjà en interne. */

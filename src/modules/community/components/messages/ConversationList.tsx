@@ -106,7 +106,7 @@ export function ConversationList({
       {/* List */}
       <div style={{ flex: 1, overflowY: "auto", padding: "6px 4px" }}>
         {sorted.length === 0 ? (
-          <MessagesEmptyState />
+          <MessagesEmptyState onNewConversation={() => setShowModal(true)} />
         ) : (
           sorted.map((conv) => (
             <ConversationItem

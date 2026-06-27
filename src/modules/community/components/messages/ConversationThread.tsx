@@ -110,19 +110,41 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
   // 'smooth' ici : il est interruptible par les reflows (images, re-renders)
   // → c'est exactement ce qui ancrait au milieu de la conversation.
   const openJumpRafRef = useRef<number | null>(null);
+  const didOpenJumpRef = useRef(false);
   useLayoutEffect(() => {
-    const jump = () => {
-      const c = scrollRef.current;
-      if (c) c.scrollTop = c.scrollHeight;
+    // On attend que de VRAIS messages soient montés avant de sauter en bas. Sur
+    // une conversation pas encore en cache, l'ouverture affiche d'abord le
+    // skeleton (messages vides) ; sauter à cet instant ancrait sur le skeleton
+    // court, et l'utilisateur restait AU MILIEU une fois les messages arrivés.
+    // Le composant est remonté par key={conv.id} → didOpenJumpRef repart à false
+    // à chaque changement de conversation.
+    if (messages.length === 0 || didOpenJumpRef.current) return;
+    didOpenJumpRef.current = true;
+
+    let cancelled = false;
+    const start = performance.now();
+    const pin = () => {
+      if (cancelled) return;
+      const el = scrollRef.current;
+      if (!el) return;
+      el.scrollTop = el.scrollHeight;
+      // Re-épingle brièvement (≤ 500 ms) pour absorber les reflows tardifs
+      // (images/embeds qui finissent de peindre) sans lutter durablement
+      // contre un scroll utilisateur.
+      if (performance.now() - start < 500) {
+        openJumpRafRef.current = requestAnimationFrame(pin);
+      }
     };
+    // 2 rAF : laisser les bulles se peindre avant la 1ʳᵉ mesure de scrollHeight.
     const id1 = requestAnimationFrame(() => {
-      openJumpRafRef.current = requestAnimationFrame(jump);
+      openJumpRafRef.current = requestAnimationFrame(pin);
     });
     openJumpRafRef.current = id1;
     return () => {
+      cancelled = true;
       if (openJumpRafRef.current) cancelAnimationFrame(openJumpRafRef.current);
     };
-  }, [conversation.id]);
+  }, [messages.length]);
 
   // Auto-scroll SMOOTH pour un NOUVEAU message en bas (ou l'apparition du
   // typing indicator), UNIQUEMENT si l'utilisateur est déjà proche du bas —
