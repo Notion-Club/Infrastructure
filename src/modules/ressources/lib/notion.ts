@@ -12,12 +12,12 @@
 import type {
   Resource,
   Template,
-  ContentBlock,
   ResourceFormation,
   ResourceMetierType,
   ResourceVisibility,
   TemplateType,
 } from "../types";
+import { routePrefetchedTree } from "@/shared/lib/notion/router";
 
 const NOTION_API = "https://api.notion.com/v1";
 const NOTION_VERSION = "2022-06-28";
@@ -125,7 +125,10 @@ export async function fetchResourceBySlug(slug: string): Promise<Resource | null
   }
   const page = await pageRes.json();
   const resource = notionPageToResource(page);
-  resource.content = blocksToContent(blocks);
+  // Normalisation via le routeur Notion unifié (rich text complet + tous types
+  // de blocs). On passe l'arbre déjà fetché (avec `_children`) — zéro appel
+  // réseau supplémentaire, le caching ISR du fetcher ci-dessus est préservé.
+  resource.content = await routePrefetchedTree(blocks);
   return resource;
 }
 
@@ -260,96 +263,4 @@ async function fetchAllBlocksRecursive(blockId: string, depth: number): Promise<
 // Conservé comme point d'entrée public (appelé par fetchResourceBySlug + sync).
 async function fetchAllBlocks(blockId: string): Promise<any[]> {
   return fetchAllBlocksRecursive(blockId, 0);
-}
-
-function richTextToString(rt: any[] | undefined): string {
-  return (rt ?? []).map((t: any) => t.plain_text).join("");
-}
-
-function blocksToContent(blocks: any[]): ContentBlock[] {
-  const out: ContentBlock[] = [];
-  let currentList: Array<{ text: string; children?: ContentBlock[] }> | null = null;
-
-  const flushList = () => {
-    if (currentList && currentList.length > 0) {
-      out.push({ type: "list", items: currentList });
-    }
-    currentList = null;
-  };
-
-  for (const block of blocks) {
-    const type = block.type;
-
-    if (type === "bulleted_list_item" || type === "numbered_list_item") {
-      const text = richTextToString(block[type]?.rich_text);
-      const itemChildren: ContentBlock[] | undefined = block._children?.length
-        ? blocksToContent(block._children)
-        : undefined;
-      if (!currentList) currentList = [];
-      currentList.push({ text, children: itemChildren });
-      continue;
-    }
-    flushList();
-
-    if (type === "paragraph") {
-      const text = richTextToString(block.paragraph?.rich_text);
-      if (text) out.push({ type: "paragraph", text });
-    } else if (type === "heading_1" || type === "heading_2") {
-      const text = richTextToString(block[type]?.rich_text);
-      if (text) out.push({ type: "heading", level: 2, text });
-    } else if (type === "heading_3") {
-      const text = richTextToString(block.heading_3?.rich_text);
-      if (text) out.push({ type: "heading", level: 3, text });
-    } else if (type === "image") {
-      const url =
-        block.image?.type === "external"
-          ? block.image.external?.url
-          : block.image?.file?.url;
-      if (url) {
-        const alt = richTextToString(block.image?.caption) || undefined;
-        out.push({ type: "image", url, alt });
-      }
-    } else if (type === "embed" || type === "video" || type === "bookmark") {
-      const url = block[type]?.url ?? "";
-      if (url.includes("tella.tv") || url.includes("tella.video")) {
-        out.push({ type: "tella_embed", url });
-      }
-    } else if (type === "callout") {
-      const icon =
-        (block.callout?.icon?.type === "emoji"
-          ? (block.callout.icon.emoji as string)
-          : null) ?? null;
-      const text = richTextToString(block.callout?.rich_text);
-      const children = block._children?.length
-        ? blocksToContent(block._children)
-        : [];
-      out.push({ type: "callout", icon, text, children });
-    } else if (type === "quote") {
-      const text = richTextToString(block.quote?.rich_text);
-      const children = block._children?.length
-        ? blocksToContent(block._children)
-        : [];
-      out.push({ type: "quote", text, children });
-    } else if (type === "code") {
-      const text = richTextToString(block.code?.rich_text);
-      const language = (block.code?.language as string) ?? "plain text";
-      if (text) out.push({ type: "code", language, text });
-    } else if (
-      type === "divider" ||
-      type === "table" ||
-      type === "table_row" ||
-      type === "child_page"
-    ) {
-      // Intentionnellement ignorés : divider est cosmétique, table est un
-      // ticket séparé, child_page n'a pas de contenu inline.
-    } else {
-      // Type Notion non géré — signal visible dans les logs pour détecter
-      // tout type présent dans d'autres ressources mais pas encore mappé.
-      console.warn(
-        `[ressources/blocksToContent] type Notion non géré : "${type}" (bloc ${block.id ?? "???"})`,
-      );
-    }
-  }
-  flushList();
-  return out;
 }

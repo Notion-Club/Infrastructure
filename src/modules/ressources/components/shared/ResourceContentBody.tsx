@@ -7,7 +7,7 @@
 import { canAccess } from '../../lib/access';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { CapabilityLock } from './CapabilityLock';
-import { renderBlock } from './renderBlock';
+import { NotionRenderer } from '@/shared/components/notion/NotionRenderer';
 import type { Resource } from '../../types';
 
 export function ResourceContentBody({ resource }: { resource: Resource }) {
@@ -17,9 +17,18 @@ export function ResourceContentBody({ resource }: { resource: Resource }) {
     <>
       <hr style={{ border: 'none', borderTop: '1px solid var(--color-border-default)', margin: '28px 0' }} />
       {hasAccess ? (
-        <div data-fb-label="Corps Notion · Page ressource">
-          {resource.content.map((block, idx) => renderBlock(block, idx))}
-        </div>
+        // Garde contenu-vide : l'overlay de morph réutilise ce composant avec
+        // un `resource` issu de la LISTE (content non chargé → []). On rend
+        // alors un wrapper vide plutôt que le message « pas de corps » de
+        // NotionRenderer — parité exacte avec l'ancien `[].map(renderBlock)`.
+        resource.content.length > 0 ? (
+          <NotionRenderer
+            blocks={resource.content}
+            label="Corps Notion · Page ressource"
+          />
+        ) : (
+          <div data-fb-label="Corps Notion · Page ressource" />
+        )
       ) : (
         <CapabilityLock
           title={`Contenu réservé aux membres ${resource.visibilite}`}

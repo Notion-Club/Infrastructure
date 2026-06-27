@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Search, ListFilter, X } from 'lucide-react';
-import type { ResourceItem, ResourceMetierType, UserCapability } from '../types';
+import type { ResourceItem, ResourceMetierType, UserCapability, NotionBlock } from '../types';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { ResourceCard } from './ResourceCard';
 import { TemplateCard } from './TemplateCard';
@@ -54,16 +54,20 @@ function matchesFilters(
   return true;
 }
 
+// Texte plat d'un bloc Notion normalisé (rich + cellules de table + enfants),
+// pour l'index de recherche. En liste, `content` est généralement vide (le body
+// n'est pas chargé), mais la fonction reste correcte si jamais il l'est.
+function blockToText(block: NotionBlock): string {
+  const own = (block.rich ?? []).map((s) => s.equation ?? s.text).join(' ');
+  const cells = (block.cells ?? []).flat().map((s) => s.text).join(' ');
+  const kids = (block.children ?? []).map(blockToText).join(' ');
+  return [own, cells, kids].filter(Boolean).join(' ');
+}
+
 function extractSearchText(item: ResourceItem): string {
   const base = `${item.titre} ${item.description}`;
   if (item.category !== 'resource') return base.toLowerCase();
-  const contentText = item.content
-    .map((block) => {
-      if (block.type === 'paragraph' || block.type === 'heading') return block.text;
-      if (block.type === 'list') return block.items.join(' ');
-      return '';
-    })
-    .join(' ');
+  const contentText = item.content.map(blockToText).join(' ');
   return `${base} ${contentText}`.toLowerCase();
 }
 

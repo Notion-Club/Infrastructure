@@ -22,7 +22,7 @@ import {
   type ResourceVisibility,
   type UserCapabilities,
 } from "@/shared/types/capabilities";
-import type { ContentBlock, ResourceItem, Resource, Template } from "../types";
+import type { NotionBlock, ResourceItem, Resource, Template } from "../types";
 
 // Forme brute renvoyée par Supabase pour la table resources.
 interface ResourceRow {
@@ -35,7 +35,7 @@ interface ResourceRow {
   visibilite: ResourceVisibility;
   formation: string[];
   type: string[];
-  content: ContentBlock[] | null;
+  content: NotionBlock[] | null;
   url_notion_public_page: string | null;
   url_tella: string | null;
   date_creation: string;
@@ -153,7 +153,7 @@ async function loadWithContent(
     .from("resources")
     .select("content")
     .eq("slug", metaRow.slug)
-    .maybeSingle<{ content: ContentBlock[] | null }>();
+    .maybeSingle<{ content: NotionBlock[] | null }>();
 
   const fullRow: ResourceRow = {
     ...metaRow,

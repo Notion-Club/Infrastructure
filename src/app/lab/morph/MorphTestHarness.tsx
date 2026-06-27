@@ -5,11 +5,19 @@ import { MorphSourceProvider } from '@/modules/ressources/components/morph/Morph
 import { ResourceCard } from '@/modules/ressources/components/ResourceCard';
 import { TemplateCard } from '@/modules/ressources/components/TemplateCard';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
-import type { Resource, Template } from '@/modules/ressources/types';
+import type { Resource, Template, NotionBlock } from '@/modules/ressources/types';
 
 // Données mockées — autosuffisantes, aucune dépendance Notion. `mockCurrentUser`
 // = capability 'formation' → un item en visibilité 'Accompagnement' est VERROUILLÉ
 // (test du chemin CapabilityLock).
+
+// Helpers de construction de blocs Notion normalisés (forme du routeur unifié).
+function rt(text: string): NotionBlock['rich'] {
+  return [{ text, href: null, bold: false, italic: false, underline: false, strikethrough: false, code: false, color: 'default' }];
+}
+function block(id: string, type: NotionBlock['type'], text: string): NotionBlock {
+  return { id, type, rich: rt(text) };
+}
 
 const RES_OPEN: Resource = {
   category: 'resource',
@@ -21,11 +29,12 @@ const RES_OPEN: Resource = {
   visibilite: 'Formation',
   dateCreation: '2026-03-12',
   content: [
-    { type: 'heading', level: 2, text: 'Préparer le terrain' },
-    { type: 'paragraph', text: 'Avant tout appel, qualifie le besoin et fixe un objectif clair pour le rendez-vous.' },
-    { type: 'list', items: [{ text: 'Identifier le décideur' }, { text: 'Préparer trois questions ouvertes' }] },
-    { type: 'heading', level: 2, text: 'Conclure' },
-    { type: 'paragraph', text: 'Reformule la valeur, propose une prochaine étape concrète et engage la signature.' },
+    block('h-1', 'heading_2', 'Préparer le terrain'),
+    block('p-1', 'paragraph', 'Avant tout appel, qualifie le besoin et fixe un objectif clair pour le rendez-vous.'),
+    block('li-1', 'bulleted_list_item', 'Identifier le décideur'),
+    block('li-2', 'bulleted_list_item', 'Préparer trois questions ouvertes'),
+    block('h-2', 'heading_2', 'Conclure'),
+    block('p-2', 'paragraph', 'Reformule la valeur, propose une prochaine étape concrète et engage la signature.'),
   ],
 };
 
@@ -38,7 +47,7 @@ const RES_LOCKED: Resource = {
   type: ['Business'],
   visibilite: 'Accompagnement',
   dateCreation: '2026-04-02',
-  content: [{ type: 'paragraph', text: 'Contenu confidentiel.' }],
+  content: [block('p-locked', 'paragraph', 'Contenu confidentiel.')],
 };
 
 const TPL_OPEN: Template = {
