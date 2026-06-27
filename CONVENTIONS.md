@@ -11,9 +11,12 @@ src/
     auth/                Brique 1 — auth, profiles, memberships
     formation/           Brique 2 — programmes de formation
     community/           Brique 3 — fil communautaire
-    notion-sync/         Brique 4 — sync Notion ↔ Supabase
+    notion-sync/         Brique 4 — sync Notion ↔ Supabase (amorce)
     coaching/            Brique 5 — calls, summaries
-    onboarding/          Brique 6 — parcours d'onboarding
+    onboarding/          Brique 6 — parcours d'onboarding (pré-écrit, à câbler)
+    settings/            Brique 7 — réglages du compte
+    ressources/          Brique 8 — bibliothèque & templates
+    admin/               Brique 9 — actions admin (listes, membres, push)
   shared/
     components/ui/       composants shadcn/ui (générés)
     components/          composants réutilisables transversaux

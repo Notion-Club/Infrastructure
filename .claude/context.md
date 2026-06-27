@@ -1,8 +1,18 @@
 # Contexte projet — NotionClub Infra
 
+> ⚠️ **Document partiellement historique.** Ce fichier a été écrit au début du
+> projet (session « home page »). La **section design-system / tokens / patterns
+> de page ci-dessous reste valide** et utile. En revanche les sections décrivant
+> l'« état applicatif » (flux, règles de session « tout mocké ») étaient liées à
+> la première itération et ont depuis été **dépassées** : l'app a une auth
+> Supabase réelle, des route handlers, et toutes les sous-sections
+> (formation, communauté, coaching, ressources, réglages, membres) sont
+> implémentées. **Pour l'état réel et courant, se référer à `README.md` et
+> `AGENTS.md`.** Les blocs périmés sont signalés `(HISTORIQUE)` ci-dessous.
+
 ## Branche active
-`claude/develop-home-page-6cym5` → PR #7 ouverte sur `theogouman/NotionClub-Infra`
-Tout push sur cette branche met à jour la PR automatiquement.
+Variable selon la tâche en cours (chaque session/feature a sa propre branche
+`claude/...`). Ne pas se fier à une branche figée ici.
 
 ---
 
@@ -70,12 +80,15 @@ src/
 
 ---
 
-## Flux applicatif actuel
+## Flux applicatif (HISTORIQUE — première itération)
 ```
 / → redirect /login
 /login → (mock auth, n'importe quel email/mdp) → /dashboard
 /dashboard → home page (mockée, zéro Supabase)
 ```
+> ⚠️ **Périmé.** L'auth est désormais **réelle (Supabase)** : `(auth)/login`,
+> `signup`, `reset-password`, `update-password`, callback OAuth Google, et le
+> groupe `(app)/` est protégé. Voir `README.md` pour le flux à jour.
 
 ---
 
@@ -207,22 +220,25 @@ Remplacée par `Topbar.tsx` pour desktop.
 
 ---
 
-## Ce qui reste à faire (non implémenté)
-- Brancher `NotificationPopover` sur la cloche de Topbar et MobileHeader
-- `usePathname()` pour état actif dynamique dans BottomNav (hardcodé sur /dashboard)
-- Branchement Supabase (auth réelle, données réelles)
-- Pages `/formation`, `/communaute`, `/coaching`
-- `app/dashboard/layout.tsx` quand plusieurs pages dashboard existent
+## Ce qui restait à faire (HISTORIQUE — désormais largement livré)
+Cette liste datait de la première itération. La plupart est faite :
+`NotificationPopover` est branché sur Topbar + MobileTopActions, l'auth
+Supabase réelle est en place, et les pages `/formation`, `/communaute`,
+`/coaching`, `/ressources`, `/settings`, `/membres` existent. Pour le
+backlog réel, se référer aux issues/PR du repo.
 
 ---
 
-## Règles session en cours
-- ❌ Zéro Supabase / logique auth
-- ❌ Zéro API routes
-- ❌ Zéro pages sous-sections (/formation etc.)
-- ✅ Données mockées uniquement
-- ✅ `useState` pour interactions UI
-- ✅ `router.push()` statique
+## Règles session (HISTORIQUE — ne plus appliquer telles quelles)
+> ⚠️ Ces règles valaient pour la **première session** (maquette home page).
+> Elles sont **caduques** : l'app utilise aujourd'hui Supabase (auth + données),
+> des route handlers, et des Server Actions. Ne pas les prendre comme
+> contraintes actuelles. Conventions à jour : `AGENTS.md` + `CONVENTIONS.md`.
+- ❌ ~~Zéro Supabase / logique auth~~ → auth + données Supabase réelles
+- ❌ ~~Zéro API routes~~ → nombreux route handlers (`src/app/api/*`)
+- ❌ ~~Zéro pages sous-sections~~ → toutes les sous-sections sont implémentées
+- Quelques zones restent mockées (feed communauté via `mocks/posts.mock`,
+  données réglages de démo) — voir README.
 
 ---
 

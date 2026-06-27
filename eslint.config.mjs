@@ -12,6 +12,12 @@ const MODULES = [
   "coaching",
   "onboarding",
   "settings",
+  "admin",
+  // NB : `ressources` n'est volontairement PAS encore listé. Il importe
+  // aujourd'hui `@/modules/auth/server/capabilities` (ressources/server/
+  // queries.ts) — une vraie violation d'isolation. L'ajouter ici ferait
+  // échouer le lint tant que `getCurrentUserCapabilities` n'est pas remonté
+  // dans `@/shared/*`. À faire dans un chantier dédié (décision archi).
 ];
 
 // Pour un module donné, génère une override ESLint qui interdit les imports
