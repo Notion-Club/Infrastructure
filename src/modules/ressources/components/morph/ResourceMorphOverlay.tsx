@@ -75,8 +75,15 @@ export function ResourceMorphOverlay({ children }: { children: ReactNode }) {
   const animsRef = useRef<Animation[]>([]);
   const closingRef = useRef(false);
   const [interactive, setInteractive] = useState(false);
+  // Auto-masquage après fermeture : même si le slot @modal ne se réinitialise
+  // pas au router.back() (réutilisation parallel-route), l'overlay rend null →
+  // zéro résidu de l'animation précédente.
+  const [hidden, setHidden] = useState(false);
 
-  const onClosed = useCallback(() => router.back(), [router]);
+  const onClosed = useCallback(() => {
+    setHidden(true);
+    router.back();
+  }, [router]);
 
   // ── Ouverture ───────────────────────────────────────────────────────────
   useLayoutEffect(() => {
@@ -206,6 +213,8 @@ export function ResourceMorphOverlay({ children }: { children: ReactNode }) {
       animsRef.current = [];
     };
   }, []);
+
+  if (hidden) return null;
 
   // Données carte (header instantané, sans fetch). On suppose une Resource.
   const resource = source?.resource as Resource | undefined;
