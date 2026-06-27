@@ -144,12 +144,15 @@ export function ZoomOverlay({
     const surfAnim = anim(surf, [surfFrom, surfTo], d, SPRING_EASING, store);
 
     // Contenu CARTE (sortant) : suit la surface, disparaît ENTIÈREMENT tôt (linéaire).
+    // Keyframes opacité SPANNÉES jusqu'à offset 1 → la valeur finale (0) TIENT
+    // (sinon WAAPI revient vers la base au-delà du dernier offset → le contenu
+    // réapparaissait à l'état ouvert).
     anim(card, [{ transform: 'none' }, { transform: cardOut }], d, SPRING_EASING, store);
-    anim(card, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 0, offset: 0.4 }], d, FADE, store);
+    anim(card, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 0, offset: 0.4 }, { opacity: 0, offset: 1 }], d, FADE, store);
 
     // Contenu ENCADRÉ (entrant) : transparent au départ, entre APRÈS (zéro chevauchement).
     anim(enc, [{ transform: track }, { transform: 'none' }], d, SPRING_EASING, store);
-    anim(enc, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.45 }, { opacity: 1, offset: 0.85 }], d, FADE, store);
+    anim(enc, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.45 }, { opacity: 1, offset: 0.85 }, { opacity: 1, offset: 1 }], d, FADE, store);
 
     surfAnim?.finished.then(() => setInteractive(true)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,7 +187,7 @@ export function ZoomOverlay({
     anim(encRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.35 }, { opacity: 0, offset: 1 }], d, FADE, store);
     // Carte (entrante) : revient EN FIN (après disparition de l'encadré).
     anim(cardRef.current, [{ transform: g.cardOut }, { transform: 'none' }], d, SPRING_EASING, store);
-    anim(cardRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.6 }, { opacity: 1, offset: 0.95 }], d, FADE, store);
+    anim(cardRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.6 }, { opacity: 1, offset: 0.95 }, { opacity: 1, offset: 1 }], d, FADE, store);
     // Fond : se retire en fin → l'index réapparaît quand la carte rentre.
     anim(pageBgRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.5 }, { opacity: 0, offset: 1 }], d, FADE, store);
 
