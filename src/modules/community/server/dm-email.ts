@@ -4,10 +4,10 @@ import { Resend } from "resend";
 import { createSupabaseAdminClient } from "@/shared/lib/supabase/admin";
 
 // Service d'envoi des emails de notification DM. Appelé par la route cron
-// /api/cron/send-dm-emails qui est elle-même triggée par Vercel Cron toutes
-// les 2 minutes. Tout est best-effort : un échec d'envoi loggue mais ne
-// fait pas planter le batch — la notif reste en "pending" et sera retentée
-// au prochain tick.
+// /api/cron/send-dm-emails, elle-même triggée par Vercel Cron une fois par
+// jour (cf. vercel.json : "0 9 * * *"). Tout est best-effort : un échec
+// d'envoi loggue mais ne fait pas planter le batch — la notif reste en
+// "pending" et sera retentée au prochain tick.
 
 interface PendingNotification {
   id: string;

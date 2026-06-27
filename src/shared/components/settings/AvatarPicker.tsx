@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import dynamic from "next/dynamic";
+
 import { Trash } from "@/shared/components/icons";
 
 import {
@@ -32,7 +34,14 @@ import {
   uploadAvatarAction,
   type AvatarColor,
 } from "@/modules/settings";
-import { AvatarCropper } from "./AvatarCropper";
+// Chargé à la demande : le cropper n'apparaît qu'après sélection d'un fichier,
+// et il embarque `react-easy-crop` (lib lourde). En `dynamic` (ssr:false), ce
+// chunk ne part plus dans le bundle initial de la page Réglages — il n'est
+// téléchargé que lorsque l'utilisateur ouvre réellement le recadrage.
+const AvatarCropper = dynamic(
+  () => import("./AvatarCropper").then((m) => m.AvatarCropper),
+  { ssr: false },
+);
 
 type SourceImage = {
   url: string;

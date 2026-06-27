@@ -15,7 +15,6 @@ import {
   AVATAR_MAX_BYTES,
   DEFAULT_CHANNEL_ENABLED,
   NOTIFICATION_CATEGORIES,
-  NOTIFICATION_CHANNELS,
   accountEmailChangeSchema,
   avatarColorChangeSchema,
   billingUpdateSchema,
