@@ -3457,14 +3457,23 @@ html.dark .nc-lt-scrim {
 }
 
 /* Zone Messages embarquée dans la carte /communaute.
-   • Mobile : hauteur DÉFINIE (chat à scroll interne, façon messagerie). Le
-     `calc(100dvh - 224px)` ≈ chrome haut + switcher.
+   • Mobile : hauteur DÉFINIE (chat à scroll interne, façon messagerie). C'est la
+     SEULE source de vérité de la hauteur du panneau messages — MessagesLayout la
+     remplit en `height:100%` (plus de second `calc` concurrent).
+     `100dvh - 224px` ≈ chrome haut (pt-64) + switcher + marge basse. On soustrait
+     EN PLUS `env(safe-area-inset-bottom)` : la BottomNav est ancrée à
+     `calc(10px + env(safe-area-inset-bottom))`, donc sur PWA/Safari iOS (safe-area
+     ≈ 34px) sans cette soustraction la carte débordait SOUS la barre de nav, et le
+     bas de la conversation (derniers messages + composer) passait hors écran — d'où
+     « je ne suis pas tout en bas » et « le contenant dépasse la barre ». La
+     soustraction garantit un écart constant au-dessus de la BottomNav, quelle que
+     soit la safe-area.
    • Desktop : on REMPLIT la carte (flex-1) au lieu d'une hauteur fixe plus
      courte que la carte → la bande grise (fond de carte) sous le panneau et les
      coins arrondis vides en bas disparaissent ; le panneau messages va jusqu'en
      bas de l'encadré. */
 .nc-messages-embed {
-  height: calc(100dvh - 224px);
+  height: calc(100dvh - 224px - env(safe-area-inset-bottom, 0px));
   overflow: hidden;
 }
 @media (min-width: 768px) {
