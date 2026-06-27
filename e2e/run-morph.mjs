@@ -72,6 +72,12 @@ const focusInDialog = (page) =>
     const d = document.querySelector('[role="dialog"]');
     return !!d && d.contains(document.activeElement);
   }, { timeout: 6000 });
+// Attend la fin du morph d'ouverture (la croix passe interactive → opacity 1).
+const waitInteractive = (page) =>
+  page.waitForFunction(() => {
+    const b = document.querySelector('button[aria-label="Fermer"]');
+    return !!b && getComputedStyle(b).opacity === '1';
+  }, { timeout: 6000 });
 
 async function run() {
   const browser = await chromium.launch();
@@ -186,6 +192,48 @@ async function run() {
       HREF.resOpen,
     );
     assert(onTrigger, 'le focus n’est pas revenu sur la carte après ouverture clavier');
+  });
+
+  // 10 — Scroll-document : contenu défilable, TITRE qui défile (pas figé), CROIX
+  //      qui reste FIXE. Couvre les 3 demandes du redesign.
+  await check('scroll-document : titre défile, croix fixe, contenu défilable', async () => {
+    await page.setViewportSize({ width: 1280, height: 700 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await open(page, HREF.resOpen);
+    await waitOpen(page);
+    await waitInteractive(page);
+
+    const m = () =>
+      page.evaluate(() => {
+        const t = document.querySelector('[role="dialog"] h1');
+        const b = document.querySelector('button[aria-label="Fermer"]');
+        const s = document.querySelector('[data-testid="morph-scroll"]');
+        return {
+          titleTop: t ? Math.round(t.getBoundingClientRect().top) : null,
+          closeTop: b ? Math.round(b.getBoundingClientRect().top) : null,
+          scrollTop: s ? s.scrollTop : null,
+          scrollable: s ? s.scrollHeight > s.clientHeight + 50 : false,
+        };
+      });
+
+    const before = await m();
+    assert(before.scrollable, 'le conteneur de l’encadré n’est pas défilable (contenu trop court ?)');
+
+    await page.evaluate(() => {
+      document.querySelector('[data-testid="morph-scroll"]')?.scrollTo(0, 300);
+    });
+    await page.waitForFunction(
+      () => (document.querySelector('[data-testid="morph-scroll"]')?.scrollTop ?? 0) >= 290,
+      { timeout: 3000 },
+    );
+    const after = await m();
+
+    assert(after.scrollTop >= 290, 'le conteneur n’a pas défilé');
+    assert(after.titleTop < before.titleTop - 100, `le titre n’a pas défilé (${before.titleTop} → ${after.titleTop})`);
+    assert(Math.abs(after.closeTop - before.closeTop) <= 2, `la croix a bougé au scroll (${before.closeTop} → ${after.closeTop})`);
+
+    await page.keyboard.press('Escape');
+    await waitClosed(page);
   });
 
   await browser.close();

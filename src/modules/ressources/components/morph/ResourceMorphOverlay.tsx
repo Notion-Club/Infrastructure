@@ -22,9 +22,13 @@ import type { MorphSource } from './MorphSourceContext';
 
 // Morph WAAPI (mécanique validée au lab v9) — surface clippée qui morphe (coins
 // lisses), titre CONTINU (hero) qui voyage, fade-through à gap des contenus.
-// Différence vs scaffold intercepté : la donnée (resource OU template) vient des
-// props (déjà en mémoire, zéro fetch) et la fermeture est purement cliente
-// (onClose après l'anim) — aucune navigation, la grille derrière reste montée.
+//
+// SCROLL DOCUMENT : l'encadré n'a PAS de hauteur figée — il fait la longueur de
+// son contenu et défile dans un conteneur de scroll plein écran (pas de scroll
+// INTERNE). Pendant le morph la surface est `position: fixed` (géométrie pilotée
+// au pixel, mécanique inchangée) ; à la fin de l'ouverture elle est RELÂCHÉE en
+// flux (`position: relative`) dans le conteneur → le contenu défile, le titre
+// défile avec lui, et la croix reste FIXE à l'écran.
 
 const FADE = 'linear';
 
@@ -45,6 +49,10 @@ const CARD_TITLE_STYLE: CSSProperties = {
   margin: 0,
   lineHeight: 1.4,
 };
+
+// Décalage haut de l'encadré (safe-area + marge) — partagé surfWrap / mesures.
+const TOP_OFFSET = 'calc(env(safe-area-inset-top, 0px) + 76px)';
+const SURF_WIDTH = 'min(720px, calc(100vw - 32px))';
 
 const MONTHS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 function formatDate(iso: string): string {
@@ -112,6 +120,20 @@ function getFocusable(root: HTMLElement | null): HTMLElement[] {
   );
 }
 
+interface MorphGeom {
+  surfFrom: Keyframe;
+  surfTo: Keyframe;
+  heroFrom: string;
+  // Géométrie fixe (viewport, scroll 0) pour ré-ancrer la surface à la fermeture.
+  fixTop: number;
+  fixLeft: number;
+  fixW: number;
+  openH: number;
+  heroTop: number;
+  heroLeft: number;
+  heroW: number;
+}
+
 interface OverlayProps {
   source: MorphSource;
   /** Appelé UNE fois l'animation de fermeture terminée → le provider démonte. */
@@ -126,6 +148,7 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
   const hasAccess = canAccess(mockCurrentUser.capability, item.visibilite);
 
   const pageBgRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const surfRef = useRef<HTMLDivElement>(null);
   const encRef = useRef<HTMLDivElement>(null);
   const encTitleRef = useRef<HTMLHeadingElement>(null);
@@ -133,7 +156,7 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
   const cardTitleRef = useRef<HTMLHeadingElement>(null);
   const heroRef = useRef<HTMLHeadingElement>(null);
 
-  const gRef = useRef<{ surfFrom: Keyframe; surfTo: Keyframe; heroFrom: string } | null>(null);
+  const gRef = useRef<MorphGeom | null>(null);
   const animsRef = useRef<Animation[]>([]);
   const closingRef = useRef(false);
   const poppedRef = useRef(false);
@@ -187,7 +210,7 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     onClose();
   }, [onClose, source]);
 
-  // ── Fermeture (joue le morph inverse, puis finishClose) ────────────────────
+  // ── Fermeture (ré-ancre la surface en fixed, joue le morph inverse) ─────────
   const startClose = useCallback(() => {
     if (closingRef.current) return;
     closingRef.current = true;
@@ -196,6 +219,35 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     const g = gRef.current;
     const surf = surfRef.current;
     if (!g || !surf || prefersReduced()) return finishClose();
+
+    // Revenir en haut du conteneur → la surface retrouve sa position d'ouverture
+    // (scroll 0) ⇒ on peut réutiliser la géométrie mémorisée pour le morph inverse.
+    scrollRef.current?.scrollTo(0, 0);
+
+    // Ré-ancrage de la surface en fixed (état d'ouverture, scroll 0).
+    surf.style.position = 'fixed';
+    surf.style.top = `${g.fixTop}px`;
+    surf.style.left = `${g.fixLeft}px`;
+    surf.style.marginLeft = '0';
+    surf.style.width = `${g.fixW}px`;
+    surf.style.height = `${g.openH}px`;
+    surf.style.borderRadius = '24px';
+    surf.style.transform = 'none';
+    surf.style.transformOrigin = 'top left';
+    surf.style.overflow = 'hidden';
+    if (encRef.current) encRef.current.style.width = `${g.fixW}px`;
+
+    // Bascule titre : le vrai titre (en flux) disparaît, le hero (fixe) reprend.
+    if (encTitleRef.current) encTitleRef.current.style.opacity = '0';
+    const hero = heroRef.current;
+    if (hero) {
+      hero.style.display = '';
+      hero.style.opacity = '1';
+      hero.style.transform = 'none';
+      hero.style.top = `${g.heroTop}px`;
+      hero.style.left = `${g.heroLeft}px`;
+      hero.style.width = `${g.heroW}px`;
+    }
 
     animsRef.current.forEach((a) => {
       try {
@@ -213,8 +265,8 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     anim(encRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.28 }, { opacity: 0, offset: 1 }], d, FADE, store);
     anim(cardRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.84 }, { opacity: 1, offset: 1 }], d, FADE, store);
     anim(pageBgRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.5 }, { opacity: 0, offset: 1 }], d, FADE, store);
-    anim(heroRef.current, [{ transform: 'none' }, { transform: g.heroFrom }], d, SPRING_EASING, store);
-    anim(heroRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.6 }, { opacity: 0, offset: 0.8 }, { opacity: 0, offset: 1 }], d, FADE, store);
+    anim(hero, [{ transform: 'none' }, { transform: g.heroFrom }], d, SPRING_EASING, store);
+    anim(hero, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.6 }, { opacity: 0, offset: 0.8 }, { opacity: 0, offset: 1 }], d, FADE, store);
     anim(cardTitleRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.86 }, { opacity: 1, offset: 1 }], d, FADE, store);
 
     surfAnim?.finished.then(finishClose).catch(finishClose);
@@ -235,23 +287,40 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     const d = SPRING_DURATION;
     const c = source.cardRect;
 
-    const destRect = surf.getBoundingClientRect();
+    // État de repos (flux) posé en inline AVANT toute mesure — la surface n'a
+    // aucune propriété de layout via le prop React (cf. JSX).
+    surf.style.position = 'relative';
+    surf.style.width = SURF_WIDTH;
+    surf.style.height = 'auto';
+    surf.style.borderRadius = '24px';
+    surf.style.overflow = 'hidden';
+
+    // Mesure de la surface DANS LE FLUX (avant de la passer en fixed) : top =
+    // décalage haut, left = centré, width = SURF_WIDTH, height = contenu.
+    const flowRect = surf.getBoundingClientRect();
     const encTitleRect = encTitle.getBoundingClientRect();
     const gridTitleRect = source.titleRect;
     const destFont = parseFloat(getComputedStyle(encTitle).fontSize) || 36;
     const cardFont = parseFloat(getComputedStyle(cardTitle).fontSize) || 15;
 
-    const dx = c.left - destRect.left;
-    const dy = c.top - destRect.top;
+    // Hauteur d'OUVERTURE bornée au viewport (le contenu plus long défilera après
+    // relâchement) → le morph n'« explose » pas en une boîte de 3000px.
+    const openH = Math.min(flowRect.height, window.innerHeight - flowRect.top - 24);
 
-    surf.style.top = `${destRect.top}px`;
-    surf.style.left = `${destRect.left}px`;
+    const dx = c.left - flowRect.left;
+    const dy = c.top - flowRect.top;
+
+    // Passage en fixed pour le morph (géométrie au pixel, comme le lab validé).
+    surf.style.position = 'fixed';
+    surf.style.top = `${flowRect.top}px`;
+    surf.style.left = `${flowRect.left}px`;
     surf.style.marginLeft = '0';
     surf.style.transformOrigin = 'top left';
-    enc.style.width = `${destRect.width}px`;
+    surf.style.overflow = 'hidden';
+    enc.style.width = `${flowRect.width}px`;
 
     const surfFrom: Keyframe = { transform: `translate(${dx}px, ${dy}px)`, width: `${c.width}px`, height: `${c.height}px`, borderRadius: '16px' };
-    const surfTo: Keyframe = { transform: 'none', width: `${destRect.width}px`, height: `${destRect.height}px`, borderRadius: '24px' };
+    const surfTo: Keyframe = { transform: 'none', width: `${flowRect.width}px`, height: `${openH}px`, borderRadius: '24px' };
     Object.assign(surf.style, surfFrom);
 
     const hScale = cardFont / destFont;
@@ -261,7 +330,18 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     hero.style.width = `${encTitleRect.width}px`;
     hero.style.transform = heroFrom;
 
-    gRef.current = { surfFrom, surfTo, heroFrom };
+    gRef.current = {
+      surfFrom,
+      surfTo,
+      heroFrom,
+      fixTop: flowRect.top,
+      fixLeft: flowRect.left,
+      fixW: flowRect.width,
+      openH,
+      heroTop: encTitleRect.top,
+      heroLeft: encTitleRect.left,
+      heroW: encTitleRect.width,
+    };
 
     if (pageBg) {
       const real = document.querySelector('.nc-app-bg');
@@ -272,14 +352,42 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
       }
     }
 
+    // Relâche la surface en flux (fin d'ouverture) : le contenu défile alors dans
+    // le conteneur, le titre défile avec, la croix reste fixe.
+    const release = () => {
+      const s = surfRef.current;
+      if (s) {
+        // Repos en FLUX (identique à surfTo à scroll 0) → le contenu défile dans
+        // le conteneur. Tout est posé explicitement (le prop React ne porte aucun
+        // style de layout).
+        s.style.position = 'relative';
+        s.style.top = '';
+        s.style.left = '';
+        s.style.margin = '';
+        s.style.marginLeft = '';
+        s.style.width = SURF_WIDTH;
+        s.style.height = 'auto';
+        s.style.transform = 'none';
+        s.style.transformOrigin = '';
+        s.style.borderRadius = '24px';
+        s.style.overflow = 'hidden';
+      }
+      // Le corps reprend sa largeur naturelle (la fige px avait évité le reflow).
+      if (encRef.current) encRef.current.style.width = '';
+      // Bascule titre : le hero (fixe) s'efface, le vrai titre (en flux) prend le
+      // relais → il défilera avec le contenu.
+      if (encTitleRef.current) encTitleRef.current.style.opacity = '1';
+      if (heroRef.current) heroRef.current.style.display = 'none';
+      setInteractive(true);
+    };
+
     if (prefersReduced()) {
       Object.assign(surf.style, surfTo);
       if (pageBg) pageBg.style.opacity = '1';
       enc.style.opacity = '1';
       card.style.opacity = '0';
-      hero.style.transform = 'none';
       cardTitle.style.opacity = '0';
-      requestAnimationFrame(() => setInteractive(true));
+      requestAnimationFrame(release);
       return;
     }
 
@@ -291,7 +399,18 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     anim(hero, [{ transform: heroFrom }, { transform: 'none' }], d, SPRING_EASING, store);
     anim(hero, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.1 }, { opacity: 1, offset: 0.22 }, { opacity: 1, offset: 1 }], d, FADE, store);
 
-    surfAnim?.finished.then(() => setInteractive(true)).catch(() => {});
+    surfAnim?.finished
+      .then(() => {
+        // Stoppe l'anim de surface (sinon `fill: both` retient la géométrie fixe)
+        // PUIS relâche en flux dans le même tick → aucun repaint intermédiaire.
+        try {
+          surfAnim.cancel();
+        } catch {
+          /* noop */
+        }
+        release();
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -354,16 +473,13 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     return () => cancelAnimationFrame(t);
   }, []);
 
-  // Verrou de scroll NON déplaçant : on fige l'overflow SANS `position: fixed`.
-  // L'ancienne approche (position:fixed + top:-scrollY + scrollTo au démontage)
-  // déplaçait le document → à la fermeture le scroll sautait en haut puis
-  // revenait, et la BottomNav tressautait en PWA iOS (reflow du viewport/safe-area).
-  // Ici la position de scroll n'est JAMAIS modifiée → la grille reste exactement
-  // où elle était à la fermeture. `scrollRestoration: manual` empêche le
-  // history.back() (bouton retour) de restaurer le scroll de l'entrée précédente
-  // (qui ramenait en haut de page). Le fond de l'overlay reste figé via
-  // overflow:hidden + touch-action sur le backdrop + overscroll-behavior sur la
-  // surface (cf. styles).
+  // Verrou de scroll NON déplaçant de la GRILLE derrière : on fige l'overflow du
+  // document SANS `position: fixed` (qui sauterait le scroll et tressauterait la
+  // BottomNav en PWA iOS). La position de scroll de la grille n'est JAMAIS
+  // modifiée → à la fermeture elle reste exactement où elle était. Le scroll du
+  // CONTENU se fait dans le conteneur dédié de l'overlay (cf. scrollRef), pas
+  // dans le document. `scrollRestoration: manual` empêche le history.back() de
+  // restaurer le scroll de l'entrée précédente.
   useEffect(() => {
     const html = document.documentElement;
     const body = document.body;
@@ -403,115 +519,145 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
   const badgeVariant = isResource ? 'ressource' : 'template';
   const badgeLabel = isResource ? 'Ressource' : 'Template';
 
+  // Ferme si le clic atterrit sur le conteneur/zone vide (pas sur la surface).
+  const onScrollAreaClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) startClose();
+  };
+
   const overlay = (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}>
       <div
         ref={pageBgRef}
-        onClick={startClose}
-        style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--color-surface-page)', opacity: 0, pointerEvents: interactive ? 'auto' : 'none', touchAction: 'none' }}
+        style={{ position: 'fixed', inset: 0, backgroundColor: 'var(--color-surface-page)', opacity: 0, pointerEvents: 'none', touchAction: 'none' }}
       />
 
-      {/* Surface qui morphe + clippe ; scroll interne du corps quand ouvert.
-          C'est le DIALOGUE a11y : role/aria-modal/label + tabindex pour recevoir
-          le focus à l'ouverture. */}
+      {/* Conteneur de SCROLL plein écran : c'est lui qui défile (pas le document,
+          pas l'intérieur de la surface). Clic sur la zone vide → fermeture. */}
       <div
-        ref={surfRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={item.titre}
-        tabIndex={-1}
+        ref={scrollRef}
+        data-testid="morph-scroll"
+        onClick={onScrollAreaClick}
         style={{
-          outline: 'none',
           position: 'fixed',
-          top: 'calc(env(safe-area-inset-top, 0px) + 76px)',
-          left: '50%',
-          marginLeft: 'calc(min(720px, 100vw - 32px) * -0.5)',
-          width: 'min(720px, calc(100vw - 32px))',
-          maxHeight: 'calc(100lvh - (env(safe-area-inset-top, 0px) + 76px) - 24px)',
-          transformOrigin: 'top left',
-          background: 'var(--color-surface-card)',
-          border: '1px solid var(--color-border-default)',
-          boxShadow: 'var(--nc-shadow-3)',
-          borderRadius: 16,
+          inset: 0,
           overflowX: 'hidden',
           overflowY: interactive ? 'auto' : 'hidden',
           overscrollBehavior: 'contain',
-          willChange: 'width, height, transform, border-radius',
+          WebkitOverflowScrolling: 'touch',
           pointerEvents: interactive ? 'auto' : 'none',
         }}
       >
-        {/* Contenu ENCADRÉ (header + corps réel, déjà en mémoire) */}
-        <div ref={encRef} style={{ padding: 32, opacity: 0, willChange: 'opacity' }}>
-          <h1 ref={encTitleRef} style={{ ...H1_STYLE, opacity: 0, marginBottom: 16 }}>{item.titre}</h1>
-          <p style={{ fontSize: 16, color: 'var(--color-text-secondary)', margin: '0 0 16px', lineHeight: 1.6 }}>{item.description}</p>
-          <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 16 }}>{formatDate(item.dateCreation)}</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <ResourceBadge variant={badgeVariant} label={badgeLabel} />
-            {resource?.formation?.map((f) => <ResourceBadge key={f} variant="formation" label={f} />)}
-            {resource?.type?.map((t) => <ResourceBadge key={t} variant="type" label={t} />)}
-            {template && <ResourceBadge variant="type" label={template.type} />}
-          </div>
+        {/* Centre la surface + décalage haut/bas ; ne capte pas le pointeur (les
+            clics traversent vers le conteneur pour fermer), sauf sur la surface. */}
+        <div
+          style={{
+            minHeight: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            paddingTop: TOP_OFFSET,
+            paddingBottom: 24,
+            pointerEvents: 'none',
+          }}
+        >
+          {/* SURFACE (encadré) : pendant le morph → fixed (piloté en JS) ; après
+              ouverture → flux, hauteur = contenu, défile dans le conteneur.
+              C'est le DIALOGUE a11y. */}
+          <div
+            ref={surfRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={item.titre}
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+            // IMPORTANT : aucune propriété de LAYOUT ici (position/width/height/
+            // overflow/border-radius/top/left/transform). Elles sont pilotées
+            // EXCLUSIVEMENT en inline JS (morph + repos) → un re-render (ex. arrivée
+            // async du body) ne peut pas réinitialiser la géométrie en plein morph.
+            style={{
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border-default)',
+              boxShadow: 'var(--nc-shadow-3)',
+              outline: 'none',
+              pointerEvents: 'auto',
+              willChange: 'width, height, transform, border-radius',
+            }}
+          >
+            {/* Contenu ENCADRÉ (header + corps réel) */}
+            <div ref={encRef} style={{ padding: 32, opacity: 0, willChange: 'opacity' }}>
+              <h1 ref={encTitleRef} style={{ ...H1_STYLE, opacity: 0, marginBottom: 16 }}>{item.titre}</h1>
+              <p style={{ fontSize: 16, color: 'var(--color-text-secondary)', margin: '0 0 16px', lineHeight: 1.6 }}>{item.description}</p>
+              <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 16 }}>{formatDate(item.dateCreation)}</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <ResourceBadge variant={badgeVariant} label={badgeLabel} />
+                {resource?.formation?.map((f) => <ResourceBadge key={f} variant="formation" label={f} />)}
+                {resource?.type?.map((t) => <ResourceBadge key={t} variant="type" label={t} />)}
+                {template && <ResourceBadge variant="type" label={template.type} />}
+              </div>
 
-          {/* CORPS — source unique partagée avec la vraie page détail.
-              Chargé via Server Action (skeleton tant que `body === null`). */}
-          {resource &&
-            (hasAccess && body === null ? (
-              <ResourceBodySkeleton />
-            ) : (
-              <ResourceContentBody
-                resource={body ? { ...resource, content: body } : resource}
-              />
-            ))}
-          {template && (
-            <div style={{ marginTop: 24 }}>
-              {template.urlTella && (
-                <div style={{ marginBottom: hasAccess ? 8 : 24 }}><TellaEmbed url={template.urlTella} /></div>
-              )}
-              {hasAccess ? (
-                <DuplicateButton url={template.urlNotionPublicPage} />
-              ) : (
-                <CapabilityLock
-                  title={`Template réservé aux membres ${template.visibilite}`}
-                  description={`Ce template est accessible à partir de l'offre ${template.visibilite}. Rejoins le programme pour le dupliquer ainsi que toute la bibliothèque correspondante.`}
-                  ctaLabel="Découvrir les offres"
-                  ctaHref="/offres"
-                />
+              {/* CORPS — source unique partagée avec la vraie page détail.
+                  Chargé via Server Action (skeleton tant que `body === null`). */}
+              {resource &&
+                (hasAccess && body === null ? (
+                  <ResourceBodySkeleton />
+                ) : (
+                  <ResourceContentBody
+                    resource={body ? { ...resource, content: body } : resource}
+                  />
+                ))}
+              {template && (
+                <div style={{ marginTop: 24 }}>
+                  {template.urlTella && (
+                    <div style={{ marginBottom: hasAccess ? 8 : 24 }}><TellaEmbed url={template.urlTella} /></div>
+                  )}
+                  {hasAccess ? (
+                    <DuplicateButton url={template.urlNotionPublicPage} />
+                  ) : (
+                    <CapabilityLock
+                      title={`Template réservé aux membres ${template.visibilite}`}
+                      description={`Ce template est accessible à partir de l'offre ${template.visibilite}. Rejoins le programme pour le dupliquer ainsi que toute la bibliothèque correspondante.`}
+                      ctaLabel="Découvrir les offres"
+                      ctaHref="/offres"
+                    />
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
 
-        <button
-          type="button"
-          onClick={startClose}
-          aria-label="Fermer"
-          style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 18, lineHeight: 1, zIndex: 2 }}
-        >
-          ✕
-        </button>
-
-        {/* Clone du CONTENU CARTE (départ) — réplique la carte de la grille */}
-        <div
-          ref={cardRef}
-          style={{ position: 'absolute', top: 0, left: 0, width: source.cardRect.width, padding: 20, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 12, willChange: 'opacity', pointerEvents: 'none' }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-            <ResourceBadge variant={badgeVariant} label={badgeLabel} />
-          </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <h3 ref={cardTitleRef} style={CARD_TITLE_STYLE}>{item.titre}</h3>
-            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</p>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {resource?.formation?.map((f) => <ResourceBadge key={f} variant="formation" label={f} />)}
-            {resource?.type?.map((t) => <ResourceBadge key={t} variant="type" label={t} />)}
-            {template && <ResourceBadge variant="type" label={template.type} />}
+            {/* Clone du CONTENU CARTE (départ) — réplique la carte de la grille */}
+            <div
+              ref={cardRef}
+              style={{ position: 'absolute', top: 0, left: 0, width: source.cardRect.width, padding: 20, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 12, willChange: 'opacity', pointerEvents: 'none' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <ResourceBadge variant={badgeVariant} label={badgeLabel} />
+              </div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <h3 ref={cardTitleRef} style={CARD_TITLE_STYLE}>{item.titre}</h3>
+                <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</p>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {resource?.formation?.map((f) => <ResourceBadge key={f} variant="formation" label={f} />)}
+                {resource?.type?.map((t) => <ResourceBadge key={t} variant="type" label={t} />)}
+                {template && <ResourceBadge variant="type" label={template.type} />}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* TITRE CONTINU (hero) */}
-      <h1 ref={heroRef} style={{ ...H1_STYLE, position: 'fixed', transformOrigin: 'top left', willChange: 'transform, opacity', pointerEvents: 'none' }}>
+      {/* CROIX — FIXE à l'écran (hors du conteneur de scroll) → toujours visible. */}
+      <button
+        type="button"
+        onClick={startClose}
+        aria-label="Fermer"
+        style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 16px)', right: 16, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 18, lineHeight: 1, zIndex: 2, pointerEvents: interactive ? 'auto' : 'none', opacity: interactive ? 1 : 0, transition: 'opacity 160ms ease' }}
+      >
+        ✕
+      </button>
+
+      {/* TITRE CONTINU (hero) — uniquement pendant le morph */}
+      <h1 ref={heroRef} style={{ ...H1_STYLE, position: 'fixed', transformOrigin: 'top left', willChange: 'transform, opacity', pointerEvents: 'none', zIndex: 1 }}>
         {item.titre}
       </h1>
     </div>

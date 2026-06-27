@@ -35,6 +35,11 @@ const RES_OPEN: Resource = {
     block('li-2', 'bulleted_list_item', 'Préparer trois questions ouvertes'),
     block('h-2', 'heading_2', 'Conclure'),
     block('p-2', 'paragraph', 'Reformule la valeur, propose une prochaine étape concrète et engage la signature.'),
+    // Contenu long → l'encadré dépasse le viewport ⇒ le test e2e peut vérifier le
+    // scroll-document (titre qui défile, croix fixe, contenu défilable).
+    ...Array.from({ length: 18 }, (_, i) =>
+      block(`p-long-${i}`, 'paragraph', `Paragraphe de remplissage n°${i + 1} pour rendre la page suffisamment longue afin de tester le défilement de l'encadré sur toute la longueur du contenu réel.`),
+    ),
   ],
 };
 
