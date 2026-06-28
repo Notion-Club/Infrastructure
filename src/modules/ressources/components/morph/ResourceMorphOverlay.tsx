@@ -258,9 +258,21 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     const surf = surfRef.current;
     if (!g || !surf || prefersReduced()) return finishClose();
 
-    // Revenir en haut du conteneur → la surface retrouve sa position d'ouverture
-    // (scroll 0) ⇒ on peut réutiliser la géométrie mémorisée pour le morph inverse.
-    scrollRef.current?.scrollTo(0, 0);
+    // Fige le conteneur de scroll SYNCHRONEMENT, AVANT de ré-ancrer la surface.
+    // En PWA iOS, un `position: fixed` descendant d'un scroller `overflow:auto` +
+    // `-webkit-overflow-scrolling:touch` se positionne RELATIVEMENT au scroller (et
+    // non au viewport) → si l'utilisateur avait scrollé, la surface ré-ancrée
+    // partait hors écran et le morph inverse n'était pas visible (fermeture
+    // « brutale », sans rétrécissement). On ne peut pas se reposer sur le
+    // `setInteractive(false)` ci-dessus : son re-render React est asynchrone, donc
+    // le conteneur est encore `overflow:auto` à l'instant du ré-ancrage. En passant
+    // ici en `overflow:hidden` impérativement, le fixed redevient ancré au viewport
+    // comme à l'ouverture. Puis retour en haut → on réutilise la géométrie mémorisée.
+    const scroller = scrollRef.current;
+    if (scroller) {
+      scroller.style.overflowY = 'hidden';
+      scroller.scrollTo(0, 0);
+    }
 
     // Ré-ancrage de la surface en fixed (état d'ouverture, scroll 0).
     surf.style.position = 'fixed';
