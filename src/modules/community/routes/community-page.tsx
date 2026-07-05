@@ -231,7 +231,7 @@ export function CommunityPage({
           `overflow:hidden` ne fait que clipper les coins arrondis. La vue
           Messages se redonne une hauteur fixe explicite (cf. MessagesContent). */}
       <div
-        className="flex flex-col flex-1"
+        className={`flex flex-col flex-1 nc-community-card${activeTab === "messages" ? " nc-community-card--messages" : ""}`}
         data-fb-label="Encadré principal · Communauté"
         style={{
           background: "var(--color-surface-raised)",
