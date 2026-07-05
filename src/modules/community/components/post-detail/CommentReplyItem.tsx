@@ -9,6 +9,8 @@ import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
 import { renderBodyRich } from "../../utils/render-mentions";
 import { buildCommentLink, copyCommunityLink } from "../../utils/copy-link";
+import { detectVideoEmbed } from "../../utils/video-embed";
+import { VideoEmbed } from "../shared/VideoEmbed";
 import { useCommentHighlight } from "../../hooks/useCommentHighlight";
 import { UserAvatar } from "../shared/UserAvatar";
 import { UserHoverCard } from "../shared/UserHoverCard";
@@ -46,6 +48,11 @@ export function CommentReplyItem({ postId, reply, devRole, currentUser, highligh
 
   // Deep-link `?comment=` : cette réponse est la cible → scroll + surlignage.
   const { ref: highlightRef, ring } = useCommentHighlight<HTMLDivElement>(highlightId === reply.id);
+
+  // Embed vidéo détecté dans le body de la réponse (allowlist). URL retirée du
+  // texte affiché pour ne pas doublonner embed + lien nu.
+  const video = detectVideoEmbed(replyData.body);
+  const displayBody = video ? replyData.body.replace(video.matchedUrl, "").trim() : replyData.body;
 
   async function handleReaction(emoji: string) {
     const previous = reactions;
@@ -187,7 +194,7 @@ export function CommentReplyItem({ postId, reply, devRole, currentUser, highligh
           ) : (
             <div style={{ margin: "4px 0", fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
               {renderBodyRich(
-                replyData.body,
+                displayBody,
                 // Source primaire : comment_reply_mentions (mig. 022) qui
                 // supporte N mentions. Fallback : le singleton legacy
                 // mentionedUser (cas des replies créées avant mig. 022).
@@ -199,6 +206,8 @@ export function CommentReplyItem({ postId, reply, devRole, currentUser, highligh
               )}
             </div>
           )}
+
+          {!editOpen && video && <VideoEmbed src={video.embedSrc} label="Vidéo · Réponse" />}
 
           {!editOpen && (
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6 }}>

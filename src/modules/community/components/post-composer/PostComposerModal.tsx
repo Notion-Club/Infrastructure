@@ -7,6 +7,7 @@ import { Link, Photo } from "@/shared/components/icons";
 import { toast } from "sonner";
 import type { Post, PostTag, PostAudience } from "../../types/post.types";
 import type { User } from "../../types/user.types";
+import { detectVideoEmbed } from "../../utils/video-embed";
 import { PostComposerTagSelect } from "./PostComposerTagSelect";
 import { PostComposerAdminFields } from "./PostComposerAdminFields";
 import { ImageLightbox } from "../shared/ImageLightbox";
@@ -77,14 +78,11 @@ function insertBulletAtCaret(
   syncBody();
 }
 
-function detectVideoUrl(text: string): { type: "youtube" | "loom" | "tella"; src: string } | null {
-  const ytMatch = text.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
-  if (ytMatch) return { type: "youtube", src: `https://www.youtube.com/embed/${ytMatch[1]}` };
-  const loomMatch = text.match(/https?:\/\/(?:www\.)?loom\.com\/share\/([a-z0-9]+)/i);
-  if (loomMatch) return { type: "loom", src: `https://www.loom.com/embed/${loomMatch[1]}` };
-  const tellaMatch = text.match(/https?:\/\/(?:www\.)?tella\.tv\/video\/([^?\s]+)/i);
-  if (tellaMatch) return { type: "tella", src: `https://www.tella.tv/video/${tellaMatch[1]}/embed` };
-  return null;
+// Aperçu de saisie : mappe l'embed détecté (util partagé, allowlist) vers la
+// forme locale { type, src } attendue par le state videoPreview.
+function detectVideoUrl(text: string): { type: string; src: string } | null {
+  const v = detectVideoEmbed(text);
+  return v ? { type: v.provider, src: v.embedSrc } : null;
 }
 
 interface PostComposerModalProps {
