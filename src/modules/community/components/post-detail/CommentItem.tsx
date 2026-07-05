@@ -9,6 +9,8 @@ import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
 import { renderBodyRich } from "../../utils/render-mentions";
+import { buildCommentLink, copyCommunityLink } from "../../utils/copy-link";
+import { useCommentHighlight } from "../../hooks/useCommentHighlight";
 import { UserAvatar } from "../shared/UserAvatar";
 import { UserHoverCard } from "../shared/UserHoverCard";
 import { ReactionsBar } from "../shared/ReactionsBar";
@@ -25,13 +27,16 @@ import {
 } from "../../server/actions";
 
 interface CommentItemProps {
+  postId: string;
   comment: Comment;
   devRole: DevRole;
   currentUser: User;
+  // Deep-link `?comment=` : id du commentaire/réponse à scroller + surligner.
+  highlightId?: string | null;
   /* onReply removed — reply is handled inline */
 }
 
-export function CommentItem({ comment, devRole, currentUser }: CommentItemProps) {
+export function CommentItem({ postId, comment, devRole, currentUser, highlightId }: CommentItemProps) {
   const router = useRouter();
   const [commentData, setCommentData] = useState(comment);
   const [reactions, setReactions] = useState(comment.reactions);
@@ -60,6 +65,15 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
   const isAuthor = comment.author.id === currentUser.id;
   const isPrivileged = currentUser.role === "admin" || currentUser.role === "mentor";
   const edited = wasEdited(commentData.createdAt, commentData.updatedAt);
+
+  // Deep-link `?comment=` : ce commentaire est la cible → scroll + surlignage.
+  const { ref: highlightRef, ring } = useCommentHighlight<HTMLDivElement>(highlightId === comment.id);
+
+  // Si la cible du deep-link est une réponse actuellement repliée, on force le
+  // dépliage du fil (dérivé, pas de setState/effet) pour qu'elle soit montée
+  // dans le DOM et que son propre hook puisse la scroller/surligner.
+  const hasTargetReply =
+    !!highlightId && commentData.replies.some((r) => r.id === highlightId);
 
   // Un commentaire en cours de persistance porte un id "pending-…" tant que le
   // router.refresh() ne l'a pas remplacé par la vraie ligne DB. Réagir, répondre,
@@ -134,7 +148,20 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
   }
 
   return (
-    <div data-fb-label="Carte commentaire · Détail du post" style={{ display: "flex", gap: 12 }}>
+    <div
+      ref={highlightRef}
+      data-comment-id={comment.id}
+      data-fb-label="Carte commentaire · Détail du post"
+      style={{
+        display: "flex",
+        gap: 12,
+        borderRadius: 12,
+        scrollMarginTop: 120,
+        outline: ring ? "2px solid var(--color-brand)" : "2px solid transparent",
+        outlineOffset: 4,
+        transition: "outline-color 300ms ease",
+      }}
+    >
       <UserHoverCard user={comment.author} devRole={devRole}>
         <div data-fb-label="Avatar auteur · Carte commentaire" style={{ cursor: "pointer", flexShrink: 0 }}>
           <UserAvatar user={comment.author} size={36} />
@@ -172,10 +199,11 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
               </span>
             </div>
 
-            {(isAuthor || isPrivileged) && !editOpen && !isPending && (
+            {!editOpen && !isPending && (
               <PostKebabMenu
+                onCopyLink={() => copyCommunityLink(buildCommentLink(postId, comment.id))}
                 onEdit={isAuthor ? () => setEditOpen(true) : undefined}
-                onDelete={() => setShowDeleteConfirm(true)}
+                onDelete={isAuthor || isPrivileged ? () => setShowDeleteConfirm(true) : undefined}
               />
             )}
           </div>
@@ -307,13 +335,16 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
         {commentData.replies.length > 0 && (() => {
           const total = commentData.replies.length;
           const hiddenCount = total > 1 ? total - 1 : 0;
+          // Développé si l'utilisateur l'a demandé OU si le deep-link cible une
+          // réponse repliée (elle doit être montée pour être scrollée).
+          const expanded = showAllReplies || hasTargetReply;
           const visibleReplies =
-            showAllReplies || hiddenCount === 0
+            expanded || hiddenCount === 0
               ? commentData.replies
               : commentData.replies.slice(-1);
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {!showAllReplies && hiddenCount > 0 && (
+              {!expanded && hiddenCount > 0 && (
                 <button
                   type="button"
                   onClick={() => setShowAllReplies(true)}
@@ -337,9 +368,11 @@ export function CommentItem({ comment, devRole, currentUser }: CommentItemProps)
               {visibleReplies.map((reply) => (
                 <CommentReplyItem
                   key={reply.id}
+                  postId={postId}
                   reply={reply}
                   devRole={devRole}
                   currentUser={currentUser}
+                  highlightId={highlightId}
                 />
               ))}
             </div>

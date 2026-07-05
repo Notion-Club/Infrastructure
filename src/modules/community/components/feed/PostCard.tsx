@@ -8,6 +8,7 @@ import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
 import { renderBodyRich } from "../../utils/render-mentions";
+import { buildPostLink, copyCommunityLink } from "../../utils/copy-link";
 import { UserAvatar } from "../shared/UserAvatar";
 import { UserHoverCard } from "../shared/UserHoverCard";
 import { TagPill } from "../shared/TagPill";
@@ -205,16 +206,17 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
           </div>
         </div>
 
-        {(isAuthor || isPrivileged) && (
-          <div data-fb-label="Menu options du post · Carte post" onClick={(e) => e.stopPropagation()}>
-            <PostKebabMenu
-              onEdit={isAuthor ? () => setShowEditComposer(true) : undefined}
-              onDelete={() => setShowDeleteConfirm(true)}
-              onTogglePin={isPrivileged ? handleTogglePin : undefined}
-              pinned={postData.pinned}
-            />
-          </div>
-        )}
+        {/* Menu toujours affiché : "Copier le lien" est accessible à tous ;
+            édition/suppression/épinglage restent gardés par les droits. */}
+        <div data-fb-label="Menu options du post · Carte post" onClick={(e) => e.stopPropagation()}>
+          <PostKebabMenu
+            onCopyLink={() => copyCommunityLink(buildPostLink(post.id))}
+            onEdit={isAuthor ? () => setShowEditComposer(true) : undefined}
+            onDelete={isAuthor || isPrivileged ? () => setShowDeleteConfirm(true) : undefined}
+            onTogglePin={isPrivileged ? handleTogglePin : undefined}
+            pinned={postData.pinned}
+          />
+        </div>
       </div>
 
       {/* Content */}

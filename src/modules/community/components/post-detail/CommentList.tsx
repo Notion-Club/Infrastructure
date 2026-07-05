@@ -22,6 +22,19 @@ export function CommentList({ postId, comments: initialComments, currentUser, de
   const [, startSubmit] = useTransition();
   const router = useRouter();
 
+  // Cible d'un deep-link `?comment=<id>` (lien copié depuis un commentaire ou
+  // une réponse). Lu côté client uniquement pour éviter le bail-out Suspense
+  // de `useSearchParams` : le scroll/surlignage est purement front. Chaque
+  // item concerné se scrolle et se surligne lui-même (cf. `highlightId`).
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      setHighlightId(new URLSearchParams(window.location.search).get("comment"));
+    } catch {
+      /* no-op : pas de deep-link */
+    }
+  }, []);
+
   // Resync l'état local quand router.refresh() ramène de nouveaux comments
   // (les optimistic "pending-…" sont remplacés par les vraies lignes DB).
   useEffect(() => {
@@ -80,9 +93,11 @@ export function CommentList({ postId, comments: initialComments, currentUser, de
         {comments.map((comment) => (
           <CommentItem
             key={comment.id}
+            postId={postId}
             comment={comment}
             devRole={devRole}
             currentUser={currentUser}
+            highlightId={highlightId}
           />
         ))}
       </div>
