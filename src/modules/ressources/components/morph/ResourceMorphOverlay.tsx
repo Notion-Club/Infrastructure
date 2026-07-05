@@ -276,6 +276,11 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     // de régression sur les plateformes qui fonctionnent.
     const scroller = scrollRef.current;
     if (scroller) {
+      // ORDRE IMPORTANT : reset PENDANT que c'est encore scrollable, PUIS on gèle.
+      // Passer `overflow:hidden` avant peut rendre `scrollTop` non-réinscriptible
+      // (élément non-scrollable) → le reset était ignoré et le contenu restait
+      // décalé. On coupe le momentum, on remet en haut, on gèle, on flush.
+      scroller.scrollTop = 0;
       scroller.style.setProperty('-webkit-overflow-scrolling', 'auto');
       scroller.style.overflowY = 'hidden';
       scroller.scrollTop = 0;
@@ -294,6 +299,28 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     surf.style.transformOrigin = 'top left';
     surf.style.overflow = 'hidden';
     if (encRef.current) encRef.current.style.width = `${g.fixW}px`;
+
+    // AUTO-CORRECTION anti-piège (PWA iOS) — le vrai correctif.
+    // Dans certains contextes WebKit (observé UNIQUEMENT en PWA standalone), un
+    // `position: fixed` descendant d'un scroller s'ancre à ce SCROLLER et non au
+    // viewport : la surface n'atterrit alors pas à (fixTop, fixLeft) et le
+    // rétrécissement joue HORS écran → fermeture « invisible » (le bug persistant
+    // que ni #258 ni le figeage d'overflow ne réglaient). On ne PARIE plus sur le
+    // fait que le fixed soit viewport-relatif : on MESURE où la surface atterrit
+    // réellement (`getBoundingClientRect` renvoie toujours des coords viewport) et
+    // on compense l'écart exact. Inerte si le fixed est déjà correct (écart nul) →
+    // zéro impact sur Safari/desktop. Le scroller étant gelé juste au-dessus,
+    // l'offset reste CONSTANT pendant toute l'animation → correction valable sur
+    // toutes les frames.
+    {
+      const got = surf.getBoundingClientRect();
+      const dTop = got.top - g.fixTop;
+      const dLeft = got.left - g.fixLeft;
+      if (Math.abs(dTop) > 0.5 || Math.abs(dLeft) > 0.5) {
+        surf.style.top = `${g.fixTop - dTop}px`;
+        surf.style.left = `${g.fixLeft - dLeft}px`;
+      }
+    }
 
     // Bascule titre : le vrai titre (en flux) disparaît, le hero (fixe) reprend.
     if (encTitleRef.current) encTitleRef.current.style.opacity = '0';
