@@ -130,11 +130,14 @@ export function CommunityPostDetailPage({
         onClick={() => router.back()}
         data-fb-label="Bouton Retour · Détail du post"
         style={{
+          // Pill « retour » canonique (dimensions identiques à FormationBackLink) :
+          // fond blanc surface-card (= fond des cartes de post) + bordure pour le
+          // contraste sur le halo de page.
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
-          padding: "6px 14px 6px 10px",
-          background: "var(--color-surface-raised)",
+          padding: "7px 14px 7px 11px",
+          background: "var(--color-surface-card)",
           border: "1px solid var(--color-border-default)",
           borderRadius: 9999,
           fontSize: 13,
@@ -144,7 +147,7 @@ export function CommunityPostDetailPage({
           width: "fit-content",
           transition: "all 150ms ease",
         }}
-        className="hover:bg-[#eaeaea] hover:text-[var(--color-text-primary)] dark:hover:bg-[rgba(255,255,255,0.10)]"
+        className="hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)]"
       >
         <ArrowReturn size={14} />
         Retour à la communauté

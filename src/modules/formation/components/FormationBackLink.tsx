@@ -21,9 +21,9 @@ export function FormationBackLink() {
     router.push("/formation");
   }
 
-  // DA alignée sur le bouton retour des Ressources (ResourceBreadcrumb) :
-  // pill `surface-raised` + bordure, pour une cohérence visuelle inter-sections
-  // (OPS-84).
+  // Pill « retour » canonique (dimensions identiques au bouton retour de la
+  // communauté / ResourceBreadcrumb) : fond blanc surface-card + bordure, pour
+  // une cohérence visuelle inter-sections (OPS-84).
   return (
     <button
       type="button"
@@ -35,20 +35,20 @@ export function FormationBackLink() {
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        padding: "6px 12px 6px 10px",
-        background: "var(--color-surface-raised)",
+        padding: "7px 14px 7px 11px",
+        background: "var(--color-surface-card)",
         border: "1px solid var(--color-border-default)",
         borderRadius: 9999,
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: 500,
         color: "var(--color-text-secondary)",
         cursor: "pointer",
         width: "fit-content",
         transition: "all 150ms ease",
       }}
-      className="hover:bg-[#eaeaea] hover:text-[var(--color-text-primary)]"
+      className="hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)]"
     >
-      <ArrowReturn size={13} /> Tous les programmes
+      <ArrowReturn size={14} /> Tous les programmes
     </button>
   );
 }
