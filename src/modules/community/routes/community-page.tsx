@@ -79,6 +79,21 @@ export function CommunityPage({
     return m ? decodeURIComponent(m[1]!) : null;
   }, [pathname]);
 
+  // État visuel OPTIMISTE du switcher : basculé AU CLIC (instantané), sans
+  // attendre que la navigation (router.push, sous Suspense) fasse changer l'URL.
+  // Avant : le style « actif » des onglets venait de l'URL (activeTab) → l'onglet
+  // quitté gardait son fond blanc plusieurs secondes pendant le chargement, EN
+  // PLUS de la pilule déjà glissée → deux bandes blanches. uiTab pilote la pilule
+  // + le style des onglets (instantané, comme le switcher /coaching) ; le CONTENU
+  // reste piloté par l'URL (activeTab). Réconcilié à l'URL sur navigation externe
+  // (retour arrière, deep-link) ; setState déféré (rAF) pour respecter la règle
+  // repo react-hooks/set-state-in-effect.
+  const [uiTab, setUiTab] = useState<Tab>(activeTab);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setUiTab(activeTab));
+    return () => cancelAnimationFrame(raf);
+  }, [activeTab]);
+
   // Restore scroll position saved before navigating into a post detail
   useEffect(() => {
     try {
@@ -124,15 +139,15 @@ export function CommunityPage({
   }, []);
 
   useLayoutEffect(() => {
-    activeTabRef.current = activeTab;
-    const idx = COMMUNITY_TABS.indexOf(activeTab);
+    activeTabRef.current = uiTab;
+    const idx = COMMUNITY_TABS.indexOf(uiTab);
     if (tabLastClickedRef.current === idx) {
       tabLastClickedRef.current = -1;
       return;
     }
     tabLastClickedRef.current = -1;
     moveTabTo(idx, false);
-  }, [activeTab, moveTabTo]);
+  }, [uiTab, moveTabTo]);
 
   // Re-mesure de la pilule APRÈS le 1ᵉʳ paint. La police SF Pro Display est en
   // `display: swap` : au premier rendu les onglets sont mesurés avec la police
@@ -284,7 +299,7 @@ export function CommunityPage({
                 { value: "messages" as Tab, label: "Messages" },
               ]
             ).map(({ value, label }, i) => {
-              const isActive = activeTab === value;
+              const isActive = uiTab === value;
               return (
                 <button
                   key={value}
@@ -292,11 +307,16 @@ export function CommunityPage({
                   type="button"
                   data-fb-label={`Onglet « ${label} » · Switcher feed/messages`}
                   onClick={() => {
-                    if (value === activeTab) return;
+                    if (value === uiTab) return;
+                    // Bascule visuelle INSTANTANÉE (pilule + fond actif) via uiTab,
+                    // avant la navigation → plus de « deux bandes blanches » ni de
+                    // pilule figée le temps du chargement.
+                    setUiTab(value);
                     tabLastClickedRef.current = i;
                     moveTabTo(i, true);
-                    // L'URL est la source de vérité : on navigue, le re-render
-                    // de la route remonte CommunityPage avec le bon activeTab.
+                    // L'URL reste la source de vérité du CONTENU : on navigue, le
+                    // re-render de la route remonte CommunityPage avec le bon
+                    // activeTab (uiTab est réconcilié dessus).
                     //
                     // startTransition : la navigation (montage/démontage de
                     // MessagesLayout ↔ feed) est marquée non-urgente → React
