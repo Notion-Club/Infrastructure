@@ -8,6 +8,8 @@ import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
 import { renderBodyRich } from "../../utils/render-mentions";
+import { buildCommentLink, copyCommunityLink } from "../../utils/copy-link";
+import { useCommentHighlight } from "../../hooks/useCommentHighlight";
 import { UserAvatar } from "../shared/UserAvatar";
 import { UserHoverCard } from "../shared/UserHoverCard";
 import { ReactionsBar } from "../shared/ReactionsBar";
@@ -22,12 +24,15 @@ import {
 } from "../../server/actions";
 
 interface CommentReplyItemProps {
+  postId: string;
   reply: CommentReply;
   devRole: DevRole;
   currentUser: User;
+  // Deep-link `?comment=` : id du commentaire/réponse à scroller + surligner.
+  highlightId?: string | null;
 }
 
-export function CommentReplyItem({ reply, devRole, currentUser }: CommentReplyItemProps) {
+export function CommentReplyItem({ postId, reply, devRole, currentUser, highlightId }: CommentReplyItemProps) {
   const router = useRouter();
   const [replyData, setReplyData] = useState(reply);
   const [reactions, setReactions] = useState(reply.reactions);
@@ -38,6 +43,9 @@ export function CommentReplyItem({ reply, devRole, currentUser }: CommentReplyIt
   const isAuthor = reply.author.id === currentUser.id;
   const isPrivileged = currentUser.role === "admin" || currentUser.role === "mentor";
   const edited = wasEdited(replyData.createdAt, replyData.updatedAt);
+
+  // Deep-link `?comment=` : cette réponse est la cible → scroll + surlignage.
+  const { ref: highlightRef, ring } = useCommentHighlight<HTMLDivElement>(highlightId === reply.id);
 
   async function handleReaction(emoji: string) {
     const previous = reactions;
@@ -102,7 +110,21 @@ export function CommentReplyItem({ reply, devRole, currentUser }: CommentReplyIt
   }
 
   return (
-    <div data-fb-label="Réponse à un commentaire · Détail du post" style={{ display: "flex", gap: 10, paddingLeft: 24 }}>
+    <div
+      ref={highlightRef}
+      data-comment-id={reply.id}
+      data-fb-label="Réponse à un commentaire · Détail du post"
+      style={{
+        display: "flex",
+        gap: 10,
+        paddingLeft: 24,
+        borderRadius: 12,
+        scrollMarginTop: 120,
+        outline: ring ? "2px solid var(--color-brand)" : "2px solid transparent",
+        outlineOffset: 4,
+        transition: "outline-color 300ms ease",
+      }}
+    >
       <div
         style={{
           width: 1.5,
@@ -141,10 +163,11 @@ export function CommentReplyItem({ reply, devRole, currentUser }: CommentReplyIt
               </span>
             </div>
 
-            {(isAuthor || isPrivileged) && !editOpen && (
+            {!editOpen && (
               <PostKebabMenu
+                onCopyLink={() => copyCommunityLink(buildCommentLink(postId, reply.id))}
                 onEdit={isAuthor ? () => setEditOpen(true) : undefined}
-                onDelete={() => setShowDeleteConfirm(true)}
+                onDelete={isAuthor || isPrivileged ? () => setShowDeleteConfirm(true) : undefined}
               />
             )}
           </div>

@@ -1,11 +1,14 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { MoreHorizontal, Pencil, PinOff } from "lucide-react";
+import { MoreHorizontal, Pencil, PinOff, Link as LinkIcon } from "lucide-react";
 import { PinFill, Trash } from "@/shared/components/icons";
 import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
 
 interface PostKebabMenuProps {
+  // Optionnel — si fourni, affiche "Copier le lien" en première position.
+  // Toujours disponible (aucun droit requis), contrairement aux autres items.
+  onCopyLink?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   // Optionnel — uniquement passé par les admins/mentors. Si fourni, affiche
@@ -14,7 +17,7 @@ interface PostKebabMenuProps {
   pinned?: boolean;
 }
 
-export function PostKebabMenu({ onEdit, onDelete, onTogglePin, pinned }: PostKebabMenuProps) {
+export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinned }: PostKebabMenuProps) {
   const { isOpen, isMounted, stateClass, close, toggle } = useDropdownTransition();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -69,6 +72,30 @@ export function PostKebabMenu({ onEdit, onDelete, onTogglePin, pinned }: PostKeb
             zIndex: 100,
           }}
         >
+          {onCopyLink && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onCopyLink(); close(); }}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 10px",
+                fontSize: 14,
+                color: "var(--color-text-primary)",
+                background: "transparent",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "background 150ms ease",
+              }}
+              className="hover:bg-[#f5f5f5] dark:hover:bg-[rgba(255,255,255,0.08)]"
+            >
+              <LinkIcon size={14} /> Copier le lien
+            </button>
+          )}
           {onEdit && (
             <button
               type="button"

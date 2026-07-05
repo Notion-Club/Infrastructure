@@ -10,6 +10,7 @@ import type { DevRole } from "../hooks/useDevRoleToggle";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { fullDateTime, timeAgo, wasEdited } from "../utils/date-helpers";
 import { renderBodyRich } from "../utils/render-mentions";
+import { buildPostLink, copyCommunityLink } from "../utils/copy-link";
 import { UserAvatar } from "../components/shared/UserAvatar";
 import { UserHoverCard } from "../components/shared/UserHoverCard";
 import { TagPill } from "../components/shared/TagPill";
@@ -215,14 +216,15 @@ export function CommunityPostDetailPage({
               </p>
             </div>
           </div>
-          {(isAuthor || isPrivileged) && (
-            <PostKebabMenu
-              onEdit={isAuthor ? () => setShowEditComposer(true) : undefined}
-              onDelete={() => setShowDeleteConfirm(true)}
-              onTogglePin={isPrivileged ? handleTogglePin : undefined}
-              pinned={postData.pinned}
-            />
-          )}
+          {/* Menu toujours affiché : "Copier le lien" pour tous, actions
+              privilégiées gardées par les droits. */}
+          <PostKebabMenu
+            onCopyLink={() => copyCommunityLink(buildPostLink(post.id))}
+            onEdit={isAuthor ? () => setShowEditComposer(true) : undefined}
+            onDelete={isAuthor || isPrivileged ? () => setShowDeleteConfirm(true) : undefined}
+            onTogglePin={isPrivileged ? handleTogglePin : undefined}
+            pinned={postData.pinned}
+          />
         </div>
 
         {/* Content */}
