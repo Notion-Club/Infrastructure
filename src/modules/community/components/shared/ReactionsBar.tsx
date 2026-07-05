@@ -3,7 +3,9 @@
 import { useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import { createPortal } from "react-dom";
+import { TextBubble } from "@/shared/components/icons";
 import type { Reaction, Reactor } from "../../types/post.types";
+import { ReactionPicker } from "./ReactionPicker";
 
 // Récupère les reactors réels d'une réaction. Si la source DB ne les a pas
 // fournis (legacy / mock), on retourne une liste de placeholders neutres
@@ -250,9 +252,16 @@ interface ReactionsBarProps {
   compact?: boolean;
   onReact?: (emoji: string) => void;
   onCommentClick?: () => void;
+  // Affiche l'affordance « ajouter une réaction » directement dans la barre :
+  //   - 0 réaction  → CTA pleine « Réagir » (comme sur la page du post) pour
+  //     amorcer l'engagement sur les posts encore vierges ;
+  //   - ≥ 1 réaction → pastille ronde icône-seule posée à la suite de la liste.
+  // Activé sur les cartes du feed. La page détail garde son ReactionPicker
+  // externe dédié → laisser ce flag à false pour éviter un double sélecteur.
+  showAddReaction?: boolean;
 }
 
-export function ReactionsBar({ reactions, commentCount, compact = false, onReact, onCommentClick }: ReactionsBarProps) {
+export function ReactionsBar({ reactions, commentCount, compact = false, onReact, onCommentClick, showAddReaction = false }: ReactionsBarProps) {
   const nonEmpty = reactions.filter((r) => r.count > 0);
   const total = nonEmpty.reduce((s, r) => s + r.count, 0);
   const userReactedReaction = nonEmpty.find((r) => r.userReacted);
@@ -271,45 +280,61 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
-        {nonEmpty.length === 0 ? null : nonEmpty.length <= 3 ? (
-          nonEmpty.map((r) => (
-            <ReactionPill
-              key={r.emoji}
-              reaction={r}
-              compact={compact}
-              onReact={onReact ? () => onReact(r.emoji) : undefined}
-              allReactions={reactions}
-            />
-          ))
+        {nonEmpty.length === 0 ? (
+          // Aucune réaction → CTA pleine « Réagir » (si l'affordance est activée
+          // et qu'un handler existe). Sinon rien, comme avant.
+          showAddReaction && onReact ? (
+            // Libellé par défaut « + Réagir » = même CTA que la page du post.
+            <ReactionPicker onSelect={onReact} compact={compact} />
+          ) : null
         ) : (
-          <span
-            onClick={() => userReactedReaction ? onReact?.(userReactedReaction.emoji) : undefined}
-            onPointerDown={onGroupPressDown}
-            onPointerUp={onGroupPressUp}
-            onPointerCancel={onGroupPressUp}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              fontSize: compact ? 12 : 13,
-              color: userHasReacted ? "var(--color-brand)" : "var(--color-text-secondary)",
-              fontWeight: userHasReacted ? 600 : 500,
-              cursor: "pointer",
-              padding: compact ? "2px 9px" : "3px 11px",
-              borderRadius: 9999,
-              // Idem : surface-raised hors état « réagi » pour contraster sur la carte.
-              background: userHasReacted ? "rgba(224,98,90,0.08)" : "var(--color-surface-raised)",
-              border: `1px solid ${userHasReacted ? "rgba(224,98,90,0.25)" : "var(--color-border-default)"}`,
-              transition: "border-color 150ms ease, background 150ms ease",
-              userSelect: "none",
-            }}
-            className="hover:border-[rgba(0,0,0,0.15)]"
-          >
-            <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-              {nonEmpty.slice(0, 3).map((r) => <span key={r.emoji}>{r.emoji}</span>)}
-            </span>
-            <span style={{ fontWeight: 600 }}>{total}</span>
-          </span>
+          <>
+            {nonEmpty.length <= 3 ? (
+              nonEmpty.map((r) => (
+                <ReactionPill
+                  key={r.emoji}
+                  reaction={r}
+                  compact={compact}
+                  onReact={onReact ? () => onReact(r.emoji) : undefined}
+                  allReactions={reactions}
+                />
+              ))
+            ) : (
+              <span
+                onClick={() => userReactedReaction ? onReact?.(userReactedReaction.emoji) : undefined}
+                onPointerDown={onGroupPressDown}
+                onPointerUp={onGroupPressUp}
+                onPointerCancel={onGroupPressUp}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: compact ? 12 : 13,
+                  color: userHasReacted ? "var(--color-brand)" : "var(--color-text-secondary)",
+                  fontWeight: userHasReacted ? 600 : 500,
+                  cursor: "pointer",
+                  padding: compact ? "2px 9px" : "3px 11px",
+                  borderRadius: 9999,
+                  // Idem : surface-raised hors état « réagi » pour contraster sur la carte.
+                  background: userHasReacted ? "rgba(224,98,90,0.08)" : "var(--color-surface-raised)",
+                  border: `1px solid ${userHasReacted ? "rgba(224,98,90,0.25)" : "var(--color-border-default)"}`,
+                  transition: "border-color 150ms ease, background 150ms ease",
+                  userSelect: "none",
+                }}
+                className="hover:border-[rgba(0,0,0,0.15)]"
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                  {nonEmpty.slice(0, 3).map((r) => <span key={r.emoji}>{r.emoji}</span>)}
+                </span>
+                <span style={{ fontWeight: 600 }}>{total}</span>
+              </span>
+            )}
+            {/* Des réactions existent → pastille ronde icône-seule à la suite,
+                pour inciter l'utilisateur à ajouter la sienne. */}
+            {showAddReaction && onReact && (
+              <ReactionPicker onSelect={onReact} variant="icon" compact={compact} />
+            )}
+          </>
         )}
       </div>
 
@@ -320,6 +345,9 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
             onClick={onCommentClick}
             data-fb-label="Compteur commentaires · Barre de réactions"
             style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
               fontSize: compact ? 12 : 13,
               color: "var(--color-text-muted)",
               background: "none",
@@ -331,11 +359,13 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
             }}
             className="hover:text-[var(--color-text-primary)]"
           >
-            💬 {commentCount} commentaire{commentCount !== 1 ? "s" : ""}
+            <TextBubble size={compact ? 14 : 15} />
+            {commentCount} commentaire{commentCount !== 1 ? "s" : ""}
           </button>
         ) : (
-          <span style={{ fontSize: compact ? 12 : 13, color: "var(--color-text-muted)" }}>
-            💬 {commentCount} commentaire{commentCount !== 1 ? "s" : ""}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: compact ? 12 : 13, color: "var(--color-text-muted)" }}>
+            <TextBubble size={compact ? 14 : 15} />
+            {commentCount} commentaire{commentCount !== 1 ? "s" : ""}
           </span>
         )
       )}

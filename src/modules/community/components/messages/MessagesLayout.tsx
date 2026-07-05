@@ -65,7 +65,15 @@ export function MessagesLayout({
   // Cache local : IDs de conversations dont les messages ont déjà été
   // chargés au moins une fois. Évite de re-fetcher quand l'utilisateur
   // revient sur une conv déjà vue dans la même session.
-  const loadedConvIds = useRef<Set<string>>(new Set());
+  //
+  // Seed initial : les conversations que le serveur a déjà hydratées (top-N
+  // récentes, cf. HYDRATE_TOP_CONVERSATIONS dans queries.ts) arrivent avec
+  // messages non vides → on les marque « chargées » pour que openConversation
+  // emprunte le fast-path (render instantané, 0 aller-retour). L'initialiseur de
+  // ref ne s'exécute qu'au 1er render.
+  const loadedConvIds = useRef<Set<string>>(
+    new Set(initialConversations.filter((c) => c.messages.length > 0).map((c) => c.id)),
+  );
   // URL (segment) déjà résolue — anti-boucle (cf. effet de résolution).
   const resolvedUrlRef = useRef<string | null>(null);
   // Miroir des conversations courantes, lu par l'effet de résolution sans en
@@ -113,8 +121,10 @@ export function MessagesLayout({
   }
 
   // Ouvre une conversation : marque lue + charge les messages détaillés.
-  // listConversations() ne charge pas messages[] (par perf), on les tire
-  // ici via getConversationAction au moment où l'utilisateur ouvre la conv.
+  // listConversations() hydrate déjà les messages des N convs les plus récentes
+  // (cf. HYDRATE_TOP_CONVERSATIONS, seedées dans loadedConvIds) → ouverture
+  // instantanée par le fast-path ci-dessous. Pour les autres, on tire les
+  // messages ici via getConversationAction au moment de l'ouverture.
   // Idempotent (cache loadedConvIds) → safe à rappeler.
   function openConversation(id: string) {
     setActiveId(id);

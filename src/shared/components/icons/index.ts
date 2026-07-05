@@ -41,6 +41,7 @@ export { SparkleClipboard } from "./SparkleClipboard";
 export { Sparkles } from "./Sparkles";
 export { SunMax } from "./SunMax";
 export { Templates } from "./Templates";
+export { TextBubble } from "./TextBubble";
 export { Trash } from "./Trash";
 export { Waveform } from "./Waveform";
 export { WaveformBadgeSearch } from "./WaveformBadgeSearch";
