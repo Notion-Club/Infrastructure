@@ -273,7 +273,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
           />
         )}
 
-        {video && <VideoEmbed src={video.embedSrc} label="Vidéo du post · Carte post" />}
+        {video && <VideoEmbed match={video} label="Vidéo du post · Carte post" />}
       </div>
 
       {/* Footer */}

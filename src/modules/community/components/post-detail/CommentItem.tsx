@@ -243,7 +243,7 @@ export function CommentItem({ postId, comment, devRole, currentUser, highlightId
           </div>
         </div>
 
-        {video && <VideoEmbed src={video.embedSrc} label="Vidéo · Commentaire" />}
+        {video && <VideoEmbed match={video} label="Vidéo · Commentaire" />}
 
         {/* Actions */}
         {!editOpen && !isPending && (

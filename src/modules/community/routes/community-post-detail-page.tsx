@@ -283,7 +283,7 @@ export function CommunityPostDetailPage({
           </button>
         )}
 
-        {video && <VideoEmbed src={video.embedSrc} label="Vidéo du post · Détail du post" />}
+        {video && <VideoEmbed match={video} label="Vidéo du post · Détail du post" />}
 
         {/* Reactions */}
         <div data-fb-label="Barre de réactions · Détail du post" style={{ paddingTop: 4, borderTop: "1px solid var(--color-border-default)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>

@@ -7,8 +7,13 @@ describe("detectVideoEmbed", () => {
     expect(v).toEqual({
       provider: "youtube",
       embedSrc: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+      id: "dQw4w9WgXcQ",
       matchedUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=30",
     });
+  });
+
+  it("YouTube : id capturé (façade miniature/play)", () => {
+    expect(detectVideoEmbed("https://youtu.be/dQw4w9WgXcQ")?.id).toBe("dQw4w9WgXcQ");
   });
 
   it("youtu.be court", () => {
@@ -23,10 +28,25 @@ describe("detectVideoEmbed", () => {
     expect(v?.embedSrc).toBe("https://www.loom.com/embed/abc123def456");
   });
 
-  it("Tella video → /embed", () => {
+  const TELLA_PARAMS = "b=0&title=0&a=1&loop=0&t=0&muted=0&wt=0&o=1";
+
+  it("Tella video → /embed avec paramètres épurés", () => {
     const v = detectVideoEmbed("https://www.tella.tv/video/clabc-123");
     expect(v?.provider).toBe("tella");
-    expect(v?.embedSrc).toBe("https://www.tella.tv/video/clabc-123/embed");
+    expect(v?.embedSrc).toBe(`https://www.tella.tv/video/clabc-123/embed?${TELLA_PARAMS}`);
+  });
+
+  it("Tella : URL de partage réelle (slug long) → id conservé + embed paramétré", () => {
+    const slug = "2025-09-22goumandji-20250922131900-0038-d-smalf09gg37phbq-copy-02cc";
+    const v = detectVideoEmbed(`https://www.tella.tv/video/${slug}`)!;
+    expect(v.provider).toBe("tella");
+    expect(v.id).toBe(slug);
+    expect(v.embedSrc).toBe(`https://www.tella.tv/video/${slug}/embed?${TELLA_PARAMS}`);
+  });
+
+  it("Tella : une URL déjà /embed?… est renormalisée sur nos paramètres", () => {
+    const v = detectVideoEmbed("https://www.tella.tv/video/abc-def/embed?b=1&title=1")!;
+    expect(v.embedSrc).toBe(`https://www.tella.tv/video/abc-def/embed?${TELLA_PARAMS}`);
   });
 
   it("Vimeo → player.vimeo.com", () => {

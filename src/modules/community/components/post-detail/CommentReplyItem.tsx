@@ -207,7 +207,7 @@ export function CommentReplyItem({ postId, reply, devRole, currentUser, highligh
             </div>
           )}
 
-          {!editOpen && video && <VideoEmbed src={video.embedSrc} label="Vidéo · Réponse" />}
+          {!editOpen && video && <VideoEmbed match={video} label="Vidéo · Réponse" />}
 
           {!editOpen && (
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6 }}>
