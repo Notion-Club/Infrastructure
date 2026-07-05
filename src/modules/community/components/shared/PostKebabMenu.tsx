@@ -15,9 +15,14 @@ interface PostKebabMenuProps {
   // un item "Épingler" / "Désépingler" en fonction du flag `pinned`.
   onTogglePin?: () => void;
   pinned?: boolean;
+  // Notifie le parent quand le dropdown est visible (ouvert OU en cours de
+  // fermeture animée). Permet à la carte hôte d'élever son z-index le temps que
+  // le menu s'affiche, pour qu'il passe AU-DESSUS des cartes voisines (chaque
+  // carte crée son propre contexte d'empilement via viewTransitionName).
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinned }: PostKebabMenuProps) {
+export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinned, onOpenChange }: PostKebabMenuProps) {
   const { isOpen, isMounted, stateClass, close, toggle } = useDropdownTransition();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -29,6 +34,12 @@ export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinne
     document.addEventListener("mousedown", onOutside);
     return () => document.removeEventListener("mousedown", onOutside);
   }, [isOpen, close]);
+
+  // Signale la visibilité au parent sur `isMounted` (et non `isOpen`) pour que
+  // la carte reste élevée pendant toute l'animation de fermeture du dropdown.
+  useEffect(() => {
+    onOpenChange?.(isMounted);
+  }, [isMounted, onOpenChange]);
 
   return (
     <div ref={ref} style={{ position: "relative" }}>

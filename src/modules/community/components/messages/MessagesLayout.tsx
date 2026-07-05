@@ -471,7 +471,14 @@ export function MessagesLayout({
         style={{
           ...containerStyle,
           gridTemplateColumns: "280px 1fr",
-          height: embedded ? "100%" : "calc(100dvh - 148px)",
+          // Embedded : on REMPLIT le parent flex (`.nc-messages-embed`, flex-col)
+          // via flex plutôt que `height:100%` — le pourcentage ne se résolvait
+          // pas dans la chaîne flex (halo en min-height) et la grille retombait à
+          // sa hauteur de contenu, laissant apparaître le fond gris de l'encadré
+          // en dessous. flex:1 + min-height:0 comble toute la carte.
+          ...(embedded
+            ? { flex: "1 1 auto", minHeight: 0 }
+            : { height: "calc(100dvh - 148px)" }),
           background: "var(--color-surface-card)",
         }}
       >
