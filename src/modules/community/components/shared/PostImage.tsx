@@ -2,44 +2,53 @@
 
 import { useState } from "react";
 
-// Média d'un post (feed) — anti-« pop-in saccadé ».
+// Média d'un post (feed) — image affichée EN ENTIER (pas de crop) + anti-pop-in.
 //
-// Problème résolu : l'ancienne <img loading="lazy"> sans dimensions réservées
-// arrivait quelques secondes après le texte et poussait le layout (le corps de
-// la carte « sautait » quand la hauteur de l'image se résolvait). Résultat : le
-// titre/texte/réactions s'affichaient d'abord, le média ensuite, en saccade.
+// Historique :
+//   - avant #263 : <img loading="lazy"> sans place réservée → l'image arrivait
+//     après le texte et poussait le layout (« saccade »).
+//   - #263 : boîte à ratio FIXE (16/10) + object-fit cover → plus de saccade mais
+//     les images étaient ROGNÉES (16:9, 4:3, 3:2… coupées).
 //
-// Solution (transitions.dev · 14-skeleton-reveal, tokens .nc-skeleton) :
-//   1. la boîte média réserve sa place DÈS le 1er paint via un aspect-ratio
-//      fixe → zéro décalage de layout, la carte est complète immédiatement ;
-//   2. un placeholder gris pulsant (.nc-skeleton) occupe cette boîte tant que
-//      l'image n'est pas décodée ;
-//   3. au décodage (onLoad), l'image se révèle en fondu (opacity + micro-flou)
-//      par-dessus le placeholder → apparition douce, « en même temps » que le
-//      reste de la carte, jamais en à-coups.
-//
-// La carte du feed montre une preview cadrée (object-fit: cover) ; le clic ouvre
-// la lightbox plein écran (image entière), cohérent avec le pattern existant.
+// Ici on garde l'anti-pop-in SANS rogner : la boîte réserve d'abord une place au
+// ratio 16/9 (skeleton), puis, au décodage, on adopte le ratio NATUREL de l'image
+// (borné pour ne pas casser la mise en page). Comme la boîte épouse alors le ratio
+// de l'image, object-fit: cover la montre en intégralité — les formats paysage
+// visés (16:9, 5:4, 7:5, 4:3, 5:3, 3:2 → ratio 1.25…1.78) sont tous dans les
+// bornes, donc jamais rognés. Reveal en fondu (transitions.dev · 14).
 interface PostImageProps {
   src: string;
   alt?: string;
   onOpen?: () => void;
   // Largeur max de la preview (feed = 380). Jamais plus large que la carte.
   maxWidth?: number;
-  // Ratio de la boîte réservée (largeur / hauteur). 16/10 = paysage doux.
-  ratio?: number;
   fbLabel?: string;
 }
 
-export function PostImage({
-  src,
-  alt = "",
-  onOpen,
-  maxWidth = 380,
-  ratio = 16 / 10,
-  fbLabel,
-}: PostImageProps) {
+// Ratio (largeur/hauteur) de la place réservée AVANT décodage (skeleton).
+const LOADING_RATIO = 16 / 9;
+// Bornes du ratio naturel : au-delà (image ultra-haute ou ultra-large) on borne
+// pour ne pas déséquilibrer le feed. Tous les formats paysage visés (1.25→1.78)
+// sont à l'intérieur → affichés en entier.
+const MIN_RATIO = 0.6; // plus haut que ça (portrait) → borné
+const MAX_RATIO = 2.4; // plus large que ça (panorama) → borné
+// Garde-fou hauteur (portraits) : au-delà, la boîte plafonne et l'image est
+// recadrée. Aucun format paysage listé ne l'atteint à la largeur du feed.
+const MAX_HEIGHT = 460;
+
+export function PostImage({ src, alt = "", onOpen, maxWidth = 380, fbLabel }: PostImageProps) {
   const [loaded, setLoaded] = useState(false);
+  // null tant que l'image n'est pas décodée → on affiche LOADING_RATIO.
+  const [ratio, setRatio] = useState<number | null>(null);
+
+  function handleLoad(e: React.SyntheticEvent<HTMLImageElement>) {
+    const img = e.currentTarget;
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      const r = img.naturalWidth / img.naturalHeight;
+      setRatio(Math.min(MAX_RATIO, Math.max(MIN_RATIO, r)));
+    }
+    setLoaded(true);
+  }
 
   return (
     <button
@@ -58,7 +67,8 @@ export function PostImage({
         marginTop: 4,
         display: "block",
         width: `min(${maxWidth}px, 100%)`,
-        aspectRatio: String(ratio),
+        aspectRatio: String(ratio ?? LOADING_RATIO),
+        maxHeight: MAX_HEIGHT,
         borderRadius: 10,
         overflow: "hidden",
       }}
@@ -79,13 +89,16 @@ export function PostImage({
         src={src}
         alt={alt}
         decoding="async"
-        onLoad={() => setLoaded(true)}
+        onLoad={handleLoad}
         onError={() => setLoaded(true)}
         style={{
           position: "absolute",
           inset: 0,
           width: "100%",
           height: "100%",
+          // La boîte épouse le ratio naturel → cover = image entière (pas de
+          // rognage) pour les formats dans les bornes ; ne recadre que les
+          // portraits bornés par MAX_HEIGHT.
           objectFit: "cover",
           opacity: loaded ? 1 : 0,
           filter: loaded ? "blur(0)" : "blur(6px)",
