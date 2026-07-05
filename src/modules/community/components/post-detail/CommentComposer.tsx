@@ -14,6 +14,7 @@ import {
 import { ImageLightbox } from "../shared/ImageLightbox";
 import type { CommunityMember } from "../../server/queries";
 import { isContentEditableEmpty } from "../../utils/editor";
+import { detectVideoEmbed } from "../../utils/video-embed";
 import { UserAvatar } from "../shared/UserAvatar";
 
 // Type local minimal pour brancher CommunityMember sur UserAvatar (qui attend
@@ -33,14 +34,9 @@ function memberAsUserShape(m: CommunityMember): User {
   };
 }
 
+// Aperçu de saisie : source d'embed (util partagé, allowlist) ou null.
 function detectVideoUrl(text: string): string | null {
-  const ytMatch = text.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
-  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
-  const loomMatch = text.match(/https?:\/\/(?:www\.)?loom\.com\/share\/([a-z0-9]+)/i);
-  if (loomMatch) return `https://www.loom.com/embed/${loomMatch[1]}`;
-  const tellaMatch = text.match(/https?:\/\/(?:www\.)?tella\.tv\/video\/([^?\s]+)/i);
-  if (tellaMatch) return `https://www.tella.tv/video/${tellaMatch[1]}/embed`;
-  return null;
+  return detectVideoEmbed(text)?.embedSrc ?? null;
 }
 
 // Mention sélectionnée et toujours présente dans le body final au submit.

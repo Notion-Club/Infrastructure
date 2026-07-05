@@ -10,6 +10,8 @@ import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
 import { renderBodyRich } from "../../utils/render-mentions";
 import { buildCommentLink, copyCommunityLink } from "../../utils/copy-link";
+import { detectVideoEmbed } from "../../utils/video-embed";
+import { VideoEmbed } from "../shared/VideoEmbed";
 import { useCommentHighlight } from "../../hooks/useCommentHighlight";
 import { UserAvatar } from "../shared/UserAvatar";
 import { UserHoverCard } from "../shared/UserHoverCard";
@@ -74,6 +76,11 @@ export function CommentItem({ postId, comment, devRole, currentUser, highlightId
   // dans le DOM et que son propre hook puisse la scroller/surligner.
   const hasTargetReply =
     !!highlightId && commentData.replies.some((r) => r.id === highlightId);
+
+  // Embed vidéo détecté dans le body du commentaire (allowlist). L'URL est
+  // retirée du texte affiché pour ne pas doublonner embed + lien nu.
+  const video = detectVideoEmbed(commentData.body);
+  const displayBody = video ? commentData.body.replace(video.matchedUrl, "").trim() : commentData.body;
 
   // Un commentaire en cours de persistance porte un id "pending-…" tant que le
   // router.refresh() ne l'a pas remplacé par la vraie ligne DB. Réagir, répondre,
@@ -231,10 +238,12 @@ export function CommentItem({ postId, comment, devRole, currentUser, highlightId
               className={`nc-composer-underlay ${editOpen ? "is-hidden" : ""}`}
               style={{ fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}
             >
-              {renderBodyRich(commentData.body, commentData.mentions)}
+              {renderBodyRich(displayBody, commentData.mentions)}
             </div>
           </div>
         </div>
+
+        {video && <VideoEmbed src={video.embedSrc} label="Vidéo · Commentaire" />}
 
         {/* Actions */}
         {!editOpen && !isPending && (

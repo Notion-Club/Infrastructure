@@ -11,6 +11,8 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import { fullDateTime, timeAgo, wasEdited } from "../utils/date-helpers";
 import { renderBodyRich } from "../utils/render-mentions";
 import { buildPostLink, copyCommunityLink } from "../utils/copy-link";
+import { detectVideoEmbed } from "../utils/video-embed";
+import { VideoEmbed } from "../components/shared/VideoEmbed";
 import { UserAvatar } from "../components/shared/UserAvatar";
 import { UserHoverCard } from "../components/shared/UserHoverCard";
 import { TagPill } from "../components/shared/TagPill";
@@ -51,6 +53,11 @@ export function CommunityPostDetailPage({
   const isAuthor = post.author.id === currentUser.id;
   const isPrivileged = currentUser.role === "admin" || currentUser.role === "mentor";
   const edited = wasEdited(postData.createdAt, postData.updatedAt);
+
+  // Embed vidéo (allowlist) : champ videoUrl prioritaire, sinon body. Retrait de
+  // l'URL du texte affiché si elle vient du body (pas de doublon embed + lien).
+  const video = detectVideoEmbed(postData.videoUrl ?? "") ?? detectVideoEmbed(postData.body);
+  const displayBody = video ? postData.body.replace(video.matchedUrl, "").trim() : postData.body;
 
   async function handleReaction(emoji: string) {
     const previous = reactions;
@@ -234,9 +241,11 @@ export function CommunityPostDetailPage({
           </h1>
         )}
 
-        <div style={{ fontSize: 15, color: "var(--color-text-secondary)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
-          {renderBodyRich(postData.body, postData.mentions)}
-        </div>
+        {displayBody && (
+          <div style={{ fontSize: 15, color: "var(--color-text-secondary)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+            {renderBodyRich(displayBody, postData.mentions)}
+          </div>
+        )}
 
         {postData.imageUrl && (
           /* Slack-like : preview modérée, click ouvre lightbox plein écran. */
@@ -271,16 +280,7 @@ export function CommunityPostDetailPage({
           </button>
         )}
 
-        {postData.videoUrl && (
-          <div style={{ borderRadius: 12, overflow: "hidden", aspectRatio: "16/9" }}>
-            <iframe
-              src={`https://www.youtube.com/embed/${postData.videoUrl.split("v=")[1]?.split("&")[0] ?? ""}`}
-              style={{ width: "100%", height: "100%", border: "none" }}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-        )}
+        {video && <VideoEmbed src={video.embedSrc} label="Vidéo du post · Détail du post" />}
 
         {/* Reactions */}
         <div data-fb-label="Barre de réactions · Détail du post" style={{ paddingTop: 4, borderTop: "1px solid var(--color-border-default)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>

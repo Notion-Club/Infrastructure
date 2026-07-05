@@ -9,6 +9,8 @@ import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
 import { renderBodyRich } from "../../utils/render-mentions";
 import { buildPostLink, copyCommunityLink } from "../../utils/copy-link";
+import { detectVideoEmbed } from "../../utils/video-embed";
+import { VideoEmbed } from "../shared/VideoEmbed";
 import { UserAvatar } from "../shared/UserAvatar";
 import { UserHoverCard } from "../shared/UserHoverCard";
 import { TagPill } from "../shared/TagPill";
@@ -30,15 +32,6 @@ interface PostCardProps {
   pinned?: boolean;
 }
 
-function isYouTube(url: string) {
-  return url.includes("youtube.com") || url.includes("youtu.be");
-}
-
-function getYouTubeId(url: string) {
-  const match = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
-  return match ? match[1] : null;
-}
-
 export function PostCard({ post, currentUser, devRole, pinned = false }: PostCardProps) {
   const router = useRouter();
   const [reactions, setReactions] = useState(post.reactions);
@@ -53,6 +46,12 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
   const isAuthor = post.author.id === currentUser.id;
   const isPrivileged = currentUser.role === "admin" || currentUser.role === "mentor";
   const edited = wasEdited(postData.createdAt, postData.updatedAt);
+
+  // Embed vidéo (allowlist YouTube/Loom/Tella/Vimeo) : on cherche d'abord dans
+  // le champ dédié videoUrl, sinon dans le body. Si trouvée dans le body, on
+  // retire l'URL du texte affiché pour ne pas doublonner embed + lien nu.
+  const video = detectVideoEmbed(postData.videoUrl ?? "") ?? detectVideoEmbed(postData.body);
+  const displayBody = video ? postData.body.replace(video.matchedUrl, "").trim() : postData.body;
 
   function handleCardClick() {
     try { sessionStorage.setItem("communaute:scrollY", String(window.scrollY)); } catch {}
@@ -245,20 +244,22 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
             {postData.title}
           </h2>
         )}
-        <div
-          style={{
-            fontSize: 14,
-            color: "var(--color-text-secondary)",
-            lineHeight: 1.55,
-            display: "-webkit-box",
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {renderBodyRich(postData.body, postData.mentions)}
-        </div>
+        {displayBody && (
+          <div
+            style={{
+              fontSize: 14,
+              color: "var(--color-text-secondary)",
+              lineHeight: 1.55,
+              display: "-webkit-box",
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {renderBodyRich(displayBody, postData.mentions)}
+          </div>
+        )}
 
         {postData.imageUrl && (
           /* Slack-like : preview modérée + click ouvre lightbox plein écran.
@@ -300,17 +301,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
           </button>
         )}
 
-        {postData.videoUrl && isYouTube(postData.videoUrl) && (
-          <div style={{ borderRadius: 12, overflow: "hidden", aspectRatio: "16/9", marginTop: 4 }}>
-            <iframe
-              src={`https://www.youtube.com/embed/${getYouTubeId(postData.videoUrl)}`}
-              style={{ width: "100%", height: "100%", border: "none" }}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        )}
+        {video && <VideoEmbed src={video.embedSrc} label="Vidéo du post · Carte post" />}
       </div>
 
       {/* Footer */}
