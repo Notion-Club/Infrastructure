@@ -52,9 +52,12 @@ export function MessagesEmptyState({
                   cursor: "pointer",
                   verticalAlign: "middle",
                   margin: "0 1px",
-                  transition: "opacity 150ms ease, transform 150ms ease",
+                  // Pas de translate au hover : posé dans une phrase (inline),
+                  // le moindre déplacement décalait l'icône ET la pastille par
+                  // rapport au texte. On ne touche qu'à l'opacité (immobile).
+                  transition: "opacity 150ms ease",
                 }}
-                className="hover:opacity-85 hover:-translate-y-px"
+                className="hover:opacity-85"
               >
                 <PlusMessage size={13} />
               </button>
