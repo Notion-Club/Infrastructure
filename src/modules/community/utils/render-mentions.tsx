@@ -1,5 +1,16 @@
 import type { ReactNode } from "react";
 import { linkify } from "./linkify";
+import { formatInline } from "./format-inline";
+
+// Applique le format inline (**gras**, *italique*, [libellé](url)) PUIS linkify
+// sur les seuls segments texte restants. Les nœuds JSX produits par formatInline
+// (dont les liens-libellés) passent tels quels : on ne re-linkifie jamais une URL
+// déjà encapsulée dans un lien.
+function formatAndLinkify(text: string): ReactNode[] {
+  return formatInline(text).flatMap((seg) =>
+    typeof seg === "string" ? linkify(seg) : [seg],
+  );
+}
 
 // Helper de rendu : transforme un body texte en un tableau de ReactNode où
 // chaque @nom matchant une mention structurée (table post_mentions / comment_mentions,
@@ -72,12 +83,13 @@ export function renderBodyRich(
 ): ReactNode {
   const withMentions = renderBodyWithMentions(body, mentions);
   if (typeof withMentions === "string") {
-    return linkify(withMentions);
+    return formatAndLinkify(withMentions);
   }
   if (!Array.isArray(withMentions)) return withMentions;
-  // Pour chaque segment string du résultat mentions, on applique linkify et
-  // on étale les sous-éléments dans le tableau final.
+  // Pour chaque segment string du résultat mentions, on applique format inline
+  // puis linkify, et on étale les sous-éléments dans le tableau final. Les
+  // mentions déjà stylées (JSX) passent intactes.
   return withMentions.flatMap((node) =>
-    typeof node === "string" ? linkify(node) : [node],
+    typeof node === "string" ? formatAndLinkify(node) : [node],
   );
 }
