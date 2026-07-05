@@ -40,6 +40,70 @@ function MemberListSkeleton() {
   );
 }
 
+// État « aucun membre correspondant à la recherche » — repris du design de
+// l'état vide coaching (UpcomingEmptyState) : gros titre focal + description,
+// puis skeleton statique fondu par le haut (mask linear-gradient + blur-in),
+// comme illustration décorative (pas un chargement → barres statiques).
+function NoMemberFound() {
+  const barBg = "var(--color-border-default)";
+  return (
+    <div
+      className="nc-mode-in"
+      data-fb-label="Aucun membre trouvé · Modale Nouvelle conversation"
+      style={{ padding: "20px 16px 8px" }}
+    >
+      <div style={{ textAlign: "center" }}>
+        <h4
+          style={{
+            fontSize: "clamp(18px, 3.5vw, 22px)",
+            fontWeight: 700,
+            letterSpacing: "-0.02em",
+            lineHeight: 1.3,
+            color: "var(--color-text-primary)",
+            margin: 0,
+          }}
+        >
+          On a trouvé personne
+        </h4>
+        <p
+          style={{
+            fontSize: 14,
+            color: "var(--color-text-secondary)",
+            margin: "8px 0 0",
+            lineHeight: 1.5,
+          }}
+        >
+          Tu as peut-être fait une faute de frappe, vérifie ta saisie
+        </p>
+      </div>
+
+      {/* Skeleton fondu par le haut (transparent → opaque à 46px) : les fausses
+          lignes de membre émergent sous le texte, effet dégradé flou progressif. */}
+      <div
+        className="nc-blur-in"
+        aria-hidden
+        style={{
+          marginTop: 18,
+          WebkitMaskImage: "linear-gradient(to bottom, transparent 0, #000 46px)",
+          maskImage: "linear-gradient(to bottom, transparent 0, #000 46px)",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px" }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: barBg, flexShrink: 0 }} />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ height: 12, width: "45%", borderRadius: 6, background: barBg }} />
+                <div style={{ height: 10, width: "28%", borderRadius: 6, background: barBg }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface NewConversationModalProps {
   currentUser: User;
   onClose: () => void;
@@ -215,11 +279,7 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
               </div>
             </button>
           ))}
-          {filtered.length === 0 && (
-            <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 13, color: "var(--color-text-muted)" }}>
-              Aucun membre trouvé
-            </div>
-          )}
+          {filtered.length === 0 && <NoMemberFound />}
           </SkeletonReveal>
         </div>
       </div>

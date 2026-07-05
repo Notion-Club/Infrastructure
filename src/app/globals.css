@@ -3488,6 +3488,19 @@ html.dark .nc-lt-scrim {
   }
 }
 
+/* Onglet Messages (desktop) : l'encadré prend une hauteur DÉFINIE = zone visible
+   du viewport (chrome du shell déduit : md pt-104px + pb-8=32px). Cela BORNE la
+   chaîne flex → une conversation longue scrolle EN INTERNE (ConversationThread)
+   au lieu d'allonger l'encadré et de faire défiler la page. Le feed conserve son
+   scroll-document (flex-1). Mobile inchangé : .nc-messages-embed y est déjà en
+   hauteur fixe. Double classe pour battre en spécificité l'utilitaire .flex-1. */
+@media (min-width: 768px) {
+  .nc-community-card.nc-community-card--messages {
+    height: calc(100dvh - 136px);
+    flex: none;
+  }
+}
+
 /* ── Card resize (transitions.dev 01-card-resize) ────────────────────────────
    Tween width/height quand la taille d'un conteneur change. Piloté par une
    hauteur explicite (mesurée en JS) — ex. la liste de la modale « Nouvelle
