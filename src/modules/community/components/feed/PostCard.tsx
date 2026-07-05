@@ -46,6 +46,9 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
   const [showEditComposer, setShowEditComposer] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [imageLightbox, setImageLightbox] = useState(false);
+  // Menu kebab ouvert → on élève la carte au-dessus des voisines pour que le
+  // dropdown (qui déborde vers le bas) ne passe pas sous la carte suivante.
+  const [menuOpen, setMenuOpen] = useState(false);
   const [editing, startEdit] = useTransition();
   const isAuthor = post.author.id === currentUser.id;
   const isPrivileged = currentUser.role === "admin" || currentUser.role === "mentor";
@@ -130,6 +133,12 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
         transition: "box-shadow 200ms var(--nc-ease), transform 200ms var(--nc-ease)",
         boxShadow: "var(--nc-shadow-3)",
         viewTransitionName: `post-card-${post.id}`,
+        // Contexte d'empilement local : quand le menu kebab est ouvert, la carte
+        // remonte au-dessus des cartes suivantes pour que le dropdown débordant
+        // reste visible (flex-item → z-index effectif sans position, mais on pose
+        // position:relative pour être robuste au contexte viewTransitionName).
+        position: "relative",
+        zIndex: menuOpen ? 20 : undefined,
       }}
       className="hover:shadow-[rgba(0,0,0,0.10)_0px_8px_32px_0px,rgba(0,0,0,0.04)_0px_1px_3px_0px]"
     >
@@ -215,6 +224,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
             onDelete={isAuthor || isPrivileged ? () => setShowDeleteConfirm(true) : undefined}
             onTogglePin={isPrivileged ? handleTogglePin : undefined}
             pinned={postData.pinned}
+            onOpenChange={setMenuOpen}
           />
         </div>
       </div>

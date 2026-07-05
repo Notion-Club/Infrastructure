@@ -3481,7 +3481,27 @@ html.dark .nc-lt-scrim {
     height: auto;
     flex: 1 1 auto;
     min-height: 0;
+    /* Conteneur flex-col : la grille messages (flex:1 en embedded) remplit
+       toute la hauteur → plus de bande grise (fond d'encadré) sous le panneau. */
+    display: flex;
+    flex-direction: column;
   }
+}
+
+/* ── Card resize (transitions.dev 01-card-resize) ────────────────────────────
+   Tween width/height quand la taille d'un conteneur change. Piloté par une
+   hauteur explicite (mesurée en JS) — ex. la liste de la modale « Nouvelle
+   conversation » qui rétrécit au filtrage. */
+.t-resize {
+  --resize-dur: 300ms;
+  --resize-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    width var(--resize-dur) var(--resize-ease),
+    height var(--resize-dur) var(--resize-ease);
+  will-change: width, height;
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-resize { transition: none !important; }
 }
 
 /* Modale détail d'appel coaching (plan d'action + transcription). Sur mobile,

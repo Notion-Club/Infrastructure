@@ -25,34 +25,40 @@ export function MessagesEmptyState({
       <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", margin: 0 }}>
         Aucune conversation
       </h3>
-      <p style={{ fontSize: 14, color: "var(--color-text-muted)", margin: 0, maxWidth: 300, lineHeight: 1.6 }}>
+      <p style={{ fontSize: 14, color: "var(--color-text-muted)", margin: 0, maxWidth: 240, lineHeight: 1.6, textWrap: "balance" }}>
         {onNewConversation ? (
           <>
-            Démarre une nouvelle conversation en cliquant sur{" "}
-            <button
-              type="button"
-              onClick={onNewConversation}
-              aria-label="Nouvelle conversation"
-              data-fb-label="Bouton inline Nouvelle conversation · État vide messages"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 24,
-                height: 24,
-                borderRadius: "50%",
-                background: "var(--color-brand)",
-                color: "#fff",
-                border: "none",
-                cursor: "pointer",
-                verticalAlign: "middle",
-                margin: "0 1px",
-                transition: "opacity 150ms ease, transform 150ms ease",
-              }}
-              className="hover:opacity-85 hover:-translate-y-px"
-            >
-              <PlusMessage size={13} />
-            </button>
+            Démarre une nouvelle conversation en{" "}
+            {/* « cliquant sur [+] » insécable : le bouton ne se retrouve jamais
+                seul sur sa ligne ; combiné à text-wrap:balance + maxWidth réduit,
+                la phrase forme un bloc compact et centré sur deux lignes. */}
+            <span style={{ whiteSpace: "nowrap" }}>
+              cliquant sur{" "}
+              <button
+                type="button"
+                onClick={onNewConversation}
+                aria-label="Nouvelle conversation"
+                data-fb-label="Bouton inline Nouvelle conversation · État vide messages"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  background: "var(--color-brand)",
+                  color: "#fff",
+                  border: "none",
+                  cursor: "pointer",
+                  verticalAlign: "middle",
+                  margin: "0 1px",
+                  transition: "opacity 150ms ease, transform 150ms ease",
+                }}
+                className="hover:opacity-85 hover:-translate-y-px"
+              >
+                <PlusMessage size={13} />
+              </button>
+            </span>
           </>
         ) : (
           "Démarre une nouvelle conversation en cliquant sur le bouton + ci-dessus."

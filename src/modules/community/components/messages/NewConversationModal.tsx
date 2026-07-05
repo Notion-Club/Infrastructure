@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { X, Search } from "lucide-react";
 import type { User } from "../../types/user.types";
 import { listMembersAction } from "../../server/actions";
@@ -96,6 +96,19 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
     ? members.filter((m) => m.name.toLowerCase().includes(query.toLowerCase()))
     : members;
 
+  // Card resize (transitions.dev 01) : on pilote la hauteur de la liste de façon
+  // explicite (mesurée) pour qu'elle TWEEN quand le filtrage la fait rétrécir/
+  // grandir — sinon `height:auto` saute d'un coup. Écriture impérative (pas de
+  // setState → pas de re-render ni de cascade d'effet) ; `.t-resize` anime la
+  // valeur. Bornée à 320px : au-delà, scroll interne. `useLayoutEffect` mesure
+  // avant paint → aucun flash à l'ouverture.
+  const listRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
+  }, [filtered.length, loading]);
+
   return (
     <div
       style={{
@@ -157,7 +170,7 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
 
         {/* List — squelette pendant le chargement (la modale s'ouvre à sa
             taille finale), puis révélation en fondu/flou (transitions.dev 14). */}
-        <div style={{ maxHeight: 320, overflowY: "auto" }}>
+        <div ref={listRef} className="t-resize" style={{ maxHeight: 320, overflowY: "auto", overflowX: "hidden" }}>
           <SkeletonReveal loading={loading} skeleton={<MemberListSkeleton />}>
           {filtered.map((m) => (
             <button
