@@ -258,20 +258,28 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
     const surf = surfRef.current;
     if (!g || !surf || prefersReduced()) return finishClose();
 
-    // Fige le conteneur de scroll SYNCHRONEMENT, AVANT de ré-ancrer la surface.
-    // En PWA iOS, un `position: fixed` descendant d'un scroller `overflow:auto` +
-    // `-webkit-overflow-scrolling:touch` se positionne RELATIVEMENT au scroller (et
-    // non au viewport) → si l'utilisateur avait scrollé, la surface ré-ancrée
-    // partait hors écran et le morph inverse n'était pas visible (fermeture
-    // « brutale », sans rétrécissement). On ne peut pas se reposer sur le
-    // `setInteractive(false)` ci-dessus : son re-render React est asynchrone, donc
-    // le conteneur est encore `overflow:auto` à l'instant du ré-ancrage. En passant
-    // ici en `overflow:hidden` impérativement, le fixed redevient ancré au viewport
-    // comme à l'ouverture. Puis retour en haut → on réutilise la géométrie mémorisée.
+    // Dé-piège la surface AVANT de la ré-ancrer, SYNCHRONEMENT. En PWA iOS un
+    // `position: fixed` descendant d'un scroller `-webkit-overflow-scrolling:touch`
+    // s'ancre au CONTENU du scroller (pas au viewport) → si l'utilisateur avait
+    // scrollé de S, la surface ré-ancrée partait à `fixTop − S` (hors écran) et le
+    // rétrécissement jouait invisible (« fermeture brutale »). #258 figeait bien
+    // `overflow:hidden` mais ça ne suffit pas :
+    //   1. le layer « momentum » (`-webkit-overflow-scrolling:touch`) reste actif —
+    //      c'est LUI qui piège le fixed, et React le réaffirme au re-render de
+    //      `setInteractive(false)`. On le coupe donc explicitement (`auto`), et le
+    //      JSX le garde `auto` tant que `!interactive` → pas de ré-affirmation.
+    //   2. `scrollTo(0,0)` n'est pas fiable sur un scroller momentum → une fois le
+    //      momentum coupé, `scrollTop = 0` reset de façon déterministe.
+    //   3. il faut FORCER un reflow (`offsetHeight`) pour que tout soit appliqué
+    //      avant le ré-ancrage fixed + le démarrage de l'anim.
+    // Inerte sur Safari/desktop (où `overflow:hidden` suffisait déjà) → aucun risque
+    // de régression sur les plateformes qui fonctionnent.
     const scroller = scrollRef.current;
     if (scroller) {
+      scroller.style.setProperty('-webkit-overflow-scrolling', 'auto');
       scroller.style.overflowY = 'hidden';
-      scroller.scrollTo(0, 0);
+      scroller.scrollTop = 0;
+      void scroller.offsetHeight; // flush synchrone
     }
 
     // Ré-ancrage de la surface en fixed (état d'ouverture, scroll 0).
@@ -607,7 +615,11 @@ export function ResourceMorphOverlay({ source, onClose }: OverlayProps) {
           overflowX: 'hidden',
           overflowY: interactive ? 'auto' : 'hidden',
           overscrollBehavior: 'contain',
-          WebkitOverflowScrolling: 'touch',
+          // Momentum touch UNIQUEMENT quand le contenu est réellement scrollable
+          // (interactive). Pendant les deux morphs (`!interactive`) on le coupe :
+          // c'est ce layer qui piège le `position: fixed` de la surface sur iOS et
+          // cassait le rétrécissement de fermeture en PWA (cf. startClose).
+          WebkitOverflowScrolling: interactive ? 'touch' : 'auto',
           pointerEvents: interactive ? 'auto' : 'none',
         }}
       >
