@@ -742,6 +742,69 @@ type ConversationSummaryRow = {
   unread: number;
 };
 
+// Colonnes d'un message chargées pour le rendu d'une bulle. Source unique
+// (getConversation / loadOlderMessages / getMessagesSince / hydratation eager
+// s'y réfèrent) pour ne pas dériver si le schéma évolue.
+const MESSAGE_SELECT_COLUMNS =
+  "id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name";
+
+// Nombre de conversations (les plus récentes) dont on pré-charge la dernière
+// page de messages DÈS le listing, côté serveur.
+//
+// Pourquoi : listConversations renvoyait messages:[] pour TOUTES les convs →
+// ouvrir une conversation coûtait un aller-retour client (getConversationAction :
+// re-validation Auth + messages + réactions) AVANT d'afficher la moindre bulle.
+// C'est la lenteur ressentie « au premier chargement ». Comme on ouvre presque
+// toujours une conversation récente, pré-charger la dernière page des N convs de
+// tête rend l'ouverture instantanée (0 aller-retour ; le client seed son cache
+// loadedConvIds depuis ces messages). Borné à N × MESSAGES_PAGE_SIZE, servi par
+// l'index messages_conversation_idx (conversation_id, created_at desc, mig. 014).
+const HYDRATE_TOP_CONVERSATIONS = 5;
+
+// Pré-charge la dernière page de messages (+ réactions) des conversations
+// passées, en parallèle (une query/conv — PostgREST ne sait pas faire un
+// « N dernières lignes PAR groupe » sans window function/RPC), puis une SEULE
+// query réactions batchée sur tous les ids. Renvoie une Map convId → page.
+async function hydrateRecentMessages(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  conversationIds: string[],
+): Promise<Map<string, { messages: Message[]; hasMore: boolean }>> {
+  const out = new Map<string, { messages: Message[]; hasMore: boolean }>();
+  if (conversationIds.length === 0) return out;
+
+  const perConv = await Promise.all(
+    conversationIds.map(async (cid) => {
+      const { data } = await supabase
+        .from("messages")
+        .select(MESSAGE_SELECT_COLUMNS)
+        .eq("conversation_id", cid)
+        .order("created_at", { ascending: false })
+        .limit(MESSAGES_PAGE_SIZE + 1)
+        .returns<MessageRow[]>();
+      const rows = data ?? [];
+      const hasMore = rows.length > MESSAGES_PAGE_SIZE;
+      const messages = (hasMore ? rows.slice(0, MESSAGES_PAGE_SIZE) : rows).reverse();
+      return { cid, messages, hasMore };
+    }),
+  );
+
+  const allIds = perConv.flatMap((p) => p.messages.map((m) => m.id));
+  let reactions: MessageReactionRow[] = [];
+  if (allIds.length > 0) {
+    const { data: rxs } = await supabase
+      .from("message_reactions")
+      .select("message_id, user_id, emoji")
+      .in("message_id", allIds)
+      .returns<MessageReactionRow[]>();
+    reactions = rxs ?? [];
+  }
+
+  for (const { cid, messages, hasMore } of perConv) {
+    out.set(cid, { messages: messages.map((m) => mapMessageRow(m, reactions)), hasMore });
+  }
+  return out;
+}
+
 export async function listConversations(): Promise<Conversation[]> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -780,6 +843,15 @@ export async function listConversations(): Promise<Conversation[]> {
   const summaryById = new Map<string, ConversationSummaryRow>();
   for (const s of summaryRows) summaryById.set(s.conversation_id, s);
 
+  // Hydratation eager de la dernière page des N conversations les plus récentes
+  // (rows est déjà trié last_message_at desc). Le client marque ces convs comme
+  // « déjà chargées » → ouverture instantanée sans aller-retour (cf.
+  // HYDRATE_TOP_CONVERSATIONS et MessagesLayout.loadedConvIds).
+  const hydrated = await hydrateRecentMessages(
+    supabase,
+    rows.slice(0, HYDRATE_TOP_CONVERSATIONS).map((r) => r.id),
+  );
+
   return rows.map((row) => {
     const isA = row.participant_a_id === viewerId;
     const other = isA ? row.participant_b : row.participant_a;
@@ -798,10 +870,15 @@ export async function listConversations(): Promise<Conversation[]> {
       preview = `📎 ${summary?.last_message_file_name ?? "Fichier"}`;
     }
 
+    const page = hydrated.get(row.id);
+
     return {
       id: row.id,
       participant: other ? mapProfileToUser(other) : deletedUserShape(otherId),
-      messages: [],
+      // Top-N convs : messages pré-chargés (ouverture instantanée). Autres :
+      // [] → chargées à la demande via getConversationAction (inchangé).
+      messages: page?.messages ?? [],
+      hasMore: page?.hasMore,
       unreadCount: summary?.unread ?? 0,
       lastMessageAt: row.last_message_at,
       lastMessagePreview: preview,
@@ -844,7 +921,7 @@ export async function getConversation(id: string): Promise<Conversation | null> 
   // côté DB → on inverse en local pour ordre chronologique ascendant.
   const { data: rawMessages } = await supabase
     .from("messages")
-    .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name")
+    .select(MESSAGE_SELECT_COLUMNS)
     .eq("conversation_id", id)
     .order("created_at", { ascending: false })
     .limit(MESSAGES_PAGE_SIZE + 1)
@@ -903,7 +980,7 @@ export async function loadOlderMessages(
 
   const { data: rawMessages } = await supabase
     .from("messages")
-    .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name")
+    .select(MESSAGE_SELECT_COLUMNS)
     .eq("conversation_id", conversationId)
     .lt("created_at", cursorRow.created_at)
     .order("created_at", { ascending: false })
@@ -950,7 +1027,7 @@ export async function getMessagesSince(
 
   const { data: rawMessages } = await supabase
     .from("messages")
-    .select("id, conversation_id, sender_id, type, body, file_url, file_name, deleted, created_at, edited_at, reply_to_message_id, reply_snippet, reply_author_name, forwarded_from_message_id, forwarded_from_author_name")
+    .select(MESSAGE_SELECT_COLUMNS)
     .eq("conversation_id", conversationId)
     .gt("created_at", afterIso)
     .order("created_at", { ascending: true })

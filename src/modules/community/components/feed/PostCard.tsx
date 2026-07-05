@@ -19,6 +19,7 @@ import { PostKebabMenu } from "../shared/PostKebabMenu";
 import { PostComposerModal } from "../post-composer/PostComposerModal";
 import { DeletePostConfirmDialog } from "../shared/DeletePostConfirmDialog";
 import { ImageLightbox } from "../shared/ImageLightbox";
+import { PostImage } from "../shared/PostImage";
 import {
   deletePostAction,
   togglePostReactionAction,
@@ -262,43 +263,14 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
         )}
 
         {postData.imageUrl && (
-          /* Slack-like : preview modérée + click ouvre lightbox plein écran.
-             stopPropagation évite la navigation vers la page détail. */
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setImageLightbox(true);
-            }}
-            data-fb-label="Image du post · Carte post"
-            style={{
-              padding: 0,
-              border: "none",
-              background: "transparent",
-              cursor: "zoom-in",
-              marginTop: 4,
-              display: "block",
-              maxWidth: "100%",
-            }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={postData.imageUrl}
-              alt=""
-              style={{
-                // `min(380px, 100%)` : plafonné à 380px sur grand écran mais
-                // jamais plus large que la carte (sinon l'image débordait à
-                // droite sur mobile, le conteneur étant < 380px).
-                maxWidth: "min(380px, 100%)",
-                maxHeight: 320,
-                borderRadius: 10,
-                border: "1px solid var(--color-border-default)",
-                objectFit: "cover",
-                display: "block",
-              }}
-              loading="lazy"
-            />
-          </button>
+          /* Slack-like : preview cadrée (espace réservé + reveal en fondu, cf.
+             PostImage) → plus de pop-in saccadé. Click ouvre la lightbox plein
+             écran ; stopPropagation évite la navigation vers la page détail. */
+          <PostImage
+            src={postData.imageUrl}
+            onOpen={() => setImageLightbox(true)}
+            fbLabel="Image du post · Carte post"
+          />
         )}
 
         {video && <VideoEmbed src={video.embedSrc} label="Vidéo du post · Carte post" />}
@@ -310,6 +282,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
           reactions={reactions}
           commentCount={postData.commentCount}
           compact
+          showAddReaction
           onReact={handleReaction}
           onCommentClick={() => router.push(`/communaute/post/${post.id}#comments`)}
         />

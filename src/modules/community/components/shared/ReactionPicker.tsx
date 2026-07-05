@@ -11,12 +11,21 @@ interface ReactionPickerProps {
   mode?: "post" | "comment"; // post = multi-select, comment = single
   selectedEmojis?: string[];
   label?: string;
+  // "pill" (défaut) = icône + libellé (CTA « Réagir »). "icon" = pastille ronde
+  // avec la seule icône (aucun libellé) — sert d'incitation discrète quand des
+  // réactions existent déjà, posée à la suite de la liste (cf. ReactionsBar).
+  variant?: "pill" | "icon";
+  // Aligne la taille sur les pastilles compactes des cartes du feed.
+  compact?: boolean;
 }
 
 export function ReactionPicker({
   onSelect,
   label = "+ Réagir",
+  variant = "pill",
+  compact = false,
 }: ReactionPickerProps) {
+  const isIcon = variant === "icon";
   const { isOpen, isMounted, stateClass, close, toggle } = useDropdownTransition();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -35,18 +44,25 @@ export function ReactionPicker({
         type="button"
         onClick={() => toggle()}
         data-fb-label="Bouton Réagir · Communauté"
+        aria-label={isIcon ? "Ajouter une réaction" : undefined}
+        title={isIcon ? "Ajouter une réaction" : undefined}
         style={{
           display: "inline-flex",
           alignItems: "center",
+          justifyContent: "center",
           gap: 5,
-          padding: "5px 10px",
+          // icon = pastille ronde compacte (aucun libellé) ; pill = icône + texte.
+          padding: isIcon
+            ? (compact ? 4 : 5)
+            : (compact ? "2px 9px" : "5px 10px"),
           borderRadius: 9999,
           border: "1px solid var(--color-border-default)",
           // Bouton posé sur une carte (surface-card) → fond surface-raised pour
           // contraster (jamais ton-sur-ton, light comme dark). Pattern
           // systématique `.nc-btn-on-card` (cf. globals.css / DangerZone).
           background: "var(--color-surface-raised)",
-          fontSize: 13,
+          fontSize: compact ? 12 : 13,
+          lineHeight: 1,
           color: "var(--color-text-secondary)",
           cursor: "pointer",
           transition: "background 150ms ease, border-color 150ms ease",
@@ -54,7 +70,7 @@ export function ReactionPicker({
         className="nc-btn-on-card hover:border-[rgba(0,0,0,0.15)]"
       >
         <SmilePlus size={14} />
-        {label}
+        {!isIcon && label}
       </button>
 
       {isMounted && (
