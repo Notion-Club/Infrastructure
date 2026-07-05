@@ -55,7 +55,12 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
   const displayBody = video ? postData.body.replace(video.matchedUrl, "").trim() : postData.body;
 
   function handleCardClick() {
-    try { sessionStorage.setItem("communaute:scrollY", String(window.scrollY)); } catch {}
+    // Le feed scrolle en interne (#nc-feed-scroll) → on sauvegarde le scrollTop
+    // du conteneur (fallback window). Restauré au retour dans community-page.
+    try {
+      const el = document.getElementById("nc-feed-scroll");
+      sessionStorage.setItem("communaute:scrollY", String(el ? el.scrollTop : window.scrollY));
+    } catch {}
     router.push(`/communaute/post/${post.id}`);
   }
 

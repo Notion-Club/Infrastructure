@@ -3501,6 +3501,35 @@ html.dark .nc-lt-scrim {
   }
 }
 
+/* Onglet Feed — hauteur DÉFINIE (règle demandée : l'encadré ne s'allonge plus
+   avec le contenu, il reste à la même position fixe que Messages et la liste
+   scrolle EN INTERNE, cf. .nc-feed-scroll).
+   • Mobile : chrome haut (pt-64) + bas (pb-120) = 184px, plus la safe-area (la
+     BottomNav est ancrée à calc(10px + env(safe-area-inset-bottom))).
+   • Desktop : md pt-104 + pb-8=32 = 136px.
+   Compromis assumé : comme Messages, le document ne scrolle plus sur cette page
+   → en navigateur Safari iOS (hors PWA) la barre d'outils ne se replie plus.
+   Double classe pour battre l'utilitaire .flex-1 en spécificité. */
+.nc-community-card.nc-community-card--fixed {
+  height: calc(100dvh - 184px - env(safe-area-inset-bottom, 0px));
+  flex: none;
+}
+@media (min-width: 768px) {
+  .nc-community-card.nc-community-card--fixed {
+    height: calc(100dvh - 136px);
+  }
+}
+
+/* Zone scrollable de la liste du feed : remplit la hauteur restante de la carte
+   (sous le switcher + les filtres) et scrolle en interne. Le scroll infini
+   (IntersectionObserver de FeedPostList) est ré-ancré sur ce conteneur. */
+.nc-feed-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 /* ── Card resize (transitions.dev 01-card-resize) ────────────────────────────
    Tween width/height quand la taille d'un conteneur change. Piloté par une
    hauteur explicite (mesurée en JS) — ex. la liste de la modale « Nouvelle

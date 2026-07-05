@@ -94,14 +94,23 @@ export function CommunityPage({
     return () => cancelAnimationFrame(raf);
   }, [activeTab]);
 
-  // Restore scroll position saved before navigating into a post detail
+  // Restore scroll position saved before navigating into a post detail.
+  // Le feed scrolle désormais EN INTERNE (#nc-feed-scroll) et non plus le
+  // document → on restaure sur le conteneur (fallback window si absent, ex.
+  // rendu avant montage de la liste).
   useEffect(() => {
     try {
       const savedY = sessionStorage.getItem("communaute:scrollY");
       if (savedY) {
         sessionStorage.removeItem("communaute:scrollY");
         const y = parseInt(savedY, 10);
-        requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            const el = document.getElementById("nc-feed-scroll");
+            if (el) el.scrollTop = y;
+            else window.scrollTo(0, y);
+          }),
+        );
       }
     } catch {}
   }, []);
@@ -235,18 +244,15 @@ export function CommunityPage({
       <ImageLightboxRoot />
 
       {/* Global container card — CADRE toujours présent (jamais en Suspense).
-          `flex flex-col flex-1` (sans `min-h-0`) — exactement comme l'encadré de
-          /coaching : la carte remplit AU MOINS la hauteur du viewport (entre la
-          barre de nav et le bas, avec la marge) PUIS grandit avec son contenu
-          (scroll-document). Sans `flex-1`, quand le feed était court, la carte
-          restait raccourcie alors que /coaching descendait pleinement → les deux
-          pages n'avaient pas la même hauteur. `min-h-0` reste volontairement
-          absent : c'est LUI (combiné à une hauteur de shell figée) qui bloquait
-          la croissance et figeait la barre Safari, pas `flex-1` seul.
-          `overflow:hidden` ne fait que clipper les coins arrondis. La vue
-          Messages se redonne une hauteur fixe explicite (cf. MessagesContent). */}
+          Hauteur DÉFINIE sur les deux onglets (règle absolue de la page) : la
+          carte reste à une position fixe et le contenu scrolle EN INTERNE, comme
+          Messages. Feed → `nc-community-card--fixed` (cf. globals.css) + zone
+          `nc-feed-scroll`. Messages → `nc-community-card--messages` (desktop) +
+          `.nc-messages-embed` (mobile), inchangé. `flex-1` reste dans la classe
+          mais est neutralisé par `flex:none` des modificateurs (double classe →
+          spécificité). `overflow:hidden` clippe les coins arrondis. */}
       <div
-        className={`flex flex-col flex-1 nc-community-card${activeTab === "messages" ? " nc-community-card--messages" : ""}`}
+        className={`flex flex-col flex-1 nc-community-card${activeTab === "messages" ? " nc-community-card--messages" : " nc-community-card--fixed"}`}
         data-fb-label="Encadré principal · Communauté"
         style={{
           background: "var(--color-surface-raised)",
@@ -543,9 +549,17 @@ function FeedList({
   const showSkeleton = feedState === "loading";
   const showError = feedState === "error";
 
+  // Conteneur à scroll interne (hauteur fixe de la carte). `id` stable →
+  // sauvegarde/restauration de la position de scroll au retour d'un post
+  // (cf. PostCard + effet de restore ci-dessus, qui ciblent cet élément). `ref`
+  // → root de l'IntersectionObserver du scroll infini (FeedPostList).
+  const feedScrollRef = useRef<HTMLDivElement>(null);
+
   return (
     <div
-      className="overflow-x-hidden"
+      ref={feedScrollRef}
+      id="nc-feed-scroll"
+      className="nc-feed-scroll"
       data-fb-label="Liste · Feed"
       style={{ padding: "0 16px 16px" }}
     >
@@ -559,6 +573,7 @@ function FeedList({
             posts={feedState === "empty" ? [] : allPosts}
             currentUser={currentUser}
             devRole={devRole}
+            scrollRootRef={feedScrollRef}
           />
         </SkeletonReveal>
       )}
@@ -615,7 +630,7 @@ const skPulse: React.CSSProperties = {
 function FeedListFallback() {
   return (
     <div
-      className="overflow-x-hidden"
+      className="nc-feed-scroll"
       style={{ padding: "0 16px 16px" }}
       aria-hidden
     >

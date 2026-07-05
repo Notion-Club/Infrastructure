@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type RefObject } from "react";
 import type { Post } from "../../types/post.types";
 import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
@@ -13,9 +13,14 @@ interface FeedPostListProps {
   posts: Post[];
   currentUser: User;
   devRole: DevRole;
+  // Conteneur à scroll interne (#nc-feed-scroll). Sert de `root` à
+  // l'IntersectionObserver : le feed ne scrolle plus le document mais ce
+  // conteneur → sans ce root, la sentinelle n'entrerait jamais dans le
+  // viewport et la pagination ne se déclencherait pas.
+  scrollRootRef?: RefObject<HTMLDivElement | null>;
 }
 
-export function FeedPostList({ posts, currentUser, devRole }: FeedPostListProps) {
+export function FeedPostList({ posts, currentUser, devRole, scrollRootRef }: FeedPostListProps) {
   const [page, setPage] = useState(1);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const visible = posts.slice(0, page * PAGE_SIZE);
@@ -31,11 +36,11 @@ export function FeedPostList({ posts, currentUser, devRole }: FeedPostListProps)
       (entries) => {
         if (entries[0].isIntersecting) setPage((p) => p + 1);
       },
-      { rootMargin: "200px" }
+      { root: scrollRootRef?.current ?? null, rootMargin: "200px" }
     );
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [hasMore]);
+  }, [hasMore, scrollRootRef]);
 
   if (posts.length === 0) return <FeedEmptyState />;
 
