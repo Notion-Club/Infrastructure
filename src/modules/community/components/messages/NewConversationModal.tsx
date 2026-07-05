@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Search } from "lucide-react";
 import type { User } from "../../types/user.types";
 import { listMembersAction } from "../../server/actions";
@@ -127,6 +128,14 @@ function memberAsUserShape(m: CommunityMember): User {
   };
 }
 
+// Normalise une chaîne pour une recherche insensible à la casse ET aux accents :
+// « Maëva » / « Théo » ressortent en tapant « maeva » / « theo ». NFD sépare
+// chaque lettre accentuée en (lettre + diacritique combinant), qu'on retire via
+// \p{Diacritic}. Utilisé pour la requête comme pour les champs comparés.
+function foldSearch(s: string): string {
+  return s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
+}
+
 export function NewConversationModal({ currentUser, onClose, onSelect }: NewConversationModalProps) {
   const { stateClass, overlayOpen, requestClose } = useModalTransition();
   const [query, setQuery] = useState("");
@@ -156,8 +165,15 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
     };
   }, [currentUser.id]);
 
-  const filtered = query
-    ? members.filter((m) => m.name.toLowerCase().includes(query.toLowerCase()))
+  // Recherche sur le nom d'affichage ET le username, sans accents (cf.
+  // foldSearch). Requête vide → liste complète.
+  const foldedQuery = foldSearch(query);
+  const filtered = foldedQuery
+    ? members.filter(
+        (m) =>
+          foldSearch(m.name).includes(foldedQuery) ||
+          (m.username ? foldSearch(m.username).includes(foldedQuery) : false),
+      )
     : members;
 
   // Card resize (transitions.dev 01) : on pilote la hauteur de la liste de façon
@@ -173,7 +189,14 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
     el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
   }, [filtered.length, loading]);
 
-  return (
+  // Portalisée dans <body> : rendue à l'origine dans .nc-page-halo (isolation:
+  // isolate), la modale restait piégée dans ce contexte d'empilement → son
+  // z-index 9999 ne dominait PAS la BottomNav (rendue hors halo) et le voile
+  // sombre ne la recouvrait pas. Le portal la sort du halo → l'overlay couvre
+  // toute la page, BottomNav comprise.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       style={{
         position: "fixed",
@@ -283,6 +306,7 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
           </SkeletonReveal>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
