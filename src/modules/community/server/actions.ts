@@ -46,6 +46,7 @@ import {
 import {
   getConversation,
   getMessagesSince,
+  listPostsPage,
   loadOlderMessages,
   mapProfileMember,
   searchMessagesInConversation,
@@ -53,6 +54,7 @@ import {
   type SearchMessageHit,
 } from "./queries";
 import type { Conversation, Message } from "../types/conversation.types";
+import type { PostCursor, PostsPage, PostTag } from "../types/post.types";
 
 const COMMUNITY_BUCKET = "community";
 
@@ -466,6 +468,19 @@ export async function deletePostAction(
 
   revalidatePath("/communaute");
   return { ok: true };
+}
+
+// ============================================================================
+// loadMorePosts — chargement incrémental du feed (scroll infini)
+// ============================================================================
+// Appelée par le client (FeedPostList) à chaque intersection de la sentinelle
+// et à chaque changement de tag (cursor null → 1re page du tag). Délègue à
+// listPostsPage (keyset serveur) : pas de logique de pagination côté client.
+export async function loadMorePosts(
+  cursor: PostCursor | null,
+  tag: PostTag | "all",
+): Promise<PostsPage> {
+  return listPostsPage({ cursor, tag, limit: 50 });
 }
 
 // ============================================================================

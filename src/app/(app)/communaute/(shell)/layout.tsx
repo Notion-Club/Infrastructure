@@ -1,4 +1,4 @@
-import { listConversations, listPosts } from "@/modules/community/server/queries";
+import { listConversations, listPostsPage } from "@/modules/community/server/queries";
 import { CommunityPage } from "@/modules/community/routes/community-page";
 
 // Layout PARTAGÉ de /communaute/* (feed, messages, messages/[username]).
@@ -29,7 +29,9 @@ export default function CommunauteLayout({
   // streament. Plus de layout suspendu → plus de fallback plein écran
   // ((app)/loading.tsx ou (shell)/loading.tsx) → plus de chargement « en deux
   // parties » ni de bande de couleur.
-  const postsPromise = listPosts();
+  // 1re page paginée (keyset) : posts + nextCursor + hasMore. Le feed charge la
+  // suite au scroll via la server action loadMorePosts (cf. FeedPostList).
+  const postsPromise = listPostsPage({ limit: 50 });
   const conversationsPromise = listConversations();
 
   // Scroll-DOCUMENT (et non plus `h-dvh overflow-hidden` à scroll interne) : un
