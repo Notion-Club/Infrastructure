@@ -1,7 +1,6 @@
 "use client";
 
-import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { User } from "../../types/user.types";
 
 const PALETTE = [
@@ -45,7 +44,23 @@ export function UserAvatar({ user, size = 40, className }: UserAvatarProps) {
   // Si l'image échoue à charger en runtime (404, CORS, etc.), on bascule
   // sur les initiales pour ne pas afficher un placeholder cassé.
   const [imageFailed, setImageFailed] = useState(false);
+  // Reveal skeleton → photo (transitions.dev, règle `.nc-avatar-skel`, comme le
+  // coaching) : tant que la photo n'est pas chargée on montre les initiales
+  // colorées qui « pulsent », puis cross-fade (fondu + dé-floutage) à l'arrivée
+  // → plus d'apparition saccadée des photos de profil.
+  const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
   const fs = Math.round(size * 0.36);
+
+  // Image déjà en cache : `onLoad` ne se redéclenche pas → on lit `complete`.
+  useEffect(() => {
+    if (!user.avatarUrl) return;
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth > 0) {
+      const id = requestAnimationFrame(() => setLoaded(true));
+      return () => cancelAnimationFrame(id);
+    }
+  }, [user.avatarUrl]);
 
   if (user.deleted) {
     return (
@@ -71,19 +86,36 @@ export function UserAvatar({ user, size = 40, className }: UserAvatarProps) {
   }
 
   if (user.avatarUrl && !imageFailed && isAllowedHost(user.avatarUrl)) {
+    const bg = user.avatarColor ?? colorFromId(user.id);
     return (
       <div
-        className={className}
-        style={{ width: size, height: size, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}
+        className={`nc-avatar-skel${loaded ? " is-revealed" : ""}${className ? ` ${className}` : ""}`}
+        style={{ display: "inline-block", width: size, height: size, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}
       >
-        <Image
-          src={user.avatarUrl}
-          alt={user.name}
-          width={size}
-          height={size}
-          style={{ objectFit: "cover", width: "100%", height: "100%" }}
-          onError={() => setImageFailed(true)}
-        />
+        {/* Skeleton : initiales colorées, pulsées jusqu'au chargement. */}
+        <span className="t-skel-skeleton is-pulsing">
+          <span
+            style={{
+              width: "100%", height: "100%", background: bg,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: fs, fontWeight: 700, color: "#fff", letterSpacing: "0.02em",
+            }}
+          >
+            {user.initials}
+          </span>
+        </span>
+        {/* Contenu : la photo. */}
+        <span className="t-skel-content">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            ref={imgRef}
+            src={user.avatarUrl}
+            alt={user.name}
+            onLoad={() => setLoaded(true)}
+            onError={() => setImageFailed(true)}
+            style={{ objectFit: "cover", width: "100%", height: "100%", display: "block" }}
+          />
+        </span>
       </div>
     );
   }

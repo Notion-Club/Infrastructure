@@ -12,6 +12,7 @@ import {
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { ArrowReturn } from "@/shared/components/icons";
 import type { Comment } from "../../../types/comment.types";
 import type { User } from "../../../types/user.types";
 import type { DevRole } from "../../../hooks/useDevRoleToggle";
@@ -664,6 +665,42 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
             pointerEvents: "none",
           }}
         >
+          {/* Bouton RETOUR — au-dessus du post, aligné à gauche sur la largeur de
+              la surface. Rendu EN FLUX (réserve sa place → `flowRect` mesure la
+              surface juste en dessous, aucun saut à l'ouverture). Apparaît /
+              disparaît en FONDU en suivant l'animation (opacité liée à
+              `interactive` : entre une fois le morph d'ouverture terminé, sort dès
+              le début de la fermeture, en même temps que le reste). */}
+          <div style={{ width: SURF_WIDTH, marginBottom: 12, pointerEvents: interactive ? "auto" : "none" }}>
+            <button
+              type="button"
+              onClick={startClose}
+              data-fb-label="Bouton Retour · Détail (morph)"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "7px 14px 7px 11px",
+                background: "var(--color-surface-card)",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: 9999,
+                fontSize: 13,
+                fontWeight: 500,
+                color: "var(--color-text-secondary)",
+                cursor: "pointer",
+                width: "fit-content",
+                boxShadow: "var(--nc-shadow-3)",
+                opacity: interactive ? 1 : 0,
+                transform: interactive ? "none" : "translateY(4px)",
+                transition: "opacity 260ms var(--nc-ease), transform 260ms var(--nc-ease)",
+              }}
+              className="hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)]"
+            >
+              <ArrowReturn size={14} />
+              Retour à la communauté
+            </button>
+          </div>
+
           {/* SURFACE (carte de post) : pendant le morph → fixed (JS) ; après
               ouverture → flux, hauteur = contenu, défile dans le conteneur. */}
           <div
@@ -708,23 +745,22 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
                     </div>
                   </UserHoverCard>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <UserHoverCard user={post.author} devRole={devRole}>
-                        <span style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", cursor: "pointer" }}>
-                          {post.author.name}
-                        </span>
-                      </UserHoverCard>
-                      <TagPill tag={postData.tag} />
+                    {/* Ligne 1 : nom seul. */}
+                    <UserHoverCard user={post.author} devRole={devRole}>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", cursor: "pointer" }}>
+                        {post.author.name}
+                      </span>
+                    </UserHoverCard>
+                    {/* Ligne 2 : détail temporel + pilule catégorie (réduite). */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
+                      <span
+                        style={{ fontSize: 12, color: "var(--color-text-muted)" }}
+                        title={`Publié le ${fullDateTime(postData.createdAt)}${edited ? ` · modifié le ${fullDateTime(postData.updatedAt)}` : ""}`}
+                      >
+                        {timeAgo(postData.createdAt)}
+                      </span>
+                      <TagPill tag={postData.tag} size="xs" />
                     </div>
-                    <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)" }} title={`Publié le ${fullDateTime(postData.createdAt)}`}>
-                      {timeAgo(postData.createdAt)}
-                      {edited && (
-                        <>
-                          {" · "}
-                          <span style={{ fontStyle: "italic" }}>modifié</span>
-                        </>
-                      )}
-                    </p>
                   </div>
                 </div>
                 <div onClick={(e) => e.stopPropagation()}>
@@ -795,11 +831,11 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <UserAvatar user={post.author} size={40} />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{post.author.name}</span>
-                    <TagPill tag={postData.tag} size="sm" />
+                  <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{post.author.name}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
+                    <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{timeAgo(postData.createdAt)}</span>
+                    <TagPill tag={postData.tag} size="xs" />
                   </div>
-                  <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)" }}>{timeAgo(postData.createdAt)}</p>
                 </div>
               </div>
               {hasTitle && (
