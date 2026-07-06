@@ -9,14 +9,14 @@ const TAG_CONFIG: Record<PostTag, { label: string; bg: string; color: string }> 
 
 interface TagPillProps {
   tag: PostTag;
-  size?: "sm" | "md";
+  size?: "xs" | "sm" | "md";
 }
 
 export function TagPill({ tag, size = "md" }: TagPillProps) {
   const config = TAG_CONFIG[tag];
-  const py = size === "sm" ? 2 : 3;
-  const px = size === "sm" ? 8 : 10;
-  const fs = size === "sm" ? 11 : 12;
+  const py = size === "xs" ? 1 : size === "sm" ? 2 : 3;
+  const px = size === "xs" ? 7 : size === "sm" ? 8 : 10;
+  const fs = size === "xs" ? 10 : size === "sm" ? 11 : 12;
 
   return (
     <span

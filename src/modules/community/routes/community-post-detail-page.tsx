@@ -189,40 +189,32 @@ export function CommunityPostDetailPage({
               </div>
             </UserHoverCard>
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <UserHoverCard user={post.author} devRole={devRole}>
-                  <span data-fb-label="Lien auteur · Détail du post" style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", cursor: "pointer" }}>
-                    {post.author.name}
-                  </span>
-                </UserHoverCard>
-                <TagPill tag={postData.tag} />
-              </div>
-              <p
+              {/* Ligne 1 : nom seul. */}
+              <UserHoverCard user={post.author} devRole={devRole}>
+                <span data-fb-label="Lien auteur · Détail du post" style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", cursor: "pointer" }}>
+                  {post.author.name}
+                </span>
+              </UserHoverCard>
+              {/* Ligne 2 : détail temporel à gauche + pilule catégorie (réduite).
+                  L'ancienne mention « modifié » n'est plus affichée (tooltip only). */}
+              <div
                 style={{
-                  margin: 0,
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
                   flexWrap: "wrap",
+                  marginTop: 2,
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
                 }}
               >
-                <span>{timeAgo(postData.createdAt)}</span>
-                <span style={{ opacity: 0.5 }}>·</span>
-                <span>{fullDateTime(postData.createdAt)}</span>
-                {edited && (
-                  <>
-                    <span style={{ opacity: 0.5 }}>·</span>
-                    <span
-                      style={{ fontStyle: "italic" }}
-                      title={`Modifié le ${fullDateTime(postData.updatedAt)}`}
-                    >
-                      modifié
-                    </span>
-                  </>
-                )}
-              </p>
+                <span
+                  title={`Publié le ${fullDateTime(postData.createdAt)}${edited ? ` · modifié le ${fullDateTime(postData.updatedAt)}` : ""}`}
+                >
+                  {timeAgo(postData.createdAt)}
+                </span>
+                <TagPill tag={postData.tag} size="xs" />
+              </div>
             </div>
           </div>
           {/* Menu toujours affiché : "Copier le lien" pour tous, actions

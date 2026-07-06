@@ -206,39 +206,37 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
             </button>
           </UserHoverCard>
           <div style={{ minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <UserHoverCard user={post.author} devRole={devRole}>
-                <button
-                  type="button"
-                  onClick={(e) => e.stopPropagation()}
-                  data-fb-label="Lien auteur · Carte post"
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    cursor: "pointer",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "var(--color-text-primary)",
-                  }}
-                >
-                  {post.author.name}
-                </button>
-              </UserHoverCard>
-              <TagPill tag={post.tag} size="sm" />
+            {/* Ligne 1 : nom de l'auteur seul. */}
+            <UserHoverCard user={post.author} devRole={devRole}>
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                data-fb-label="Lien auteur · Carte post"
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "var(--color-text-primary)",
+                }}
+              >
+                {post.author.name}
+              </button>
+            </UserHoverCard>
+            {/* Ligne 2 : détail temporel à gauche, pilule de catégorie (réduite)
+                juste après. Remplace l'ancienne mention « modifié » (conservée
+                seulement en tooltip). */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
+              <span
+                style={{ fontSize: 12, color: "var(--color-text-muted)" }}
+                title={`Publié le ${fullDateTime(postData.createdAt)}${edited ? ` · modifié le ${fullDateTime(postData.updatedAt)}` : ""}`}
+              >
+                {timeAgo(postData.createdAt)}
+              </span>
+              <TagPill tag={post.tag} size="xs" />
             </div>
-            <p
-              style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)" }}
-              title={`Publié le ${fullDateTime(postData.createdAt)}${edited ? ` · modifié le ${fullDateTime(postData.updatedAt)}` : ""}`}
-            >
-              {timeAgo(postData.createdAt)}
-              {edited && (
-                <>
-                  {" · "}
-                  <span style={{ fontStyle: "italic" }}>modifié</span>
-                </>
-              )}
-            </p>
           </div>
         </div>
 
