@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
-import { MorphSourceProvider } from '@/modules/ressources/components/morph/MorphSourceContext';
+import { MorphSourceProvider, useMorph } from '@/modules/ressources/components/morph/MorphSourceContext';
 import { ResourceCard } from '@/modules/ressources/components/ResourceCard';
 import { TemplateCard } from '@/modules/ressources/components/TemplateCard';
 import { mockCurrentUser } from '@/shared/lib/mock/current-user';
-import type { Resource, Template, NotionBlock } from '@/modules/ressources/types';
+import type { Resource, ResourceItem, Template, NotionBlock } from '@/modules/ressources/types';
 
 // Données mockées — autosuffisantes, aucune dépendance Notion. `mockCurrentUser`
 // = capability 'formation' → un item en visibilité 'Accompagnement' est VERROUILLÉ
@@ -78,6 +78,18 @@ const TPL_LOCKED: Template = {
   dateCreation: '2026-05-01',
 };
 
+// Ordre affiché des cartes du lab = ordre de navigation au swipe (±1).
+const LAB_ITEMS: ResourceItem[] = [RES_OPEN, RES_LOCKED, TPL_OPEN, TPL_LOCKED];
+
+// Publie la liste au contrôleur de morph (enfant du provider) → active le swipe.
+function RegisterNav({ items }: { items: ResourceItem[] }) {
+  const { registerItems } = useMorph();
+  useEffect(() => {
+    registerItems(items);
+  }, [items, registerItems]);
+  return null;
+}
+
 export function MorphTestHarness() {
   const cap = mockCurrentUser.capability;
   // Signal d'hydratation : le test e2e attend `html[data-morph-ready]` AVANT de
@@ -90,6 +102,7 @@ export function MorphTestHarness() {
   }, []);
   return (
     <MorphSourceProvider>
+      <RegisterNav items={LAB_ITEMS} />
       {/* Fond fixe (échantillonné par le pageBg de l'overlay). C'est un calque
           `position:fixed; z-index:-1; pointer-events:none` → NE PAS y mettre le
           contenu (sinon les cartes héritent de pointer-events:none). */}

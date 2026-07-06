@@ -9,6 +9,7 @@ import { ResourceCard } from './ResourceCard';
 import { TemplateCard } from './TemplateCard';
 import { SuggestTemplateCard } from './SuggestTemplateCard';
 import { NoResultsState } from './NoResultsState';
+import { useMorph } from './morph/MorphSourceContext';
 import { BorderBeam } from 'border-beam';
 import { useTheme } from '@/shared/lib/hooks/useTheme';
 import { useGridChoreography } from '@/shared/hooks/useGridChoreography';
@@ -104,6 +105,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const { animateTo, reveal } = useGridChoreography(gridRef);
+  const { registerItems } = useMorph();
 
   const currentCapability: UserCapability = mockCurrentUser.capability;
   const { theme } = useTheme();
@@ -171,6 +173,15 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     : filteredItems;
 
   const hasActiveFilters = selectedTypes.size > 0;
+
+  // Publie la liste visible ORDONNÉE au contrôleur de morph → base de la
+  // navigation au swipe (±1). `visibleItems` suit exactement l'ordre affiché
+  // (filtres + recherche) ; on republie à chaque changement. Simple write de ref
+  // côté contexte (aucun re-render). Exclut la carte « Suggérer » (déjà hors
+  // `visibleItems`), non navigable.
+  useEffect(() => {
+    registerItems(visibleItems);
+  }, [visibleItems, registerItems]);
 
   // Apparition initiale : applique la visibilité de départ (filtres d'URL) avant
   // le premier paint pour éviter tout flash, puis joue la cascade `reveal()`.
