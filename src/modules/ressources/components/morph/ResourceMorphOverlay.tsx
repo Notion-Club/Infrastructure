@@ -295,6 +295,11 @@ export function ResourceMorphOverlay({ source, items, initialIndex, onClose }: O
   const closingRef = useRef(false);
   const poppedRef = useRef(false);
   const [interactive, setInteractive] = useState(false);
+  // Ghost = panneau voisin monté à la volée pendant un drag horizontal. Il porte
+  // son PROPRE item (snapshot) → il ne change pas quand `index` change au swap.
+  // Déclaré ici (au-dessus de startClose qui le remet à null) pour éviter tout
+  // accès avant déclaration.
+  const [ghost, setGhost] = useState<{ dir: 1 | -1; item: ResourceItem } | null>(null);
 
   // ── Corps Notion, cache par slug + pré-chargement des voisins ±1 ────────────
   // La liste porte les headers (titre/desc/badges) mais généralement PAS le corps
@@ -406,19 +411,22 @@ export function ResourceMorphOverlay({ source, items, initialIndex, onClose }: O
       if (closingRef.current) return;
       closingRef.current = true;
       setInteractive(false);
+      setGhost(null); // pas de voisin monté pendant le morph de fermeture
 
       const g = gRef.current;
       const surf = surfRef.current;
       const track = trackRef.current;
       if (!g || !surf || prefersReduced()) return finishClose();
 
-      // La piste du carrousel ne doit JAMAIS porter de transform pendant le morph
-      // (un `transform` d'ancêtre piège le `position: fixed` de la surface — le bug
-      // iOS combattu de longue date). Au repos elle est déjà `none` ; on force.
+      // La piste ne doit être NI positionnée (`relative`) NI transformée pendant le
+      // morph : les deux en font un bloc conteneur qui PIÈGE le `position: fixed` de
+      // la surface en PWA iOS → fermeture qui rétrécit hors écran (bug #258). On la
+      // remet en `static`/`none` SYNCHRONEMENT, avant toute mesure.
       if (track) {
         track.style.transition = 'none';
         track.style.transform = 'none';
         track.style.willChange = '';
+        track.style.position = 'static';
       }
 
       // Dé-piège la surface AVANT de la ré-ancrer, SYNCHRONEMENT (cf. #258 + PWA
@@ -698,9 +706,6 @@ export function ResourceMorphOverlay({ source, items, initialIndex, onClose }: O
   }, [index, item.slug, computeGeomForSlug]);
 
   // ── Navigation au swipe + pull-to-close (un seul reconnaisseur tactile) ─────
-  // Ghost = panneau voisin monté à la volée pendant un drag horizontal. Il porte
-  // son PROPRE item (snapshot) → il ne change pas quand `index` change au swap.
-  const [ghost, setGhost] = useState<{ dir: 1 | -1; item: ResourceItem } | null>(null);
   const gestureBusyRef = useRef(false); // anim de commit/revert en cours
 
   useEffect(() => {
@@ -1080,9 +1085,15 @@ export function ResourceMorphOverlay({ source, items, initialIndex, onClose }: O
           }}
         >
           {/* PISTE du carrousel — porte la surface (en flux) + le voisin fantôme
-              (absolu). NE JAMAIS lui laisser de transform au repos (`none`) : un
-              transform d'ancêtre piégerait le `position: fixed` de la surface. */}
-          <div ref={trackRef} style={{ position: 'relative', width: SURF_WIDTH, pointerEvents: 'none' }}>
+              (absolu, positionné PAR RAPPORT à la piste → d'où `relative`).
+              CRITIQUE iOS/PWA : `relative` (comme `transform`) fait de la piste un
+              bloc conteneur qui PIÈGE le `position: fixed` de la surface pendant le
+              morph (la fermeture après scroll rétrécissait hors écran — bug #258).
+              → la piste n'est `relative` QUE pendant un drag (ghost monté) ; sinon
+              `static` : l'ancêtrage redevient identique à la version validée
+              (surface → wrapper statique → colonne statique → scroller fixed).
+              Le drag et le morph ne se chevauchent jamais. */}
+          <div ref={trackRef} style={{ position: ghost ? 'relative' : 'static', width: SURF_WIDTH, pointerEvents: 'none' }}>
             {/* SURFACE (encadré) — le DIALOGUE a11y. Aucune prop de LAYOUT ici
                 (position/width/height/overflow/radius/top/left/transform) : pilotées
                 EXCLUSIVEMENT en inline JS. */}
