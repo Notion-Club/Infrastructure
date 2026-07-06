@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
-import type { Post } from "../types/post.types";
+import type { Post, PostTag, PostCursor, PostsPage } from "../types/post.types";
 import type { Comment, CommentReply } from "../types/comment.types";
 import type { Conversation, Message, MessageType } from "../types/conversation.types";
 import type { User, Role, Offer } from "../types/user.types";
@@ -333,53 +333,38 @@ export function mapProfileMember(p: {
 }
 
 // ============================================================================
-// listPosts — feed
+// listPostsPage — feed paginé (keyset)
 // ============================================================================
 // RLS posts_select_community + posts_select_paid filtre déjà selon le viewer
-// (capability can_view_community + can_view_paid_content). Pas besoin de
-// re-filtrer applicativement.
+// (capability can_view_community + can_view_paid_content). Pas de re-filtrage
+// applicatif.
 //
-// Tri : pinned d'abord, puis created_at desc. Limite 50.
-export async function listPosts(): Promise<Post[]> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const viewerId = user?.id ?? null;
+// Colonnes du feed — partagées entre listPostsPage et getPostById.
+const POST_SELECT = `
+  id, author_id, tag, audience, title, body,
+  image_url, video_url, pinned, pinned_until,
+  author_tier, comment_count, reaction_count,
+  created_at, updated_at,
+  author:profiles!posts_author_id_fkey (
+    id, first_name, last_name, display_name, username,
+    avatar_url, avatar_color, role, created_at
+  )
+`;
 
-  const { data: posts, error } = await supabase
-    .from("posts")
-    .select(
-      `
-        id, author_id, tag, audience, title, body,
-        image_url, video_url, pinned, pinned_until,
-        author_tier, comment_count, reaction_count,
-        created_at, updated_at,
-        author:profiles!posts_author_id_fkey (
-          id, first_name, last_name, display_name, username,
-          avatar_url, avatar_color, role, created_at
-        )
-      `,
-    )
-    .order("pinned", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(50)
-    .returns<PostRow[]>();
+// Helper partagé (listPostsPage) : hydrate des lignes `posts` en Post[] complets
+// — réactions + mentions + profils des reactors, en batch (1 query par table).
+// Le nombre de commentaires vient de posts.comment_count (dénormalisé, maintenu
+// par triggers mig. 020). Factorisé pour éviter tout copier-coller du mapping.
+async function hydratePosts(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  rows: PostRow[],
+  viewerId: string | null,
+): Promise<Post[]> {
+  if (rows.length === 0) return [];
+  const postIds = rows.map((p) => p.id);
 
-  if (error) {
-    console.error("[listPosts] failed:", error.message);
-    return [];
-  }
-  if (!posts || posts.length === 0) return [];
-
-  const postIds = posts.map((p) => p.id);
-
-  // Réactions + mentions en parallèle (1 query chacune). Le nombre de
-  // commentaires vient de posts.comment_count (dénormalisé, maintenu par les
-  // triggers comments_bump/drop/move_post_count — mig. 020) : plus besoin de
-  // re-fetcher toutes les lignes `comments` juste pour les compter.
-  // Les mentions joignent profiles pour disposer du name au rendu (matching
-  // @nom dans le body).
+  // Réactions + mentions en parallèle. Les mentions joignent profiles pour
+  // disposer du name au rendu (matching @nom dans le body).
   const [reactionsRes, mentionsRes] = await Promise.all([
     supabase
       .from("post_reactions")
@@ -398,16 +383,14 @@ export async function listPosts(): Promise<Post[]> {
       .returns<PostMentionRow[]>(),
   ]);
 
-  // Charge en une seule requête les profils de tous les users qui ont
-  // réagi à au moins un post — alimente Reaction.reactors pour le hover
-  // popover (cf. ReactionsBar). On ne tire que les champs nécessaires à
-  // l'affichage du popover (id, name parts, avatar).
+  // Profils de tous les users qui ont réagi — alimente Reaction.reactors pour
+  // le hover popover (cf. ReactionsBar).
   const reactorIds = Array.from(
     new Set((reactionsRes.data ?? []).map((r) => r.user_id)),
   );
   const reactorProfilesById = await fetchReactorProfiles(supabase, reactorIds);
 
-  return posts.map((row) =>
+  return rows.map((row) =>
     mapPostRow(
       row,
       reactionsRes.data ?? [],
@@ -417,6 +400,103 @@ export async function listPosts(): Promise<Post[]> {
       reactorProfilesById,
     ),
   );
+}
+
+// Pagination keyset par (created_at, id) décroissant.
+//
+// ⚠️ Tie-break `id` OBLIGATOIRE : beaucoup de posts importés partagent la même
+// created_at (dates Slack au jour/heure près). Trier uniquement sur created_at
+// sauterait ou dupliquerait des posts entre pages.
+//
+// Pinned : les posts épinglés ACTIFS (pinned=true, pinned_until nul ou futur)
+// sont chargés une seule fois, en tête, sur la 1re page (cursor null), et
+// EXCLUS du flux keyset (`.eq("pinned", false)`) pour ne jamais être dupliqués.
+export async function listPostsPage(
+  params: {
+    cursor?: PostCursor | null;
+    tag?: PostTag | "all";
+    limit?: number;
+  } = {},
+): Promise<PostsPage> {
+  const { cursor = null, tag = "all", limit = 50 } = params;
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const viewerId = user?.id ?? null;
+
+  // 1re page uniquement : les pinned actifs, en tête. Absents des pages
+  // suivantes (cursor non nul) pour ne pas les répéter.
+  let pinnedPosts: Post[] = [];
+  if (!cursor) {
+    const nowIso = new Date().toISOString();
+    let pinnedQuery = supabase
+      .from("posts")
+      .select(POST_SELECT)
+      .eq("pinned", true)
+      .or(`pinned_until.is.null,pinned_until.gt.${nowIso}`)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
+    if (tag !== "all") pinnedQuery = pinnedQuery.eq("tag", tag);
+    const { data: pinnedRows, error: pinnedError } =
+      await pinnedQuery.returns<PostRow[]>();
+    if (pinnedError) {
+      console.error("[listPostsPage] pinned failed:", pinnedError.message);
+    } else {
+      pinnedPosts = await hydratePosts(supabase, pinnedRows ?? [], viewerId);
+    }
+  }
+
+  // Flux keyset : posts NON épinglés, (created_at, id) desc.
+  let query = supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .eq("pinned", false)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit + 1); // +1 = sonde `hasMore` (on ne renvoie que `limit`).
+
+  if (tag !== "all") query = query.eq("tag", tag);
+
+  if (cursor) {
+    // Keyset : (created_at, id) < (cursor.createdAt, cursor.id). On repasse la
+    // valeur created_at EXACTE de la page précédente (pas de reformat, sinon
+    // l'égalité timestamptz casse).
+    query = query.or(
+      `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`,
+    );
+  }
+
+  const { data: fluxRows, error } = await query.returns<PostRow[]>();
+  if (error) {
+    console.error("[listPostsPage] flux failed:", error.message);
+    return { posts: pinnedPosts, nextCursor: null, hasMore: false };
+  }
+
+  const rows = fluxRows ?? [];
+  const hasMore = rows.length > limit;
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const fluxPosts = await hydratePosts(supabase, pageRows, viewerId);
+
+  const last = pageRows[pageRows.length - 1];
+  const nextCursor =
+    hasMore && last ? { createdAt: last.created_at, id: last.id } : null;
+
+  return {
+    posts: [...pinnedPosts, ...fluxPosts],
+    nextCursor,
+    hasMore,
+  };
+}
+
+// ============================================================================
+// listPosts — wrapper compat (1re page, limite 50). Conservé pour les appelants
+// qui n'ont pas besoin du curseur (ex. hors feed) ; le feed utilise directement
+// listPostsPage pour disposer de nextCursor/hasMore.
+// ============================================================================
+export async function listPosts(): Promise<Post[]> {
+  const { posts } = await listPostsPage({ limit: 50 });
+  return posts;
 }
 
 // Helper partagé : récupère les profils des reactors par id. RLS

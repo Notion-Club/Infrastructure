@@ -16,7 +16,7 @@ import { SquarePen } from "lucide-react";
 import { MessageBadge, SharedWithYou } from "@/shared/components/icons";
 import { toast } from "sonner";
 import { useRouter, usePathname } from "next/navigation";
-import type { PostTag } from "../types/post.types";
+import type { PostTag, PostsPage } from "../types/post.types";
 import { useDevRoleToggle } from "../hooks/useDevRoleToggle";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { FeedTagFilters } from "../components/feed/FeedTagFilters";
@@ -52,7 +52,9 @@ const COMMUNITY_TABS: Tab[] = ["feed", "messages"];
 // ============================================================================
 
 interface CommunityPageProps {
-  postsPromise: Promise<Post[]>;
+  // 1re page paginée (keyset) du feed : posts + nextCursor + hasMore. La suite
+  // est chargée au scroll par FeedPostList via la server action loadMorePosts.
+  postsPromise: Promise<PostsPage>;
   conversationsPromise: Promise<Conversation[]>;
 }
 
@@ -513,7 +515,7 @@ function FeedList({
   feedState,
   onRetry,
 }: {
-  postsPromise: Promise<Post[]>;
+  postsPromise: Promise<PostsPage>;
   optimisticPosts: Post[];
   activeTag: TagFilter;
   currentUser: User;
@@ -521,38 +523,18 @@ function FeedList({
   feedState: DevFeedState;
   onRetry: () => void;
 }) {
-  const initialPosts = use(postsPromise);
-
-  // Le feed scrolle désormais avec le DOCUMENT (plus de conteneur à scroll
-  // interne) → l'ancien hack desktop de redirection de la molette n'est plus
-  // nécessaire (et serait nuisible : il `preventDefault` sans rien scroller).
-
-  // Merge optimistic + initialPosts, dédoublonne par id, filtre par tag,
-  // trie (pinned d'abord puis date desc).
-  const allPosts = useMemo(() => {
-    const seen = new Set<string>();
-    const merged: Post[] = [];
-    for (const p of [...optimisticPosts, ...initialPosts]) {
-      if (seen.has(p.id)) continue;
-      seen.add(p.id);
-      merged.push(p);
-    }
-    const filtered = activeTag === "all"
-      ? merged
-      : merged.filter((p) => p.tag === activeTag);
-    return [...filtered].sort((a, b) => {
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-  }, [optimisticPosts, initialPosts, activeTag]);
+  // 1re page paginée (tag "all") streamée par le layout. Le filtre par tag et
+  // la pagination sont désormais SERVEUR : FeedPostList recharge la page 1 du
+  // tag et charge la suite au scroll (via loadMorePosts). Plus de filtrage /
+  // tri en mémoire ici (le serveur trie pinned d'abord puis (created_at, id)).
+  const initialPage = use(postsPromise);
 
   const showSkeleton = feedState === "loading";
   const showError = feedState === "error";
+  const forceEmpty = feedState === "empty";
 
   // Conteneur à scroll interne (hauteur fixe de la carte). `id` stable →
-  // sauvegarde/restauration de la position de scroll au retour d'un post
-  // (cf. PostCard + effet de restore ci-dessus, qui ciblent cet élément). `ref`
+  // restauration de la position de scroll (effet de restore ci-dessus). `ref`
   // → root de l'IntersectionObserver du scroll infini (FeedPostList).
   const feedScrollRef = useRef<HTMLDivElement>(null);
 
@@ -571,7 +553,11 @@ function FeedList({
         // le feed est chargé, au lieu d'un swap sec.
         <SkeletonReveal loading={showSkeleton} skeleton={<FeedSkeletonState />}>
           <FeedPostList
-            posts={feedState === "empty" ? [] : allPosts}
+            initialPosts={forceEmpty ? [] : initialPage.posts}
+            initialCursor={forceEmpty ? null : initialPage.nextCursor}
+            initialHasMore={forceEmpty ? false : initialPage.hasMore}
+            optimisticPosts={optimisticPosts}
+            activeTag={activeTag}
             currentUser={currentUser}
             devRole={devRole}
             scrollRootRef={feedScrollRef}

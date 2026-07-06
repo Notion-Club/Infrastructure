@@ -52,3 +52,20 @@ export interface Post {
   // (mocks) qui ne le renseignent pas.
   updatedAt?: string;
 }
+
+// Pagination keyset du feed. Le curseur porte le COUPLE (created_at, id) du
+// dernier post d'une page : le tie-break sur `id` est indispensable car de
+// nombreux posts importés partagent la même created_at (dates Slack au
+// jour/heure près) — sans lui, des posts seraient sautés ou dupliqués entre
+// pages. `createdAt` est la valeur timestamptz EXACTE renvoyée par la DB, à
+// repasser telle quelle (ne pas la reformater, sinon l'égalité casse).
+export interface PostCursor {
+  createdAt: string;
+  id: string;
+}
+
+export interface PostsPage {
+  posts: Post[];
+  nextCursor: PostCursor | null;
+  hasMore: boolean;
+}
