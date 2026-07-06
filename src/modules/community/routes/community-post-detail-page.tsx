@@ -17,7 +17,6 @@ import { UserAvatar } from "../components/shared/UserAvatar";
 import { UserHoverCard } from "../components/shared/UserHoverCard";
 import { TagPill } from "../components/shared/TagPill";
 import { ReactionsBar } from "../components/shared/ReactionsBar";
-import { ReactionPicker } from "../components/shared/ReactionPicker";
 import { PostKebabMenu } from "../components/shared/PostKebabMenu";
 import { PostComposerModal } from "../components/post-composer/PostComposerModal";
 import { CommentList } from "../components/post-detail/CommentList";
@@ -285,10 +284,15 @@ export function CommunityPostDetailPage({
 
         {video && <VideoEmbed match={video} label="Vidéo du post · Détail du post" />}
 
-        {/* Reactions */}
-        <div data-fb-label="Barre de réactions · Détail du post" style={{ paddingTop: 4, borderTop: "1px solid var(--color-border-default)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <ReactionsBar reactions={reactions} onReact={handleReaction} />
-          <ReactionPicker onSelect={handleReaction} mode="post" selectedEmojis={reactions.filter((r) => r.userReacted).map((r) => r.emoji)} />
+        {/* Reactions — barre unique avec affordance d'ajout INLINE (showAddReaction).
+            Avant : une ReactionsBar + un ReactionPicker séparé espacés de gap:12,
+            ce qui décalait le bouton « Réagir » à 0 réaction (jamais aligné à
+            gauche) et l'éloignait trop des premiers emojis. La barre gère
+            désormais l'ajout à la bonne distance (0 réaction → CTA à gauche ;
+            ≥ 1 → pastille ronde juste après la liste). paddingTop porté à 16 :
+            le séparateur ne colle plus à la liste. */}
+        <div data-fb-label="Barre de réactions · Détail du post" style={{ paddingTop: 16, borderTop: "1px solid var(--color-border-default)" }}>
+          <ReactionsBar reactions={reactions} onReact={handleReaction} showAddReaction />
         </div>
       </article>
 

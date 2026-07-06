@@ -66,8 +66,44 @@ function AvatarDot({ reactor }: { reactor: Reactor }) {
   );
 }
 
-function BottomSheet({ reactions, onClose }: { reactions: Reaction[]; onClose: () => void }) {
+// Feuille listant TOUTES les réactions d'un post/commentaire. Ouverte au clic sur
+// le lot cumulé (> 3 emojis) ou via « Voir N de plus » d'une pastille.
+//
+// Quand l'utilisateur a lui-même réagi (`userReactedEmoji` + `onRemoveOwn`), un
+// bouton « Retirer ma réaction » apparaît dans le coin supérieur droit : le clic
+// sur le LOT n'enlève plus la réaction (il ouvre ce menu), c'est ce bouton
+// dédié qui la retire — avec une animation de retrait (la puce de l'emoji se
+// replie, le bouton s'efface) avant que la suppression réelle soit appliquée et
+// le menu refermé (la barre se met à jour en optimistic côté parent).
+function BottomSheet({
+  reactions,
+  onClose,
+  userReactedEmoji = null,
+  onRemoveOwn,
+}: {
+  reactions: Reaction[];
+  onClose: () => void;
+  userReactedEmoji?: string | null;
+  onRemoveOwn?: () => void;
+}) {
+  const [removing, setRemoving] = useState(false);
   const all = getAllReactors(reactions.filter((r) => r.count > 0));
+  const canRemove = !!userReactedEmoji && !!onRemoveOwn;
+
+  function handleRemove() {
+    if (removing || !canRemove) return;
+    setRemoving(true);
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Laisse jouer l'animation de retrait, puis applique la suppression réelle
+    // et ferme le menu (guard prefers-reduced-motion → suppression immédiate).
+    window.setTimeout(() => {
+      onRemoveOwn?.();
+      onClose();
+    }, reduce ? 0 : 280);
+  }
+
   return createPortal(
     <div
       style={{ position: "fixed", inset: 0, zIndex: 5000, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end" }}
@@ -83,15 +119,53 @@ function BottomSheet({ reactions, onClose }: { reactions: Reaction[]; onClose: (
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ width: 36, height: 4, borderRadius: 9999, background: "var(--color-border-default)", margin: "0 auto 16px" }} />
-        <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>
-          {all.length} réaction{all.length !== 1 ? "s" : ""}
-        </p>
+        {/* En-tête : décompte à gauche, « Retirer ma réaction » en coin sup. droit. */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, margin: "0 0 12px" }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>
+            {all.length} réaction{all.length !== 1 ? "s" : ""}
+          </p>
+          {canRemove && (
+            <button
+              type="button"
+              onClick={handleRemove}
+              data-fb-label="Bouton Retirer ma réaction · Barre de réactions"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "5px 10px", borderRadius: 9999,
+                border: "1px solid rgba(224,98,90,0.25)",
+                background: "rgba(224,98,90,0.08)",
+                color: "var(--color-brand)", fontSize: 12, fontWeight: 600,
+                cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
+                opacity: removing ? 0 : 1,
+                transform: removing ? "scale(0.9)" : "none",
+                transition: "opacity 220ms var(--nc-ease), transform 220ms var(--nc-ease)",
+              }}
+            >
+              <span aria-hidden style={{ fontSize: 13 }}>{userReactedEmoji}</span>
+              Retirer ma réaction
+            </button>
+          )}
+        </div>
         <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-          {reactions.filter((r) => r.count > 0).map((r) => (
-            <span key={r.emoji} style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
-              {r.emoji} <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>{r.count}</span>
-            </span>
-          ))}
+          {reactions.filter((r) => r.count > 0).map((r) => {
+            const isOwn = removing && r.emoji === userReactedEmoji;
+            return (
+              <span
+                key={r.emoji}
+                style={{
+                  fontSize: 13, display: "flex", alignItems: "center", gap: 4,
+                  overflow: "hidden",
+                  // La puce de l'emoji retiré se replie (largeur → 0) pendant l'anim.
+                  maxWidth: isOwn ? 0 : 80,
+                  opacity: isOwn ? 0 : 1,
+                  transform: isOwn ? "scale(0.6)" : "none",
+                  transition: "max-width 280ms var(--nc-ease), opacity 200ms ease, transform 220ms var(--nc-ease)",
+                }}
+              >
+                {r.emoji} <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>{r.count}</span>
+              </span>
+            );
+          })}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {all.map((r, i) => (
@@ -267,15 +341,6 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
   const userReactedReaction = nonEmpty.find((r) => r.userReacted);
   const userHasReacted = !!userReactedReaction;
   const [showGroupSheet, setShowGroupSheet] = useState(false);
-  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function onGroupPressDown(e: React.PointerEvent) {
-    if (e.pointerType === "mouse") return;
-    pressTimer.current = setTimeout(() => setShowGroupSheet(true), 500);
-  }
-  function onGroupPressUp() {
-    if (pressTimer.current) clearTimeout(pressTimer.current);
-  }
 
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
@@ -301,10 +366,20 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
               ))
             ) : (
               <span
-                onClick={() => userReactedReaction ? onReact?.(userReactedReaction.emoji) : undefined}
-                onPointerDown={onGroupPressDown}
-                onPointerUp={onGroupPressUp}
-                onPointerCancel={onGroupPressUp}
+                role="button"
+                tabIndex={0}
+                // Clic sur le LOT cumulé → ouvre le menu listant toutes les
+                // réactions (au lieu de retirer la réaction de l'utilisateur).
+                // Le retrait éventuel se fait depuis « Retirer ma réaction » dans
+                // ce menu (cf. BottomSheet).
+                onClick={() => setShowGroupSheet(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setShowGroupSheet(true);
+                  }
+                }}
+                data-fb-label="Lot de réactions · Barre de réactions"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -370,7 +445,18 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
         )
       )}
 
-      {showGroupSheet && <BottomSheet reactions={nonEmpty} onClose={() => setShowGroupSheet(false)} />}
+      {showGroupSheet && (
+        <BottomSheet
+          reactions={nonEmpty}
+          onClose={() => setShowGroupSheet(false)}
+          userReactedEmoji={userReactedReaction?.emoji ?? null}
+          onRemoveOwn={
+            userReactedReaction && onReact
+              ? () => onReact(userReactedReaction.emoji)
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }

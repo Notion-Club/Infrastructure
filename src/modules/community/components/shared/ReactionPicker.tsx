@@ -50,11 +50,18 @@ export function ReactionPicker({
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: 5,
-          // icon = pastille ronde compacte (aucun libellé) ; pill = icône + texte.
+          gap: isIcon ? 0 : 5,
+          // icon = pastille ronde à dimensions FIXES (carré parfait → cercle
+          // parfait) : le padding seul ne garantissait pas un carré et laissait
+          // le smiley décentré. width == height + padding 0 → l'icône est
+          // centrée géométriquement par le flex. pill = icône + texte.
+          width: isIcon ? (compact ? 26 : 30) : undefined,
+          height: isIcon ? (compact ? 26 : 30) : undefined,
+          // pill : plus de hauteur (le CTA « Réagir » à 0 réaction paraissait
+          // écrasé en compact) — vertical porté à 6px.
           padding: isIcon
-            ? (compact ? 4 : 5)
-            : (compact ? "2px 9px" : "5px 10px"),
+            ? 0
+            : (compact ? "6px 11px" : "5px 10px"),
           borderRadius: 9999,
           border: "1px solid var(--color-border-default)",
           // Bouton posé sur une carte (surface-card) → fond surface-raised pour

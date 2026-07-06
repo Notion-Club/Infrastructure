@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Post } from "../../types/post.types";
@@ -16,6 +16,7 @@ import { UserHoverCard } from "../shared/UserHoverCard";
 import { TagPill } from "../shared/TagPill";
 import { ReactionsBar } from "../shared/ReactionsBar";
 import { PostKebabMenu } from "../shared/PostKebabMenu";
+import { usePostMorph } from "./morph/PostMorphContext";
 import { PostComposerModal } from "../post-composer/PostComposerModal";
 import { DeletePostConfirmDialog } from "../shared/DeletePostConfirmDialog";
 import { ImageLightbox } from "../shared/ImageLightbox";
@@ -35,6 +36,9 @@ interface PostCardProps {
 
 export function PostCard({ post, currentUser, devRole, pinned = false }: PostCardProps) {
   const router = useRouter();
+  const { open } = usePostMorph();
+  const cardRef = useRef<HTMLElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const [reactions, setReactions] = useState(post.reactions);
   const [postData, setPostData] = useState(post);
   const [showEditComposer, setShowEditComposer] = useState(false);
@@ -54,14 +58,31 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
   const video = detectVideoEmbed(postData.videoUrl ?? "") ?? detectVideoEmbed(postData.body);
   const displayBody = video ? postData.body.replace(video.matchedUrl, "").trim() : postData.body;
 
-  function handleCardClick() {
-    // Le feed scrolle en interne (#nc-feed-scroll) → on sauvegarde le scrollTop
-    // du conteneur (fallback window). Restauré au retour dans community-page.
-    try {
-      const el = document.getElementById("nc-feed-scroll");
-      sessionStorage.setItem("communaute:scrollY", String(el ? el.scrollTop : window.scrollY));
-    } catch {}
-    router.push(`/communaute/post/${post.id}`);
+  // Ouverture EN PLACE via le morph (aucune navigation) : on capture la
+  // géométrie carte + titre comme point de départ. Le post passé porte l'état
+  // local à jour (édition + réactions optimistes) pour que l'overlay démarre
+  // sur les mêmes données que la carte.
+  const openMorph = useCallback(
+    (triggerEl?: HTMLElement | null, viaKeyboard = false) => {
+      const cardEl = cardRef.current;
+      if (!cardEl) return;
+      open({
+        post: { ...postData, reactions },
+        cardRect: cardEl.getBoundingClientRect(),
+        titleRect: (titleRef.current ?? cardEl).getBoundingClientRect(),
+        triggerEl: triggerEl ?? cardEl,
+        viaKeyboard,
+      });
+    },
+    [open, postData, reactions],
+  );
+
+  function handleCardClick(e: React.MouseEvent) {
+    // Modificateurs / clic non-primaire : on laisse le comportement natif (pas
+    // d'ouverture morph) → sélection de texte, etc.
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    // `detail === 0` = activation clavier (Entrée/Espace) ; souris/tactile ≥ 1.
+    openMorph(e.currentTarget as HTMLElement, e.detail === 0);
   }
 
   async function handleReaction(emoji: string) {
@@ -124,6 +145,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
   return (
     <>
     <article
+      ref={cardRef}
       onClick={handleCardClick}
       data-fb-label="Carte post · Feed"
       style={{
@@ -238,6 +260,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {postData.title && (
           <h2
+            ref={titleRef}
             data-fb-label="Titre du post · Carte post"
             style={{
               margin: 0,
@@ -289,7 +312,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
           compact
           showAddReaction
           onReact={handleReaction}
-          onCommentClick={() => router.push(`/communaute/post/${post.id}#comments`)}
+          onCommentClick={() => openMorph()}
         />
       </div>
     </article>

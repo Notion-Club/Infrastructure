@@ -21,6 +21,7 @@ import { useDevRoleToggle } from "../hooks/useDevRoleToggle";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { FeedTagFilters } from "../components/feed/FeedTagFilters";
 import { FeedPostList } from "../components/feed/FeedPostList";
+import { PostMorphProvider } from "../components/feed/morph/PostMorphContext";
 import { FeedSkeletonState } from "../components/feed/FeedSkeletonState";
 import { FeedErrorState } from "../components/feed/FeedErrorState";
 import { SkeletonReveal } from "@/shared/components/SkeletonReveal";
@@ -237,7 +238,7 @@ export function CommunityPage({
   }
 
   return (
-    <>
+    <PostMorphProvider currentUser={currentUser} devRole={role}>
       {/* Lightbox globale : capte les CustomEvent 'nc-image-open' émis
           par linkify.tsx quand l'utilisateur clique sur une image inline
           dans un body de post / commentaire. */}
@@ -445,7 +446,7 @@ export function CommunityPage({
         feedState={feedState}
         onFeedStateChange={setFeedState}
       />
-    </>
+    </PostMorphProvider>
   );
 }
 

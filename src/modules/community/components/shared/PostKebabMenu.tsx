@@ -102,7 +102,7 @@ export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinne
                 textAlign: "left",
                 transition: "background 150ms ease",
               }}
-              className="hover:bg-[#f5f5f5] dark:hover:bg-[rgba(255,255,255,0.08)]"
+              className="hover:bg-[rgba(0,0,0,0.06)] dark:hover:bg-[rgba(255,255,255,0.10)]"
             >
               <LinkIcon size={14} /> Copier le lien
             </button>
@@ -126,7 +126,7 @@ export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinne
                 textAlign: "left",
                 transition: "background 150ms ease",
               }}
-              className="hover:bg-[#f5f5f5] dark:hover:bg-[rgba(255,255,255,0.08)]"
+              className="hover:bg-[rgba(0,0,0,0.06)] dark:hover:bg-[rgba(255,255,255,0.10)]"
             >
               <Pencil size={14} /> Modifier
             </button>
@@ -150,7 +150,7 @@ export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinne
                 textAlign: "left",
                 transition: "background 150ms ease",
               }}
-              className="hover:bg-[#f5f5f5] dark:hover:bg-[rgba(255,255,255,0.08)]"
+              className="hover:bg-[rgba(0,0,0,0.06)] dark:hover:bg-[rgba(255,255,255,0.10)]"
             >
               {pinned ? <PinOff size={14} /> : <PinFill size={14} />}
               {pinned ? "Désépingler" : "Épingler"}
@@ -175,7 +175,7 @@ export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinne
                 textAlign: "left",
                 transition: "background 150ms ease",
               }}
-              className="hover:bg-[rgba(224,98,90,0.06)] dark:hover:bg-[rgba(224,98,90,0.14)]"
+              className="hover:bg-[rgba(224,98,90,0.10)] dark:hover:bg-[rgba(224,98,90,0.16)]"
             >
               <Trash size={14} /> Supprimer
             </button>
