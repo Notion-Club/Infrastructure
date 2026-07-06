@@ -350,8 +350,10 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
     const d = SPRING_DURATION;
 
     const surfAnim = anim(surf, [g.surfTo, g.surfFrom], d, SPRING_EASING, store);
-    anim(encRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.28 }, { opacity: 0, offset: 1 }], d, FADE, store);
-    anim(cardRef.current, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.84 }, { opacity: 1, offset: 1 }], d, FADE, store);
+    // Cross-fade RECOUVRANT (miroir de l'ouverture) : le contenu déplié cède la
+    // place au clone-carte en se croisant, sans période invisible.
+    anim(encRef.current, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.6 }, { opacity: 0, offset: 1 }], d, FADE, store);
+    anim(cardRef.current, [{ opacity: 0, offset: 0 }, { opacity: 1, offset: 0.6 }, { opacity: 1, offset: 1 }], d, FADE, store);
     anim(pageBgRef.current, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.5 }, { opacity: 0, offset: 1 }], d, FADE, store);
     if (hasTitle) {
       const hero = heroRef.current;
@@ -387,6 +389,28 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
 
     const flowRect = surf.getBoundingClientRect();
 
+    // Géométrie du titre continu (hero) — MESURÉE ICI, pendant que la surface est
+    // encore DÉPLIÉE (position: relative, taille finale). ⚠️ Ne PAS la mesurer
+    // après `Object.assign(surf.style, surfFrom)` : la surface est alors réduite
+    // à la taille de la carte et translatée → encTitleRect vaudrait la position
+    // COLLAPSÉE, et le titre finirait au mauvais endroit avant de sauter vers sa
+    // vraie cible. On capture donc la position CIBLE (dépliée) maintenant.
+    let heroFrom = "none";
+    let heroTop = 0;
+    let heroLeft = 0;
+    let heroW = 0;
+    if (hasTitle && encTitle && cardTitle && hero) {
+      const encTitleRect = encTitle.getBoundingClientRect();
+      const gridTitleRect = source.titleRect;
+      const destFont = parseFloat(getComputedStyle(encTitle).fontSize) || 26;
+      const cardFont = parseFloat(getComputedStyle(cardTitle).fontSize) || 17;
+      const hScale = cardFont / destFont;
+      heroFrom = `translate(${gridTitleRect.left - encTitleRect.left}px, ${gridTitleRect.top - encTitleRect.top}px) scale(${hScale})`;
+      heroTop = encTitleRect.top;
+      heroLeft = encTitleRect.left;
+      heroW = encTitleRect.width;
+    }
+
     // Hauteur d'OUVERTURE bornée au viewport (le contenu plus long défilera).
     const openH = Math.min(flowRect.height, window.innerHeight - flowRect.top - 24);
 
@@ -415,21 +439,10 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
     };
     Object.assign(surf.style, surfFrom);
 
-    // Géométrie du titre continu (hero) — seulement si le post a un titre.
-    let heroFrom = "none";
-    let heroTop = 0;
-    let heroLeft = 0;
-    let heroW = 0;
-    if (hasTitle && encTitle && cardTitle && hero) {
-      const encTitleRect = encTitle.getBoundingClientRect();
-      const gridTitleRect = source.titleRect;
-      const destFont = parseFloat(getComputedStyle(encTitle).fontSize) || 26;
-      const cardFont = parseFloat(getComputedStyle(cardTitle).fontSize) || 17;
-      const hScale = cardFont / destFont;
-      heroFrom = `translate(${gridTitleRect.left - encTitleRect.left}px, ${gridTitleRect.top - encTitleRect.top}px) scale(${hScale})`;
-      heroTop = encTitleRect.top;
-      heroLeft = encTitleRect.left;
-      heroW = encTitleRect.width;
+    // La surface est désormais figée/réduite : on pose la géométrie du hero
+    // (indépendante de la surface, en position: fixed viewport) à partir des
+    // valeurs CIBLES mesurées plus haut.
+    if (hasTitle && hero) {
       hero.style.top = `${heroTop}px`;
       hero.style.left = `${heroLeft}px`;
       hero.style.width = `${heroW}px`;
@@ -485,8 +498,11 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
 
     anim(pageBgRef.current, [{ opacity: 0, offset: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 1 }], d, FADE, store);
     const surfAnim = anim(surf, [surfFrom, surfTo], d, SPRING_EASING, store);
-    anim(card, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 0, offset: 0.32 }, { opacity: 0, offset: 1 }], d, FADE, store);
-    anim(enc, [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1, offset: 0.85 }, { opacity: 1, offset: 1 }], d, FADE, store);
+    // Cross-fade RECOUVRANT clone-carte ↔ contenu déplié : les deux opacités se
+    // croisent (somme ≈ 1 à tout instant) → le contenu (texte + média) n'est
+    // JAMAIS invisible pendant le morph (avant : trou blanc entre 0.32 et 0.5).
+    anim(card, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.4 }, { opacity: 0, offset: 1 }], d, FADE, store);
+    anim(enc, [{ opacity: 0, offset: 0 }, { opacity: 1, offset: 0.4 }, { opacity: 1, offset: 1 }], d, FADE, store);
     if (hasTitle && cardTitle && hero) {
       anim(cardTitle, [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 0.07 }, { opacity: 0, offset: 1 }], d, FADE, store);
       anim(hero, [{ transform: heroFrom }, { transform: "none" }], d, SPRING_EASING, store);
@@ -758,12 +774,15 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
               </div>
             </div>
 
-            {/* CROIX — fixe en haut à droite de la carte. */}
+            {/* CROIX — en haut à droite de la carte, alignée VERTICALEMENT sur le
+                cercle de l'avatar (avatar 44px sous le padding 24 → centre à 46px ;
+                croix 36px → top = 46 − 18 = 28). Avant : top 16 → croix nettement
+                plus haute que la photo de profil. */}
             <button
               type="button"
               onClick={startClose}
               aria-label="Fermer"
-              style={{ position: "absolute", top: 16, right: 16, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 9999, border: "1px solid var(--color-border-default)", background: "var(--color-surface-raised)", color: "var(--color-text-secondary)", cursor: "pointer", fontSize: 18, lineHeight: 1, zIndex: 3, opacity: interactive ? 1 : 0, pointerEvents: interactive ? "auto" : "none", transition: "opacity 160ms ease" }}
+              style={{ position: "absolute", top: 28, right: 16, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 9999, border: "1px solid var(--color-border-default)", background: "var(--color-surface-raised)", color: "var(--color-text-secondary)", cursor: "pointer", fontSize: 18, lineHeight: 1, zIndex: 3, opacity: interactive ? 1 : 0, pointerEvents: interactive ? "auto" : "none", transition: "opacity 160ms ease" }}
             >
               ✕
             </button>
