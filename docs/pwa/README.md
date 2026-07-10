@@ -1,13 +1,14 @@
 # PWA Notion Club — Récap technique complet
 
-> **Reprise de contexte** : ce document est le point d'entrée canonique pour
-> tout agent (Claude Code ou autre) qui reprend le chantier PWA après une
-> session. Il décrit l'état actuel, les PR ouvertes/mergées, la chaîne
-> Web Push, le schéma Supabase, et la dette technique restante.
+> 🗄️ **Snapshot daté du 2026-06-11 — partiellement périmé.** Ce document décrit
+> le chantier PWA au 2026-06-11 ; le code a depuis évolué (PR #227-231 :
+> theme-color impératif, BottomNav opaque, double frost). Il reste utile pour
+> le « pourquoi » historique mais **ne décrit plus fidèlement l'état courant**.
 >
-> **Branche active** : `claude/dazzling-turing-qLoW4`
->
-> **Dernière mise à jour** : 2026-06-11
+> **Références à jour** : `docs/pwa/safari-web-pwa-integration.md` (règles canoniques),
+> `docs/pwa/historique-chantier-chrome-mobile-ios.md` (récit le plus récent, fidèle au code),
+> `docs/dark-mode/README.md` (palette + tokens). Les corrections des erreurs connues de
+> ce fichier sont signalées inline ci-dessous par ⚠️.
 
 ---
 
@@ -37,7 +38,7 @@ Tous les critères sont aujourd'hui **techniquement remplis dans le code**. Rest
 | #143 | `PWA iOS : immersion edge-to-edge` | `statusBarStyle: black-translucent`, scrim sombre light mode, MobileTopActions poussé sous le notch | ✅ Mergée |
 | #144 | `Hotfix PWA iOS : rétablit la position du contenu` | `padding-top: env(safe-area-inset-top)` sur `.nc-page-halo` pour compenser le body étendu sous la status bar | ✅ Mergée |
 | #146 | `Frosted glass haut de page mobile` | `GradualBlurOverlay anchor="top"` remplace le scrim sombre, étendu d'un prop `anchor` | ✅ Mergée |
-| #148 | `Web Push notifications — DB + routes + UI + hook client` | Migration `036_push_subscriptions`, lib `@/shared/lib/push/`, 3 routes API, hook `usePushSubscription`, 4ème canal Push dans NotificationsSection | 🔄 **Ouverte** |
+| #148 | `Web Push notifications — DB + routes + UI + hook client` | Migration `036_push_subscriptions`, lib `@/shared/lib/push/`, 3 routes API, hook `usePushSubscription` | ✅ **Mergée** (depuis, In-App + Push fusionnés en un seul canal dans `NotificationsSection`, icône `IphoneRadiowaves`) |
 
 ---
 
@@ -62,12 +63,15 @@ viewport: {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f5f2f2" },
-    { media: "(prefers-color-scheme: dark)",  color: "#141211" },
-  ],
+  // ⚠️ PAS de `themeColor` ici — voir avertissement ci-dessous.
 }
 ```
+
+> ⚠️ **Correction (post-#227)** : `viewport.themeColor` a été **retiré volontairement**.
+> L'approche déclarative (tableau light/dark) causait un **crash de navigation iOS**
+> (`removeChild`). Le theme-color est désormais géré **en impératif, hors React**
+> (script inline pré-paint + `ThemeColorMeta.tsx`). **Ne pas remettre `viewport.themeColor`.**
+> Cf. `historique-chantier-chrome-mobile-ios.md`.
 
 ### Manifest (`src/app/manifest.ts`)
 

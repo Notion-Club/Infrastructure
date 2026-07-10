@@ -7,13 +7,16 @@ Chaque brique métier vit dans `src/modules/<brique>/` et est **self-contained**
 ```
 src/
   app/                   Next.js routes (pages + layouts)
-  modules/
-    auth/                Brique 1 — auth, profiles, memberships
-    formation/           Brique 2 — programmes de formation
-    community/           Brique 3 — fil communautaire
-    notion-sync/         Brique 4 — sync Notion ↔ Supabase
-    coaching/            Brique 5 — calls, summaries
-    onboarding/          Brique 6 — parcours d'onboarding
+  modules/               9 briques (liste synchronisée avec eslint.config.mjs → MODULES)
+    auth/                auth, profiles, memberships, capabilities
+    formation/           programmes de formation (sync Notion)
+    community/           fil communautaire, DM, notifs, push
+    coaching/            calls, summaries, transcriptions signées
+    ressources/          bibliothèque + gating capability
+    onboarding/          parcours d'onboarding
+    settings/            réglages du compte
+    admin/               actions admin (push broadcast, listes membres)
+    notion-sync/         coquille vide — cf. docs/architecture/notion-sync.md
   shared/
     components/ui/       composants shadcn/ui (générés)
     components/          composants réutilisables transversaux
@@ -25,7 +28,7 @@ supabase/
   seed.sql               données de bootstrap (idempotent)
 ```
 
-Chaque module suit la même sous-structure :
+Gabarit de référence d'un module :
 
 ```
 src/modules/<brique>/
@@ -36,6 +39,16 @@ src/modules/<brique>/
   index.ts               API publique (re-exports explicites)
   types.ts               types publics
 ```
+
+**Le gabarit est une cible, pas un invariant** — l'état réel diverge et c'est assumé :
+- `auth`, `formation`, `coaching`, `onboarding` suivent le gabarit complet.
+- `community` va au-delà : dossiers `types/` (définitions) + `types.ts` (barrel), `utils/`, `mocks/`, `routes/`.
+- `settings` : `index.ts` + `lib/` + `server/` seulement (pas de `components/`, `hooks/`, `types.ts`).
+- `ressources` : pas de `hooks/`.
+- `admin` : `server/` seul (pas d'`index.ts` ni `types.ts`) — surface minimale d'actions admin.
+- `notion-sync` : **coquille vide** (`index.ts`/`types.ts` = `export {}`, sous-dossiers `.gitkeep`). La sync Notion vit en réalité dans chaque module concerné — cf. `docs/architecture/notion-sync.md`.
+
+> Toute nouvelle brique doit être ajoutée à `eslint.config.mjs` (`MODULES`) pour que la règle d'isolation s'applique.
 
 ## Règles d'isolation (ESLint)
 
@@ -84,7 +97,8 @@ import { CommunityFeed } from "@/modules/community/components/CommunityFeed";
 
 ## Supabase migrations
 
-- Une migration = un fichier SQL préfixé `NNN_` séquentiel
+- Une migration = un fichier SQL préfixé `NNN_` séquentiel (état actuel : `001_` → `050_`, **51 fichiers**).
+- Exception existante : `039b_notifications_archive.sql` (suffixe alpha, intercalé). Éviter d'en créer d'autres — préférer le prochain numéro libre.
 - **Idempotent quand possible** (`CREATE TABLE IF NOT EXISTS`, `DROP TRIGGER IF EXISTS`)
 - RLS activé sur **toutes** les tables exposées (`ENABLE ROW LEVEL SECURITY`)
 - Tout déploiement passe par `supabase db push` ou `supabase migration up`

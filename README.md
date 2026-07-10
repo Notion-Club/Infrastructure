@@ -126,8 +126,9 @@ src/
 │   ├── coaching/            #   appels · éligibilité · transcriptions Notion
 │   ├── ressources/          #   bibliothèque · gating par capability
 │   ├── onboarding/          #   parcours d'onboarding
-│   ├── notion-sync/         #   socle de synchro Notion ↔ Supabase
-│   └── settings/            #   réglages du compte
+│   ├── settings/            #   réglages du compte
+│   ├── admin/               #   actions admin (push broadcast, listes membres)
+│   └── notion-sync/         #   coquille vide — la sync vit dans chaque module (cf. docs/architecture/notion-sync.md)
 │
 └── shared/                  # transverse : ui/, components/, lib/, hooks/, types/
     ├── components/          #   dashboard, settings, coaching, feedback-widget, theme, pwa…
@@ -135,7 +136,7 @@ src/
     └── types/               #   capabilities (source de vérité unique)
 
 supabase/
-├── migrations/              # 34 migrations SQL versionnées (001_… → 034_…)
+├── migrations/              # 51 migrations SQL versionnées (001_… → 050_, dont 039b_)
 └── seed.sql                 # données de bootstrap idempotentes
 ```
 
@@ -174,7 +175,7 @@ C'est la pièce qui rend l'app vivante sans back-office maison.
 
 - **Formations & ressources** : la structure (programmes → modules → leçons, ressources & templates) est éditée dans Notion, puis **synchronisée vers Supabase** via `POST /api/formation/sync` et `POST /api/ressources/sync`. Autorisation par session admin **ou** `Bearer CRON_SECRET` (machine).
 - **Appels de coaching** : lus **en direct** depuis Notion à chaque visite de `/coaching` (statut, date, coach, résumé, lien Fathom). Les blocs de la page Notion font office de transcription.
-- **Paiements** : lus en live depuis la base Notion `Paiements`, matchés par la relation `Membre`.
+- **Paiements** : lus depuis la base Notion `Paiements` (matchés par la relation `Membre`), avec une couche Supabase de facturation/suspension côté app (`api/billing/me`, `api/payments/me`, `api/payments/invoice/[id]`, migrations `040_billing_companies`, `043_payment_suspension`).
 - **Membres** : au signup, une page membre est créée dans Notion (mapping `UUID Supabase ↔ page Notion`) — best-effort, le signup réussit même si l'étape échoue.
 - **Transcriptions pour l'IA** : chaque appel passé expose un lien `/transcript/<token>` signé **HMAC-SHA256** (expiration 24h) — un bouton « Demander à ChatGPT / Claude » que l'assistant suit pour lire la transcription brute en `text/plain`.
 
@@ -185,6 +186,7 @@ C'est la pièce qui rend l'app vivante sans back-office maison.
 - **Manifest dynamique** (`src/app/manifest.ts`) + **service worker** → installation depuis l'écran d'accueil iOS / Android, mode `standalone` (plus de barre navigateur).
 - Métadonnées `apple-mobile-web-app-*`, `viewport-fit=cover` (gère l'encoche iPhone via `env(safe-area-inset-*)`), zoom au focus désactivé pour un ressenti natif.
 - Header `Cache-Control` strict sur `/sw.js` pour que les nouvelles versions se propagent immédiatement après un déploiement Vercel.
+- **Web Push** (VAPID) : abonnements stockés en Supabase (`api/push/{subscribe,unsubscribe,send}`, migrations `036_push_subscriptions`, `044_notifications_admin_push`), notifications DM/communauté et broadcast admin.
 - Navigation **desktop** (Topbar fixe) et **mobile** (top actions flottantes + BottomNav pill) pensées séparément.
 
 ---
@@ -227,15 +229,16 @@ npm run lint       # ESLint (dont la règle d'isolation des modules)
 | **Emails** | `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_REPLY_TO_EMAIL` |
 | **Notion** | `NOTION_API_TOKEN`, `NOTION_WEBHOOK_SECRET`, `NOTION_MEMBERS_DATABASE_ID`, `NOTION_CALLS_DATABASE_ID`, `NOTION_DATABASE_ID` (feedback) |
 | **Coaching / IA** | `TRANSCRIPT_SIGNING_KEY`, `NEXT_PUBLIC_FILLOUT_COACHING_URL` |
+| **Web Push** | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` |
 | **Cron** | `CRON_SECRET` |
 
-Le détail complet (où trouver chaque clé, schémas Notion attendus) est documenté **dans les commentaires de [`.env.example`](./.env.example)**.
+Le détail complet (où trouver chaque clé, schémas Notion attendus) est documenté **dans les commentaires de [`.env.example`](./.env.example)**, et récapitulé par consommateur dans **[docs/architecture/env-secrets.md](./docs/architecture/env-secrets.md)**.
 
 ---
 
 ## 🗄️ Base de données
 
-34 migrations SQL versionnées dans `supabase/migrations/` (préfixées `NNN_`), idempotentes quand possible, **RLS activé partout**. Grandes familles de tables :
+51 migrations SQL versionnées dans `supabase/migrations/` (préfixées `NNN_` — un `039b_` s'écarte de la séquence stricte), idempotentes quand possible, **RLS activé partout**. Grandes familles de tables :
 
 - **Auth & offres** — `organizations`, `profiles`, `offers`, `memberships`, `membership_changes`, historique de mots de passe, soft-delete.
 - **Formation** — `formations`, `formation_modules`, `formation_courses`, `formation_access`, `formation_course_progress`, `formation_course_notes`.
@@ -253,10 +256,13 @@ Déploiement via `supabase db push` / `supabase migration up`.
 |---|---|
 | **[CONVENTIONS.md](./CONVENTIONS.md)** | Architecture modulaire, règles d'isolation, nommage, migrations |
 | **[AGENTS.md](./AGENTS.md)** | ⚠️ Spécificités de cette version de Next.js |
+| **[docs/architecture/](./docs/architecture/)** | Back-end : autorisation/capabilities, transcript HMAC, admin, sync Notion, secrets d'env |
+| **[docs/community/](./docs/community/)** | État du module communauté (feed, morph, keyset, DM, notifs) |
+| **[docs/ressources/README.md](./docs/ressources/README.md)** · **[docs/ressources-morph/](./docs/ressources-morph/)** | Module ressources (sync + gating) · morph d'ouverture |
 | **[docs/dark-mode/README.md](./docs/dark-mode/README.md)** | Architecture CSS du dark mode, palette, patterns |
+| **[docs/pwa/](./docs/pwa/)** | PWA, thème, intégration Safari (dont archives datées) |
 | **[docs/feedback-widget/README.md](./docs/feedback-widget/README.md)** | Outil de feedback admin → tickets Notion |
-| **[docs/audits/](./docs/audits/)** | Audits (navigation, loading states, transitions) |
-| **[docs/design/](./docs/design/)** | Notes de design (transitions de navigation) |
+| **[docs/audits/](./docs/audits/)** · **[docs/design/](./docs/design/)** · **[docs/migrations/](./docs/migrations/)** | 🗄️ Archives datées (audits nav, notes design, réconciliation migrations) |
 
 ---
 

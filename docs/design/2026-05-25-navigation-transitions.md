@@ -1,7 +1,13 @@
 # Spec — Transitions de navigation Notion Club
 
+> 🗄️ **ARCHIVE — approche superseded.** Cette spec planifiait une stratégie basée
+> sur la View Transitions API (`::view-transition-*`). L'implémentation retenue
+> a divergé : morph **FLIP en WAAPI dans un portail** (cf. `ResourceMorphOverlay.tsx`,
+> `community/lib/spring.ts`, et `docs/ressources-morph/README.md`). À lire comme
+> intention de design historique, pas comme description du code.
+
 **Date :** 2026-05-25
-**Statut :** Décisions finalisées, prêt pour implémentation PR3/PR4
+**Statut :** ~~Décisions finalisées, prêt pour implémentation PR3/PR4~~ → approche abandonnée au profit du morph WAAPI
 **Contexte :** Suite à l'audit `docs/audits/2026-05-25-navigation-audit.md`
 
 ---

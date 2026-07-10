@@ -3,6 +3,8 @@
 > 🔴 **Sensible.** Document de travail pour review Nathan. **Aucune écriture DB n'a été faite** : diagnostic en lecture seule (`SELECT`, lecture de fichiers) + plan **non exécuté**.
 >
 > Décisions actées (Théo, 2026-06-21) intégrées ci-dessous. Le ticket sécurité dérivé est suivi séparément : **issue #196**.
+>
+> 🗄️ **Snapshot daté** : couvre les migrations jusqu'à `~042` alors que le repo va désormais jusqu'à `050` (+`039b`). Vérifier l'état réel avant d'agir sur cette base.
 
 ## TL;DR
 

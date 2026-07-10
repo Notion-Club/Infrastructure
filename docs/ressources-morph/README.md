@@ -31,14 +31,17 @@ en place** jusqu'à un encadré de détail, par-dessus une grille **restée fig�
 ```
 src/modules/ressources/components/
   morph/
-    MorphSourceContext.tsx   ← contrôleur : state open/close + rend l'overlay
-    ResourceMorphOverlay.tsx ← l'overlay (morph WAAPI, a11y, body, fermeture)
+    MorphSourceContext.tsx   ← contrôleur : snapshot liste+index, open/close, rend l'overlay
+    ResourceMorphOverlay.tsx ← l'overlay (morph WAAPI, gestes, a11y, body, fermeture)
   shared/
-    renderBlock.tsx          ← rendu d'un bloc Notion — SOURCE UNIQUE
-    ResourceContentBody.tsx  ← corps ressource (accès + blocs/verrou) — SOURCE UNIQUE
+    ResourceContentBody.tsx  ← corps ressource (accès + NotionRenderer/verrou) — SOURCE UNIQUE
   ResourceCard.tsx           ← carte ressource : clic → open() en place
   TemplateCard.tsx           ← carte template : clic → open() en place
   lib/spring.ts              ← courbe ressort `linear()` + durées + easings fade
+
+src/shared/components/notion/
+  NotionRenderer.tsx         ← rendu Notion UNIFIÉ (app-wide) — importé par ResourceContentBody
+  server/getResourceBody.ts  ← (module ressources) Server Action : corps async d'une ressource
 
 src/app/(app)/ressources/
   layout.tsx                 ← <MorphSourceProvider> (plus de slot @modal)
@@ -46,9 +49,14 @@ src/app/(app)/ressources/
   template/[slug]/page.tsx   ← idem templates
 
 src/app/lab/morph/           ← harnais e2e dev-only (mock data), cf. Tests
-e2e/run-morph.mjs            ← runner Playwright (build prod → next start → 7 assertions)
+e2e/run-morph.mjs            ← runner Playwright (build prod → next start → assertions)
 .github/workflows/e2e-morph.yml
 ```
+
+> **Rendu Notion** : le contenu n'est **plus** rendu par un `renderBlock.tsx`
+> propre au module (supprimé). Il est délégué au renderer unifié
+> `@/shared/components/notion/NotionRenderer`, importé par
+> `shared/ResourceContentBody.tsx`. Voir « Une seule source pour le contenu ».
 
 ---
 
@@ -100,6 +108,104 @@ e2e/run-morph.mjs            ← runner Playwright (build prod → next start �
 
 ---
 
+## Gestes tactiles (mobile / PWA)
+
+L'overlay **reste monté toute la session d'ouverture** et navigue **en interne**
+(seul l'`index` dans la liste change) — il ne se remonte jamais. Le provider fige
+à l'ouverture un **snapshot** de la liste visible ordonnée (`items`) + l'index de
+départ (`initialIndex`) : la grille est couverte, donc la liste ne peut plus
+bouger.
+
+### En-tête d'intention (le gros commentaire du fichier)
+
+Le bloc de commentaire en tête de `ResourceMorphOverlay.tsx` est la carte
+mentale à lire en premier : il décrit le **scroll-document** (l'encadré fait la
+longueur du contenu, relâché en flux après l'ouverture) **et** les deux gestes
+ci-dessous. Le garder synchronisé avec le code.
+
+### Reconnaisseur d'axe unique
+
+Un **seul** reconnaisseur tactile arbitre les deux gestes (listeners `touchstart/
+move/end/cancel` non-passifs sur le conteneur de scroll) :
+
+- Le geste ne démarre que si le doigt part **sur la surface** (le fond garde son
+  tap-to-close par pointer events).
+- L'axe est **verrouillé après `AXIS_LOCK` (10px)** parcourus (`Math.hypot`).
+  `|dx| > |dy|` → axe **horizontal** (carrousel) ; sinon axe **vertical**.
+- Sur l'axe vertical, on ne prend la main **qu'au bord** (`atTop()` + pull vers
+  le bas, ou `atBottom()` + pull vers le haut). Hors bord → on **lâche le geste**
+  (`g = null`) et le **scroll vertical natif reste intact** (`touch-action:
+  pan-y` : le navigateur garde la verticale, on ne s'empare que de l'horizontale).
+
+### Carrousel swipe ±1 (panneau ghost + préchargement)
+
+Swipe **horizontal** → ressource/template **±1** (gauche = suivant, droite =
+précédent), en « carrousel Tinder » :
+
+- La **piste** (`trackRef`) suit le doigt (`translateX`) ; un **panneau voisin
+  (ghost)** est monté à la volée à côté (`PANEL_GAP = 16px`), rendu **identique à
+  la surface au repos** (`SURFACE_BOX_STYLE` partagé → parité pixel au swap). Le
+  ghost porte **son propre item** (snapshot) → il ne change pas quand `index`
+  change.
+- **Butée élastique** aux extrémités (`EDGE_RESIST = 0.35`) quand il n'y a pas de
+  voisin.
+- **Validation** à la fin du geste : distance `> 30 %` de la largeur
+  (`H_COMMIT_RATIO`) **ou** flick (`|vx| > H_COMMIT_VELOCITY = 0.5 px/ms` dans le
+  bon sens) → `commitCarousel`, sinon `revertCarousel` (retour à 0).
+- **Swap sans couture** : `commitCarousel` anime la piste jusqu'au panneau voisin,
+  puis bascule l'item de la surface en `flushSync(setIndex)` **pendant** que la
+  piste est encore décalée (le centre montre le même item avant/après → aucun
+  flash), puis remet la piste à `none` et recalcule la géométrie de fermeture sur
+  le nouveau slug.
+- **Préchargement des voisins** : `bodyCache` (state par slug) + `ensureBody`
+  pré-chargent le corps de l'item courant **et de ses ±1** à chaque changement
+  d'index (`inFlightRef` dédoublonne) → le panneau qui arrive montre skeleton puis
+  contenu sans attente.
+- Au clavier, `←` / `→` naviguent aussi (mêmes bornes).
+
+### Pull-to-close vertical au bord
+
+Pull **vertical au bord** (haut→bas en haut de page, bas→haut en bas de page) →
+**fermeture par le MÊME morph retour** vers la carte de l'item **courant** :
+
+- La surface suit le doigt (`translateY`, amortie), le `pageBg` **se dé-fade**
+  avec la distance.
+- Pas de `preventDefault` : au bord il n'y a rien à scroller
+  (`overscroll-behavior: contain` gèle le rubber-band), on lit passivement.
+- **Validation** : distance `> V_CLOSE_DISTANCE (100px)` **ou** flick
+  (`|vy| > V_CLOSE_VELOCITY = 0.5 px/ms`) → `startClose(pullY)` démarre le morph
+  inverse **depuis** l'offset de pull (aucun saut) ; sinon `revertPull` ramène la
+  surface et le fond.
+
+### Fix PWA iOS #258 — la piste ne doit NI être positionnée NI transformée pendant le morph
+
+C'est le piège central à ne jamais rouvrir. Un `position: relative` **ou** un
+`transform` sur la **piste** en fait un **bloc conteneur** qui **piège le
+`position: fixed`** de la surface pendant le morph : en PWA iOS, la fermeture
+après scroll faisait **rétrécir l'encadré hors écran**.
+
+Parades, toutes **synchrones** et cumulées :
+
+- La piste n'est `relative` **que pendant un drag** (ghost monté) ; **hors drag
+  elle est `static`** (`transform: none`, pas `0px`) → l'ancêtrage redevient
+  identique à la version validée (surface → wrapper statique → scroller `fixed`).
+  Le drag et le morph ne se chevauchent jamais.
+- Au tout début de `startClose`, on **remet la piste en `static` / `none`**
+  avant toute mesure.
+- On **dé-piège aussi le scroller** (le layer momentum d'un conteneur scrollable
+  iOS ancre le `fixed` au **contenu**, pas au viewport) : `scrollTop = 0`,
+  `-webkit-overflow-scrolling: auto`, `overflow-y: hidden`, flush synchrone.
+- **Auto-correction anti-piège** : après ré-ancrage de la surface en `fixed`
+  (état d'ouverture, scroll 0), on **relit** son `getBoundingClientRect()` avec
+  une transform **neutre** ; si le `top`/`left` réel dévie de la cible (`> 0.5px`,
+  signe que le `fixed` a été piégé), on **compense** `top`/`left` du delta mesuré
+  avant de lancer le morph inverse.
+
+Voir les commits `2df5fdd` (carrousel + pull-to-close), `0de9761` (piste `static`
+hors drag), `9fc26c5` (dé-piège du `fixed`), `20c7e3f` (auto-correction).
+
+---
+
 ## Accessibilité
 
 - La **surface** porte `role="dialog"`, `aria-modal="true"`,
@@ -118,16 +224,26 @@ e2e/run-morph.mjs            ← runner Playwright (build prod → next start �
 
 ## Une seule source pour le contenu
 
-Le rendu du contenu Notion ne doit **jamais** être dupliqué :
+Le rendu du contenu Notion ne doit **jamais** être dupliqué. L'ancien
+`shared/renderBlock.tsx` (rendu bloc-par-bloc propre au module, « lossy ») a été
+**supprimé** : le rendu est désormais délégué au **renderer Notion unifié**,
+partagé avec Formation / Coaching.
 
-- `shared/renderBlock.tsx` — rendu d'un bloc (`heading`, `paragraph`, `list`,
-  `callout`, `quote`, `code`, `tella_embed`, `image`).
-- `shared/ResourceContentBody.tsx` — corps d'une ressource (séparateur + blocs
-  **ou** `CapabilityLock` selon `canAccess`).
+- `@/shared/components/notion/NotionRenderer` — rendu de l'arbre `NotionBlock`
+  complet (texte + annotations inline, médias, toggle/callout/quote, colonnes,
+  table, divider…). Export alias `NotionBlocks` conservé pour compat. C'est LA
+  source de rendu app-wide ; ne pas réintroduire de renderer local.
+- `shared/ResourceContentBody.tsx` — corps d'une ressource : séparateur +
+  `<NotionRenderer blocks={resource.content} />` **ou** `CapabilityLock` selon
+  `canAccess`. Garde contenu-vide : si `resource.content` est vide (l'overlay le
+  réutilise avec une ressource issue de la LISTE, body non chargé), rend un
+  wrapper vide plutôt que le message « pas de corps » — parité exacte avec
+  l'ancien `[].map(renderBlock)`.
 
-L'overlay **et** la vraie page détail importent ces deux modules. Fonctions
-**pures, sans dépendance serveur** → utilisables serveur ET client sans
-`'use client'`.
+L'overlay **et** la vraie page détail importent `ResourceContentBody` → la
+logique d'accès et le rendu du corps ne peuvent plus diverger. `NotionRenderer`
+est un composant client (`'use client'`) ; `ResourceContentBody` reste une
+fonction pure sans dépendance serveur.
 
 ---
 
@@ -210,3 +326,8 @@ E2E_SKIP_BUILD=1 npm run e2e:morph   # ré-itération rapide (réutilise .next)
 | #250 | MAJ doc |
 | #253 | Scroll-document : encadré = longueur du contenu (conteneur de scroll dédié), titre qui défile, croix fixe ; e2e 10/10 |
 | #255 | Croix ancrée à la carte (défile), resize fluide + reveal du corps async (skills 01/18), fermeture pointer-events avec détente |
+| #256 | Flou (`backdrop-filter`) en bande haute de l'overlay au scroll |
+| #258 | Fix morph de fermeture visible en PWA iOS (encadré qui rétrécissait hors écran) |
+| `9fc26c5` / `20c7e3f` | Fermeture PWA iOS fiable : dé-piège du `fixed` (scroller) + auto-correction anti-piège |
+| `2df5fdd` | Gestes carte : carrousel swipe ±1 (panneau ghost + préchargement voisins) + pull-to-close |
+| `0de9761` | Fermeture PWA iOS : piste du carrousel en `static` hors drag (ne piège plus le `fixed`) |

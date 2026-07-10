@@ -128,7 +128,7 @@ Les `var(--color-*)` dans les CSS Modules héritent bien du cascade — seuls le
 | `--nc-btn-dark-text` | `#ffffff` | `#141211` | Texte sur CTA sombres |
 | `--nc-segmented-active-bg` | `#ffffff` | `rgba(255,255,255,0.92)` | Onglet/toggle actif |
 | `--nc-segmented-active-text` | `#000000` | `#141211` | Texte sur onglet actif |
-| `--nc-bottom-nav-bg` | `rgba(255,255,255,0.92)` | `rgba(28,25,23,0.88)` | Pill BottomNav mobile |
+| `--nc-bottom-nav-bg` | `#ffffff` | `#1c1917` | Pill BottomNav mobile (**opaque** — pas de translucidité, cf. note §7) |
 | `--nc-bottom-nav-border` | `rgba(229,231,235,0.9)` | `rgba(55,50,47,0.9)` | Bordure BottomNav |
 | `--nc-card-dot-color` | `rgba(224,98,90,0.28)` | `rgba(255,255,255,0.18)` | Dots hover sur resource/template cards |
 | `--nc-lock-overlay-bg` | `rgba(255,255,255,0.72)` | `rgba(20,18,17,0.87)` | Overlay frosted glass (FreeTeaserPanel) |
@@ -178,7 +178,7 @@ Emplacement canonique : `src/app/globals.css`
   --nc-segmented-active-text: #000000;
   --nc-btn-dark-bg: #1a1a1a;
   --nc-btn-dark-text: #ffffff;
-  --nc-bottom-nav-bg: rgba(255, 255, 255, 0.92);
+  --nc-bottom-nav-bg: #ffffff;
   --nc-bottom-nav-border: rgba(229, 231, 235, 0.9);
 }
 ```
@@ -201,7 +201,7 @@ html.dark {
   --nc-segmented-active-text: #141211;
   --nc-btn-dark-bg: #ede9e6;
   --nc-btn-dark-text: #141211;
-  --nc-bottom-nav-bg: rgba(28, 25, 23, 0.88);
+  --nc-bottom-nav-bg: #1c1917;
   --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
 }
 ```
@@ -402,12 +402,16 @@ color: "#9ca3af"
 ### BottomNav mobile
 
 ```tsx
-// ✅ Pill glassmorphism
+// ✅ Pill OPAQUE (pas de backdrop-filter)
 style={{
-  background: "var(--nc-bottom-nav-bg)",
+  background: "var(--nc-bottom-nav-bg)", // #ffffff light / #1c1917 dark — opaque
   border: "0.5px solid var(--nc-bottom-nav-border)",
 }}
 ```
+
+> ⚠️ **Correction (post-#229/#230)** : la pill BottomNav est **opaque**, pas en
+> glassmorphism translucide. Le `backdrop-filter` a été retiré à cause d'un bug de
+> repeint iOS (bandes/flashs). Ne pas réintroduire de translucidité sur cette pill.
 
 ### Override dans un CSS Module
 
@@ -477,14 +481,10 @@ style={{
 
 ### Priorité haute
 
-- [ ] **`viewport.themeColor` dans `layout.tsx`** — changer `"#f5f2f2"` (seule valeur light) par un tableau :
-  ```tsx
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#141211" },
-    { media: "(prefers-color-scheme: light)", color: "#f5f2f2" },
-  ]
-  ```
-  → Affecte la barre de statut iOS en dark mode (reste rose en dark sans ce fix)
+- [x] **theme-color dark/light — RÉSOLU AUTREMENT (ne PAS réintroduire `viewport.themeColor`).**
+  > ⛔ **Ne jamais remettre `viewport.themeColor` (tableau ou valeur) dans `layout.tsx`.** Cette approche déclarative a causé un **crash de navigation iOS** (`removeChild`, PR #227). Le `themeColor` est volontairement retiré du `viewport` (voir le commentaire d'avertissement dans `src/app/layout.tsx`).
+  >
+  > Le theme-color est désormais géré **en impératif, hors React** : script inline pré-paint dans `layout.tsx` + `ThemeColorMeta.tsx`, qui synchronisent la balise `<meta name="theme-color">` sur le thème courant. La barre de statut iOS suit bien light/dark, sans le crash. Cf. `docs/pwa/historique-chantier-chrome-mobile-ios.md`.
 
 ### Priorité moyenne
 

@@ -1,320 +1,118 @@
-# Contexte projet — NotionClub Infra
+# Contexte projet — Notion Club Infra
 
-## Branche active
-`claude/develop-home-page-6cym5` → PR #7 ouverte sur `theogouman/NotionClub-Infra`
-Tout push sur cette branche met à jour la PR automatiquement.
+> Fichier chargé automatiquement à chaque session (via `@.claude/context.md` dans `CLAUDE.md`).
+> Il doit rester **fidèle à l'état réel du repo**. En cas de doute, le code fait foi ;
+> mettre ce fichier à jour plutôt que de le laisser dériver.
 
----
-
-## Stack
-- **Next.js 16.2.6** (Turbopack, App Router) + **React 19**
-- **Tailwind CSS v4** (`@import "tailwindcss"`)
-- **shadcn/ui** → `src/shared/components/ui/`
-- **Supabase** (auth + DB) — non branché sur le dashboard (tout est mocké)
-- **lucide-react v1.16.0**
-- **Police** : SF Pro Display (self-hostée, 4 graisses), chargée via `src/shared/lib/fonts.ts`
-- **Vercel** : team `g0uman`, project `prj_CHn38vwOkjzm2DqzhcBilIDQpRo6`
+## Repo & workflow
+- Dépôt : **`notion-club/infrastructure`** (org GitHub), défaut sur `main`.
+- Théo et d'autres poussent sur `main` en parallèle → **toujours `git fetch origin` + vérifier l'ancêtre `origin/main` avant tout merge/push de PR** (cf. règle absolue dans `CLAUDE.md`).
+- Format de PR imposé (français, sections fixes, style PR #33/#38) : cf. `CLAUDE.md`.
 
 ---
 
-## Design system (tokens CSS — `src/app/globals.css`)
+## Ce qu'est l'app
+Plateforme de delivery du Notion Club : **formation · communauté · coaching · ressources**, réunies dans une seule PWA installable. Un membre = une app ; ce qu'il voit dépend de son offre, via un système de **capabilities** calculé côté serveur (jamais un simple masquage UI).
 
-```css
---color-brand: #e0625a          /* accent rouge Notion Club */
---color-text-primary: #000000
---color-text-secondary: #52525b
---color-text-muted: #64748b
---color-surface-page: #f5f2f2   /* fond de page (pinkish) */
---color-surface-raised: #f5f5f5
---color-border-default: #e5e7eb
-
---nc-radius-xs: 12px  --nc-radius-sm: 16px
---nc-radius-md: 24px  --nc-radius-xl: 100px
-
---nc-shadow-2: rgba(0,0,0,0.03) 0 -2px 16px -4px, rgba(0,0,0,0.08) 0 16px 40px -8px, rgba(0,0,0,0.04) 0 1px 3px 0
---nc-shadow-3: rgba(0,0,0,0.06) 0 4px 24px 0, rgba(0,0,0,0.04) 0 1px 2px 0
-```
-
-Classes utilitaires importantes :
-- `.nc-page-halo` — fond `#f5f2f2` + gradient radial accent en `::before` fixed
-- `.nc-shine-card` — bordure animée conic-gradient
-- `.nc-blink-dot` — point rouge animé (blink 1.4s)
-- `.nc-btn-shine` — shimmer sur bouton
-- `.nc-mode-in` — animation entrée translateY(8px)→0
-
-Logo Cloudinary : `https://res.cloudinary.com/dceobxyts/image/upload/v1777034233/Notion_Club_-_Black_-_Sans_BG_hcvk9k.png`
-(déjà dans `next.config.ts` remotePatterns)
+Notion = back-office contenu (formations, ressources, appels, paiements, membres, roadmap feedback).
+Supabase = source de vérité utilisateur (auth, profils, offres, progression, communauté).
+Next.js orchestre les deux et applique les droits d'accès.
 
 ---
 
-## Architecture (CONVENTIONS.md — règles strictes)
+## Stack (réelle, cf. `package.json`)
+- **Next.js 16.2.6** (App Router + Turbopack) + **React 19.2.4** — RSC par défaut, View Transitions.
+- **Tailwind CSS v4** (`@import "tailwindcss"`, tokens en variables CSS dans `src/app/globals.css`).
+- **shadcn/ui** (new-york) → `src/shared/components/ui/`, **lucide-react** 1.16, **radix-ui**.
+- **next-themes** — light / dark / system, sans flash (script inline pré-paint).
+- **Supabase** (`@supabase/ssr` + `@supabase/supabase-js`) — **branché partout**, RLS activé, **51 migrations** dans `supabase/migrations/`.
+- **Resend** (emails), **web-push** (push web/PWA), **Zod v4** (validation), **bcryptjs** (historique mdp).
+- Police **SF Pro Display** self-hostée (`next/font/local`).
+- Déploiement **Vercel** + Cron quotidien (`vercel.json`).
 
+> ⚠️ Cette version de Next.js a des breaking changes — lire `node_modules/next/dist/docs/` avant d'écrire du code (cf. `AGENTS.md`).
+
+---
+
+## Architecture — modular monolith (cf. `CONVENTIONS.md`)
 ```
 src/
-  app/                    Routes Next.js
-  modules/
-    auth/                 Auth + profils + memberships (SEUL module avec code)
-    formation/            (vide)
-    community/            (vide)
-    notion-sync/          (vide)
-    coaching/             (vide)
-    onboarding/           (vide)
-  shared/
-    components/ui/        shadcn/ui (ne pas modifier directement)
-    components/           composants transversaux
-    lib/                  utils, fonts, supabase clients
-    fonts/                SF Pro Display .otf
+  app/                    Routes (App Router)
+    (auth)/               login · signup · reset-password · update-password
+    (app)/                zone authentifiée (layout commun, redirect si non loggé)
+      dashboard/ formation/ communaute/ coaching/ ressources/ membres/ settings/
+    api/                  Route Handlers (sync, cron, push, billing, payments, feedback, webhooks…)
+    transcript/[token]/   deep-link transcription signé HMAC (hors /api)
+    lab/                  bancs d'essai (morph, notion, zoom) — non prod
+    privacy/ terms/       pages légales
+  modules/                briques métier isolées (règle ESLint no-restricted-imports)
+  shared/                 transverse : components/ (ui, dashboard, notion, theme, pwa,
+                          feedback-widget, badges…), lib/, hooks/, types/
+supabase/migrations/      51 migrations SQL versionnées (001_ → 050_, dont 039b_)
 ```
 
-**Règle d'isolation ESLint** : un module ne peut importer que son propre code, `@/shared/*`, ou des packages npm. Jamais un autre module.
+**Modules réels (9)** — la liste doit rester synchronisée dans `README.md`, `CONVENTIONS.md` **et** `eslint.config.mjs` (`MODULES`) :
+| Module | État |
+|---|---|
+| `auth` | auth, profils, memberships, **capabilities** (source de vérité autorisation) |
+| `formation` | programmes → modules → leçons, progression, sync Notion |
+| `community` | feed (morph + keyset), réactions, commentaires, mentions, DM, notifs, push |
+| `coaching` | appels, éligibilité, transcriptions Notion live, deep-links HMAC |
+| `ressources` | bibliothèque ressources/templates, gating capability, morph d'ouverture |
+| `onboarding` | parcours d'onboarding |
+| `settings` | réglages compte (structure minimale : `index.ts` + `lib/` + `server/`) |
+| `admin` | actions admin (push broadcast, listes membres) — structure minimale `server/` |
+| `notion-sync` | **coquille vide** (`export {}`) — la sync vit éparpillée dans chaque module (voir `docs/architecture/notion-sync.md`) |
+
+Isolation : un module n'importe que son propre code, `@/shared/*`, `@/app/*` (rare) ou des packages npm. Jamais un autre module.
 
 ---
 
-## Flux applicatif actuel
-```
-/ → redirect /login
-/login → (mock auth, n'importe quel email/mdp) → /dashboard
-/dashboard → home page (mockée, zéro Supabase)
-```
+## Autorisation — capabilities (le cœur, bien tenu)
+8 capabilities booléennes portées par `offers`, débloquées via la `membership` active. Source de vérité TS : **`src/shared/types/capabilities.ts`**, tenue strictement alignée avec les migrations SQL (`003`, `013`) et les fonctions `user_has_capability()` / `get_user_capabilities()` (RPC, mig `032`). Détail complet : **`docs/architecture/authorization-capabilities.md`**.
 
 ---
 
-## Dashboard — état actuel
-
-### Layout général (`src/app/dashboard/page.tsx`)
-```tsx
-<div className="nc-page-halo flex flex-col" style={{ minHeight: "100dvh" }}>
-  <Topbar />                    {/* hidden md:flex sticky — desktop */}
-  <div className="md:hidden">
-    <MobileHeader />            {/* position: fixed, top */}
-    <BottomNav />               {/* position: fixed, bottom pill */}
-  </div>
-  <main style={{ flex: 1 }}>
-    {/* Desktop: greeting + search bar (max-width 840px centré) */}
-    {/* Mobile: greeting + search bar statique */}
-    {/* Grid widgets: grid-cols-1 md:grid-cols-2 */}
-    <FormationWidget />
-    <ProfilWidget />
-    {/* Placeholder dashed "Communauté · Coaching · à venir" */}
-  </main>
-</div>
-```
-
-**Padding contenu** : `px-4 pt-[80px] pb-[100px] md:px-10 md:py-10`
-(mobile: 80px top pour MobileHeader fixe, 100px bottom pour BottomNav)
-
----
-
-## Composants dashboard créés
-
-### `src/shared/components/dashboard/Topbar.tsx`
-- `"use client"` — `usePathname()` pour état actif
-- **Structure** : outer header `hidden md:flex justify-center sticky top-0 z-50`
-  - `background: transparent; backdropFilter: blur(8px)` → gradient de page visible, pas de bande colorée
-  - `padding: 10px 40px`
-- **Pill intérieure** : `width: 100%; maxWidth: 840px; justify-content: space-between`
-  - Gauche : logo Image Cloudinary (h-24px) + séparateur 0.5px + nav pills
-  - Droite : cloche Bell (badge rouge `2` hardcodé) + avatar `TM` (#e0625a) + dropdown
-- **Nav items** : `[Accueil, Formation, Communauté, Coaching]`
-- **État actif** : `background: rgba(0,0,0,0.07); color: #000; font-weight: 600` (gris léger)
-- **Hover inactif** : `rgba(0,0,0,0.04)`
-- **Dropdown avatar** : Mon profil / Réglages / (séparateur) / Se déconnecter (#e0625a)
-- MOCK_USER `{ prenom: "Théo", nom: "Martin" }`, UNREAD_COUNT `2`
-
-### `src/shared/components/dashboard/mobile/MobileHeader.tsx`
-- `"use client"` — `position: fixed; top: 0; height: 60px; z-index: 40`
-- `background: rgba(255,255,255,0.88); backdropFilter: blur(16px)`
-- Gauche : avatar initiales + "Bon retour / Théo" → clic ouvre dropdown (Mon profil, Réglages, Déconnexion)
-- Droite : bouton Search (slide-down input animé) + bouton Bell (badge 2)
-- MOCK_USER `{ prenom: "Théo", nom: "Martin", avatarUrl: null }`
-
-### `src/shared/components/dashboard/mobile/BottomNav.tsx`
-- `"use client"` — `position: fixed; bottom: 10px; left: 12px; right: 12px; height: 56px; z-index: 50`
-- Pill : `background: rgba(255,255,255,0.92); backdropFilter: blur(20px); border-radius: 9999px`
-- 4 items : Accueil (actif hardcodé) / Formation / Communauté / Coaching
-- Actif : couleur `var(--color-brand)`, fond `rgba(224,98,90,0.08)`, border-radius pill
-- `padding-bottom: env(safe-area-inset-bottom)` pour iPhone
-
-### `src/shared/components/dashboard/widgets/FormationWidget.tsx`
-- `"use client"` — `useRouter()` pour navigation
-- Clic encadré → `/formation`, clic bouton "Reprendre" (stopPropagation) → `/formation/module-6/video-3`
-- MOCK : Module 6, vidéo 3/5, 58%, 5/12 modules
-- Hover : `translateY(-1px)` + shadow renforcée
-
-### `src/shared/components/dashboard/widgets/ProfilWidget.tsx`
-- Server Component (pas de `"use client"`)
-- Badge niveau `rgba(224,98,90,0.08)` border `rgba(224,98,90,0.2)`
-- MOCK : Niveau 6 Intermédiaire, 58%, 7 modules restants, status `in_progress`
-- Conditionnel `in_progress` / `completed`
-
-### `src/shared/components/dashboard/widgets/ProgressBar.tsx`
-- Server Component — réutilisable (props: `percent`, `from?`, `to?`)
-- Fill : `var(--color-brand)`, transition 0.6s
-
-### `src/shared/components/dashboard/NotificationPopover.tsx`
-- `"use client"` — 3 notifs mockées, toggle ouvert/fermé, "marquer tout lu"
-- Click-outside via `useEffect + useRef`
-- Branché sur le bouton cloche de la Sidebar (supprimée) mais PAS encore sur Topbar ni MobileHeader
-
----
-
-## Sidebar — SUPPRIMÉE
-`src/shared/components/dashboard/Sidebar.tsx` a été supprimé (git rm).
-Remplacée par `Topbar.tsx` pour desktop.
-
----
-
-## Décisions d'architecture actées
-
-1. **Desktop (≥ md / 768px)** : Topbar horizontale **fixed** — PAS de sidebar verticale
-2. **Mobile (< md)** : MobileTopActions fixe top-right + BottomNav pill fixe bottom
-3. **Breakpoint unique** : `md:` (768px) pour basculer desktop/mobile. Pas de `lg:` ou `xl:` dans cette session
-4. **`hidden md:flex`** sur le `<header>` de Topbar directement
-5. **Nav items** : Accueil, Formation, Communauté, Coaching, Ressources
-6. **État actif nav** : gris léger `rgba(0,0,0,0.07)` + texte noir (pas fond noir)
-7. **Topbar fond** : transparent + `backdropFilter: blur(8px)` — pas de bande colorée
-8. **Pill topbar** : `max-width: 920px`
-
-### Règle de positionnement — toutes les pages
-
-> **La cloche de notifications et l'avatar utilisateur ne doivent JAMAIS suivre le scroll.**
-> - Desktop : `Topbar` en `position: fixed; top: 0; left: 0; right: 0` — la cloche et l'avatar sont dans cette topbar fixe.
-> - Mobile : `MobileTopActions` en `position: fixed; top: 12px; right: 12px` — boutons flottants indépendants du scroll.
-> - Conséquence : tout contenu de page doit compenser avec `md:pt-[96px]` (desktop) et `pt-[72px]` (mobile).
-
-### Pattern de page standard
-
-⚠️ **Règle critique** : `Topbar`, `MobileTopActions` et `BottomNav` doivent être rendus **en dehors** du div `nc-page-halo`. En effet, `nc-page-halo` a `isolation: isolate` qui peut casser `position: fixed` dans certains navigateurs.
-
-```tsx
-<>
-  {/* Éléments fixed HORS de nc-page-halo */}
-  <Topbar />
-  <div className="md:hidden">
-    <MobileTopActions />
-    <BottomNav />
-  </div>
-
-  <div className="nc-page-halo" style={{ minHeight: "100dvh" }}>
-    <main style={{ position: "relative", zIndex: 1 }}>
-      <div className="px-4 pt-[96px] pb-[100px] md:px-10 md:pt-[148px] md:pb-10">
-        {/* contenu */}
-      </div>
-    </main>
-  </div>
-</>
-```
-
----
-
-## Ce qui reste à faire (non implémenté)
-- Brancher `NotificationPopover` sur la cloche de Topbar et MobileHeader
-- `usePathname()` pour état actif dynamique dans BottomNav (hardcodé sur /dashboard)
-- Branchement Supabase (auth réelle, données réelles)
-- Pages `/formation`, `/communaute`, `/coaching`
-- `app/dashboard/layout.tsx` quand plusieurs pages dashboard existent
-
----
-
-## Règles session en cours
-- ❌ Zéro Supabase / logique auth
-- ❌ Zéro API routes
-- ❌ Zéro pages sous-sections (/formation etc.)
-- ✅ Données mockées uniquement
-- ✅ `useState` pour interactions UI
-- ✅ `router.push()` statique
+## Flux applicatif
+`/ → /login` → (auth Supabase réelle) → `/dashboard`. Les pages `/formation`, `/communaute`, `/coaching`, `/ressources`, `/membres`, `/settings` sont **toutes livrées et branchées** (Supabase + Notion selon la brique). Des mocks subsistent ponctuellement (`src/shared/lib/mock/`) mais l'app n'est plus « zéro Supabase ».
 
 ---
 
 ## Outil de feedback admin (widget intégré)
+> Point d'entrée : **`docs/feedback-widget/README.md`**.
 
-> 📘 **Point d'entrée canonique** : [`docs/feedback-widget/README.md`](../docs/feedback-widget/README.md) — recap complet, prompt de reprise de contexte, journal des commits, ambiguïtés ouvertes, next steps.
+Intégré au **dropdown de la DevToolbox** (plus de bouton flottant ni de hub modal), via `useRegisterFeedbackTools` + `FeedbackToolboxPanel`. Le composant `FeedbackWidget.tsx` ne rend que les overlays (sélection d'élément, formulaire, toasts).
 
-Origine : repris de `theogouman/random-project` (Swiss Serenity Plus), simplifié pour ne garder que les 2 flows de feedback utiles à NotionClub. Le flow "Création d'article de blog" + ses dépendances (`CustomSelect`, `RichTextEditor`, route `/api/blog-posts`) ont été supprimés.
+**2 flows** : feedback sur un élément (inspection visuelle) · feedback général (page entière). Plus une vue « Tickets envoyés » (lecture/suppression via `/api/tickets`).
 
-### Emplacement dans le repo
+**Routes** (3, toutes **admin-gated** via `isRequestAdmin`, rôle `profiles.role='admin'`) : `/api/feedback` (POST → Notion), `/api/tickets` (GET/DELETE), `/api/feedback-schema` (options dynamiques `Action` + `/End`).
 
-```
-src/shared/components/feedback-widget/
-  FeedbackWidget.tsx           ← cœur — 2 flows
-  FeedbackWidget.module.css
-  FeedbackWidgetLoader.tsx     ← dynamic(ssr:false) wrapper
+**Base Notion** : `c4209ec9-5e2b-4968-88c8-43e6c4672eda` (défaut hardcodé), token `NOTION_API_TOKEN`, override `NOTION_DATABASE_ID`. Schéma réel = **6 propriétés** : `Composant` (Select), `Action` (Select), `/End` (**multi_select** — Frontend/Backend), `Feedback` (rich_text), `User Agent` (rich_text), `URL` (url).
 
-src/app/api/
-  feedback/route.ts            ← POST  → Notion DB (NOTION_DATABASE_ID)
-  tickets/route.ts             ← GET (liste) / DELETE (archive) — même DB
-```
+---
 
-Monté dans `src/app/(app)/layout.tsx` (visible uniquement après auth Supabase, pas sur `/login` ni `/signup`).
+## Design system
+Accent rouge `--color-brand: #e0625a` sur fond chaud `#f5f2f2`. Tokens dans `src/app/globals.css` (couleurs, rayons `--nc-radius-*`, ombres `--nc-shadow-*`, easings). Dark mode near-black chaud (pas de noir pur) — cf. `docs/dark-mode/README.md`. Pour toute transition/animation : skill `transitions-dev` (cf. `AGENTS.md`), pas de `@keyframes` ad hoc.
 
-### Les 2 flows
+Signatures maison : `.nc-page-halo`, `.nc-shine-card`, `.nc-blink-dot`, `.nc-btn-shine`.
 
-1. **Feedback sur un élément** — mode inspection visuel : clic sur "Sélectionner un élément" → curseur crosshair + overlay highlight brand → clic sur n'importe quel élément de la page → l'élément est annoté (avec son ancre `#id` pour deep-link), choix d'une action parmi 9 (Modifier du texte, Ajouter du texte, Ajouter une image, Changer une couleur, Modifier la mise en page, Supprimer un élément, Ajouter un lien, Corriger une faute, Autre), choix du côté (Frontend ou Backend, optionnel), saisie du retour, ajout au draft.
-2. **Feedback général** — feedback page entière sans sélection (même formulaire, Action optionnelle).
+---
 
-Vue grille des tickets déjà envoyés disponible depuis le hub (lecture/suppression directe via `/api/tickets`).
+## Carte de la documentation
+| Sujet | Doc |
+|---|---|
+| Architecture, isolation, nommage, migrations | `CONVENTIONS.md` |
+| Spécificités de cette version de Next.js | `AGENTS.md` |
+| Modèle d'autorisation / capabilities | `docs/architecture/authorization-capabilities.md` |
+| Transcriptions coaching (HMAC signé) | `docs/architecture/coaching-transcript.md` |
+| Module admin (push broadcast) | `docs/architecture/admin.md` |
+| Sync Notion (réalité éclatée) | `docs/architecture/notion-sync.md` |
+| Inventaire des secrets d'env | `docs/architecture/env-secrets.md` |
+| Module communauté | `docs/community/etat-module-communaute.md` |
+| Module ressources (sync + gating) | `docs/ressources/README.md` |
+| Morph d'ouverture des ressources | `docs/ressources-morph/README.md` |
+| Feedback widget admin | `docs/feedback-widget/README.md` |
+| Dark mode (palette, tokens) | `docs/dark-mode/README.md` |
+| PWA / thème / Safari | `docs/pwa/` |
 
-### Comment l'administrateur note rapidement dans le ticket de la roadmap
-
-1. Naviguer sur n'importe quelle page du dashboard (le widget est disponible partout sous `(app)/`).
-2. Cliquer sur le bouton flottant en bas à droite.
-3. Choisir un des 2 flows :
-   - **"Retour sur un élément"** quand la modification porte sur un bloc précis — Composant + URL avec ancre envoyés à Notion.
-   - **"Feedback général"** pour une note de page entière.
-4. Cocher éventuellement Frontend / Backend pour cibler la stack.
-5. Rédiger, ajouter au draft. Plusieurs retours peuvent s'accumuler avant envoi.
-6. "Envoyer" → un ticket est créé par retour dans la base Notion jointe.
-7. Onglet "Tickets envoyés" (icône grille) : voir/supprimer les tickets existants.
-
-### Connexion à la base Notion
-
-URL fournie en session par l'administrateur :
-
-```
-https://www.notion.so/gouman/c4209ec95e2b496888c843e6c4672eda?v=a981d5a0b73149c29454699f4f0ca8c3&source=copy_link
-```
-
-→ ID de la base (format UUID Notion) : `c4209ec9-5e2b-4968-88c8-43e6c4672eda`
-
-ID hardcodé comme défaut dans les 2 routes (`/api/feedback`, `/api/tickets`). `NOTION_API_TOKEN` existante (Brique 4 Notion sync) suffit. Voir `.env.example` pour le détail.
-
-### Schéma de la base Notion roadmap (5 propriétés + /End)
-
-Le code écrit/lit exactement ce que contient la base aujourd'hui — pas plus, pas moins. Tout écart provoquera une erreur `validation_error` Notion.
-
-| Propriété (libellé exact) | Type Notion | Source côté code |
-|---|---|---|
-| `Composant` | Select | nom du bloc annoté (auto-clip à 100 chars, virgules → espaces) |
-| `Action` | Select | une des 9 actions du formulaire |
-| `/End` | Select | `Frontend` ou `Backend` (optionnel) |
-| `Feedback` | Texte (rich_text) | texte du retour (clip 2000 chars en property, débordement écrit en blocs paragraphes dans le body) |
-| `User Agent` | Texte (rich_text) | header HTTP côté serveur — pour distinguer mobile / desktop |
-| `URL` | URL | deep-link `https://app.notionclub.fr/page#anchor` |
-
-Notion auto-crée les options de Select au premier write — pas besoin de seeder la base.
-
-### Adaptations effectuées au code source
-
-1. **Suppression flow blog** : route `/api/blog-posts`, composants `CustomSelect` + `RichTextEditor`, formulaire complet + CSS associé. Le widget ne porte plus que les 2 flows de feedback.
-2. **`PAGE_MAP`** dans `FeedbackWidget.tsx` : routes NC réelles. Routes dynamiques retombent sur `"Home"` (note : `Page concernée` n'est plus écrit côté Notion — propriété absente du schéma actuel).
-3. **Palette CSS alignée DA NotionClub** : `FeedbackWidget.module.css` réécrit sur les tokens du projet (`--color-brand`, `--color-text-*`, `--color-surface-*`, `--color-border-default`, `--nc-radius-*`, `--nc-shadow-2/3`, `--nc-ease`, `--nc-duration-*`). Pattern hover lift `translateY(-2px)` + border brand-tinted + halo dot pattern repris du `FormationWidget`.
-4. **Trigger** : icône Lucide `<MessageSquarePlus>` sur fond brand, halo pulse au hover.
-5. **Overlay sélection** : couleurs brand `rgba(224,98,90,…)` au lieu du taupe Swiss-Serenity original.
-
-### Points d'ambiguïté — laissés ouverts
-
-Décisions tranchées :
-- **Token Notion unifié** : les routes consomment `NOTION_API_TOKEN` (variable existante de la Brique 4 Notion sync).
-- **Base Notion unique** : `c4209ec9-5e2b-4968-88c8-43e6c4672eda` hardcodée comme défaut. Schéma : voir tableau ci-dessus.
-- **Pas de blog dans le widget** : `outil pour faire des articles de blog` retiré (cf. session 2026-05-22).
-
-Restant ouvert :
-- **Gating admin** : le widget est aujourd'hui monté pour **tous les utilisateurs authentifiés** via `(app)/layout.tsx`. À restreindre aux administrateurs ? Si oui, sur quel critère (rôle Supabase, email allowlist, env var) ?
-- **Thème sombre** : palette alignée sur le light theme NC. Le projet utilise `next-themes` ; l'apparence en mode dark n'a pas encore été testée.
-
-### Setup à effectuer côté Vercel/Notion
-
-1. Vérifier que l'intégration Notion liée à `NOTION_API_TOKEN` est connectée à la base "ticket roadmap" (`c4209ec9-...`) : ouvrir la base → `...` → `Connections` → ajouter l'intégration. **Sans cette étape, Notion renvoie un 404 "object_not_found".**
-2. S'assurer que la base contient les 6 propriétés du tableau ci-dessus (Composant / Action / /End / Feedback / User Agent / URL) — les options des Select sont auto-créées au premier write.
-3. `NOTION_API_TOKEN` est déjà configurée côté Vercel (Brique 4 Notion sync). Aucune nouvelle var requise.
-4. `NOTION_DATABASE_ID` reste dispo en override optionnel (preview/staging vers une base de test).
+Les fichiers `docs/audits/`, `docs/design/`, `docs/migrations/` et les `passation-*`/`retrospective-*` sont des **archives datées** : utiles pour le « pourquoi » historique, mais ne décrivent pas forcément l'état courant (bandeau en tête).

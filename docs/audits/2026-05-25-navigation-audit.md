@@ -1,5 +1,11 @@
 # Audit — Navigation, loading states & transitions
 
+> 🗄️ **ARCHIVE — snapshot du 2026-05-25, plusieurs constats depuis résolus.**
+> Ne décrit PAS l'état courant. Exemples corrigés depuis : des `loading.tsx`
+> existent désormais dans plusieurs routes ; `BottomNav` utilise `<Link>` (plus
+> `<a>` natif) ; l'arbre des routes a changé (`(shell)`, `membres/`,
+> `communaute/{feed,messages}`). Conservé pour la trace du raisonnement.
+
 **Date :** 2026-05-25
 **Scope :** `src/app/` (App Router), composants de navigation, config Next.js, globals.css
 **Auteur :** Claude Code (audit statique, aucune modification de code)
