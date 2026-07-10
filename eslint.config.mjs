@@ -12,6 +12,8 @@ const MODULES = [
   "coaching",
   "onboarding",
   "settings",
+  "ressources",
+  "admin",
 ];
 
 // Pour un module donné, génère une override ESLint qui interdit les imports

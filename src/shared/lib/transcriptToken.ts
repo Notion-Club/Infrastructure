@@ -4,7 +4,7 @@
 // ⚠️ Server-only — la clé secrète ne doit jamais atteindre le navigateur.
 //
 // Pourquoi un token signé plutôt qu'une session Supabase :
-//   La page /api/coaching/transcript/[token] doit pouvoir être lue par
+//   La page /transcript/[token] doit pouvoir être lue par
 //   ChatGPT et Claude (qui ne portent pas la session de l'user). Avec un
 //   token HMAC, la possession du token vaut autorisation — pas besoin de
 //   cookies / Authorization header.

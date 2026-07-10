@@ -123,7 +123,7 @@ export interface CoachingCallView {
   // URL "Reschedule URL" Notion (Fillout / TidyCal) — bouton replanifier /
   // annuler, renseigné pour les appels à venir.
   reschedule_url?: string;
-  // URL signée vers /api/coaching/transcript/<token> (24h de validité).
+  // URL signée vers /transcript/<token> (24h de validité).
   // Renseignée uniquement pour les past calls — embarquée dans les boutons
   // "Demander à ChatGPT/Claude" qui passent l'URL en query string, l'IA
   // suit le lien et lit la transcription brute.

@@ -27,7 +27,7 @@ export interface CallCardData {
   // URL Notion "Reschedule URL" (Fillout / TidyCal) — bouton replanifier /
   // annuler sur les appels à venir. Absente sur les mocks / past calls.
   reschedule_url?: string;
-  // URL signée vers /api/coaching/transcript/<token> (24h de validité).
+  // URL signée vers /transcript/<token> (24h de validité).
   // Embarquée dans les boutons "Demander à ChatGPT/Claude" — l'IA suit le
   // lien et lit la transcription brute. Présente uniquement pour les past
   // calls liés à Notion ; absente sur les mocks et upcoming.

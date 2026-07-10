@@ -6,7 +6,7 @@
 // On retire ce paragraphe + le divider qui le suit éventuellement.
 //
 // Partagé entre la Server Action `getCallTranscriptionBlocks` (modale détail
-// onglet Transcript) et la route publique `/api/coaching/transcript/[token]`
+// onglet Transcript) et la route publique `/transcript/[token]`
 // (servie à ChatGPT/Claude).
 
 import type { NotionBlock } from "./blocks";

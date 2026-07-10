@@ -16,7 +16,7 @@
 //   return <ResourceView resource={access.resource} />; // content présent
 
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
-import { getCurrentUserCapabilities } from "@/modules/auth/server/capabilities";
+import { getCurrentUserCapabilities } from "@/shared/lib/auth/capabilities";
 import {
   VISIBILITY_TO_CAPABILITY,
   type ResourceVisibility,

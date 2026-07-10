@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           parent: { database_id: databaseId },
           // Le schéma réel de la base "ticket roadmap" jointe ne contient que
-          // ces 5 propriétés (Composant, Action, Feedback, User Agent, URL).
+          // ces 6 propriétés (Composant, Action, /End, Feedback, User Agent, URL).
           // Le titre de la page est laissé vide — Notion fallback sur le
           // contenu de Composant dans la vue grille.
           properties: {

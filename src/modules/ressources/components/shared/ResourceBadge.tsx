@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { BadgeWithDot } from '@/components/base/badges/badges';
-import type { BadgeColor } from '@/components/base/badges/badges';
+import { BadgeWithDot } from '@/shared/components/badges/Badges';
+import type { BadgeColor } from '@/shared/components/badges/Badges';
 
 type BadgeVariant = 'ressource' | 'template' | 'formation' | 'type' | 'neutral';
 
