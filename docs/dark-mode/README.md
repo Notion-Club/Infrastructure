@@ -2,6 +2,12 @@
 
 > Dernière mise à jour : 2026-05-24
 > Branche de référence : `claude/funny-johnson-LDm9e` → PR #67
+>
+> ⚠️ **Palette & architecture CSS : toujours valides et fidèles au code.**
+> En revanche, l'**inventaire nominatif des composants modifiés** (plus bas) est
+> un snapshot daté : plusieurs fichiers ont été renommés/refondus depuis
+> (coaching, formation, notifications), donc certains chemins cités n'existent
+> plus. Ne pas s'y fier pour localiser un composant — le code fait foi.
 
 ---
 

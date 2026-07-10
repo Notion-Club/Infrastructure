@@ -4,10 +4,14 @@ import { Resend } from "resend";
 import { createSupabaseAdminClient } from "@/shared/lib/supabase/admin";
 
 // Service d'envoi des emails de notification DM. Appelé par la route cron
-// /api/cron/send-dm-emails qui est elle-même triggée par Vercel Cron toutes
-// les 2 minutes. Tout est best-effort : un échec d'envoi loggue mais ne
-// fait pas planter le batch — la notif reste en "pending" et sera retentée
-// au prochain tick.
+// /api/cron/send-dm-emails, elle-même triggée par Vercel Cron une fois par jour
+// à 9h UTC (cf. vercel.json — le plan Hobby ne permet qu'un cron quotidien).
+// ⚠️ Le trigger DB (migration 030) planifie l'email à `now() + 2 min` comme
+// fenêtre de debounce (ne pas notifier si le DM est lu sous 2 min) ; mais avec
+// un tick quotidien, la latence réelle d'envoi va de ~0 à ~24h. À revoir si le
+// plan passe à un cron plus fréquent.
+// Tout est best-effort : un échec d'envoi loggue mais ne fait pas planter le
+// batch — la notif reste en "pending" et sera retentée au prochain tick.
 
 interface PendingNotification {
   id: string;
