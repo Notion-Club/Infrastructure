@@ -103,7 +103,7 @@ Logique : renvoie `TRUE` si l'user a **au moins une** membership active dont l'o
 
 ### Miroir runtime côté serveur
 
-`src/modules/auth/server/capabilities.ts` consomme cette RPC :
+`src/shared/lib/auth/capabilities.ts` consomme cette RPC :
 
 - `getCurrentUserCapabilities()` : résout `auth.getUser()` puis délègue à `getUserCapabilitiesById()`. Renvoie tout `false` si non authentifié.
 - `getUserCapabilitiesById(userId)` : appelle `supabase.rpc("get_user_capabilities", { p_user_id })`, puis **re-mappe explicitement les 8 clés** avec un `=== true` défensif et un repli sur `DEFAULT_USER_CAPABILITIES` par clé manquante. Ne throw jamais (best-effort serveur : log `console.error` + repli).
@@ -145,7 +145,7 @@ L'ajout d'une capability touche **5 emplacements** dans un ordre précis. En man
 2. **Whitelist de `user_has_capability()`** — recréer la fonction (`create or replace`) en ajoutant le nom à la liste `p_capability not in (...)`. Sans cette étape, tout check de la nouvelle capability lève `Capability inconnue`.
 3. **RPC `get_user_capabilities()`** — recréer la fonction en ajoutant la clé au `jsonb_build_object` (les deux : la branche `bool_or` et la branche de repli « tout false »).
 4. **Type TS `Capability`** — ajouter le littéral dans `src/shared/types/capabilities.ts`.
-5. **`DEFAULT_USER_CAPABILITIES`** + le re-mapping explicite de `getUserCapabilitiesById()` dans `src/modules/auth/server/capabilities.ts` — ajouter la clé (`can_xxx: false` puis `can_xxx: raw.can_xxx === true`).
+5. **`DEFAULT_USER_CAPABILITIES`** + le re-mapping explicite de `getUserCapabilitiesById()` dans `src/shared/lib/auth/capabilities.ts` — ajouter la clé (`can_xxx: false` puis `can_xxx: raw.can_xxx === true`).
 
 Si la capability sert au gating d'une ressource, mettre aussi à jour `VISIBILITY_TO_CAPABILITY` (TS), le seed `resources_access` et éventuellement la contrainte CHECK sur `required_capability` (migration).
 
