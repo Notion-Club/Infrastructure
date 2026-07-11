@@ -1,12 +1,12 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { getTemplateBySlug, getRelatedTemplates } from '@/modules/ressources/lib/fetch';
-import { mockCurrentUser } from '@/shared/lib/mock/current-user';
+import { getCurrentUserCapabilities } from '@/shared/lib/auth/capabilities';
+import { hasAccessToVisibility } from '@/shared/types/capabilities';
 import { ResourceBreadcrumb } from '@/modules/ressources/components/shared/ResourceBreadcrumb';
 import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBadge';
 import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
 import { TemplatePageFooter } from '@/modules/ressources/components/shared/TemplatePageFooter';
-import { canAccess } from '@/modules/ressources/lib/access';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -67,7 +67,8 @@ async function TemplateDetailContent({ slug }: { slug: string }) {
     notFound();
   }
 
-  const hasAccess = canAccess(mockCurrentUser.capability, template.visibilite);
+  const caps = await getCurrentUserCapabilities();
+  const hasAccess = hasAccessToVisibility(template.visibilite, caps);
   const relatedTemplates = getRelatedTemplates();
 
   return (
@@ -129,7 +130,7 @@ async function TemplateDetailContent({ slug }: { slug: string }) {
         template={template}
         hasAccess={hasAccess}
         relatedTemplates={relatedTemplates}
-        currentCapability={mockCurrentUser.capability}
+        caps={caps}
       />
     </>
   );

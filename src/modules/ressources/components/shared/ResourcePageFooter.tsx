@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import type { Resource, UserCapability } from '../../types';
+import type { Resource } from '../../types';
+import type { UserCapabilities } from '@/shared/types/capabilities';
 import { ResourceCard } from '../ResourceCard';
 
 const MONTHS_FR = [
@@ -15,12 +16,12 @@ function formatSeenDate(d: Date): string {
 
 interface ResourcePageFooterProps {
   relatedResources: Resource[];
-  currentCapability: UserCapability;
+  caps: UserCapabilities;
 }
 
 // TODO(backend): lire seenAt depuis Supabase (table user_resource_views,
 // colonnes user_id + resource_id + viewed_at) et persister le clic via upsert.
-export function ResourcePageFooter({ relatedResources, currentCapability }: ResourcePageFooterProps) {
+export function ResourcePageFooter({ relatedResources, caps }: ResourcePageFooterProps) {
   const [seenAt, setSeenAt] = useState<Date | null>(null);
   const seen = seenAt !== null;
   const hasRelated = relatedResources.length > 0;
@@ -91,7 +92,7 @@ export function ResourcePageFooter({ relatedResources, currentCapability }: Reso
             }}
           >
             {relatedResources.map((r) => (
-              <ResourceCard key={r.slug} resource={r} currentCapability={currentCapability} />
+              <ResourceCard key={r.slug} resource={r} caps={caps} />
             ))}
           </div>
         </div>

@@ -1,7 +1,8 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { getResourceBySlug, getRelatedResources } from '@/modules/ressources/lib/fetch';
-import { mockCurrentUser } from '@/shared/lib/mock/current-user';
+import { getCurrentUserCapabilities } from '@/shared/lib/auth/capabilities';
+import { hasAccessToVisibility } from '@/shared/types/capabilities';
 import { ResourceBreadcrumb } from '@/modules/ressources/components/shared/ResourceBreadcrumb';
 import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBadge';
 import { ResourceContentBody } from '@/modules/ressources/components/shared/ResourceContentBody';
@@ -73,6 +74,8 @@ async function ResourceDetailContent({ slug }: { slug: string }) {
     notFound();
   }
 
+  const caps = await getCurrentUserCapabilities();
+  const hasAccess = hasAccessToVisibility(resource.visibilite, caps);
   const relatedResources = getRelatedResources();
 
   return (
@@ -131,12 +134,12 @@ async function ResourceDetailContent({ slug }: { slug: string }) {
           ))}
         </div>
 
-        <ResourceContentBody resource={resource} />
+        <ResourceContentBody resource={resource} hasAccess={hasAccess} />
       </div>
 
       <ResourcePageFooter
         relatedResources={relatedResources}
-        currentCapability={mockCurrentUser.capability}
+        caps={caps}
       />
     </>
   );

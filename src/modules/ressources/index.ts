@@ -3,7 +3,6 @@ export type {
   ResourceFormation,
   ResourceMetierType,
   TemplateType,
-  UserCapability,
   NotionBlock,
   Resource,
   Template,
@@ -16,7 +15,8 @@ export type {
 export { getAllResourceItems, getResourceBySlug, getTemplateBySlug } from './lib/fetch';
 
 // API serveur recommandée : cache Supabase + gating server-side du content.
-// resolveResourceAccess remplace getResourceBySlug + canAccess(mockCurrentUser).
+// resolveResourceAccess est l'alternative "tout Supabase" à getResourceBySlug
+// (les pages utilisent aujourd'hui le fetch Notion direct + gating par capability).
 export {
   getAllResourceItems as getAllResourceItemsCached,
   resolveResourceAccess,

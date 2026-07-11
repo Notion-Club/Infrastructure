@@ -1,9 +1,13 @@
 import { Suspense } from 'react';
 import { ResourcesGrid } from '@/modules/ressources/components/ResourcesGrid';
 import { getAllResourceItems } from '@/modules/ressources/lib/fetch';
+import { getCurrentUserCapabilities } from '@/shared/lib/auth/capabilities';
 
 export default async function RessourcesPage() {
-  const items = await getAllResourceItems();
+  const [items, caps] = await Promise.all([
+    getAllResourceItems(),
+    getCurrentUserCapabilities(),
+  ]);
 
   return (
     <>
@@ -57,7 +61,7 @@ export default async function RessourcesPage() {
 
               {/* Grid */}
               <Suspense fallback={null}>
-                <ResourcesGrid items={items} />
+                <ResourcesGrid items={items} caps={caps} />
               </Suspense>
             </div>
           </div>

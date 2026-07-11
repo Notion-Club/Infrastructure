@@ -15,8 +15,7 @@ import { ResourceBadge } from '../shared/ResourceBadge';
 import { CapabilityLock } from '../shared/CapabilityLock';
 import { TellaEmbed } from '../shared/TellaEmbed';
 import { ResourceContentBody } from '../shared/ResourceContentBody';
-import { canAccess } from '../../lib/access';
-import { mockCurrentUser } from '@/shared/lib/mock/current-user';
+import { hasAccessToVisibility, type UserCapabilities } from '@/shared/types/capabilities';
 import { getResourceBody } from '../../server/getResourceBody';
 import type { Resource, Template, ResourceItem, NotionBlock } from '../../types';
 import { SPRING_EASING, SPRING_DURATION } from '../../lib/spring';
@@ -194,12 +193,13 @@ interface EncContentProps {
   visible: boolean;
   encRef?: React.Ref<HTMLDivElement>;
   encTitleRef?: React.Ref<HTMLHeadingElement>;
+  caps: UserCapabilities;
 }
-function EncContent({ item, body, startedEmpty, contentIn, reduced, visible, encRef, encTitleRef }: EncContentProps) {
+function EncContent({ item, body, startedEmpty, contentIn, reduced, visible, encRef, encTitleRef, caps }: EncContentProps) {
   const isResource = item.category === 'resource';
   const resource = isResource ? (item as Resource) : null;
   const template = isResource ? null : (item as Template);
-  const hasAccess = canAccess(mockCurrentUser.capability, item.visibilite);
+  const hasAccess = hasAccessToVisibility(item.visibilite, caps);
   const badgeVariant = isResource ? 'ressource' : 'template';
   const badgeLabel = isResource ? 'Ressource' : 'Template';
 
@@ -235,7 +235,7 @@ function EncContent({ item, body, startedEmpty, contentIn, reduced, visible, enc
                 : undefined
             }
           >
-            <ResourceContentBody resource={body ? { ...resource, content: body } : resource} />
+            <ResourceContentBody resource={body ? { ...resource, content: body } : resource} hasAccess={hasAccess} />
           </div>
         ))}
       {template && (
@@ -265,11 +265,13 @@ interface OverlayProps {
   items: ResourceItem[];
   /** Index de départ (item cliqué) dans `items`. */
   initialIndex: number;
+  /** Capabilities réelles du user (Supabase) — gating UX du lock + skip carrousel. */
+  caps: UserCapabilities;
   /** Appelé UNE fois l'animation de fermeture terminée → le provider démonte. */
   onClose: () => void;
 }
 
-export function ResourceMorphOverlay({ source, items, initialIndex, onClose }: OverlayProps) {
+export function ResourceMorphOverlay({ source, items, initialIndex, caps, onClose }: OverlayProps) {
   // Item COURANT — navigable au swipe (l'overlay ne se remonte jamais pendant la
   // session : seul `index` change).
   const [index, setIndex] = useState(initialIndex);
@@ -277,7 +279,7 @@ export function ResourceMorphOverlay({ source, items, initialIndex, onClose }: O
   const isResource = item.category === 'resource';
   const resource = isResource ? (item as Resource) : null;
   const template = isResource ? null : (item as Template);
-  const hasAccess = canAccess(mockCurrentUser.capability, item.visibilite);
+  const hasAccess = hasAccessToVisibility(item.visibilite, caps);
 
   const pageBgRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -323,7 +325,7 @@ export function ResourceMorphOverlay({ source, items, initialIndex, onClose }: O
   const ensureBody = useCallback(
     (it: ResourceItem | undefined) => {
       if (!it || it.category !== 'resource') return;
-      if (!canAccess(mockCurrentUser.capability, it.visibilite)) return; // verrouillé
+      if (!hasAccessToVisibility(it.visibilite, caps)) return; // verrouillé
       if (it.content.length > 0) return;
       if (bodyCache[it.slug]) return;
       if (inFlightRef.current.has(it.slug)) return;
@@ -334,7 +336,7 @@ export function ResourceMorphOverlay({ source, items, initialIndex, onClose }: O
         .catch(() => setBodyCache((c) => ({ ...c, [slug]: [] })))
         .finally(() => inFlightRef.current.delete(slug));
     },
-    [bodyCache],
+    [bodyCache, caps],
   );
 
   // Pré-charge courant + voisins à chaque changement d'index.
@@ -1120,6 +1122,7 @@ export function ResourceMorphOverlay({ source, items, initialIndex, onClose }: O
                 visible={interactive}
                 encRef={encRef}
                 encTitleRef={encTitleRef}
+                caps={caps}
               />
 
               {/* CROIX — ancrée en haut à droite de la CARTE (défile avec elle). */}
@@ -1173,6 +1176,7 @@ export function ResourceMorphOverlay({ source, items, initialIndex, onClose }: O
                     contentIn
                     reduced
                     visible
+                    caps={caps}
                   />
                   <div style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)', fontSize: 18, lineHeight: 1, pointerEvents: 'none' }}>
                     ✕

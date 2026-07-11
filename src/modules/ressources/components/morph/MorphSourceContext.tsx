@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { ResourceItem } from '../../types';
+import type { UserCapabilities } from '@/shared/types/capabilities';
 import { ResourceMorphOverlay } from './ResourceMorphOverlay';
 
 // Contrôleur du morph d'ouverture/fermeture des cartes de la grille (ressources
@@ -54,7 +55,13 @@ interface MorphCtx {
 
 const MorphContext = createContext<MorphCtx | null>(null);
 
-export function MorphSourceProvider({ children }: { children: ReactNode }) {
+export function MorphSourceProvider({
+  children,
+  caps,
+}: {
+  children: ReactNode;
+  caps: UserCapabilities;
+}) {
   const [session, setSession] = useState<MorphSession | null>(null);
   // Liste visible courante — ref (pas d'état) : la republier ne doit JAMAIS
   // re-render le provider ni remonter l'overlay.
@@ -93,6 +100,7 @@ export function MorphSourceProvider({ children }: { children: ReactNode }) {
           source={session.source}
           items={session.items}
           initialIndex={session.index}
+          caps={caps}
           onClose={handleClosed}
         />
       )}

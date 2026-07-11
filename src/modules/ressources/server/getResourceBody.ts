@@ -13,13 +13,14 @@
 // affiche alors le CapabilityLock via ResourceContentBody).
 
 import { getResourceBySlug } from '../lib/fetch';
-import { canAccess } from '../lib/access';
-import { mockCurrentUser } from '@/shared/lib/mock/current-user';
+import { getCurrentUserCapabilities } from '@/shared/lib/auth/capabilities';
+import { hasAccessToVisibility } from '@/shared/types/capabilities';
 import type { NotionBlock } from '../types';
 
 export async function getResourceBody(slug: string): Promise<NotionBlock[]> {
   const resource = await getResourceBySlug(slug);
   if (!resource) return [];
-  if (!canAccess(mockCurrentUser.capability, resource.visibilite)) return [];
+  const caps = await getCurrentUserCapabilities();
+  if (!hasAccessToVisibility(resource.visibilite, caps)) return [];
   return resource.content;
 }

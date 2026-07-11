@@ -1,4 +1,5 @@
-import type { Template, UserCapability } from '../../types';
+import type { Template } from '../../types';
+import type { UserCapabilities } from '@/shared/types/capabilities';
 import { TemplateCard } from '../TemplateCard';
 
 const NOTION_LOGO = 'https://res.cloudinary.com/dceobxyts/image/upload/v1776790487/Logo_Notion_fgou5g.png';
@@ -7,14 +8,14 @@ interface TemplatePageFooterProps {
   template: Template;
   hasAccess: boolean;
   relatedTemplates: Template[];
-  currentCapability: UserCapability;
+  caps: UserCapabilities;
 }
 
 export function TemplatePageFooter({
   template,
   hasAccess,
   relatedTemplates,
-  currentCapability,
+  caps,
 }: TemplatePageFooterProps) {
   const hasRelated = relatedTemplates.length > 0;
 
@@ -104,7 +105,7 @@ export function TemplatePageFooter({
             }}
           >
             {relatedTemplates.map((t) => (
-              <TemplateCard key={t.slug} template={t} currentCapability={currentCapability} />
+              <TemplateCard key={t.slug} template={t} caps={caps} />
             ))}
           </div>
         </div>

@@ -9,8 +9,11 @@ export type ResourceMetierType =
   | 'Rediffusion de Live';
 export type TemplateType = 'Pour les Consultants Notion' | 'Système Généraliste';
 
-export type UserCapability = 'challenge' | 'formation' | 'accompagnement';
-export type ResourceVisibility = 'Publique' | 'Challenge Gratuit' | 'Formation' | 'Accompagnement';
+// Visibilité d'une ressource = source de vérité partagée (mapping capability
+// dans @/shared/types/capabilities). Ré-exportée ici pour les consommateurs du
+// module qui importent depuis `../types`.
+import type { ResourceVisibility } from '@/shared/types/capabilities';
+export type { ResourceVisibility };
 
 // Le corps des ressources est désormais l'arbre normalisé du routeur Notion
 // unifié (rich text + annotations complètes, tous types de blocs supportés),

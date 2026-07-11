@@ -2,18 +2,18 @@
 
 import { useRef } from 'react';
 import { Lock } from 'lucide-react';
-import type { Resource, UserCapability } from '../types';
-import { canAccess } from '../lib/access';
+import type { Resource } from '../types';
+import { hasAccessToVisibility, type UserCapabilities } from '@/shared/types/capabilities';
 import { ResourceBadge } from './shared/ResourceBadge';
 import { useMorph } from './morph/MorphSourceContext';
 
 interface ResourceCardProps {
   resource: Resource;
-  currentCapability: UserCapability;
+  caps: UserCapabilities;
 }
 
-export function ResourceCard({ resource, currentCapability }: ResourceCardProps) {
-  const isLocked = !canAccess(currentCapability, resource.visibilite);
+export function ResourceCard({ resource, caps }: ResourceCardProps) {
+  const isLocked = !hasAccessToVisibility(resource.visibilite, caps);
   const { open } = useMorph();
   const cardRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);

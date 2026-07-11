@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Search, ListFilter, X } from 'lucide-react';
-import type { ResourceItem, ResourceMetierType, UserCapability, NotionBlock } from '../types';
-import { mockCurrentUser } from '@/shared/lib/mock/current-user';
+import type { ResourceItem, ResourceMetierType, NotionBlock } from '../types';
+import type { UserCapabilities } from '@/shared/types/capabilities';
 import { ResourceCard } from './ResourceCard';
 import { TemplateCard } from './TemplateCard';
 import { SuggestTemplateCard } from './SuggestTemplateCard';
@@ -37,6 +37,7 @@ const METIER_TYPES: ResourceMetierType[] = [
 
 interface ResourcesGridProps {
   items: ResourceItem[];
+  caps: UserCapabilities;
 }
 
 /** Filtre catégorie + type métier (hors recherche texte). Logique pure, partagée
@@ -72,7 +73,7 @@ function extractSearchText(item: ResourceItem): string {
   return `${base} ${contentText}`.toLowerCase();
 }
 
-export function ResourcesGrid({ items }: ResourcesGridProps) {
+export function ResourcesGrid({ items, caps }: ResourcesGridProps) {
   const searchParams = useSearchParams();
   const catParam = searchParams.get('cat');
   const typeParam = searchParams.get('type');
@@ -107,7 +108,6 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
   const { animateTo, reveal } = useGridChoreography(gridRef);
   const { registerItems } = useMorph();
 
-  const currentCapability: UserCapability = mockCurrentUser.capability;
   const { theme } = useTheme();
 
   /** Ensemble des slugs visibles pour un état (recherche + filtres) donné.
@@ -703,9 +703,9 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
         {items.map((item) => (
           <div key={item.slug} className="nc-grid-card" data-card-id={item.slug} data-cat={item.category}>
             {item.category === 'resource' ? (
-              <ResourceCard resource={item} currentCapability={currentCapability} />
+              <ResourceCard resource={item} caps={caps} />
             ) : (
-              <TemplateCard template={item} currentCapability={currentCapability} />
+              <TemplateCard template={item} caps={caps} />
             )}
           </div>
         ))}

@@ -3,16 +3,15 @@
 // SOURCE UNIQUE partagée par l'overlay de morph et la vraie page détail → la
 // logique d'accès et le rendu du corps ne peuvent plus diverger. Fonction pure
 // (pas de hook, pas de dépendance serveur) → utilisable serveur ET client.
+// L'accès (`hasAccess`) est calculé par l'appelant à partir des vraies
+// capabilities Supabase (page serveur : getCurrentUserCapabilities ; overlay
+// client : caps passées en prop) — jamais recalculé ici.
 
-import { canAccess } from '../../lib/access';
-import { mockCurrentUser } from '@/shared/lib/mock/current-user';
 import { CapabilityLock } from './CapabilityLock';
 import { NotionRenderer } from '@/shared/components/notion/NotionRenderer';
 import type { Resource } from '../../types';
 
-export function ResourceContentBody({ resource }: { resource: Resource }) {
-  const hasAccess = canAccess(mockCurrentUser.capability, resource.visibilite);
-
+export function ResourceContentBody({ resource, hasAccess }: { resource: Resource; hasAccess: boolean }) {
   return (
     <>
       <hr style={{ border: 'none', borderTop: '1px solid var(--color-border-default)', margin: '28px 0' }} />
