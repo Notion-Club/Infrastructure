@@ -235,7 +235,9 @@ partagé avec Formation / Coaching.
   source de rendu app-wide ; ne pas réintroduire de renderer local.
 - `shared/ResourceContentBody.tsx` — corps d'une ressource : séparateur +
   `<NotionRenderer blocks={resource.content} />` **ou** `CapabilityLock` selon
-  `canAccess`. Garde contenu-vide : si `resource.content` est vide (l'overlay le
+  la prop `hasAccess` (calculée par l'appelant à partir des vraies capabilities
+  Supabase — cf. `docs/ressources/README.md`). Garde contenu-vide : si
+  `resource.content` est vide (l'overlay le
   réutilise avec une ressource issue de la LISTE, body non chargé), rend un
   wrapper vide plutôt que le message « pas de corps » — parité exacte avec
   l'ancien `[].map(renderBlock)`.

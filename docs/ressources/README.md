@@ -29,8 +29,8 @@ droit de voir quoi ») est porté par les capabilities Supabase.
 ```
 src/modules/ressources/
   index.ts                     ← barrel d'exports du module
-  types.ts                     ← Resource | Template | ResourceItem, UserCapability,
-                                 ResourceVisibility, NotionBlock
+  types.ts                     ← Resource | Template | ResourceItem, NotionBlock
+                                 (ResourceVisibility ré-exporté de @/shared/types/capabilities)
   components/
     ResourcesGrid.tsx          ← grille (filtres/recherche) + registerItems (morph)
     ResourceCard.tsx           ← carte ressource (clic → open() du morph)
@@ -47,10 +47,8 @@ src/modules/ressources/
     queries.ts                 ← lecture Supabase + gating server-side
     getResourceBody.ts         ← Server Action : corps d'une ressource (overlay)
   lib/
-    access.ts                  ← canAccess() — gating par rang (client / mock)
     notion.ts                  ← client Notion (fetchResources / …BySlug / …Templates)
-    fetch.ts                   ← accès Notion direct (ISR) — chemin actuel des pages
-    mock-data.ts               ← données de démo (lab / e2e)
+    fetch.ts                   ← accès Notion direct — chemin actuel des pages
     spring.ts                  ← courbe ressort du morph
 ```
 
@@ -105,28 +103,38 @@ uniquement en interne par `sync.ts`).
 
 ## Gating par capability
 
-Deux niveaux, à ne pas confondre.
+Le gating repose sur les **vraies capabilities Supabase** du user courant — plus
+de mock (l'ancien `lib/access.ts` + `mockCurrentUser` a été retiré).
 
-### 1. Gating par rang — `lib/access.ts` (`canAccess`)
+### Le check unique — `hasAccessToVisibility(visibilite, caps)`
 
-Comparaison de **rangs** entre la capability de l'utilisateur et la visibilité
-de l'item :
+Une seule fonction, pure et partagée, dans `src/shared/types/capabilities.ts` :
 
 ```ts
-canAccess(capability: UserCapability, visibilite: ResourceVisibility): boolean
-// CAPABILITY_RANK : challenge 0 · formation 1 · accompagnement 2
-// VISIBILITY_RANK : Publique -1 · Challenge Gratuit 0 · Formation 1 · Accompagnement 2
-// → true si CAPABILITY_RANK[capability] >= VISIBILITY_RANK[visibilite]
+hasAccessToVisibility(visibility: ResourceVisibility, caps: UserCapabilities): boolean
+// → true si VISIBILITY_TO_CAPABILITY[visibility] === null (public),
+//   ou si caps[required] === true.
 ```
 
-C'est le gating **effectif au runtime aujourd'hui** : il est appelé avec
-`mockCurrentUser.capability` dans `ResourceContentBody`, `getResourceBody`,
-l'overlay de morph et la page template. Purement client/mock — l'auth réelle
-n'est pas encore branchée.
+Les vraies capabilities viennent de `getCurrentUserCapabilities()`
+(`@/shared/lib/auth/capabilities.ts`, RPC Supabase `get_user_capabilities`),
+appelé **côté serveur** aux points d'entrée :
 
-### 2. Gating server-side — `VISIBILITY_TO_CAPABILITY` + `resources_access`
+- **pages serveur** (`ressources/page.tsx`, `ressource/[slug]`, `template/[slug]`,
+  `layout.tsx` pour l'overlay) : résolvent `caps` puis les passent en prop
+  (objet booléen sérialisable) aux composants client (`ResourcesGrid`, cartes,
+  overlay) et calculent `hasAccess` pour `ResourceContentBody` / footers ;
+- **`getResourceBody`** (Server Action) : re-résout `caps` et **renvoie `[]`** si
+  l'accès n'est pas accordé → le contenu payant ne quitte jamais le serveur.
 
-Le mapping canonique visibilité → capability vit dans
+> Conséquence : les pages ressources sont en **rendu dynamique** (`ƒ`) — un
+> gating par user interdit la mise en cache statique. La **source de données**
+> reste Notion direct (`lib/fetch.ts`) ; seul l'**input du gating** est passé du
+> mock aux vraies capabilities.
+
+### Le mapping canonique — `VISIBILITY_TO_CAPABILITY` + `resources_access`
+
+Le mapping visibilité → capability vit dans
 `src/shared/types/capabilities.ts` :
 
 | Visibilité (Notion) | Capability requise |
@@ -182,7 +190,8 @@ s'ouvre instantanément avec le header (déjà en mémoire) puis charge le corps
 getResourceBody(slug): Promise<NotionBlock[]>
 ```
 
-Recharge la ressource (`getResourceBySlug`), applique `canAccess(...)` et
+Recharge la ressource (`getResourceBySlug`), résout les vraies capabilities
+(`getCurrentUserCapabilities`), applique `hasAccessToVisibility(...)` et
 **renvoie `[]` si l'accès n'est pas accordé** (l'overlay affiche alors le
 `CapabilityLock`). Même source que la page détail → rendu identique.
 
@@ -199,16 +208,16 @@ Toutes sous `src/app/(app)/ressources/` (donc derrière l'auth du groupe
 | `page.tsx` | Index : header + `<ResourcesGrid items={…} />`. |
 | `loading.tsx` | Skeleton de la grille. |
 | `ressource/[slug]/page.tsx` | Page détail ressource (accès direct / refresh / cmd-clic). Skeleton + `ResourceContentBody`. |
-| `ressource/[slug]/MarkAsSeenButton.tsx` | Action « marquer comme vu ». |
 | `template/[slug]/page.tsx` | Page détail template (embed Tella + footer). |
 
 > **Câblage actuel des données** : `page.tsx` et les pages `[slug]` importent
-> encore `getAllResourceItems` / `getResourceBySlug` depuis **`lib/fetch.ts`**
-> (accès Notion direct via ISR), pas depuis `server/queries.ts` (Supabase). Le
-> couple `sync.ts` + `queries.ts` + migration 031 constitue le chemin Supabase
-> **prêt mais pas encore branché** sur les pages ; le gating runtime passe donc
-> par `access.ts` + `mockCurrentUser`. Basculer les pages sur `queries.ts` est
-> le point de bascule vers l'auth réelle.
+> `getAllResourceItems` / `getResourceBySlug` depuis **`lib/fetch.ts`** (accès
+> Notion direct), pas depuis `server/queries.ts` (Supabase). Le **gating**, lui,
+> est déjà branché sur les vraies capabilities Supabase (cf. section Gating).
+> Le couple `sync.ts` + `queries.ts` + migration 031 constitue le chemin
+> **données** Supabase (cache + RLS), prêt mais pas encore branché sur les pages :
+> le basculer (`resolveResourceAccess` / `getAllResourceItemsCached`) reste une
+> évolution possible pour économiser les appels Notion.
 
 ---
 
