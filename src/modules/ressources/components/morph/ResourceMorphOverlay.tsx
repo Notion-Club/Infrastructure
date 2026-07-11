@@ -18,7 +18,8 @@ import { ResourceContentBody } from '../shared/ResourceContentBody';
 import { hasAccessToVisibility, type UserCapabilities } from '@/shared/types/capabilities';
 import { getResourceBody } from '../../server/getResourceBody';
 import type { Resource, Template, ResourceItem, NotionBlock } from '../../types';
-import { SPRING_EASING, SPRING_DURATION } from '../../lib/spring';
+import { SPRING_EASING, SPRING_DURATION } from '@/shared/lib/motion/spring';
+import { formatLongDateFr } from '@/shared/lib/date';
 import type { MorphSource } from './MorphSourceContext';
 
 // Morph WAAPI (mécanique validée au lab v9) — surface clippée qui morphe (coins
@@ -85,11 +86,6 @@ const V_CLOSE_DISTANCE = 100; // px de pull vertical pour déclencher la fermetu
 const V_CLOSE_VELOCITY = 0.5; // px/ms — vélocité de « flick » vertical
 const EDGE_RESIST = 0.35; // résistance élastique (bornes horizontales + pull)
 
-const MONTHS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()} ${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
-}
 
 // Bouton « Dupliquer ce template » — inline pour respecter l'isolation modules
 // (le composant d'origine vit sous src/app/, hors périmètre importable).
@@ -207,7 +203,7 @@ function EncContent({ item, body, startedEmpty, contentIn, reduced, visible, enc
     <div ref={encRef} style={{ padding: 32, opacity: visible ? 1 : 0, willChange: 'opacity' }}>
       <h1 ref={encTitleRef} style={{ ...H1_STYLE, opacity: visible ? 1 : 0, marginBottom: 16 }}>{item.titre}</h1>
       <p style={{ fontSize: 16, color: 'var(--color-text-secondary)', margin: '0 0 16px', lineHeight: 1.6 }}>{item.description}</p>
-      <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 16 }}>{formatDate(item.dateCreation)}</div>
+      <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 16 }}>{formatLongDateFr(item.dateCreation)}</div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <ResourceBadge variant={badgeVariant} label={badgeLabel} />
         {resource?.formation?.map((f) => <ResourceBadge key={f} variant="formation" label={f} />)}

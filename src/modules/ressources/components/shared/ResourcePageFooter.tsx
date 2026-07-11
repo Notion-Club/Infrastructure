@@ -3,16 +3,8 @@
 import { useState } from 'react';
 import type { Resource } from '../../types';
 import type { UserCapabilities } from '@/shared/types/capabilities';
+import { formatLongDateFr } from '@/shared/lib/date';
 import { ResourceCard } from '../ResourceCard';
-
-const MONTHS_FR = [
-  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
-];
-
-function formatSeenDate(d: Date): string {
-  return `${d.getDate()} ${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
-}
 
 interface ResourcePageFooterProps {
   relatedResources: Resource[];
@@ -63,7 +55,7 @@ export function ResourcePageFooter({ relatedResources, caps }: ResourcePageFoote
         }}
       >
         {seen && seenAt
-          ? `Vu le ${formatSeenDate(seenAt)}`
+          ? `Vu le ${formatLongDateFr(seenAt)}`
           : 'Marquer comme vue ✓'}
       </button>
 

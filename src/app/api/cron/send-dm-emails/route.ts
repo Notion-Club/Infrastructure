@@ -12,15 +12,14 @@
 // reprises au prochain tick (le lendemain à 9h).
 import { NextRequest, NextResponse } from "next/server";
 import { processDmEmailQueue } from "@/modules/community/server/dm-email";
+import { isCronRequest } from "@/shared/lib/auth/cron";
 
 function isAuthorized(request: NextRequest): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  const auth = request.headers.get("authorization");
-  if (cronSecret && auth === `Bearer ${cronSecret}`) return true;
-  // Vercel Cron : ce header est injecté par l'infra et inforgeable côté
-  // public (Vercel le strip des requêtes externes).
-  if (request.headers.get("x-vercel-cron") === "1") return true;
-  return false;
+  // Secret machine partagé…
+  if (isCronRequest(request)) return true;
+  // …ou header Vercel Cron : injecté par l'infra et inforgeable côté public
+  // (Vercel le strip des requêtes externes).
+  return request.headers.get("x-vercel-cron") === "1";
 }
 
 export async function GET(request: NextRequest) {

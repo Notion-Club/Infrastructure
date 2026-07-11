@@ -1,10 +1,14 @@
 // Easing — ressort CRITIQUE (ζ = 1), généré par PHYSIQUE, pas inventé.
 //
+// Source unique partagée par les moteurs de morph (ressources ET community) —
+// avant, cette courbe était copiée verbatim dans chaque module à cause de la
+// règle d'isolation ; elle vit désormais dans @/shared, que tout module peut
+// importer.
+//
 // Réponse indicielle d'un ressort critiquement amorti : décélération douce et
 // MONOTONE, ZÉRO overshoot → l'élément ne « rebondit » jamais et se cale net sur
-// sa cible (cf. retour : « ça ne doit plus bouger une fois la cible atteinte »).
-// Échantillonné en `linear()` à la manière du linear-easing-generator de Jake
-// Archibald → https://linear-easing-generator.netlify.app
+// sa cible. Échantillonné en `linear()` à la manière du linear-easing-generator
+// de Jake Archibald → https://linear-easing-generator.netlify.app
 //
 //   x(t) = 1 − e^(−ωₙt)·(1 + ωₙt),   ωₙ = 16 rad/s
 //   stabilisation ≈ 482 ms → durée du morph.
@@ -18,8 +22,3 @@ export const SPRING_EASING =
   '0.9791 75%, 0.9841 79.2%, 0.988 83.3%, 0.9909 87.5%, 0.9931 91.7%, 0.9948 95.8%, 1 100%)';
 
 export const SPRING_DURATION = 482;
-
-// Sortie de contenu = ease-OUT franc (disparaît vite puis s'efface en douceur,
-// « discrètement ») ; entrée = ease-out symétrique.
-export const FADE_OUT_EASING = 'cubic-bezier(0.4, 0, 1, 1)';
-export const FADE_IN_EASING = 'cubic-bezier(0, 0, 0.2, 1)';

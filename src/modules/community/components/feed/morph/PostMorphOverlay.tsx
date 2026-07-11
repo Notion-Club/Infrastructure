@@ -36,7 +36,7 @@ import {
   togglePostReactionAction,
   updatePostAction,
 } from "../../../server/actions";
-import { SPRING_EASING, SPRING_DURATION } from "../../../lib/spring";
+import { SPRING_EASING, SPRING_DURATION } from "@/shared/lib/motion/spring";
 import type { PostMorphSource } from "./PostMorphContext";
 
 // Morph WAAPI (mécanique validée au lab morph du module Ressources, dupliquée

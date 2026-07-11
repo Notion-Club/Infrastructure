@@ -37,7 +37,9 @@ src/modules/ressources/components/
     ResourceContentBody.tsx  ← corps ressource (accès + NotionRenderer/verrou) — SOURCE UNIQUE
   ResourceCard.tsx           ← carte ressource : clic → open() en place
   TemplateCard.tsx           ← carte template : clic → open() en place
-  lib/spring.ts              ← courbe ressort `linear()` + durées + easings fade
+
+src/shared/lib/motion/
+  spring.ts                  ← courbe ressort `linear()` + durée (partagé avec community)
 
 src/shared/components/notion/
   NotionRenderer.tsx         ← rendu Notion UNIFIÉ (app-wide) — importé par ResourceContentBody

@@ -29,8 +29,9 @@ mentions, réactions) ouvert **en overlay morph** (plus de navigation), et une
   `mocks/*.mock.ts` ne servent plus qu'aux tests / au design de référence.
 - **Règle d'isolation ESLint** (CONVENTIONS.md) : le module n'importe que son
   propre code, `@/shared/*` ou des packages npm — jamais un autre module. C'est
-  pourquoi le mécanisme morph et la courbe ressort sont **dupliqués** ici
-  (repris du module Ressources) plutôt qu'importés (`lib/spring.ts`, `feed/morph/`).
+  pourquoi le **mécanisme morph** (`feed/morph/`) reste dupliqué du module
+  Ressources. La **courbe ressort**, elle, a été factorisée : elle vit désormais
+  dans `@/shared/lib/motion/spring` (importée par les deux modules).
 
 ### Arborescence réelle du module
 
@@ -167,8 +168,8 @@ en portail** : la carte « morphe » vers un encadré développé, sans quitter 
   - **z-index** : root overlay `4000`, sous les modales du module (édition /
     suppression `9999`, lightbox `9998`, feuille de réactions `5000`) pour
     qu'elles s'empilent au-dessus.
-- **`lib/spring.ts`** — easing **ressort critiquement amorti** (ζ = 1,
-  ωₙ = 16 rad/s), échantillonné en `linear()`, **zéro overshoot**.
+- **`@/shared/lib/motion/spring`** — easing **ressort critiquement amorti** (ζ = 1,
+  ωₙ = 16 rad/s), échantillonné en `linear()`, **zéro overshoot** (partagé avec Ressources).
   `SPRING_EASING` (courbe) + `SPRING_DURATION = 482` (ms, ≈ temps de
   stabilisation). Copie autonome de la courbe validée au lab morph Ressources
   (isolation modules).
@@ -396,7 +397,7 @@ Cette section documente les briques structurantes du module (migrations
   guards `@media (prefers-reduced-motion: reduce)` — le morph a un chemin
   `prefersReduced()` dédié (pose l'état final sans animer).
 - **Morph = WAAPI + ressort critique.** `element.animate` (pas de lib), courbe
-  `linear()` ζ = 1 sans overshoot (`lib/spring.ts`). Surface `fixed` pendant
+  `linear()` ζ = 1 sans overshoot (`@/shared/lib/motion/spring`). Surface `fixed` pendant
   l'anim puis relâchée en flux → scroll document (pas interne), croix fixe.
   Mécanique dupliquée du module Ressources (isolation).
 - **Realtime : Broadcast > `postgres_changes` pour les DM.** Canal privé par

@@ -7,19 +7,10 @@ import { ResourceBreadcrumb } from '@/modules/ressources/components/shared/Resou
 import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBadge';
 import { TellaEmbed } from '@/modules/ressources/components/shared/TellaEmbed';
 import { TemplatePageFooter } from '@/modules/ressources/components/shared/TemplatePageFooter';
+import { formatLongDateFr } from '@/shared/lib/date';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-}
-
-const MONTHS_FR = [
-  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
-];
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()} ${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 const encadreStyle: React.CSSProperties = {
@@ -113,7 +104,7 @@ async function TemplateDetailContent({ slug }: { slug: string }) {
               marginBottom: 16,
             }}
           >
-            {formatDate(template.dateCreation)}
+            {formatLongDateFr(template.dateCreation)}
           </div>
           <div data-fb-label="Badges méta · Page template" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: template.urlTella ? 24 : 0 }}>
             <ResourceBadge variant="template" label="Template" />

@@ -7,19 +7,10 @@ import { ResourceBreadcrumb } from '@/modules/ressources/components/shared/Resou
 import { ResourceBadge } from '@/modules/ressources/components/shared/ResourceBadge';
 import { ResourceContentBody } from '@/modules/ressources/components/shared/ResourceContentBody';
 import { ResourcePageFooter } from '@/modules/ressources/components/shared/ResourcePageFooter';
+import { formatLongDateFr } from '@/shared/lib/date';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-}
-
-const MONTHS_FR = [
-  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
-];
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()} ${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 // Encadré : même fond + bordure que la carte, radius 24px. La transition
@@ -122,7 +113,7 @@ async function ResourceDetailContent({ slug }: { slug: string }) {
             marginBottom: 16,
           }}
         >
-          {formatDate(resource.dateCreation)}
+          {formatLongDateFr(resource.dateCreation)}
         </div>
         <div data-fb-label="Badges méta · Page ressource" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <ResourceBadge variant="ressource" label="Ressource" />

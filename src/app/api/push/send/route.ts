@@ -19,6 +19,7 @@ import { z } from "zod";
 
 import { sendWebPushToUser } from "@/shared/lib/push/webPush";
 import { createAdminPushNotifications } from "@/shared/lib/push/inAppNotification";
+import { isCronRequest } from "@/shared/lib/auth/cron";
 
 const sendSchema = z.object({
   userId: z.string().uuid(),
@@ -28,14 +29,8 @@ const sendSchema = z.object({
   tag: z.string().max(80).optional(),
 });
 
-function isAuthorized(request: NextRequest): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  const auth = request.headers.get("authorization");
-  return Boolean(cronSecret) && auth === `Bearer ${cronSecret}`;
-}
-
 export async function POST(request: NextRequest) {
-  if (!isAuthorized(request)) {
+  if (!isCronRequest(request)) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
   }
 
