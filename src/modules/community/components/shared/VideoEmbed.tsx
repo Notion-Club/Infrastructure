@@ -48,11 +48,21 @@ function Iframe({ src, eager = false }: { src: string; eager?: boolean }) {
   );
 }
 
-// Icône « play » (triangle plein), légèrement décalée à droite pour un centrage
-// optique dans le rond.
+// Icône « play » (triangle plein). Le triangle est déjà centré dans son viewBox
+// (centroïde ≈ 12,12). `display: block` supprime le décalage de baseline de
+// l'inline-SVG (source d'un léger désaxage vertical dans le flex) ; un petit
+// `translateX` compense OPTIQUEMENT le bord gauche large du triangle → centrage
+// perçu parfait dans le rond (l'ancien `marginLeft: 3` sur-corrigeait).
 function PlayGlyph() {
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" aria-hidden="true" style={{ marginLeft: 3 }}>
+    <svg
+      width="26"
+      height="26"
+      viewBox="0 0 24 24"
+      fill="#fff"
+      aria-hidden="true"
+      style={{ display: "block", transform: "translateX(1.5px)" }}
+    >
       <path d="M8 5.14v13.72c0 .83.91 1.34 1.62.9l10.94-6.86c.67-.42.67-1.38 0-1.8L9.62 4.24C8.91 3.8 8 4.31 8 5.14Z" />
     </svg>
   );

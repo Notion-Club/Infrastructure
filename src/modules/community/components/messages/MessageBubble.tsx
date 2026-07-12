@@ -55,9 +55,9 @@ function MessageBubbleInner({
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // ── Swipe-to-reply (tactile, style WhatsApp) ───────────────────────────────
-  // On glisse le message vers la GAUCHE ; passé le seuil au relâchement, on
-  // déclenche la réponse citée. Souris ignorée (le hover toolbar suffit sur
-  // desktop). `dragX` (négatif) pilote la translation + l'apparition de l'icône.
+  // On glisse le message vers la DROITE (gauche → droite) ; passé le seuil au
+  // relâchement, on déclenche la réponse citée. Souris ignorée (le hover toolbar
+  // suffit sur desktop). `dragX` (positif) pilote la translation + l'icône.
   const SWIPE_THRESHOLD = 56;
   const [dragX, setDragX] = useState(0);
   const dragXRef = useRef(0);
@@ -173,9 +173,10 @@ function MessageBubbleInner({
     const dx = e.clientX - start.x;
     const dy = e.clientY - start.y;
     if (!draggingRef.current) {
-      // On n'engage le swipe QUE s'il est franchement horizontal-gauche ;
-      // un mouvement vertical laisse le scroll natif reprendre la main.
-      if (dx < -8 && Math.abs(dx) > Math.abs(dy)) {
+      // On n'engage le swipe QUE s'il est franchement horizontal vers la DROITE
+      // (gauche → droite, comme WhatsApp) ; un mouvement vertical laisse le
+      // scroll natif reprendre la main.
+      if (dx > 8 && Math.abs(dx) > Math.abs(dy)) {
         draggingRef.current = true;
         e.currentTarget.setPointerCapture?.(e.pointerId);
       } else if (Math.abs(dy) > 10) {
@@ -185,7 +186,7 @@ function MessageBubbleInner({
         return;
       }
     }
-    const clamped = Math.max(-90, Math.min(0, dx));
+    const clamped = Math.min(90, Math.max(0, dx));
     dragXRef.current = clamped;
     setDragX(clamped);
   }
@@ -194,7 +195,7 @@ function MessageBubbleInner({
     dragStartRef.current = null;
     draggingRef.current = false;
     // Passé le seuil → on ouvre la réponse citée ; puis retour animé à 0.
-    if (wasDragging && dragXRef.current <= -SWIPE_THRESHOLD) {
+    if (wasDragging && dragXRef.current >= SWIPE_THRESHOLD) {
       onReply(message);
     }
     dragXRef.current = 0;
@@ -305,17 +306,17 @@ function MessageBubbleInner({
           touchAction: "pan-y",
         }}
       >
-        {/* Indicateur swipe-to-reply : icône de réponse révélée à droite au fur
-            et à mesure du glissement vers la gauche (style WhatsApp). */}
-        {dragX < 0 && (
+        {/* Indicateur swipe-to-reply : icône de réponse révélée à GAUCHE au fur
+            et à mesure du glissement vers la droite (style WhatsApp). */}
+        {dragX > 0 && (
           <div
             aria-hidden
             style={{
               position: "absolute",
-              right: -34,
+              left: -34,
               top: "50%",
-              transform: `translateY(-50%) scale(${0.6 + 0.4 * Math.min(1, -dragX / SWIPE_THRESHOLD)})`,
-              opacity: Math.min(1, -dragX / SWIPE_THRESHOLD),
+              transform: `translateY(-50%) scale(${0.6 + 0.4 * Math.min(1, dragX / SWIPE_THRESHOLD)})`,
+              opacity: Math.min(1, dragX / SWIPE_THRESHOLD),
               color: "var(--color-brand)",
               display: "flex",
               alignItems: "center",
@@ -606,24 +607,20 @@ function MessageBubbleInner({
         </div>
       </div>
 
-      {/* Toolbar hover — OVERLAY absolu flottant JUSTE AU-DESSUS de la bulle,
-          HORS du flux : son apparition ne pousse plus les pastilles/timestamp
-          ni les bulles suivantes (fin de l'effet « tout tremble » au survol).
-          `paddingBottom` = pont de survol : la zone reste contiguë de la bulle
-          jusqu'à la toolbar (pas de trou qui couperait le hover). L'entrée est
-          animée par .nc-mode-in (déjà sur la racine de MessageToolbar). */}
+      {/* Toolbar hover — OVERLAY absolu flottant À CÔTÉ de la bulle (et non plus
+          au-dessus), hors du flux : message REÇU → barre à DROITE ; message
+          ENVOYÉ → barre à GAUCHE. Verticalement centrée sur la bulle. Le padding
+          latéral côté bulle sert de PONT DE SURVOL (zone contiguë bulle ↔ barre,
+          pas de trou qui couperait le hover). Entrée animée par .nc-mode-in. */}
       {(showToolbar || isThisLocked) && !editing && !isPending && (
         <div
           style={{
             position: "absolute",
-            bottom: "100%",
-            // Ancré à UN seul côté (celui du hover) et dimensionné à SON contenu.
-            // Avant : `left:0; right:0` étirait le conteneur à la largeur de la
-            // bulle → sur un message court, la barre (flex) était contrainte /
-            // rognée en largeur (« se coupe dans sa longueur »). En n'ancrant
-            // qu'un côté, la barre garde toujours sa largeur naturelle.
-            [isSelf ? "right" : "left"]: 0,
-            paddingBottom: 6,
+            top: "50%",
+            transform: "translateY(-50%)",
+            // À droite de la bulle pour un message reçu, à gauche pour un envoyé.
+            [isSelf ? "right" : "left"]: "100%",
+            [isSelf ? "paddingRight" : "paddingLeft"]: 6,
             zIndex: 3,
           }}
         >

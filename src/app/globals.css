@@ -2396,6 +2396,25 @@ html {
 }
 
 /* ──────────────────────────────────────────────────────────────
+   RÈGLE RACINE — item de menu / dropdown avec HOVER fiable.
+   Le fond de base (transparent) est posé par la CLASSE, jamais en style inline :
+   un `background: transparent` inline l'emporterait sur la règle `:hover`
+   (spécificité) et tuerait le survol. À poser sur TOUS les items de dropdown
+   (menu ⋅⋅⋅ du feed, menu des messages privés, etc.). Variante `--danger` pour
+   les actions destructives (Supprimer).
+   ────────────────────────────────────────────────────────────── */
+.nc-menu-item {
+  background: transparent;
+  transition: background 150ms var(--nc-ease);
+}
+.nc-menu-item:hover {
+  background: var(--nc-nav-hover-bg);
+}
+.nc-menu-item--danger:hover {
+  background: rgba(224, 98, 90, 0.12);
+}
+
+/* ──────────────────────────────────────────────────────────────
    Modale Paiements — carte à 2 pages (liste ↔ détail facture) qui se
    redimensionne. La carte n'a PAS de padding : chaque page gère le sien.
    ────────────────────────────────────────────────────────────── */

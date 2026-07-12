@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, type ReactNode } from "react";
+import { useRef, useEffect, type ReactNode } from "react";
 import { MoreHorizontal, Pencil, PinOff, Link as LinkIcon } from "lucide-react";
 import { PinFill, Trash } from "@/shared/components/icons";
 import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
@@ -41,16 +41,13 @@ function MenuItem({
   onClick: () => void;
   danger?: boolean;
 }) {
-  const [hovered, setHovered] = useState(false);
-  const hoverBg = danger
-    ? "rgba(224,98,90,0.12)"
-    : "var(--nc-nav-hover-bg)";
+  // Hover via la règle racine `.nc-menu-item` (CSS fiable) — plus de state JS,
+  // partagé avec le menu des messages privés. Cf. globals.css.
   return (
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className={`nc-menu-item${danger ? " nc-menu-item--danger" : ""}`}
       style={{
         width: "100%",
         display: "flex",
@@ -59,12 +56,10 @@ function MenuItem({
         padding: "8px 10px",
         fontSize: 14,
         color: danger ? "#e0625a" : "var(--color-text-primary)",
-        background: hovered ? hoverBg : "transparent",
         border: "none",
         borderRadius: 8,
         cursor: "pointer",
         textAlign: "left",
-        transition: "background var(--nc-duration-xfast) var(--nc-ease)",
       }}
     >
       {icon}
