@@ -1,12 +1,11 @@
 "use client";
 
 import { memo, useEffect, useRef, useState, useTransition } from "react";
-import { FileText, Forward, Pencil, Check, X } from "lucide-react";
+import { FileText, Forward, Check, X, Reply } from "lucide-react";
 import { toast } from "sonner";
 import type { Message } from "../../types/conversation.types";
 import { timeAgo, fullDateTime } from "../../utils/date-helpers";
 import { linkify } from "../../utils/linkify";
-import { useUserTopEmojis } from "../../hooks/useUserTopEmojis";
 import { prefetchMembersList } from "../../hooks/useMembersList";
 import {
   deleteMessageAction,
@@ -54,7 +53,16 @@ function MessageBubbleInner({
   const [localReactions, setLocalReactions] = useState(message.reactions);
   const [, startTransition] = useTransition();
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const topEmojis = useUserTopEmojis();
+
+  // ── Swipe-to-reply (tactile, style WhatsApp) ───────────────────────────────
+  // On glisse le message vers la GAUCHE ; passé le seuil au relâchement, on
+  // déclenche la réponse citée. Souris ignorée (le hover toolbar suffit sur
+  // desktop). `dragX` (négatif) pilote la translation + l'apparition de l'icône.
+  const SWIPE_THRESHOLD = 56;
+  const [dragX, setDragX] = useState(0);
+  const dragXRef = useRef(0);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const draggingRef = useRef(false);
 
   // États dérivés pour le verrouillage. Quand un AUTRE message est locked,
   // ce message-ci masque sa toolbar même au hover (évite les chevauchements).
@@ -138,6 +146,59 @@ function MessageBubbleInner({
       setLocalReactions(previous);
       toast.error(result.message);
     }
+  }
+
+  function handleCopy() {
+    // Texte pour un message texte ; sinon l'URL du fichier (ou son nom).
+    const text =
+      message.type === "text"
+        ? message.body
+        : message.fileUrl ?? message.fileName ?? "";
+    if (!text) return;
+    navigator.clipboard?.writeText(text).then(
+      () => toast.success("Message copié"),
+      () => toast.error("Copie impossible"),
+    );
+  }
+
+  // ── Swipe-to-reply : handlers pointer (tactile uniquement) ──────────────────
+  function onSwipePointerDown(e: React.PointerEvent) {
+    if (e.pointerType === "mouse" || isPending) return;
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    draggingRef.current = false;
+  }
+  function onSwipePointerMove(e: React.PointerEvent) {
+    const start = dragStartRef.current;
+    if (!start) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (!draggingRef.current) {
+      // On n'engage le swipe QUE s'il est franchement horizontal-gauche ;
+      // un mouvement vertical laisse le scroll natif reprendre la main.
+      if (dx < -8 && Math.abs(dx) > Math.abs(dy)) {
+        draggingRef.current = true;
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+      } else if (Math.abs(dy) > 10) {
+        dragStartRef.current = null;
+        return;
+      } else {
+        return;
+      }
+    }
+    const clamped = Math.max(-90, Math.min(0, dx));
+    dragXRef.current = clamped;
+    setDragX(clamped);
+  }
+  function onSwipePointerUp() {
+    const wasDragging = draggingRef.current;
+    dragStartRef.current = null;
+    draggingRef.current = false;
+    // Passé le seuil → on ouvre la réponse citée ; puis retour animé à 0.
+    if (wasDragging && dragXRef.current <= -SWIPE_THRESHOLD) {
+      onReply(message);
+    }
+    dragXRef.current = 0;
+    setDragX(0);
   }
 
   async function handleDelete() {
@@ -225,14 +286,47 @@ function MessageBubbleInner({
       }}
     >
       <div
+        onPointerDown={onSwipePointerDown}
+        onPointerMove={onSwipePointerMove}
+        onPointerUp={onSwipePointerUp}
+        onPointerCancel={onSwipePointerUp}
         style={{
+          position: "relative",
           display: "flex",
           alignItems: "flex-end",
           gap: 6,
           flexDirection: isSelf ? "row-reverse" : "row",
           maxWidth: "100%",
+          transform: dragX ? `translateX(${dragX}px)` : undefined,
+          // Suit le doigt pendant le drag (pas de transition), revient en douceur
+          // au relâchement (dragX repassé à 0).
+          transition: dragX ? "none" : "transform 200ms var(--nc-ease)",
+          // Laisse le scroll vertical natif ; l'horizontal est géré en JS.
+          touchAction: "pan-y",
         }}
       >
+        {/* Indicateur swipe-to-reply : icône de réponse révélée à droite au fur
+            et à mesure du glissement vers la gauche (style WhatsApp). */}
+        {dragX < 0 && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              right: -34,
+              top: "50%",
+              transform: `translateY(-50%) scale(${0.6 + 0.4 * Math.min(1, -dragX / SWIPE_THRESHOLD)})`,
+              opacity: Math.min(1, -dragX / SWIPE_THRESHOLD),
+              color: "var(--color-brand)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <Reply size={18} />
+          </div>
+        )}
+
         {/* Bulle */}
         <div
           data-fb-label="Bulle de message · Thread de messages"
@@ -535,10 +629,10 @@ function MessageBubbleInner({
         >
           <MessageToolbar
             align={isSelf ? "right" : "left"}
-            topEmojis={topEmojis}
             reactedEmojis={myReactions}
             onReact={handleReact}
             onReply={() => onReply(message)}
+            onCopy={handleCopy}
             onEdit={canEdit ? () => setEditing(true) : undefined}
             onDelete={canDelete ? () => setShowDeleteConfirm(true) : undefined}
             onForward={canForward ? () => setShowForwardModal(true) : undefined}
@@ -596,6 +690,8 @@ function MessageBubbleInner({
         <DeletePostConfirmDialog
           onConfirm={handleDelete}
           onCancel={() => setShowDeleteConfirm(false)}
+          title="Supprimer ce message ?"
+          description="Ce message sera supprimé pour tout le monde. Cette action est irréversible."
         />
       )}
 

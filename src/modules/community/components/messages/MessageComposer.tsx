@@ -5,18 +5,53 @@ import { createPortal } from "react-dom";
 import { Paperclip, X, FileText, Loader2, Reply as ReplyIcon } from "lucide-react";
 import { PaperplaneFill } from "@/shared/components/icons";
 import { toast } from "sonner";
-import { uploadDmFileAction } from "../../server/actions";
+import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
+
+// Bucket + limite alignés sur l'ancienne server action uploadDmFileAction.
+const COMMUNITY_BUCKET = "community";
+const DM_FILE_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
 
 interface PendingFile {
   name: string;
   // Blob URL local pour la preview avant envoi (lightbox + thumbnail).
-  // Distinct de fileUrl qui est l'URL publique Supabase persistée.
   previewUrl: string | null;
-  // URL publique Supabase, retournée par uploadPostMediaAction. null tant
-  // que l'upload n'est pas terminé.
-  fileUrl: string | null;
+  // Fichier brut, conservé EN LOCAL : il n'est uploadé vers Supabase Storage
+  // qu'au moment de l'envoi du message (cf. handleSend) → aucun orphelin en
+  // storage/DB si l'utilisateur annule, et l'ajout de la PJ est instantané.
+  file: File;
   type: "image" | "pdf";
-  uploading: boolean;
+}
+
+// Upload direct navigateur → Supabase Storage (un seul saut réseau, au lieu de
+// navigateur → server action → Storage). Déclenché UNIQUEMENT à l'envoi. La RLS
+// community_insert_own (mig. 018) restreint au dossier uploads/<auth.uid>/.
+async function uploadDmFileToStorage(
+  file: File,
+): Promise<{ ok: true; publicUrl: string } | { ok: false; message: string }> {
+  try {
+    const supabase = createSupabaseBrowserClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { ok: false, message: "Tu dois être connecté pour envoyer un fichier." };
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
+    const path = `uploads/${user.id}/${Date.now()}-${safeName}`;
+    const { error } = await supabase.storage.from(COMMUNITY_BUCKET).upload(path, file, {
+      contentType: file.type || "application/octet-stream",
+      cacheControl: "3600",
+      upsert: false,
+    });
+    if (error) {
+      console.error("[MessageComposer] storage upload failed:", error.message);
+      return { ok: false, message: "Impossible d'envoyer le fichier. Réessaie." };
+    }
+    const { data } = supabase.storage.from(COMMUNITY_BUCKET).getPublicUrl(path);
+    return { ok: true, publicUrl: data.publicUrl };
+  } catch (err) {
+    console.error("[MessageComposer] upload exception:", err);
+    return { ok: false, message: "Échec de l'upload, réessaie." };
+  }
 }
 
 // Quote-reply : info minimale nécessaire pour afficher la preview au-dessus
@@ -72,6 +107,8 @@ export function MessageComposer({
   const [value, setValue] = useState("");
   const [dragging, setDragging] = useState(false);
   const [pendingFile, setPendingFile] = useState<PendingFile | null>(null);
+  // Upload en cours AU MOMENT DE L'ENVOI (plus au moment de l'ajout).
+  const [sending, setSending] = useState(false);
   const [isMac, setIsMac] = useState(false);
   // OPS-44 — Lightbox sur la preview d'image / PDF avant envoi. On ouvre
   // au click de la vignette ; on garde l'état "viewing" séparé du
@@ -87,23 +124,24 @@ export function MessageComposer({
     setIsMac(detectMac());
   }, []);
 
-  function handleSend() {
-    if (disabled) return;
+  async function handleSend() {
+    if (disabled || sending) return;
     if (pendingFile) {
-      // Blocage si l'upload Supabase n'est pas encore terminé — sinon on
-      // enverrait un message avec fileUrl null, donc rien à afficher chez
-      // le destinataire.
-      if (pendingFile.uploading || !pendingFile.fileUrl) {
-        toast.info("Attends la fin de l'upload…");
+      // Upload JUSTE-À-TEMPS : le fichier était resté en local, on l'envoie
+      // vers Storage seulement maintenant. Le bouton passe en spinner pendant
+      // ce temps ; en cas d'échec on garde la PJ pour réessayer.
+      setSending(true);
+      const uploaded = await uploadDmFileToStorage(pendingFile.file);
+      setSending(false);
+      if (!uploaded.ok) {
+        toast.error(uploaded.message);
         return;
       }
-      // Body = texte tapé (optionnel) + on passe fileUrl/fileName à part.
-      // Avant : body = pendingFile.name (le nom du fichier comme texte).
       const trimmedText = value.trim();
       onSend(
         trimmedText, // body texte facultatif accompagnant le fichier
         pendingFile.type,
-        pendingFile.fileUrl,
+        uploaded.publicUrl,
         pendingFile.name,
       );
       if (pendingFile.previewUrl) URL.revokeObjectURL(pendingFile.previewUrl);
@@ -136,56 +174,23 @@ export function MessageComposer({
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }
 
-  async function attachFile(file: File) {
+  function attachFile(file: File) {
+    // Garde-fou taille (25 MB). Le type est borné par l'attribut accept du
+    // <input> ; la RLS storage restreint de toute façon au dossier de l'user.
+    if (file.size > DM_FILE_MAX_BYTES) {
+      toast.error(`Le fichier dépasse ${Math.round(DM_FILE_MAX_BYTES / 1024 / 1024)} MB.`);
+      return;
+    }
     const isImage = file.type.startsWith("image/");
-    // On utilise le type DB existant : "image" pour les vraies images
-    // (rendu inline), "pdf" comme bucket générique pour TOUS les autres
-    // types de fichier (rendu icône + nom + lien download). On ne crée
-    // pas un type DB "file" dédié pour éviter la migration et garder
-    // le rendu déjà en place.
+    // "image" = vraie image (rendu inline) ; "pdf" = bucket générique pour tout
+    // autre fichier (rendu icône + nom + lien download).
     const type: "image" | "pdf" = isImage ? "image" : "pdf";
 
-    // Blob URL local pour la preview/lightbox AVANT l'upload — le user voit
-    // déjà sa miniature pendant qu'on push vers Supabase. Pas de preview
-    // visuelle pour les non-images (PDF, docx, etc.), on affiche juste le
-    // nom + icône.
+    // Blob URL local pour la preview/lightbox. AUCUN upload ici : le fichier
+    // reste en local jusqu'à l'envoi (cf. handleSend) → PJ instantanée, pas
+    // d'orphelin en storage si on annule.
     const previewUrl = isImage ? URL.createObjectURL(file) : null;
-    setPendingFile({
-      name: file.name,
-      previewUrl,
-      fileUrl: null,
-      type,
-      uploading: true,
-    });
-
-    // uploadDmFileAction = whitelist large (PDF, Office, archives, audio,
-    // vidéo, etc.) + 25 MB max. Distinct d'uploadPostMediaAction qui reste
-    // strictement images-seulement pour les posts. RLS community_insert_own
-    // identique (mig. 018, scope uploads/<auth.uid>/).
-    //
-    // Bucket public — voir mig. 018 pour la note sécu (les fichiers DM
-    // partagés sont techniquement accessibles via l'URL si copiée).
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const result = await uploadDmFileAction(formData);
-      if (!result.ok) {
-        toast.error(result.message);
-        if (previewUrl) URL.revokeObjectURL(previewUrl);
-        setPendingFile(null);
-        return;
-      }
-      setPendingFile((prev) =>
-        prev
-          ? { ...prev, fileUrl: result.publicUrl, uploading: false }
-          : null,
-      );
-    } catch (err) {
-      console.error("[MessageComposer.attachFile] upload failed:", err);
-      toast.error("Échec de l'upload, réessaie.");
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPendingFile(null);
-    }
+    setPendingFile({ name: file.name, previewUrl, file, type });
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -225,10 +230,9 @@ export function MessageComposer({
     );
   }
 
-  // Désactivé tant que l'upload est en cours — évite l'envoi avant que
-  // fileUrl soit disponible. Le bouton bascule en spinner discret.
-  const fileReady = pendingFile ? !pendingFile.uploading && !!pendingFile.fileUrl : true;
-  const canSend = (!!pendingFile || value.trim().length > 0) && fileReady;
+  // Envoi possible dès qu'il y a du texte OU une PJ locale ; désactivé le temps
+  // de l'upload juste-à-temps (sending).
+  const canSend = (!!pendingFile || value.trim().length > 0) && !sending;
 
   return (
     <div
@@ -399,9 +403,8 @@ export function MessageComposer({
                   <span style={{ wordBreak: "break-all", lineHeight: 1.2 }}>{pendingFile.name}</span>
                 </div>
               )}
-              {/* Overlay loader pendant l'upload Supabase — l'user voit
-                  que le fichier n'est pas encore prêt à être envoyé. */}
-              {pendingFile.uploading && (
+              {/* Overlay loader pendant l'upload AU MOMENT DE L'ENVOI. */}
+              {sending && (
                 <div
                   style={{
                     position: "absolute",
@@ -517,7 +520,7 @@ export function MessageComposer({
           }}
           aria-label="Envoyer"
         >
-          <PaperplaneFill size={16} />
+          {sending ? <Loader2 size={16} className="animate-spin" /> : <PaperplaneFill size={16} />}
         </button>
       </div>
 

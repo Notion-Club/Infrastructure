@@ -119,7 +119,7 @@ export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinne
 
       {isMounted && (
         <div
-          className={`t-dropdown ${stateClass}`}
+          className={`t-dropdown nc-dropdown-elevated ${stateClass}`}
           data-origin="top-right"
           style={{
             position: "absolute",

@@ -33,9 +33,12 @@ interface PostCardProps {
   currentUser: User;
   devRole: DevRole;
   pinned?: boolean;
+  // Fourni par le feed : après une suppression réussie, on délègue le RETRAIT
+  // (animation de collapse + resync) au parent au lieu d'un router.refresh sec.
+  onRequestRemove?: (id: string) => void;
 }
 
-export function PostCard({ post, currentUser, devRole, pinned = false }: PostCardProps) {
+export function PostCard({ post, currentUser, devRole, pinned = false, onRequestRemove }: PostCardProps) {
   const router = useRouter();
   const { open } = usePostMorph();
   const cardRef = useRef<HTMLElement>(null);
@@ -112,7 +115,13 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
       return;
     }
     toast.success("Post supprimé");
-    router.refresh();
+    // Le feed anime la sortie (collapse) puis resynchronise ; fallback refresh
+    // sec si la carte est rendue hors feed (ex. détail).
+    if (onRequestRemove) {
+      onRequestRemove(post.id);
+    } else {
+      router.refresh();
+    }
   }
 
   // Admin/mentor only — la RLS 021 (posts_update_with_guard) bloquera tout
