@@ -10,6 +10,7 @@ import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
 import { renderBodyRich } from "../../utils/render-mentions";
 import { buildCommentLink, copyCommunityLink } from "../../utils/copy-link";
+import { toggleReactionOptimistic } from "../../utils/reactor";
 import { detectVideoEmbed } from "../../utils/video-embed";
 import { VideoEmbed } from "../shared/VideoEmbed";
 import { useCommentHighlight } from "../../hooks/useCommentHighlight";
@@ -92,23 +93,11 @@ export function CommentItem({ postId, comment, devRole, currentUser, highlightId
       toast.info("Attends la fin de la publication du commentaire…");
       return;
     }
-    // Optimistic toggle (idem PostCard) — revert on error.
+    // Optimistic toggle (idem PostCard) — revert on error. Le helper maintient
+    // la liste des reactors (viewer ajouté/retiré) → mon compte remonte au
+    // survol et disparaît quand je retire ma réaction (live, comme sur le post).
     const previous = reactions;
-    setReactions((prev) => {
-      const exists = prev.find((r) => r.emoji === emoji);
-      if (exists) {
-        const nextCount = exists.userReacted ? exists.count - 1 : exists.count + 1;
-        if (nextCount <= 0 && exists.userReacted) {
-          return prev.filter((r) => r.emoji !== emoji);
-        }
-        return prev.map((r) =>
-          r.emoji === emoji
-            ? { ...r, count: nextCount, userReacted: !r.userReacted }
-            : r,
-        );
-      }
-      return [...prev, { emoji, count: 1, userReacted: true }];
-    });
+    setReactions((prev) => toggleReactionOptimistic(prev, emoji, currentUser));
 
     const result = await toggleCommentReactionAction({
       comment_id: comment.id,
@@ -250,9 +239,13 @@ export function CommentItem({ postId, comment, devRole, currentUser, highlightId
           <div style={{ display: "flex", alignItems: "center", gap: 12, paddingLeft: 4 }}>
             <ReactionsBar reactions={reactions} compact onReact={handleReaction} />
             <ReactionPicker onSelect={handleReaction} mode="comment" label="Réagir" />
+            {/* Ouvre le composer (ne se transforme plus en « Annuler ») : le
+                seul bouton d'annulation est le « ✕ Annuler » contextuel du
+                composer, sous « Réponse à @X » — avant, on avait DEUX
+                « Annuler » simultanés (celui-ci + celui du composer). */}
             <button
               type="button"
-              onClick={() => setReplyOpen((o) => !o)}
+              onClick={() => setReplyOpen(true)}
               data-fb-label="Bouton Répondre · Carte commentaire"
               style={{
                 fontSize: 12,
@@ -265,7 +258,7 @@ export function CommentItem({ postId, comment, devRole, currentUser, highlightId
                 transition: "color 150ms ease",
               }}
             >
-              {replyOpen ? "Annuler" : "Répondre"}
+              Répondre
             </button>
           </div>
         )}

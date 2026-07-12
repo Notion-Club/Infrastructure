@@ -9,6 +9,7 @@ import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
 import { renderBodyRich } from "../../utils/render-mentions";
 import { buildCommentLink, copyCommunityLink } from "../../utils/copy-link";
+import { toggleReactionOptimistic } from "../../utils/reactor";
 import { detectVideoEmbed } from "../../utils/video-embed";
 import { VideoEmbed } from "../shared/VideoEmbed";
 import { useCommentHighlight } from "../../hooks/useCommentHighlight";
@@ -56,21 +57,9 @@ export function CommentReplyItem({ postId, reply, devRole, currentUser, highligh
 
   async function handleReaction(emoji: string) {
     const previous = reactions;
-    setReactions((prev) => {
-      const exists = prev.find((r) => r.emoji === emoji);
-      if (exists) {
-        const nextCount = exists.userReacted ? exists.count - 1 : exists.count + 1;
-        if (nextCount <= 0 && exists.userReacted) {
-          return prev.filter((r) => r.emoji !== emoji);
-        }
-        return prev.map((r) =>
-          r.emoji === emoji
-            ? { ...r, count: nextCount, userReacted: !r.userReacted }
-            : r,
-        );
-      }
-      return [...prev, { emoji, count: 1, userReacted: true }];
-    });
+    // Helper partagé : maintient compteur + userReacted + reactors (viewer
+    // ajouté/retiré) → mon compte remonte au survol et disparaît au retrait.
+    setReactions((prev) => toggleReactionOptimistic(prev, emoji, currentUser));
 
     const result = await toggleCommentReplyReactionAction({
       comment_reply_id: reply.id,

@@ -30,11 +30,15 @@ export function DeletePostConfirmDialog({ onConfirm, onCancel }: DeletePostConfi
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`t-modal ${stateClass} dark:bg-[#1e1e1e]`}
+        className={`t-modal ${stateClass}`}
         role="dialog"
         aria-modal="true"
         style={{
-          background: "white",
+          // Fond piloté par le token de surface (theme-aware). Avant :
+          // `background: "white"` inline écrasait toujours la classe
+          // `dark:bg-[#1e1e1e]` (style inline > feuille de style) → la modale
+          // restait blanche en dark mode.
+          background: "var(--color-surface-card)",
           borderRadius: 20,
           padding: "28px 24px 24px",
           width: "100%",
