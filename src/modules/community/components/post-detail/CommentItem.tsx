@@ -155,7 +155,7 @@ export function CommentItem({ postId, comment, devRole, currentUser, highlightId
         scrollMarginTop: 120,
         outline: ring ? "2px solid var(--color-brand)" : "2px solid transparent",
         outlineOffset: 4,
-        transition: "outline-color 300ms ease",
+        transition: "outline-color var(--nc-duration-slow) var(--nc-ease)",
       }}
     >
       <UserHoverCard user={comment.author} devRole={devRole}>
@@ -255,7 +255,7 @@ export function CommentItem({ postId, comment, devRole, currentUser, highlightId
                 cursor: "pointer",
                 fontWeight: 600,
                 padding: "2px 0",
-                transition: "color 150ms ease",
+                transition: "color var(--nc-duration-xfast) var(--nc-ease)",
               }}
             >
               Répondre
@@ -360,7 +360,7 @@ export function CommentItem({ postId, comment, devRole, currentUser, highlightId
                     fontSize: 13,
                     fontWeight: 600,
                     color: "var(--color-text-muted)",
-                    transition: "color 150ms ease",
+                    transition: "color var(--nc-duration-xfast) var(--nc-ease)",
                   }}
                   className="hover:text-[var(--color-text-primary)]"
                 >

@@ -52,7 +52,7 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
                 color: isActive ? "var(--color-brand)" : "var(--color-text-secondary)",
                 fontWeight: 600,
                 cursor: "pointer",
-                transition: "background 180ms ease, border-color 180ms ease, color 180ms ease",
+                transition: "background 180ms var(--nc-ease), border-color 180ms var(--nc-ease), color 180ms var(--nc-ease)",
                 whiteSpace: "nowrap",
                 textAlign: "center",
               }}
@@ -82,7 +82,7 @@ export function FeedTagFilters({ active, onChange, onNewPost, isAdmin }: FeedTag
           fontSize: 13,
           fontWeight: 600,
           cursor: "pointer",
-          transition: "opacity 150ms ease",
+          transition: "opacity var(--nc-duration-xfast) var(--nc-ease)",
           whiteSpace: "nowrap",
         }}
       >

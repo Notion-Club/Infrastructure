@@ -64,7 +64,7 @@ export function LessonFeedback({ courseName, formationName, moduleName }: Props)
           fontWeight: 600,
           cursor: "pointer",
           whiteSpace: "nowrap",
-          transition: "border-color 200ms ease, color 200ms ease",
+          transition: "border-color var(--nc-duration-fast) var(--nc-ease), color var(--nc-duration-fast) var(--nc-ease)",
         }}
         className="hover:border-[rgba(224,98,90,0.4)] hover:text-[var(--color-brand)]"
       >
@@ -246,7 +246,7 @@ export function FeedbackBody({
                 fontWeight: active ? 600 : 500,
                 cursor: "pointer",
                 textAlign: "left",
-                transition: "border-color 150ms ease, background 150ms ease",
+                transition: "border-color var(--nc-duration-xfast) var(--nc-ease), background var(--nc-duration-xfast) var(--nc-ease)",
               }}
             >
               {label}
@@ -260,7 +260,7 @@ export function FeedbackBody({
         style={{
           display: "grid",
           gridTemplateRows: avis ? "1fr" : "0fr",
-          transition: "grid-template-rows 300ms var(--nc-ease)",
+          transition: "grid-template-rows var(--nc-duration-slow) var(--nc-ease)",
         }}
       >
         <div style={{ overflow: "hidden" }}>

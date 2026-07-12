@@ -127,6 +127,10 @@ html {
   --nc-shadow-3: rgba(0, 0, 0, 0.06) 0 4px 24px 0,
     rgba(0, 0, 0, 0.04) 0 1px 2px 0;
   --nc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Micro-interactions (hover de fond, focus de bordure, fondu court) : palier
+     le plus court de l'échelle. Comblait un trou — le raw « 150ms ease » était
+     dupliqué des dizaines de fois faute de token. */
+  --nc-duration-xfast: 150ms;
   --nc-duration-fast: 200ms;
   --nc-duration-normal: 250ms;
   --nc-duration-slow: 300ms;
@@ -273,8 +277,8 @@ html {
    moveTo(true) écrit juste transform+width et la class anime. */
 .nc-nav-pill {
   transition:
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    width     220ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform 220ms var(--nc-ease),
+    width     220ms var(--nc-ease);
 }
 @media (prefers-reduced-motion: reduce) {
   .nc-nav-pill { transition: none !important; }
@@ -2738,11 +2742,8 @@ html {
   }
 }
 
-/* Skeleton pulse — utilisé dans loading.tsx */
-@keyframes nc-skeleton-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.45; }
-}
+/* Skeleton pulse : @keyframes défini une seule fois plus haut (près de
+   .nc-skeleton). Le doublon a été retiré — même nom, même corps. */
 
 @keyframes nc-spin {
   to { transform: rotate(360deg); }
@@ -2974,7 +2975,7 @@ html.dark {
   animation: nc-pop-card-in 300ms var(--nc-ease) both;
 }
 .nc-pop-card[data-closing="true"] {
-  animation: nc-pop-card-out 200ms cubic-bezier(0.4, 0, 1, 1) both;
+  animation: nc-pop-card-out 200ms var(--nc-ease-out) both;
 }
 @media (prefers-reduced-motion: reduce) {
   .nc-pop-overlay, .nc-pop-overlay[data-closing="true"],
@@ -3682,5 +3683,31 @@ html.dark .nc-lt-scrim {
   }
   .nc-card-hov:hover {
     transform: none;
+  }
+}
+
+/* ── Filet de sécurité global « reduced motion » ──────────────────────────────
+   Beaucoup de composants portent leur transition/animation en `style={{…}}`
+   inline : impossible de les neutraliser via un `@media` ciblé sur une classe.
+   Cette règle non-layerée + `!important` couvre TOUT (y compris les styles
+   inline, qu'un `!important` de feuille de style surclasse) d'un seul coup, en
+   complément des guards ciblés déjà présents.
+
+   Non-layerée volontairement : en cascade layers, un `!important` non-layeré
+   l'emporte sur tout `!important` layeré (Tailwind) → garantit la neutralisation.
+
+   On raccourcit à ~0 plutôt que `none` : les callbacks `transitionend` /
+   `animationend` sur lesquels s'appuient certains flows (dropdowns, morphs)
+   continuent de se déclencher, l'UI ne se fige pas dans un état intermédiaire. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
   }
 }

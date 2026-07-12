@@ -55,7 +55,7 @@ export function MessagesEmptyState({
                   // Pas de translate au hover : posé dans une phrase (inline),
                   // le moindre déplacement décalait l'icône ET la pastille par
                   // rapport au texte. On ne touche qu'à l'opacité (immobile).
-                  transition: "opacity 150ms ease",
+                  transition: "opacity var(--nc-duration-xfast) var(--nc-ease)",
                 }}
                 className="hover:opacity-85"
               >

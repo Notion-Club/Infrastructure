@@ -114,7 +114,7 @@ function BottomSheet({
           background: "var(--color-surface-card)", borderRadius: "20px 20px 0 0",
           padding: "20px 16px 32px", width: "100%",
           maxHeight: "60dvh", overflowY: "auto",
-          animation: "nc-sheet-in 300ms ease both",
+          animation: "nc-sheet-in var(--nc-duration-slow) var(--nc-ease) both",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -159,7 +159,7 @@ function BottomSheet({
                   maxWidth: isOwn ? 0 : 80,
                   opacity: isOwn ? 0 : 1,
                   transform: isOwn ? "scale(0.6)" : "none",
-                  transition: "max-width 280ms var(--nc-ease), opacity 200ms ease, transform 220ms var(--nc-ease)",
+                  transition: "max-width 280ms var(--nc-ease), opacity var(--nc-duration-fast) var(--nc-ease), transform 220ms var(--nc-ease)",
                 }}
               >
                 {r.emoji} <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>{r.count}</span>
@@ -246,7 +246,7 @@ function ReactionPill({ reaction, compact, onReact, allReactions }: ReactionPill
           // état « réagi » pour contraster (jamais ton-sur-ton en dark).
           background: userReacted ? "rgba(224,98,90,0.08)" : "var(--color-surface-raised)",
           border: `1px solid ${userReacted ? "rgba(224,98,90,0.25)" : "var(--color-border-default)"}`,
-          transition: "background 150ms ease, border-color 150ms ease",
+          transition: "background var(--nc-duration-xfast) var(--nc-ease), border-color var(--nc-duration-xfast) var(--nc-ease)",
           userSelect: "none",
         }}
         className="hover:border-[rgba(0,0,0,0.15)]"
@@ -270,7 +270,7 @@ function ReactionPill({ reaction, compact, onReact, allReactions }: ReactionPill
               padding: "8px 10px",
               minWidth: 180,
               zIndex: 200,
-              animation: "nc-mode-in 150ms var(--nc-ease) both",
+              animation: "nc-mode-in var(--nc-duration-xfast) var(--nc-ease) both",
               pointerEvents: "auto",
             }}
           >
@@ -382,7 +382,7 @@ function GroupedReactionsPill({
         borderRadius: 9999,
         background: userHasReacted ? "rgba(224,98,90,0.08)" : "var(--color-surface-raised)",
         border: `1px solid ${userHasReacted ? "rgba(224,98,90,0.25)" : "var(--color-border-default)"}`,
-        transition: "border-color 150ms ease, background 150ms ease",
+        transition: "border-color var(--nc-duration-xfast) var(--nc-ease), background var(--nc-duration-xfast) var(--nc-ease)",
         userSelect: "none",
       }}
       className="hover:border-[rgba(0,0,0,0.15)]"
@@ -407,7 +407,7 @@ function GroupedReactionsPill({
             padding: "8px 10px",
             minWidth: 180,
             zIndex: 200,
-            animation: "nc-mode-in 150ms var(--nc-ease) both",
+            animation: "nc-mode-in var(--nc-duration-xfast) var(--nc-ease) both",
             pointerEvents: "auto",
           }}
         >
@@ -527,7 +527,7 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
               cursor: "pointer",
               padding: 0,
               fontFamily: "inherit",
-              transition: "color 150ms ease",
+              transition: "color var(--nc-duration-xfast) var(--nc-ease)",
             }}
             className="hover:text-[var(--color-text-primary)]"
           >

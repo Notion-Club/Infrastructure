@@ -76,7 +76,7 @@ export function ConversationItem({ conversation, active, onClick, onPrefetch }: 
             : "transparent",
         cursor: "pointer",
         textAlign: "left",
-        transition: "background 150ms ease",
+        transition: "background var(--nc-duration-xfast) var(--nc-ease)",
       }}
     >
       <div style={{ position: "relative", flexShrink: 0 }}>

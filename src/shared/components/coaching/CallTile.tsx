@@ -112,7 +112,7 @@ export function CallTile({
               ? "0 0 0 1px rgba(224,98,90,0.16), 0 8px 28px rgba(224,98,90,0.12)"
               : "none",
           transition:
-            "box-shadow 200ms var(--nc-ease), border-color 200ms var(--nc-ease)",
+            "box-shadow var(--nc-duration-fast) var(--nc-ease), border-color var(--nc-duration-fast) var(--nc-ease)",
         }}
       >
         {/* Ligne titre : sujet + pill « Dans X jours » + bouton replanifier */}
@@ -183,7 +183,7 @@ export function CallTile({
                 justifyContent: "center",
                 cursor: "pointer",
                 transition:
-                  "background 150ms ease, border-color 150ms ease, color 150ms ease",
+                  "background var(--nc-duration-xfast) var(--nc-ease), border-color var(--nc-duration-xfast) var(--nc-ease), color var(--nc-duration-xfast) var(--nc-ease)",
               }}
               className="hover:border-[rgba(224,98,90,0.35)] hover:bg-[rgba(224,98,90,0.06)] hover:text-[var(--color-brand)]"
             >

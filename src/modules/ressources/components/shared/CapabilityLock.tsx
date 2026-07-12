@@ -73,7 +73,7 @@ export function CapabilityLock({ title, description, ctaLabel, ctaHref }: Capabi
           fontSize: 14,
           fontWeight: 600,
           textDecoration: 'none',
-          transition: 'opacity 150ms ease',
+          transition: 'opacity var(--nc-duration-xfast) var(--nc-ease)',
           marginTop: 4,
         }}
         className="hover:opacity-85"

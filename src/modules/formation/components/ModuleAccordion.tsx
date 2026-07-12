@@ -103,7 +103,7 @@ export function ModuleAccordion({
         borderRadius: 18,
         overflow: "hidden",
         boxShadow: open ? "var(--nc-shadow-3)" : "none",
-        transition: "box-shadow 250ms ease",
+        transition: "box-shadow var(--nc-duration-normal) var(--nc-ease)",
         scrollMarginTop: 120,
       }}
     >
@@ -180,7 +180,7 @@ export function ModuleAccordion({
                   width: `${percent}%`,
                   background: "var(--color-brand)",
                   borderRadius: 9999,
-                  transition: "width 0.6s cubic-bezier(0.22, 1, 0.36, 1)",
+                  transition: "width 0.6s var(--nc-ease)",
                 }}
               />
             </div>
@@ -194,7 +194,7 @@ export function ModuleAccordion({
           style={{
             color: "var(--color-text-muted)",
             flexShrink: 0,
-            transition: "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
+            transition: "transform 260ms var(--nc-ease)",
             transform: open ? "rotate(180deg)" : "none",
           }}
         />
@@ -207,7 +207,7 @@ export function ModuleAccordion({
           maxHeight: open ? innerHeight : 0,
           opacity: open ? 1 : 0,
           transition:
-            "max-height 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease",
+            "max-height 320ms var(--nc-ease), opacity 220ms var(--nc-ease)",
           pointerEvents: open ? "auto" : "none",
         }}
         aria-hidden={!open}
@@ -284,7 +284,7 @@ function LessonRow({
         opacity: course.locked ? 0.55 : 1,
         textAlign: "left",
         width: "100%",
-        transition: "background 200ms ease, border-color 200ms ease",
+        transition: "background var(--nc-duration-fast) var(--nc-ease), border-color var(--nc-duration-fast) var(--nc-ease)",
       }}
     >
       <span

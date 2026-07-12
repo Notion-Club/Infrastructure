@@ -189,7 +189,7 @@ export function MessageToolbar({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "background 120ms ease, transform 120ms ease",
+              transition: "background 120ms var(--nc-ease), transform 120ms var(--nc-ease)",
             }}
             className="hover:bg-[rgba(0,0,0,0.05)] hover:scale-110"
           >
@@ -216,7 +216,7 @@ export function MessageToolbar({
           alignItems: "center",
           justifyContent: "center",
           color: "var(--color-text-muted)",
-          transition: "background 120ms ease",
+          transition: "background 120ms var(--nc-ease)",
         }}
         className="hover:bg-[rgba(0,0,0,0.05)]"
       >
@@ -246,7 +246,7 @@ export function MessageToolbar({
               // de conflit avec le stacking context d'une bulle voisine.
               zIndex: 9999,
               width: 264,
-              animation: "nc-mode-in 150ms var(--nc-ease) both",
+              animation: "nc-mode-in var(--nc-duration-xfast) var(--nc-ease) both",
             }}
           >
             {EMOJI_PICKER.map((e) => (
@@ -305,7 +305,7 @@ export function MessageToolbar({
           alignItems: "center",
           justifyContent: "center",
           color: "var(--color-text-muted)",
-          transition: "background 120ms ease, color 120ms ease",
+          transition: "background 120ms var(--nc-ease), color 120ms var(--nc-ease)",
         }}
         className="hover:bg-[rgba(0,0,0,0.05)] hover:!text-[var(--color-text-primary)]"
       >
@@ -333,7 +333,7 @@ export function MessageToolbar({
             alignItems: "center",
             justifyContent: "center",
             color: "var(--color-text-muted)",
-            transition: "background 120ms ease",
+            transition: "background 120ms var(--nc-ease)",
           }}
           className="hover:bg-[rgba(0,0,0,0.05)]"
         >
@@ -359,7 +359,7 @@ export function MessageToolbar({
               // des messages voisins. C'est le fix robuste de OPS-95 / 105.
               zIndex: 9999,
               minWidth: 180,
-              animation: "nc-mode-in 150ms var(--nc-ease) both",
+              animation: "nc-mode-in var(--nc-duration-xfast) var(--nc-ease) both",
             }}
           >
             {onEdit && (

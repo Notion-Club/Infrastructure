@@ -275,7 +275,7 @@ export function NextCallDetailModal({
                 color: "#fff",
                 textDecoration: "none",
                 cursor: "pointer",
-                transition: "opacity 180ms ease",
+                transition: "opacity 180ms var(--nc-ease)",
               }}
             >
               <ExternalLink size={15} style={{ flexShrink: 0 }} />

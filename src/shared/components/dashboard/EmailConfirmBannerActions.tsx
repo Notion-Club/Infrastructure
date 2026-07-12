@@ -87,7 +87,7 @@ export function EmailConfirmBannerActions({
             : "var(--color-text-primary)",
           cursor: disabled ? "not-allowed" : "pointer",
           transition:
-            "background 150ms ease, color 150ms ease, border-color 150ms ease",
+            "background var(--nc-duration-xfast) var(--nc-ease), color var(--nc-duration-xfast) var(--nc-ease), border-color var(--nc-duration-xfast) var(--nc-ease)",
           boxShadow: disabled
             ? "none"
             : "0 1px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
@@ -121,7 +121,7 @@ export function EmailConfirmBannerActions({
             gap: 8,
             flexShrink: 0,
             boxShadow: "0 1px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
-            transition: "box-shadow 150ms ease, border-color 150ms ease",
+            transition: "box-shadow var(--nc-duration-xfast) var(--nc-ease), border-color var(--nc-duration-xfast) var(--nc-ease)",
             textDecoration: "none",
             color: "var(--color-text-primary)",
             fontSize: 13,

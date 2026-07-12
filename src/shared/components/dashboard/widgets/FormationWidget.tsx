@@ -72,7 +72,7 @@ export function FormationWidget({ data }: FormationWidgetProps = {}) {
         padding: 20,
         boxShadow: "var(--nc-shadow-3)",
         cursor: "pointer",
-        transition: "border-color 350ms cubic-bezier(0.22, 1, 0.36, 1)",
+        transition: "border-color 350ms var(--nc-ease)",
         display: "flex",
         flexDirection: "column",
         gap: 16,
@@ -138,7 +138,7 @@ export function FormationWidget({ data }: FormationWidgetProps = {}) {
             gap: 6,
             border: "none",
             cursor: "pointer",
-            transition: "transform 200ms ease, box-shadow 200ms ease",
+            transition: "transform var(--nc-duration-fast) var(--nc-ease), box-shadow var(--nc-duration-fast) var(--nc-ease)",
           }}
           className="hover:-translate-y-0.5 hover:shadow-[0_6px_16px_-4px_rgba(224,98,90,0.4)]"
         >

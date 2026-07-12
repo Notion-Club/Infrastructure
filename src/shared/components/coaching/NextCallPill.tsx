@@ -52,7 +52,7 @@ export function NextCallPill({ data }: NextCallPillProps) {
             border: "1px solid rgba(224,98,90,0.25)",
             boxShadow: "0 1px 4px rgba(224,98,90,0.08)",
             cursor: "pointer",
-            transition: "transform 180ms ease, box-shadow 180ms ease",
+            transition: "transform 180ms var(--nc-ease), box-shadow 180ms var(--nc-ease)",
           }}
           className="hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(224,98,90,0.15)]"
         >

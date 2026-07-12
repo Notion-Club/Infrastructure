@@ -359,7 +359,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
             alignItems: "center",
             gap: 6,
             zIndex: 10002,
-            animation: "nc-mode-in 150ms var(--nc-ease) both",
+            animation: "nc-mode-in var(--nc-duration-xfast) var(--nc-ease) both",
           }}
         >
           <input
@@ -468,7 +468,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
                 outline: "none", background: "var(--color-surface-raised)",
                 color: "var(--color-text-primary)", fontFamily: "inherit",
                 boxSizing: "border-box",
-                transition: "border-color 150ms ease",
+                transition: "border-color var(--nc-duration-xfast) var(--nc-ease)",
               }}
               onFocus={(e) => {
                 if (!titleError) e.target.style.borderColor = "var(--color-brand)";
@@ -503,7 +503,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
               border: `1px solid ${bodyError ? "var(--color-brand)" : "var(--color-border-default)"}`,
               borderRadius: 12,
               overflow: "hidden",
-              transition: "border-color 150ms ease",
+              transition: "border-color var(--nc-duration-xfast) var(--nc-ease)",
             }}
           >
             {/* Toolbar */}
@@ -523,7 +523,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
                   color: boldActive ? "var(--color-text-primary)" : "var(--color-text-secondary)",
                   cursor: "pointer", fontSize: 14, display: "flex",
                   alignItems: "center", justifyContent: "center",
-                  transition: "background 100ms ease",
+                  transition: "background 100ms var(--nc-ease)",
                 }}
                 className="hover:bg-[rgba(0,0,0,0.06)]"
               >
@@ -540,7 +540,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
                   color: italicActive ? "var(--color-text-primary)" : "var(--color-text-secondary)",
                   cursor: "pointer", fontSize: 14, display: "flex",
                   alignItems: "center", justifyContent: "center",
-                  transition: "background 100ms ease",
+                  transition: "background 100ms var(--nc-ease)",
                 }}
                 className="hover:bg-[rgba(0,0,0,0.06)]"
               >
@@ -555,7 +555,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
                 style={{
                   width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
                   cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)",
-                  transition: "background 100ms ease", display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "background 100ms var(--nc-ease)", display: "flex", alignItems: "center", justifyContent: "center",
                 }}
                 className="hover:bg-[rgba(0,0,0,0.06)]"
               >
@@ -570,7 +570,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
                   style={{
                     width: 30, height: 30, borderRadius: 6, border: "none", background: "transparent",
                     cursor: "pointer", color: "var(--color-text-secondary)",
-                    transition: "background 100ms ease", display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "background 100ms var(--nc-ease)", display: "flex", alignItems: "center", justifyContent: "center",
                   }}
                   className="hover:bg-[rgba(0,0,0,0.06)]"
                 >
@@ -591,7 +591,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
                     whiteSpace: "nowrap",
                     zIndex: 10003,
                     pointerEvents: "none",
-                    animation: "nc-mode-in 150ms var(--nc-ease) both",
+                    animation: "nc-mode-in var(--nc-duration-xfast) var(--nc-ease) both",
                   }}>
                     Sélectionne du texte pour ajouter un lien
                   </div>
@@ -616,7 +616,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
                   cursor: uploading ? "not-allowed" : "pointer",
                   color: uploading ? "var(--color-text-muted)" : "var(--color-text-secondary)",
                   opacity: uploading ? 0.5 : 1,
-                  transition: "background 100ms ease", display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "background 100ms var(--nc-ease)", display: "flex", alignItems: "center", justifyContent: "center",
                 }}
                 className={uploading ? "" : "hover:bg-[rgba(0,0,0,0.06)]"}
               >
@@ -755,7 +755,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
             style={{
               padding: "9px 20px", border: "1px solid var(--color-border-default)",
               background: "transparent", borderRadius: 9999, fontSize: 14, fontWeight: 500,
-              cursor: "pointer", color: "var(--color-text-secondary)", transition: "background 150ms ease",
+              cursor: "pointer", color: "var(--color-text-secondary)", transition: "background var(--nc-duration-xfast) var(--nc-ease)",
             }}
             className="hover:bg-[var(--nc-nav-hover-bg)]"
           >
@@ -775,7 +775,7 @@ export function PostComposerModal({ currentUser, onClose, onPublish, initialPost
               color: !publishing ? "#fff" : "var(--color-text-muted)",
               border: "none", borderRadius: 9999, fontSize: 14, fontWeight: 600,
               cursor: !publishing ? "pointer" : "not-allowed",
-              transition: "all 150ms ease",
+              transition: "all var(--nc-duration-xfast) var(--nc-ease)",
               display: "inline-flex", alignItems: "center", gap: 6,
             }}
           >

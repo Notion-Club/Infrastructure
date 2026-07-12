@@ -52,7 +52,7 @@ export function CoachingDevTools({ current, onChange }: CoachingDevToolsProps) {
                 borderRadius: 10,
                 cursor: "pointer",
                 textAlign: "left",
-                transition: "background 150ms ease",
+                transition: "background var(--nc-duration-xfast) var(--nc-ease)",
               }}
               className="hover:bg-[var(--color-surface-raised)]"
             >
@@ -85,7 +85,7 @@ function DevToggle({ on }: { on: boolean }) {
         background: on ? "var(--color-brand)" : "var(--nc-switch-off-bg)",
         position: "relative",
         flexShrink: 0,
-        transition: "background 200ms var(--nc-ease)",
+        transition: "background var(--nc-duration-fast) var(--nc-ease)",
       }}
     >
       <span

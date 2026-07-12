@@ -150,7 +150,7 @@ export function CoachingTabs<T extends string>({
               position: "relative",
               zIndex: 1,
               transition:
-                "background 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease), color 200ms ease",
+                "background var(--nc-duration-fast) var(--nc-ease), box-shadow var(--nc-duration-fast) var(--nc-ease), color var(--nc-duration-fast) var(--nc-ease)",
               whiteSpace: "nowrap",
             }}
           >

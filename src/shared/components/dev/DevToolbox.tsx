@@ -231,7 +231,7 @@ export function DevToolboxButton({
           boxShadow: floating
             ? "0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)"
             : undefined,
-          transition: "filter 150ms ease",
+          transition: "filter var(--nc-duration-xfast) var(--nc-ease)",
         }}
         className="hover:brightness-95"
       >

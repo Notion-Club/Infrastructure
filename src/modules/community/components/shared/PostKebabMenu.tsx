@@ -64,7 +64,7 @@ function MenuItem({
         borderRadius: 8,
         cursor: "pointer",
         textAlign: "left",
-        transition: "background 150ms ease",
+        transition: "background var(--nc-duration-xfast) var(--nc-ease)",
       }}
     >
       {icon}
@@ -109,7 +109,7 @@ export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinne
           alignItems: "center",
           justifyContent: "center",
           color: "var(--color-text-muted)",
-          transition: "background 150ms ease",
+          transition: "background var(--nc-duration-xfast) var(--nc-ease)",
         }}
         className="hover:bg-[rgba(0,0,0,0.06)]"
         aria-label="Options"

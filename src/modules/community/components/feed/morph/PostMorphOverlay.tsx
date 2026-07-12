@@ -130,7 +130,7 @@ interface OverlayProps {
 // Skeleton des commentaires (le temps que la Server Action charge la liste).
 function CommentsSkeleton() {
   const pulse: CSSProperties = {
-    animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
+    animation: "nc-skeleton-pulse 1.4s var(--nc-ease) infinite",
     background: "var(--color-surface-raised)",
     borderRadius: 8,
   };
@@ -758,7 +758,7 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
                 alignés. Apparaît avec le contenu (interactive), comme la croix. */}
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{ position: "absolute", top: 16, right: 60, zIndex: 3, opacity: interactive ? 1 : 0, pointerEvents: interactive ? "auto" : "none", transition: "opacity 160ms ease" }}
+              style={{ position: "absolute", top: 16, right: 60, zIndex: 3, opacity: interactive ? 1 : 0, pointerEvents: interactive ? "auto" : "none", transition: "opacity 160ms var(--nc-ease)" }}
             >
               <PostKebabMenu
                 onCopyLink={() => copyCommunityLink(buildPostLink(post.id))}
@@ -775,7 +775,7 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
               type="button"
               onClick={startClose}
               aria-label="Fermer"
-              style={{ position: "absolute", top: 16, right: 16, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 9999, border: "1px solid var(--color-border-default)", background: "var(--color-surface-raised)", color: "var(--color-text-secondary)", cursor: "pointer", fontSize: 18, lineHeight: 1, zIndex: 3, opacity: interactive ? 1 : 0, pointerEvents: interactive ? "auto" : "none", transition: "opacity 160ms ease" }}
+              style={{ position: "absolute", top: 16, right: 16, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 9999, border: "1px solid var(--color-border-default)", background: "var(--color-surface-raised)", color: "var(--color-text-secondary)", cursor: "pointer", fontSize: 18, lineHeight: 1, zIndex: 3, opacity: interactive ? 1 : 0, pointerEvents: interactive ? "auto" : "none", transition: "opacity 160ms var(--nc-ease)" }}
             >
               ✕
             </button>
@@ -859,7 +859,7 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
           pointerEvents: "none",
           zIndex: 1,
           opacity: interactive ? 1 : 0,
-          transition: "opacity 200ms ease",
+          transition: "opacity var(--nc-duration-fast) var(--nc-ease)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
           WebkitMaskImage: "linear-gradient(to bottom, #000 35%, transparent 100%)",

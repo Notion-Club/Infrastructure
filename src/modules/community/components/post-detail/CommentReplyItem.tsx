@@ -118,7 +118,7 @@ export function CommentReplyItem({ postId, reply, devRole, currentUser, highligh
         scrollMarginTop: 120,
         outline: ring ? "2px solid var(--color-brand)" : "2px solid transparent",
         outlineOffset: 4,
-        transition: "outline-color 300ms ease",
+        transition: "outline-color var(--nc-duration-slow) var(--nc-ease)",
       }}
     >
       <div

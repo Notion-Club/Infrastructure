@@ -39,7 +39,7 @@ export function MembresAdminDevCard() {
           background: "var(--color-surface-raised)",
           color: "var(--color-text-primary)",
           cursor: "pointer",
-          transition: "background 150ms ease, border-color 150ms ease",
+          transition: "background var(--nc-duration-xfast) var(--nc-ease), border-color var(--nc-duration-xfast) var(--nc-ease)",
         }}
         className="hover:border-[rgba(224,98,90,0.35)] hover:bg-[rgba(224,98,90,0.06)]"
       >

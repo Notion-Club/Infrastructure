@@ -126,7 +126,7 @@ export function PostComposerTagSelect({
               boxShadow: "var(--nc-shadow-3)",
               padding: 4,
               zIndex: 10010,
-              animation: "nc-mode-in 150ms var(--nc-ease) both",
+              animation: "nc-mode-in var(--nc-duration-xfast) var(--nc-ease) both",
             }}
           >
             {tags.map((t) => (
@@ -156,7 +156,7 @@ export function PostComposerTagSelect({
                   fontWeight: t.value === value ? 600 : 400,
                   cursor: "pointer",
                   textAlign: "left",
-                  transition: "background 100ms ease",
+                  transition: "background 100ms var(--nc-ease)",
                 }}
                 className={
                   t.value !== value ? "hover:bg-[var(--nc-nav-hover-bg)]" : ""
@@ -202,7 +202,7 @@ export function PostComposerTagSelect({
           color: "var(--color-text-primary)",
           cursor: "pointer",
           fontWeight: 500,
-          transition: "border-color 150ms ease",
+          transition: "border-color var(--nc-duration-xfast) var(--nc-ease)",
         }}
         className="hover:border-[rgba(0,0,0,0.20)]"
       >
@@ -212,7 +212,7 @@ export function PostComposerTagSelect({
           style={{
             color: "var(--color-text-muted)",
             transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 180ms ease",
+            transition: "transform 180ms var(--nc-ease)",
           }}
         />
       </button>

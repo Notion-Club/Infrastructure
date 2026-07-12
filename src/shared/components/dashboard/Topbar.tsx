@@ -307,7 +307,7 @@ export function Topbar() {
               border: "none",
               cursor: "pointer",
               flexShrink: 0,
-              transition: "opacity 150ms ease",
+              transition: "opacity var(--nc-duration-xfast) var(--nc-ease)",
               overflow: "hidden",
               padding: 0,
             }}
@@ -365,7 +365,7 @@ export function Topbar() {
                   border: "none",
                   cursor: "pointer",
                   borderRadius: 10,
-                  transition: "background 150ms ease",
+                  transition: "background var(--nc-duration-xfast) var(--nc-ease)",
                 }}
                 className="hover:bg-[var(--color-surface-raised)]"
               >
@@ -386,7 +386,7 @@ export function Topbar() {
                   color: "var(--color-text-primary)",
                   textDecoration: "none",
                   borderRadius: 10,
-                  transition: "background 150ms ease",
+                  transition: "background var(--nc-duration-xfast) var(--nc-ease)",
                 }}
                 className="hover:bg-[var(--color-surface-raised)]"
               >
@@ -412,7 +412,7 @@ export function Topbar() {
                   cursor: signingOut ? "wait" : "pointer",
                   opacity: signingOut ? 0.6 : 1,
                   borderRadius: 10,
-                  transition: "background 150ms ease",
+                  transition: "background var(--nc-duration-xfast) var(--nc-ease)",
                 }}
                 className="hover:bg-[var(--color-surface-raised)]"
               >

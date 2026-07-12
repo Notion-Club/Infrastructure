@@ -81,7 +81,7 @@ export function CommunityRestrictedPage() {
             fontSize: 15,
             fontWeight: 700,
             textDecoration: "none",
-            transition: "opacity 150ms ease",
+            transition: "opacity var(--nc-duration-xfast) var(--nc-ease)",
           }}
         >
           Découvrir Accompagnement →

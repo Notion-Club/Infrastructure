@@ -16,7 +16,7 @@ import type { CSSProperties } from "react";
 
 const pulse: CSSProperties = {
   background: "var(--color-surface-raised)",
-  animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
+  animation: "nc-skeleton-pulse 1.4s var(--nc-ease) infinite",
   borderRadius: "var(--nc-radius-xs)",
 };
 

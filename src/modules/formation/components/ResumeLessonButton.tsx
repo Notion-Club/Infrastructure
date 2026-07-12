@@ -36,7 +36,7 @@ export function ResumeLessonButton({ href }: { href: string }) {
         border: "none",
         cursor: "pointer",
         boxShadow: "0 6px 18px -8px rgba(224,98,90,0.55)",
-        transition: "transform 200ms ease, box-shadow 200ms ease",
+        transition: "transform var(--nc-duration-fast) var(--nc-ease), box-shadow var(--nc-duration-fast) var(--nc-ease)",
       }}
       className="hover:-translate-y-0.5 hover:shadow-[0_8px_22px_-6px_rgba(224,98,90,0.5)]"
     >

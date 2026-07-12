@@ -146,7 +146,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
         flexDirection: "column",
         gap: 14,
         cursor: "pointer",
-        transition: "box-shadow 200ms var(--nc-ease), transform 200ms var(--nc-ease)",
+        transition: "box-shadow var(--nc-duration-fast) var(--nc-ease), transform var(--nc-duration-fast) var(--nc-ease)",
         boxShadow: "var(--nc-shadow-3)",
         viewTransitionName: `post-card-${post.id}`,
         // Contexte d'empilement local : quand le menu kebab est ouvert, la carte

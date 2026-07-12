@@ -152,7 +152,7 @@ export function CoachingHeroBanner({
                 cursor: disabled ? "default" : "pointer",
                 letterSpacing: "-0.01em",
                 whiteSpace: "nowrap",
-                transition: "background 150ms ease, opacity 150ms ease",
+                transition: "background var(--nc-duration-xfast) var(--nc-ease), opacity var(--nc-duration-xfast) var(--nc-ease)",
               }}
             >
               {button.label}

@@ -46,7 +46,7 @@ export function LessonReady() {
 const skeleton: React.CSSProperties = {
   background: "var(--color-surface-raised)",
   borderRadius: "var(--nc-radius-xs)",
-  animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
+  animation: "nc-skeleton-pulse 1.4s var(--nc-ease) infinite",
 };
 
 // Placeholder du contenu en chargement (titre + description + player + body).
@@ -93,7 +93,7 @@ function LessonProgressBar({
     mode === "empty"
       ? `transform ${CLOSE_MS}ms linear`
       : complete
-        ? "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)"
+        ? "transform 220ms var(--nc-ease)"
         : `transform ${MIN_CROSS}ms cubic-bezier(0.33, 0.1, 0.25, 1)`;
 
   return (

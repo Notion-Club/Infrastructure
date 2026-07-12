@@ -362,7 +362,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
             color: searchOpen ? "var(--color-brand)" : "var(--color-text-secondary)",
             flexShrink: 0,
-            transition: "background 120ms ease",
+            transition: "background 120ms var(--nc-ease)",
           }}
           className="hover:bg-[rgba(0,0,0,0.06)]"
         >
@@ -415,7 +415,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
                 color: "var(--color-text-secondary)",
                 cursor: isLoadingOlder ? "default" : "pointer",
                 opacity: isLoadingOlder ? 0.6 : 1,
-                transition: "background 120ms ease",
+                transition: "background 120ms var(--nc-ease)",
               }}
               className="hover:bg-[rgba(0,0,0,0.04)]"
             >

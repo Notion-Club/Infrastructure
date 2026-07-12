@@ -587,7 +587,7 @@ function EditableDisplayName({
           outline: "none",
           boxShadow: "var(--nc-shadow-3)",
           transition:
-            "background 150ms ease, box-shadow 150ms ease, width 350ms cubic-bezier(0.76, 0, 0.24, 1)",
+            "background var(--nc-duration-xfast) var(--nc-ease), box-shadow var(--nc-duration-xfast) var(--nc-ease), width 350ms cubic-bezier(0.76, 0, 0.24, 1)",
           padding: `0 ${PILL_PADDING_RIGHT}px 0 ${PILL_PADDING_LEFT}px`,
         }}
       >

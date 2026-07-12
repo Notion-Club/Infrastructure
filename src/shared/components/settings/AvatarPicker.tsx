@@ -482,7 +482,7 @@ function AvatarPreview({
             boxShadow:
               "0 14px 32px -10px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.06)",
             overflow: "hidden",
-            transition: "background 200ms ease",
+            transition: "background var(--nc-duration-fast) var(--nc-ease)",
           }}
         >
           {avatarUrl ? (
@@ -518,7 +518,7 @@ function AvatarPreview({
             gap: 4,
             cursor: "pointer",
             opacity: showOverlay ? 1 : 0,
-            transition: "opacity 180ms ease, background 180ms ease",
+            transition: "opacity 180ms var(--nc-ease), background 180ms var(--nc-ease)",
             fontSize: 12,
             fontWeight: 600,
             letterSpacing: "0.02em",
@@ -600,7 +600,7 @@ const ColorPopup = forwardRef<HTMLDivElement, ColorPopupProps>(
                   alignItems: "center",
                   justifyContent: "center",
                   color: "white",
-                  transition: "transform 150ms ease, border-color 150ms ease",
+                  transition: "transform var(--nc-duration-xfast) var(--nc-ease), border-color var(--nc-duration-xfast) var(--nc-ease)",
                   transform: active ? "scale(1.08)" : "scale(1)",
                   boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
                 }}
@@ -782,7 +782,7 @@ function PhotoDropZone({ onFile }: { onFile: (file: File) => void }) {
           justifyContent: "center",
           gap: 10,
           cursor: "pointer",
-          transition: "background 150ms ease, border-color 150ms ease",
+          transition: "background var(--nc-duration-xfast) var(--nc-ease), border-color var(--nc-duration-xfast) var(--nc-ease)",
           outline: "none",
         }}
       >
@@ -798,7 +798,7 @@ function PhotoDropZone({ onFile }: { onFile: (file: File) => void }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            transition: "background 150ms ease, color 150ms ease",
+            transition: "background var(--nc-duration-xfast) var(--nc-ease), color var(--nc-duration-xfast) var(--nc-ease)",
           }}
         >
           {isDragging ? <Upload size={22} /> : <ImageIcon size={22} />}

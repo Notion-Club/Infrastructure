@@ -87,7 +87,7 @@ export function NoResultsState({ filloutType }: NoResultsStateProps) {
               border: '1px solid var(--color-brand)',
               cursor: 'pointer',
               boxShadow: 'var(--nc-shadow-3)',
-              transition: 'opacity 150ms ease, transform 150ms ease',
+              transition: 'opacity var(--nc-duration-xfast) var(--nc-ease), transform var(--nc-duration-xfast) var(--nc-ease)',
             }}
           >
             <Lightbulb size={15} />

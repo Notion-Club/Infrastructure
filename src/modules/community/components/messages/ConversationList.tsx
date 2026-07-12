@@ -76,7 +76,7 @@ export function ConversationList({
               background: "var(--color-brand)", color: "#fff",
               border: "none", cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "opacity 150ms ease",
+              transition: "opacity var(--nc-duration-xfast) var(--nc-ease)",
             }}
             className="hover:opacity-85"
             aria-label="Nouvelle conversation"

@@ -314,7 +314,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                   // Transition ciblée (pas `all`) → on n'anime que la couleur,
                   // jamais la géométrie : la pilule conserve sa forme.
                   transition:
-                    'background-color 180ms ease, border-color 180ms ease, color 180ms ease',
+                    'background-color 180ms var(--nc-ease), border-color 180ms var(--nc-ease), color 180ms var(--nc-ease)',
                   whiteSpace: 'nowrap',
                 }}
                 className={!isActive ? 'hover:bg-[#eaeaea]' : 'hover:opacity-90'}
@@ -346,7 +346,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                 border: '1px solid',
                 borderColor: hasActiveFilters ? 'var(--color-brand)' : 'var(--color-border-default)',
                 cursor: 'pointer',
-                transition: 'all 150ms ease',
+                transition: 'all var(--nc-duration-xfast) var(--nc-ease)',
                 whiteSpace: 'nowrap',
               }}
               className={!hasActiveFilters ? 'hover:bg-[#eaeaea]' : 'hover:opacity-90'}
@@ -417,7 +417,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
                       fontSize: 11,
                       color: 'var(--color-text-muted)',
                       transform: typeAccordionOpen ? 'rotate(180deg)' : 'none',
-                      transition: 'transform 150ms ease',
+                      transition: 'transform var(--nc-duration-xfast) var(--nc-ease)',
                       display: 'inline-block',
                     }}
                   >
@@ -533,7 +533,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               color: 'var(--color-text-primary)',
               outline: 'none',
               boxSizing: 'border-box',
-              transition: 'border-color 200ms ease',
+              transition: 'border-color var(--nc-duration-fast) var(--nc-ease)',
               zIndex: 1,
             }}
           />
@@ -549,7 +549,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               inset: 0,
               opacity: searchActive ? 0 : 1,
               pointerEvents: 'none',
-              transition: 'opacity 200ms ease',
+              transition: 'opacity var(--nc-duration-fast) var(--nc-ease)',
               zIndex: 2,
             }}
           >
@@ -574,7 +574,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               borderRadius: 9999,
               opacity: searchActive ? 1 : 0,
               pointerEvents: 'none',
-              transition: 'opacity 200ms ease',
+              transition: 'opacity var(--nc-duration-fast) var(--nc-ease)',
               zIndex: 2,
             }}
           />
@@ -657,7 +657,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               alignItems: 'center',
               gap: 3,
               opacity: searchActive ? 0 : 0.5,
-              transition: 'opacity 180ms ease',
+              transition: 'opacity 180ms var(--nc-ease)',
               pointerEvents: 'none',
               zIndex: 3,
             }}
@@ -682,7 +682,7 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
               transform: 'translateY(-50%)',
               opacity: searchActive ? 1 : 0,
               pointerEvents: searchActive ? 'auto' : 'none',
-              transition: 'opacity 150ms ease, background 120ms ease',
+              transition: 'opacity var(--nc-duration-xfast) var(--nc-ease), background 120ms var(--nc-ease)',
               zIndex: 4,
             }}
           >
