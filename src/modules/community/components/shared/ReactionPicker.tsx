@@ -74,7 +74,7 @@ export function ReactionPicker({
           cursor: "pointer",
           transition: "background var(--nc-duration-xfast) var(--nc-ease), border-color var(--nc-duration-xfast) var(--nc-ease)",
         }}
-        className="nc-btn-on-card hover:border-[rgba(0,0,0,0.15)]"
+        className="nc-btn-on-card nc-dropdown-elevated hover:border-[rgba(0,0,0,0.15)]"
       >
         <SmilePlus size={14} />
         {!isIcon && label}
@@ -82,7 +82,7 @@ export function ReactionPicker({
 
       {isMounted && (
         <div
-          className={`t-dropdown ${stateClass}`}
+          className={`t-dropdown nc-dropdown-elevated ${stateClass}`}
           data-origin="bottom-left"
           style={{
             position: "absolute",

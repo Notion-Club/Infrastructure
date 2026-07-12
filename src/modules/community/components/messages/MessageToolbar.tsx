@@ -155,6 +155,7 @@ export function MessageToolbar({
   return (
     <div
       data-fb-label="Barre d'actions message · Bulle de message"
+      className="nc-dropdown-elevated"
       style={{
         display: "flex",
         alignItems: "center",
@@ -196,6 +197,7 @@ export function MessageToolbar({
         createPortal(
           <div
             ref={pickerRef}
+            className="nc-dropdown-elevated"
             style={{
               position: "fixed",
               // Popover au-dessus du trigger : on positionne le BOTTOM du
@@ -283,6 +285,7 @@ export function MessageToolbar({
         createPortal(
           <div
             ref={menuRef}
+            className="nc-dropdown-elevated"
             style={{
               position: "fixed",
               top: menuPos.top,
@@ -367,6 +370,9 @@ function MenuItem({ icon, label, onClick, danger }: MenuItemProps) {
     <button
       type="button"
       onClick={onClick}
+      // Règle racine `.nc-menu-item` (hover fiable en CSS) — pas de
+      // `background` inline qui écraserait le :hover. Cf. globals.css.
+      className={`nc-menu-item${danger ? " nc-menu-item--danger" : ""}`}
       style={{
         width: "100%",
         display: "flex",
@@ -374,18 +380,12 @@ function MenuItem({ icon, label, onClick, danger }: MenuItemProps) {
         gap: 8,
         padding: "8px 12px",
         border: "none",
-        background: "transparent",
         borderRadius: 8,
         cursor: "pointer",
         fontSize: 13,
         color: danger ? "#e53e3e" : "var(--color-text-primary)",
         textAlign: "left",
       }}
-      className={
-        danger
-          ? "hover:bg-[rgba(229,62,62,0.06)]"
-          : "hover:bg-[rgba(0,0,0,0.05)]"
-      }
     >
       {icon}
       {label}

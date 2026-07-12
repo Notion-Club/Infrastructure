@@ -530,26 +530,40 @@ export function MessagesLayout({
           height: embedded ? "100%" : "calc(100dvh - 200px)",
         }}
       >
-        {mobileView === "list" ? (
-          <ConversationList
-            conversations={conversations}
-            activeId={activeId}
-            currentUser={currentUser}
-            onSelect={handleSelectByUrl}
-            onNewConversation={handleNewConversationByUser}
-          />
-        ) : activeConv ? (
-          <ConversationThread
-            key={activeConv.id}
-            conversation={activeConv}
-            currentUser={currentUser}
-            loading={loadingConvIds.has(activeConv.id)}
-            onSendMessage={(body, reply, attachment) => handleSendMessage(activeConv.id, body, reply, attachment)}
-            onBack={navigateToList}
-          />
-        ) : (
-          <MessagesEmptyState onNewConversation={() => setNewConvPickerOpen(true)} />
-        )}
+        {/* Ouverture / fermeture d'une conversation = slide side-by-side
+            (transitions.dev · 08) : la LISTE (page 1) sort vers la gauche, le
+            THREAD (page 2) entre par la droite ; l'inverse à la fermeture. Les
+            deux pages restent montées (position: absolute) pour que le sortant
+            s'anime aussi. `data-page` piloté par `mobileView`. */}
+        <div
+          className="t-page-slide"
+          data-page={mobileView === "list" ? "1" : "2"}
+          style={{ position: "relative", height: "100%", overflow: "hidden" }}
+        >
+          <div className="t-page" data-page-id="1" style={{ height: "100%" }}>
+            <ConversationList
+              conversations={conversations}
+              activeId={activeId}
+              currentUser={currentUser}
+              onSelect={handleSelectByUrl}
+              onNewConversation={handleNewConversationByUser}
+            />
+          </div>
+          <div className="t-page" data-page-id="2" style={{ height: "100%" }}>
+            {activeConv ? (
+              <ConversationThread
+                key={activeConv.id}
+                conversation={activeConv}
+                currentUser={currentUser}
+                loading={loadingConvIds.has(activeConv.id)}
+                onSendMessage={(body, reply, attachment) => handleSendMessage(activeConv.id, body, reply, attachment)}
+                onBack={navigateToList}
+              />
+            ) : (
+              <MessagesEmptyState onNewConversation={() => setNewConvPickerOpen(true)} />
+            )}
+          </div>
+        </div>
       </div>
 
       {newConvPickerOpen && (
