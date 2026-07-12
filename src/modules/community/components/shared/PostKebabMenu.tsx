@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, type ReactNode } from "react";
 import { MoreHorizontal, Pencil, PinOff, Link as LinkIcon } from "lucide-react";
 import { PinFill, Trash } from "@/shared/components/icons";
 import { useDropdownTransition } from "@/shared/lib/hooks/useDropdownTransition";
@@ -20,9 +20,60 @@ interface PostKebabMenuProps {
   // le menu s'affiche, pour qu'il passe AU-DESSUS des cartes voisines (chaque
   // carte crée son propre contexte d'empilement via viewTransitionName).
   onOpenChange?: (open: boolean) => void;
+  // Diamètre du bouton déclencheur (défaut 32). Passé à 36 dans l'overlay de
+  // détail pour aligner le kebab sur la hauteur de la croix de fermeture.
+  size?: number;
 }
 
-export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinned, onOpenChange }: PostKebabMenuProps) {
+// Item de menu avec hover FIABLE : le fond hover est piloté en JS (state) et non
+// par une classe Tailwind `hover:bg-*`. En effet, le `background` est posé en
+// style INLINE sur le bouton → il l'emporte TOUJOURS sur une règle de feuille de
+// style (spécificité), donc `hover:bg-[…]` restait sans effet visible. On rend
+// donc le survol via onMouseEnter/onMouseLeave.
+function MenuItem({
+  icon,
+  label,
+  onClick,
+  danger = false,
+}: {
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const hoverBg = danger
+    ? "rgba(224,98,90,0.12)"
+    : "var(--nc-nav-hover-bg)";
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "8px 10px",
+        fontSize: 14,
+        color: danger ? "#e0625a" : "var(--color-text-primary)",
+        background: hovered ? hoverBg : "transparent",
+        border: "none",
+        borderRadius: 8,
+        cursor: "pointer",
+        textAlign: "left",
+        transition: "background 150ms ease",
+      }}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinned, onOpenChange, size = 32 }: PostKebabMenuProps) {
   const { isOpen, isMounted, stateClass, close, toggle } = useDropdownTransition();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -48,8 +99,8 @@ export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinne
         onClick={(e) => { e.stopPropagation(); toggle(); }}
         data-fb-label="Menu options · Communauté"
         style={{
-          width: 32,
-          height: 32,
+          width: size,
+          height: size,
           borderRadius: "50%",
           border: "none",
           background: "transparent",
@@ -84,101 +135,33 @@ export function PostKebabMenu({ onCopyLink, onEdit, onDelete, onTogglePin, pinne
           }}
         >
           {onCopyLink && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onCopyLink(); close(); }}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 10px",
-                fontSize: 14,
-                color: "var(--color-text-primary)",
-                background: "transparent",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "background 150ms ease",
-              }}
-              className="hover:bg-[rgba(0,0,0,0.06)] dark:hover:bg-[rgba(255,255,255,0.10)]"
-            >
-              <LinkIcon size={14} /> Copier le lien
-            </button>
+            <MenuItem
+              icon={<LinkIcon size={14} />}
+              label="Copier le lien"
+              onClick={() => { onCopyLink(); close(); }}
+            />
           )}
           {onEdit && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onEdit(); close(); }}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 10px",
-                fontSize: 14,
-                color: "var(--color-text-primary)",
-                background: "transparent",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "background 150ms ease",
-              }}
-              className="hover:bg-[rgba(0,0,0,0.06)] dark:hover:bg-[rgba(255,255,255,0.10)]"
-            >
-              <Pencil size={14} /> Modifier
-            </button>
+            <MenuItem
+              icon={<Pencil size={14} />}
+              label="Modifier"
+              onClick={() => { onEdit(); close(); }}
+            />
           )}
           {onTogglePin && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onTogglePin(); close(); }}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 10px",
-                fontSize: 14,
-                color: "var(--color-text-primary)",
-                background: "transparent",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "background 150ms ease",
-              }}
-              className="hover:bg-[rgba(0,0,0,0.06)] dark:hover:bg-[rgba(255,255,255,0.10)]"
-            >
-              {pinned ? <PinOff size={14} /> : <PinFill size={14} />}
-              {pinned ? "Désépingler" : "Épingler"}
-            </button>
+            <MenuItem
+              icon={pinned ? <PinOff size={14} /> : <PinFill size={14} />}
+              label={pinned ? "Désépingler" : "Épingler"}
+              onClick={() => { onTogglePin(); close(); }}
+            />
           )}
           {onDelete && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onDelete(); close(); }}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 10px",
-                fontSize: 14,
-                color: "#e0625a",
-                background: "transparent",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "background 150ms ease",
-              }}
-              className="hover:bg-[rgba(224,98,90,0.10)] dark:hover:bg-[rgba(224,98,90,0.16)]"
-            >
-              <Trash size={14} /> Supprimer
-            </button>
+            <MenuItem
+              icon={<Trash size={14} />}
+              label="Supprimer"
+              danger
+              onClick={() => { onDelete(); close(); }}
+            />
           )}
         </div>
       )}

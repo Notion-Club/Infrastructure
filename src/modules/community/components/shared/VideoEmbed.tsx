@@ -33,14 +33,17 @@ function Frame({ label, children }: { label?: string; children: React.ReactNode 
   );
 }
 
-function Iframe({ src }: { src: string }) {
+function Iframe({ src, eager = false }: { src: string; eager?: boolean }) {
   return (
     <iframe
       src={src}
       style={{ width: "100%", height: "100%", border: "none", display: "block" }}
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
       allowFullScreen
-      loading="lazy"
+      // Lecture déclenchée par un tap : l'iframe autoplay doit se charger
+      // IMMÉDIATEMENT (pas `lazy`) pour rester dans la fenêtre du geste
+      // utilisateur → sinon, sur mobile, la lecture ne démarre pas au 1er tap.
+      loading={eager ? "eager" : "lazy"}
     />
   );
 }
@@ -69,7 +72,7 @@ function YouTubeFacade({ id, embedSrc, label }: { id: string; embedSrc: string; 
     // rel=0 (pas de suggestions d'autres chaînes) + modestbranding + autoplay.
     return (
       <Frame label={label}>
-        <Iframe src={`${embedSrc}?autoplay=1&rel=0&modestbranding=1&playsinline=1`} />
+        <Iframe src={`${embedSrc}?autoplay=1&rel=0&modestbranding=1&playsinline=1`} eager />
       </Frame>
     );
   }
@@ -79,8 +82,12 @@ function YouTubeFacade({ id, embedSrc, label }: { id: string; embedSrc: string; 
       <button
         type="button"
         onClick={() => setPlaying(true)}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
+        // Hover réservé au pointeur SOURIS. Sur mobile (tactile), le survol
+        // déclenché par le 1er tap « mangeait » le clic → il fallait taper deux
+        // fois pour lancer la vidéo. En ne réagissant qu'au pointeur `mouse`,
+        // le 1er tap tactile déclenche directement le onClick → lecture immédiate.
+        onPointerEnter={(e) => { if (e.pointerType === "mouse") setHover(true); }}
+        onPointerLeave={(e) => { if (e.pointerType === "mouse") setHover(false); }}
         aria-label="Lire la vidéo"
         style={{
           position: "absolute",

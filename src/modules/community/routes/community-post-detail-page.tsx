@@ -11,6 +11,7 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import { fullDateTime, timeAgo, wasEdited } from "../utils/date-helpers";
 import { renderBodyRich } from "../utils/render-mentions";
 import { buildPostLink, copyCommunityLink } from "../utils/copy-link";
+import { toggleReactionOptimistic } from "../utils/reactor";
 import { detectVideoEmbed } from "../utils/video-embed";
 import { VideoEmbed } from "../components/shared/VideoEmbed";
 import { UserAvatar } from "../components/shared/UserAvatar";
@@ -60,21 +61,7 @@ export function CommunityPostDetailPage({
 
   async function handleReaction(emoji: string) {
     const previous = reactions;
-    setReactions((prev) => {
-      const exists = prev.find((r) => r.emoji === emoji);
-      if (exists) {
-        const nextCount = exists.userReacted ? exists.count - 1 : exists.count + 1;
-        if (nextCount <= 0 && exists.userReacted) {
-          return prev.filter((r) => r.emoji !== emoji);
-        }
-        return prev.map((r) =>
-          r.emoji === emoji
-            ? { ...r, count: nextCount, userReacted: !r.userReacted }
-            : r,
-        );
-      }
-      return [...prev, { emoji, count: 1, userReacted: true }];
-    });
+    setReactions((prev) => toggleReactionOptimistic(prev, emoji, currentUser));
 
     const result = await togglePostReactionAction({
       post_id: post.id,
