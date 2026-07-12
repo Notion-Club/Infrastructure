@@ -45,7 +45,12 @@ export function UserAvatar({ user, size = 40, className }: UserAvatarProps) {
   // Si l'image échoue à charger en runtime (404, CORS, etc.), on bascule
   // sur les initiales pour ne pas afficher un placeholder cassé.
   const [imageFailed, setImageFailed] = useState(false);
+  // Reveal skeleton → photo (pattern racine, identique à l'avatar host du
+  // coaching, cf. HostAvatar) : les initiales colorées « pulsent » puis
+  // cross-fade + dé-floutage vers la photo dès qu'elle est chargée.
+  const [loaded, setLoaded] = useState(false);
   const fs = Math.round(size * 0.36);
+  const bg = user.avatarColor ?? colorFromId(user.id);
 
   if (user.deleted) {
     return (
@@ -70,21 +75,37 @@ export function UserAvatar({ user, size = 40, className }: UserAvatarProps) {
     );
   }
 
+  const initialsNode = (
+    <span style={{ fontSize: fs, fontWeight: 700, color: "#fff", lineHeight: 1, letterSpacing: "0.02em" }}>
+      {user.initials}
+    </span>
+  );
+
   if (user.avatarUrl && !imageFailed && isAllowedHost(user.avatarUrl)) {
     return (
-      <div
-        className={className}
-        style={{ width: size, height: size, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}
+      <span
+        className={`nc-avatar-skel${loaded ? " is-revealed" : ""}${className ? ` ${className}` : ""}`}
+        style={{ display: "inline-block", width: size, height: size, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}
       >
-        <Image
-          src={user.avatarUrl}
-          alt={user.name}
-          width={size}
-          height={size}
-          style={{ objectFit: "cover", width: "100%", height: "100%" }}
-          onError={() => setImageFailed(true)}
-        />
-      </div>
+        {/* Skeleton : initiales colorées, pulsées jusqu'au chargement de la photo. */}
+        <span className="t-skel-skeleton is-pulsing">
+          <span style={{ width: "100%", height: "100%", background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {initialsNode}
+          </span>
+        </span>
+        {/* Contenu : la photo, révélée en fondu + dé-floutage. */}
+        <span className="t-skel-content">
+          <Image
+            src={user.avatarUrl}
+            alt={user.name}
+            width={size}
+            height={size}
+            style={{ objectFit: "cover", width: "100%", height: "100%", display: "block" }}
+            onLoad={() => setLoaded(true)}
+            onError={() => setImageFailed(true)}
+          />
+        </span>
+      </span>
     );
   }
 
@@ -98,7 +119,7 @@ export function UserAvatar({ user, size = 40, className }: UserAvatarProps) {
         // Couleur choisie par l'utilisateur dans /settings (profiles.avatar_color)
         // si présente, sinon fallback sur un hash déterministe de l'id pour rester
         // visuellement stable d'un user à l'autre.
-        background: user.avatarColor ?? colorFromId(user.id),
+        background: bg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

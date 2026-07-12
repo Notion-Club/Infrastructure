@@ -85,6 +85,10 @@ export function PostCard({ post, currentUser, devRole, pinned = false, onRequest
     // Modificateurs / clic non-primaire : on laisse le comportement natif (pas
     // d'ouverture morph) → sélection de texte, etc.
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    // Sélection de texte en cours (l'utilisateur vient de surligner le post) →
+    // on n'ouvre PAS le morph, sinon la sélection est perdue au clic.
+    const selection = typeof window !== "undefined" ? window.getSelection() : null;
+    if (selection && selection.toString().trim().length > 0) return;
     // `detail === 0` = activation clavier (Entrée/Espace) ; souris/tactile ≥ 1.
     openMorph(e.currentTarget as HTMLElement, e.detail === 0);
   }
@@ -266,6 +270,8 @@ export function PostCard({ post, currentUser, devRole, pinned = false, onRequest
               fontWeight: 700,
               color: "var(--color-text-primary)",
               lineHeight: 1.3,
+              userSelect: "text",
+              cursor: "text",
             }}
           >
             {postData.title}
@@ -282,6 +288,8 @@ export function PostCard({ post, currentUser, devRole, pinned = false, onRequest
               WebkitBoxOrient: "vertical",
               overflow: "hidden",
               whiteSpace: "pre-wrap",
+              userSelect: "text",
+              cursor: "text",
             }}
           >
             {renderBodyRich(displayBody, postData.mentions)}

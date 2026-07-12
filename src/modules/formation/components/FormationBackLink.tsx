@@ -4,8 +4,6 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowReturn } from "@/shared/components/icons";
 
-import { startLessonTransition } from "./LessonTransition";
-
 export function FormationBackLink() {
   const router = useRouter();
 
@@ -16,8 +14,11 @@ export function FormationBackLink() {
     router.prefetch("/formation");
   }, [router]);
 
+  // Retour vers la liste des programmes : plus de voile de transition leçon
+  // (barre de progression + skeleton générique). La route /formation étant
+  // préfetchée / déjà en cache, le retour est quasi-instantané ; sinon Next
+  // affiche le skeleton de contenu de la route (loading.tsx).
   function go() {
-    startLessonTransition();
     router.push("/formation");
   }
 

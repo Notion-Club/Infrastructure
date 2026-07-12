@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { emojify } from "node-emoji";
 
 // Matche les URLs http(s) ET les bare-domains (ex: "example.com" sans http).
 // Ordre des alternatives important : le pattern http://... est essayé en
@@ -54,7 +55,12 @@ function toHref(url: string): string {
   return `https://${url}`;
 }
 
-export function linkify(text: string): ReactNode[] {
+export function linkify(rawText: string): ReactNode[] {
+  // Convertit d'abord les raccourcis emoji (`:white_check_mark:`,
+  // `:slightly_smiling_face:`…) hérités de Slack/GitHub en vrais emojis. Les
+  // raccourcis inconnus sont laissés tels quels. Point d'intégration unique :
+  // linkify est appelée par les posts (via renderBodyRich) ET les messages.
+  const text = emojify(rawText);
   const parts: ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;

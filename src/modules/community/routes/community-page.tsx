@@ -265,27 +265,29 @@ export function CommunityPage({
           overflow: "hidden",
         }}
       >
-        {/* iOS-style pill switcher — full width, sticky header */}
+        {/* Switcher EDGE-TO-EDGE : la barre d'onglets occupe tout le haut du
+            cadre (aucune gouttière grise autour). Le padding latéral n'est plus
+            porté ici mais par la zone de contenu en dessous. Les coins hauts
+            sont clippés par le `overflow: hidden` + `borderRadius` du cadre. La
+            séparation avec le contenu est conservée (borderBottom). */}
         <div
           className="shrink-0"
           data-fb-label="Switcher feed/messages · Communauté"
           style={{
-            padding: "12px 16px",
             borderBottom: "1px solid var(--color-border-default)",
-            background: "var(--color-surface-card)",
           }}
         >
           <div
             style={{
               display: "flex",
               background: "var(--color-surface-raised)",
-              borderRadius: 10,
-              padding: 3,
-              gap: 2,
+              padding: 0,
+              gap: 0,
               position: "relative",
             }}
           >
-            {/* Pill glissante */}
+            {/* Pill glissante — remplit l'onglet actif bord à bord (pas de
+                rayon ni d'ombre : la barre est « encastrée », pas flottante). */}
             <div
               ref={tabPillRef}
               aria-hidden
@@ -294,8 +296,7 @@ export function CommunityPage({
                 position: "absolute",
                 left: 0,
                 background: "var(--nc-segmented-active-bg)",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)",
-                borderRadius: 8,
+                borderRadius: 0,
                 pointerEvents: "none",
                 willChange: "transform, width",
                 zIndex: 0,
@@ -340,20 +341,20 @@ export function CommunityPage({
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 7,
-                    padding: "8px 16px",
-                    borderRadius: 8,
+                    // Onglet plein-hauteur, bord à bord. Le fond actif est porté
+                    // par la pill glissante (zIndex 0) → bouton transparent.
+                    padding: "12px 16px",
+                    borderRadius: 0,
                     border: "none",
-                    background: isActive ? "var(--nc-segmented-active-bg)" : "transparent",
-                    boxShadow: isActive
-                      ? "0 1px 4px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)"
-                      : "none",
+                    background: "transparent",
+                    boxShadow: "none",
                     color: isActive ? "var(--nc-segmented-active-text)" : "var(--color-text-muted)",
                     fontSize: 14,
                     fontWeight: isActive ? 600 : 400,
                     cursor: "pointer",
                     position: "relative",
                     zIndex: 1,
-                    transition: "background var(--nc-duration-fast) var(--nc-ease), box-shadow var(--nc-duration-fast) var(--nc-ease), color var(--nc-duration-fast) var(--nc-ease)",
+                    transition: "color var(--nc-duration-fast) var(--nc-ease)",
                     whiteSpace: "nowrap",
                   }}
                 >

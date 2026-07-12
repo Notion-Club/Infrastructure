@@ -12,6 +12,17 @@ html {
   background-color: var(--color-surface-page);
 }
 
+/* Surlignage de sélection de texte — teinte brand NC (au lieu du bleu système),
+   appliqué globalement à tout le projet. */
+::selection {
+  background: rgba(224, 98, 90, 0.24);
+  color: inherit;
+}
+::-moz-selection {
+  background: rgba(224, 98, 90, 0.24);
+  color: inherit;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
