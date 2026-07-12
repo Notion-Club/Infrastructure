@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Play, Sparkles } from "lucide-react";
 
@@ -16,8 +17,19 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
   const resumeHref = program.resumeHref ?? `/formation/${program.slug}`;
   const detailHref = `/formation/${program.slug}`;
 
-  function go(href: string) {
-    startLessonTransition();
+  // Préfetch la page programme → affichage quasi-instantané au clic (le
+  // Server Component est chauffé, et le cache route sert les retours).
+  useEffect(() => {
+    router.prefetch(detailHref);
+  }, [router, detailHref]);
+
+  // `withTransition=false` (ouverture d'un PROGRAMME) → on NE monte PAS le voile
+  // de transition leçon (barre de progression + skeleton générique). On laisse
+  // Next afficher le skeleton de contenu de la route (loading.tsx) ou, si la
+  // page est déjà en cache, l'afficher instantanément. Le voile n'est conservé
+  // que pour l'ENTRÉE en leçon (contenu Notion long à fetch + form de feedback).
+  function go(href: string, withTransition: boolean) {
+    if (withTransition) startLessonTransition();
     router.push(href);
   }
 
@@ -38,13 +50,14 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
         overflow: "hidden",
       }}
     >
-      {/* Zone cliquable « stretched » : toute la carte ouvre le détail (avec la
-          transition). Le CTA (Reprendre/Commencer) reste cliquable au-dessus (z-index). */}
+      {/* Zone cliquable « stretched » : toute la carte ouvre le détail du
+          programme SANS voile de transition (skeleton de contenu / cache Next).
+          Le CTA (Reprendre/Commencer) reste cliquable au-dessus (z-index). */}
       <button
         type="button"
         aria-label={`Ouvrir la formation ${program.name}`}
         data-fb-label={`Carte programme « ${program.name} » · Liste des programmes`}
-        onClick={() => go(detailHref)}
+        onClick={() => go(detailHref, false)}
         style={{
           position: "absolute",
           inset: 0,
@@ -149,7 +162,7 @@ export function ProgramCard({ program }: { program: ProgramSummary }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", position: "relative", zIndex: 2 }}>
         <button
           type="button"
-          onClick={() => go(completed ? detailHref : resumeHref)}
+          onClick={() => go(completed ? detailHref : resumeHref, !completed)}
           data-fb-label="Bouton Reprendre · Carte programme"
           style={{
             background: "var(--color-brand)",

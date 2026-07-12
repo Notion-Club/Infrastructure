@@ -600,16 +600,55 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
     };
   }, []);
 
-  // Fermeture au tap sur le fond (pointer events + détente anti-scroll).
-  const pressRef = useRef<{ x: number; y: number; onBackdrop: boolean } | null>(null);
+  // Pull-to-close (glisser vers le bas depuis le HAUT du scroll pour fermer,
+  // comme la fiche ressource en PWA iOS) + tap sur le fond. Pointer events →
+  // fonctionne au TACTILE comme à la SOURIS (desktop).
+  const PULL_CLOSE = 90; // px de pull (après résistance) pour déclencher la fermeture
+  const [pullY, setPullY] = useState(0);
+  const pullYRef = useRef(0);
+  const pressRef = useRef<{ x: number; y: number; onBackdrop: boolean; pulling: boolean } | null>(null);
+
+  const setPull = (v: number) => {
+    pullYRef.current = v;
+    setPullY(v);
+    // Le fond de page s'estompe à mesure qu'on tire (feedback de fermeture).
+    if (pageBgRef.current) {
+      pageBgRef.current.style.opacity = v > 0 ? String(Math.max(0, 1 - v / (PULL_CLOSE * 3))) : "1";
+    }
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
     const onBackdrop = !surfRef.current?.contains(e.target as Node);
-    pressRef.current = { x: e.clientX, y: e.clientY, onBackdrop };
+    pressRef.current = { x: e.clientX, y: e.clientY, onBackdrop, pulling: false };
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const p = pressRef.current;
+    if (!p || !interactive) return;
+    const dy = e.clientY - p.y;
+    const dx = e.clientX - p.x;
+    if (!p.pulling) {
+      // On engage le pull uniquement AU TOP du scroll + geste franchement
+      // vertical vers le bas (sinon on laisse le scroll / la sélection agir).
+      if ((scrollRef.current?.scrollTop ?? 0) <= 0 && dy > 6 && dy > Math.abs(dx) + 4) {
+        p.pulling = true;
+      } else {
+        return;
+      }
+    }
+    setPull(Math.max(0, dy) * 0.6); // résistance élastique
   };
   const onPointerUp = (e: React.PointerEvent) => {
     const p = pressRef.current;
     pressRef.current = null;
-    if (!p || !p.onBackdrop) return;
+    if (!p) return;
+    if (p.pulling) {
+      const shouldClose = pullYRef.current >= PULL_CLOSE;
+      setPull(0); // remet le contenu en place (le morph inverse repart du bon endroit)
+      if (shouldClose) startClose();
+      return;
+    }
+    // Tap sur le fond → fermeture.
+    if (!p.onBackdrop) return;
     if (surfRef.current?.contains(e.target as Node)) return;
     const moved = Math.abs(e.clientX - p.x) + Math.abs(e.clientY - p.y);
     if (moved < 12) startClose();
@@ -627,7 +666,9 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
         ref={scrollRef}
         data-testid="post-morph-scroll"
         onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
         style={{
           position: "fixed",
           inset: 0,
@@ -647,6 +688,10 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
             paddingTop: TOP_OFFSET,
             paddingBottom: 24,
             pointerEvents: "none",
+            // Pull-to-close : suit le doigt/la souris pendant le tirage, revient
+            // en douceur au relâchement (pullY repassé à 0).
+            transform: pullY ? `translateY(${pullY}px)` : undefined,
+            transition: pullY ? "none" : "transform 260ms var(--nc-ease)",
           }}
         >
           {/* SURFACE (carte de post) : pendant le morph → fixed (JS) ; après
