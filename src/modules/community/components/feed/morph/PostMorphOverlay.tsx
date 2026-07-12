@@ -18,6 +18,7 @@ import type { DevRole } from "../../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../../utils/date-helpers";
 import { renderBodyRich } from "../../../utils/render-mentions";
 import { buildPostLink, copyCommunityLink } from "../../../utils/copy-link";
+import { toggleReactionOptimistic } from "../../../utils/reactor";
 import { detectVideoEmbed } from "../../../utils/video-embed";
 import { UserAvatar } from "../../shared/UserAvatar";
 import { UserHoverCard } from "../../shared/UserHoverCard";
@@ -212,19 +213,7 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
   // ── Actions post (réactions / édition / suppression / épinglage) ────────────
   async function handleReaction(emoji: string) {
     const previous = reactions;
-    setReactions((prev) => {
-      const exists = prev.find((r) => r.emoji === emoji);
-      if (exists) {
-        const nextCount = exists.userReacted ? exists.count - 1 : exists.count + 1;
-        if (nextCount <= 0 && exists.userReacted) {
-          return prev.filter((r) => r.emoji !== emoji);
-        }
-        return prev.map((r) =>
-          r.emoji === emoji ? { ...r, count: nextCount, userReacted: !r.userReacted } : r,
-        );
-      }
-      return [...prev, { emoji, count: 1, userReacted: true }];
-    });
+    setReactions((prev) => toggleReactionOptimistic(prev, emoji, currentUser));
     const result = await togglePostReactionAction({ post_id: post.id, emoji });
     if (!result.ok) {
       setReactions(previous);
@@ -683,8 +672,11 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
                 </div>
               )}
 
-              {/* Header : auteur + tag + date + kebab */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, paddingRight: 40, marginBottom: 16 }}>
+              {/* Header : auteur + tag + date. Le kebab n'est PLUS dans le flux :
+                  il est ancré en coin haut-droit (comme la croix) pour être
+                  aligné sur la même ligne qu'elle — cf. wrapper absolu plus bas.
+                  paddingRight dégage les DEUX boutons de coin (kebab + croix). */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, paddingRight: 92, marginBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
                   <UserHoverCard user={post.author} devRole={devRole}>
                     <div style={{ cursor: "pointer", flexShrink: 0 }}>
@@ -710,15 +702,6 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
                       )}
                     </p>
                   </div>
-                </div>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <PostKebabMenu
-                    onCopyLink={() => copyCommunityLink(buildPostLink(post.id))}
-                    onEdit={isAuthor ? () => setShowEditComposer(true) : undefined}
-                    onDelete={isAuthor || isPrivileged ? () => setShowDeleteConfirm(true) : undefined}
-                    onTogglePin={isPrivileged ? handleTogglePin : undefined}
-                    pinned={postData.pinned}
-                  />
                 </div>
               </div>
 
@@ -756,6 +739,23 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
               <div data-fb-label="Barre de réactions · Détail (morph)" style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--color-border-default)" }}>
                 <ReactionsBar reactions={reactions} onReact={handleReaction} showAddReaction />
               </div>
+            </div>
+
+            {/* KEBAB — ancré en coin haut-droit, sur la MÊME ligne que la croix
+                (top: 16, hauteur 36) et juste à sa gauche → les deux boutons sont
+                alignés. Apparaît avec le contenu (interactive), comme la croix. */}
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ position: "absolute", top: 16, right: 60, zIndex: 3, opacity: interactive ? 1 : 0, pointerEvents: interactive ? "auto" : "none", transition: "opacity 160ms ease" }}
+            >
+              <PostKebabMenu
+                onCopyLink={() => copyCommunityLink(buildPostLink(post.id))}
+                onEdit={isAuthor ? () => setShowEditComposer(true) : undefined}
+                onDelete={isAuthor || isPrivileged ? () => setShowDeleteConfirm(true) : undefined}
+                onTogglePin={isPrivileged ? handleTogglePin : undefined}
+                pinned={postData.pinned}
+                size={36}
+              />
             </div>
 
             {/* CROIX — fixe en haut à droite de la carte. */}
@@ -799,7 +799,15 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
               surface est en position: fixed). */}
           {interactive && (
             <div
+              // La carte commentaires est un FRÈRE de la surface (hors surfRef) :
+              // sans ces stopPropagation, un clic/tap dans la zone commentaires
+              // était vu comme un tap « backdrop » par le conteneur de scroll
+              // (onPointerDown/Up plus haut) → le post entier se refermait. On
+              // arrête donc les pointer events ici pour que la zone reste
+              // interactive (composer, boutons, réactions de commentaire…).
               onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
               style={{
                 width: SURF_WIDTH,
                 marginTop: 16,

@@ -132,6 +132,12 @@ export function FeedPostList({
   // Affichage : optimistic (filtrés par tag) en tête, puis items serveur, dédup
   // par id. Les posts publiés localement restent visibles en tête jusqu'à ce que
   // router.refresh les ramène dans la page serveur.
+  //
+  // ⚠️ Le filtre par tag est appliqué AUSSI côté client sur `feed.items` (et pas
+  // seulement côté serveur via loadMorePosts) : au clic sur un tag, le rechargement
+  // serveur est asynchrone → tant qu'il n'a pas répondu (ou s'il échoue), la liste
+  // encore en mémoire reflète l'ancien tag et « la grille reste la même ». Ce garde
+  // rend le filtrage INSTANTANÉ et fiable, indépendamment du round-trip serveur.
   const seen = new Set<string>();
   const display: Post[] = [];
   for (const p of optimisticPosts) {
@@ -141,6 +147,7 @@ export function FeedPostList({
     display.push(p);
   }
   for (const p of feed.items) {
+    if (activeTag !== "all" && p.tag !== activeTag) continue;
     if (seen.has(p.id)) continue;
     seen.add(p.id);
     display.push(p);

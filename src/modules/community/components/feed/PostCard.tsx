@@ -9,6 +9,7 @@ import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { fullDateTime, timeAgo, wasEdited } from "../../utils/date-helpers";
 import { renderBodyRich } from "../../utils/render-mentions";
 import { buildPostLink, copyCommunityLink } from "../../utils/copy-link";
+import { toggleReactionOptimistic } from "../../utils/reactor";
 import { detectVideoEmbed } from "../../utils/video-embed";
 import { VideoEmbed } from "../shared/VideoEmbed";
 import { UserAvatar } from "../shared/UserAvatar";
@@ -87,23 +88,11 @@ export function PostCard({ post, currentUser, devRole, pinned = false }: PostCar
 
   async function handleReaction(emoji: string) {
     // Optimistic update : on toggle local immédiatement pour le feedback,
-    // puis on appelle la Server Action. Si elle échoue, on revert.
+    // puis on appelle la Server Action. Si elle échoue, on revert. Le helper
+    // maintient aussi la liste des reactors (viewer ajouté/retiré) pour que le
+    // hover affiche le vrai compte utilisateur, pas un « Membre N » fictif.
     const previous = reactions;
-    setReactions((prev) => {
-      const exists = prev.find((r) => r.emoji === emoji);
-      if (exists) {
-        const nextCount = exists.userReacted ? exists.count - 1 : exists.count + 1;
-        if (nextCount <= 0 && exists.userReacted) {
-          return prev.filter((r) => r.emoji !== emoji);
-        }
-        return prev.map((r) =>
-          r.emoji === emoji
-            ? { ...r, count: nextCount, userReacted: !r.userReacted }
-            : r,
-        );
-      }
-      return [...prev, { emoji, count: 1, userReacted: true }];
-    });
+    setReactions((prev) => toggleReactionOptimistic(prev, emoji, currentUser));
 
     const result = await togglePostReactionAction({
       post_id: post.id,
