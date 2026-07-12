@@ -378,13 +378,20 @@ export function MessagesLayout({
     router.push("/communaute/messages");
   }
 
-  // Clic sur un item de la liste : on navigue par l'URL (l'effet ouvre la
-  // conv). Render optimiste immédiat de activeId pour le surlignage, sans
-  // attendre le re-render de la route.
+  // Clic sur un item de la liste. On OUVRE la conversation optimistiquement DÈS
+  // le tap (openConversation → bascule `mobileView` en "thread" + charge les
+  // messages), PUIS on synchronise l'URL.
+  //
+  // Avant : on ne posait qu'`activeId` ici et le basculement de `mobileView`
+  // (qui pilote le slide side-by-side mobile) n'avait lieu qu'une fois l'URL
+  // résolue, APRÈS l'aller-retour RSC de `router.push`. Résultat : l'animation
+  // « attendait » la navigation puis la conversation apparaissait d'un coup,
+  // sans slide fluide. En ouvrant au tap, le slide démarre immédiatement et le
+  // chargement se fait en parallèle (skeleton dans le thread si nécessaire).
   function handleSelectByUrl(id: string) {
     const conv = conversations.find((c) => c.id === id);
     if (!conv) return;
-    setActiveId(id);
+    openConversation(id);
     navigateToConversation(conv);
   }
 
@@ -435,7 +442,14 @@ export function MessagesLayout({
         current.find((c) => c.id === segment);
 
       if (match) {
-        openConversation(match.id);
+        // Déjà ouverte optimistiquement au tap (handleSelectByUrl) → ne pas
+        // relancer un openConversation (double-fetch + re-bascule inutile). On
+        // n'ouvre ici que pour les entrées SANS tap préalable : deep-link,
+        // notification, retour arrière. `activeIdRef` reflète le tap car il est
+        // synchronisé avant que la navigation ne résolve cette valeur d'URL.
+        if (activeIdRef.current !== match.id) {
+          openConversation(match.id);
+        }
         // Normalise l'URL vers le username si on était entré par id/convId.
         const uname = match.participant.username;
         if (uname && uname.toLowerCase() !== clean) {

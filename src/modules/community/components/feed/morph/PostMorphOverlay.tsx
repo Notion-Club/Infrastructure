@@ -764,13 +764,13 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
 
               {/* Titre (encTitle) — hero continu */}
               {hasTitle && (
-                <h1 ref={encTitleRef} style={{ ...H1_STYLE, opacity: 0, marginBottom: 12 }}>
+                <h1 ref={encTitleRef} className="nc-selectable" style={{ ...H1_STYLE, opacity: 0, marginBottom: 12 }}>
                   {postData.title}
                 </h1>
               )}
 
               {displayBody && (
-                <div style={{ fontSize: 15, color: "var(--color-text-secondary)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+                <div className="nc-selectable" style={{ fontSize: 15, color: "var(--color-text-secondary)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
                   {renderBodyRich(displayBody, postData.mentions)}
                 </div>
               )}

@@ -23,6 +23,21 @@ html {
   color: inherit;
 }
 
+/* Contenu texte explicitement sélectionnable (posts, messages, titres). Règle
+   racine à poser sur les blocs de texte lisible pour que l'utilisateur puisse
+   surligner/copier une portion.
+
+   POURQUOI une classe et pas un `userSelect: "text"` inline : en PWA installée
+   (`@media display-mode: standalone`, plus bas), `html/body` passent en
+   `-webkit-user-select: none`. Un style React `userSelect: "text"` n'émet QUE
+   `user-select` (pas le préfixe `-webkit-`) → sur iOS le `-webkit-user-select:
+   none` hérité gagnait toujours et le texte restait insélectionnable. On pose
+   donc ICI les DEUX propriétés (préfixée + standard). */
+.nc-selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

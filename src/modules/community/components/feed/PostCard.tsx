@@ -264,13 +264,13 @@ export function PostCard({ post, currentUser, devRole, pinned = false, onRequest
           <h2
             ref={titleRef}
             data-fb-label="Titre du post · Carte post"
+            className="nc-selectable"
             style={{
               margin: 0,
               fontSize: 17,
               fontWeight: 700,
               color: "var(--color-text-primary)",
               lineHeight: 1.3,
-              userSelect: "text",
               cursor: "text",
             }}
           >
@@ -279,6 +279,7 @@ export function PostCard({ post, currentUser, devRole, pinned = false, onRequest
         )}
         {displayBody && (
           <div
+            className="nc-selectable"
             style={{
               fontSize: 14,
               color: "var(--color-text-secondary)",
@@ -288,7 +289,6 @@ export function PostCard({ post, currentUser, devRole, pinned = false, onRequest
               WebkitBoxOrient: "vertical",
               overflow: "hidden",
               whiteSpace: "pre-wrap",
-              userSelect: "text",
               cursor: "text",
             }}
           >
