@@ -2342,6 +2342,49 @@ html {
 }
 
 /* ──────────────────────────────────────────────────────────────
+   RÈGLE DA RACINE — contraste des boutons secondaires / d'annulation.
+   Un bouton ne doit JAMAIS reprendre la couleur de fond de la surface qui
+   le porte : sinon il devient invisible (surtout en dark). Le motif de
+   référence est le bouton « Se déconnecter » de la zone de danger :
+   fond `--color-surface-raised` (un cran SOUS la carte `--color-surface-card`)
+   + bordure `--color-border-default`.
+
+   → Poser `.nc-btn-secondary` sur TOUT bouton secondaire / « Annuler » posé
+     dans une carte, une modale ou un dropdown. Ne jamais laisser un tel
+     bouton en `background: transparent` (il hérite alors visuellement de la
+     surface porteuse) ni en `--color-surface-card` sur une carte
+     `--color-surface-card`.
+   (Boutons de modale spécifiques : voir aussi `.nc-modal-btn` /
+    `.nc-modal-icon-btn` ci-dessus.)
+   ────────────────────────────────────────────────────────────── */
+.nc-btn-secondary {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: filter 150ms var(--nc-ease), border-color 150ms var(--nc-ease);
+}
+.nc-btn-secondary:hover {
+  filter: brightness(0.97);
+}
+.dark .nc-btn-secondary {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.dark .nc-btn-secondary:hover {
+  /* Raised dark (#201d1b) est très sombre → on ÉCLAIRCIT au survol pour un
+     feedback visible (une réduction de luminosité serait imperceptible). */
+  filter: brightness(1.35);
+}
+
+/* Dropdown / menu flottant posé sur une carte de MÊME surface (feed = carte
+   surface-card, menu = surface-card) : en dark, la bordure par défaut est trop
+   discrète et le panneau se fond dans la carte. On renforce la bordure pour
+   délimiter clairement le menu flottant. */
+.dark .nc-dropdown-elevated {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* ──────────────────────────────────────────────────────────────
    Modale Paiements — carte à 2 pages (liste ↔ détail facture) qui se
    redimensionne. La carte n'a PAS de padding : chaque page gère le sien.
    ────────────────────────────────────────────────────────────── */

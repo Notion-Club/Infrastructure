@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { SmilePlus, Reply, MoreHorizontal, Pencil, Forward } from "lucide-react";
+import { SmilePlus, Reply, MoreHorizontal, Copy, Pencil, Forward } from "lucide-react";
 import { Trash } from "@/shared/components/icons";
 
 // Picker complet — étendu (16 emojis) pour couvrir le besoin "j'ai pas mon
@@ -17,17 +17,18 @@ interface MessageToolbarProps {
   // est de l'autre (on hover à droite), à droite si c'est mon message
   // (on hover à gauche). Pile la convention WhatsApp.
   align: "left" | "right";
-  // Top 3 emojis quick-reaction du caller (alimentés par useUserTopEmojis).
-  topEmojis: string[];
   // Set des emojis sur lesquels le caller a déjà réagi pour ce message —
-  // utilisé pour highlight l'état "on" dans la toolbar.
+  // utilisé pour highlight l'état "on" dans le picker.
   reactedEmojis: Set<string>;
   // Callback réaction : appelée pour chaque emoji (toggle côté parent).
   onReact: (emoji: string) => void;
-  // Quote-reply : ouvre le composer en mode "réponse à ce message".
+  // Quote-reply : ouvre le composer en mode "réponse à ce message". Déplacé
+  // dans le menu ⋅⋅⋅ (plus de bouton dédié dans la barre).
   onReply: () => void;
-  // Kebab : actions destructives / partage. Si l'user n'est pas l'auteur,
-  // seul onForward doit être fourni → kebab affiche uniquement "Transférer".
+  // Copie le contenu du message dans le presse-papier.
+  onCopy: () => void;
+  // Kebab : édition / partage / suppression. onDelete n'est fourni que pour
+  // ses propres messages.
   onEdit?: () => void;
   onDelete?: () => void;
   onForward?: () => void;
@@ -40,10 +41,10 @@ interface MessageToolbarProps {
 
 export function MessageToolbar({
   align,
-  topEmojis,
   reactedEmojis,
   onReact,
   onReply,
+  onCopy,
   onEdit,
   onDelete,
   onForward,
@@ -151,8 +152,6 @@ export function MessageToolbar({
     onOpenChange?.(pickerOpen || menuOpen);
   }, [pickerOpen, menuOpen, onOpenChange]);
 
-  const hasKebab = !!onEdit || !!onDelete || !!onForward;
-
   return (
     <div
       data-fb-label="Barre d'actions message · Bulle de message"
@@ -168,36 +167,7 @@ export function MessageToolbar({
         animation: "nc-mode-in 120ms var(--nc-ease) both",
       }}
     >
-      {/* 3 quick emojis */}
-      {topEmojis.map((emoji) => {
-        const isActive = reactedEmojis.has(emoji);
-        return (
-          <button
-            key={emoji}
-            type="button"
-            onClick={() => onReact(emoji)}
-            data-fb-label={`Réaction rapide ${emoji} · Barre d'actions message`}
-            title={isActive ? "Retirer la réaction" : "Réagir"}
-            style={{
-              width: 28,
-              height: 28,
-              fontSize: 16,
-              border: "none",
-              background: isActive ? "rgba(224,98,90,0.10)" : "transparent",
-              borderRadius: "50%",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "background 120ms var(--nc-ease), transform 120ms var(--nc-ease)",
-            }}
-            className="hover:bg-[rgba(0,0,0,0.05)] hover:scale-110"
-          >
-            {emoji}
-          </button>
-        );
-      })}
-
+      {/* Deux icônes seulement : réaction (ouvre le picker) + menu ⋅⋅⋅. */}
       {/* Picker complet — bouton trigger seul, le popover est rendu via portal */}
       <button
         ref={pickerBtnRef}
@@ -249,98 +219,67 @@ export function MessageToolbar({
               animation: "nc-mode-in var(--nc-duration-xfast) var(--nc-ease) both",
             }}
           >
-            {EMOJI_PICKER.map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => {
-                  onReact(e);
-                  setPickerOpen(false);
-                }}
-                style={{
-                  width: 28,
-                  height: 28,
-                  fontSize: 16,
-                  border: "none",
-                  background: "transparent",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-                className="hover:bg-[rgba(0,0,0,0.06)]"
-              >
-                {e}
-              </button>
-            ))}
+            {EMOJI_PICKER.map((e) => {
+              const isActive = reactedEmojis.has(e);
+              return (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => {
+                    onReact(e);
+                    setPickerOpen(false);
+                  }}
+                  title={isActive ? "Retirer la réaction" : "Réagir"}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    fontSize: 16,
+                    border: "none",
+                    background: isActive ? "rgba(224,98,90,0.12)" : "transparent",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  className="hover:bg-[rgba(0,0,0,0.06)]"
+                >
+                  {e}
+                </button>
+              );
+            })}
           </div>,
           document.body,
         )}
 
-      {/* Séparateur visuel */}
-      <span
-        style={{
-          width: 1,
-          height: 16,
-          background: "var(--color-border-default)",
-          margin: "0 2px",
-        }}
-      />
-
-      {/* Reply */}
+      {/* Menu ⋅⋅⋅ — toujours présent (Répondre + Copier sont universels). Le
+          menu est rendu via portal pour échapper au stacking context des
+          bulles voisines (fix prod : "Transférer" passait sous la bulle
+          suivante). */}
       <button
+        ref={menuBtnRef}
         type="button"
-        onClick={onReply}
-        data-fb-label="Bouton Répondre · Barre d'actions message"
-        title="Répondre"
+        onClick={() => setMenuOpen((o) => !o)}
+        data-fb-label="Menu Plus d'actions · Barre d'actions message"
+        title="Plus d'actions"
         style={{
           width: 28,
           height: 28,
           border: "none",
-          background: "transparent",
+          background: menuOpen ? "rgba(0,0,0,0.06)" : "transparent",
           borderRadius: "50%",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           color: "var(--color-text-muted)",
-          transition: "background 120ms var(--nc-ease), color 120ms var(--nc-ease)",
+          transition: "background 120ms var(--nc-ease)",
         }}
-        className="hover:bg-[rgba(0,0,0,0.05)] hover:!text-[var(--color-text-primary)]"
+        className="hover:bg-[rgba(0,0,0,0.05)]"
       >
-        <Reply size={14} />
+        <MoreHorizontal size={14} />
       </button>
-
-      {/* Kebab — bouton trigger seul, menu rendu via portal pour échapper
-          au stacking context des bulles voisines (fix prod confirmé sur
-          la capture où "Transférer" passait sous la bulle suivante). */}
-      {hasKebab && (
-        <button
-          ref={menuBtnRef}
-          type="button"
-          onClick={() => setMenuOpen((o) => !o)}
-          data-fb-label="Menu Plus d'actions · Barre d'actions message"
-          title="Plus d'actions"
-          style={{
-            width: 28,
-            height: 28,
-            border: "none",
-            background: menuOpen ? "rgba(0,0,0,0.06)" : "transparent",
-            borderRadius: "50%",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--color-text-muted)",
-            transition: "background 120ms var(--nc-ease)",
-          }}
-          className="hover:bg-[rgba(0,0,0,0.05)]"
-        >
-          <MoreHorizontal size={14} />
-        </button>
-      )}
-      {mounted && hasKebab && menuOpen && menuPos &&
+      {mounted && menuOpen && menuPos &&
         createPortal(
           <div
             ref={menuRef}
@@ -362,6 +301,22 @@ export function MessageToolbar({
               animation: "nc-mode-in var(--nc-duration-xfast) var(--nc-ease) both",
             }}
           >
+            <MenuItem
+              icon={<Reply size={14} />}
+              label="Répondre"
+              onClick={() => {
+                setMenuOpen(false);
+                onReply();
+              }}
+            />
+            <MenuItem
+              icon={<Copy size={14} />}
+              label="Copier le message"
+              onClick={() => {
+                setMenuOpen(false);
+                onCopy();
+              }}
+            />
             {onEdit && (
               <MenuItem
                 icon={<Pencil size={14} />}

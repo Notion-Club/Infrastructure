@@ -7,9 +7,21 @@ import { useModalTransition } from "@/shared/lib/hooks/useModalTransition";
 interface DeletePostConfirmDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
+  // Textes surchargeables — permettent de réutiliser cette modale pour d'autres
+  // suppressions (ex. un message privé : « supprimé pour tout le monde »).
+  // Défauts = suppression d'un post.
+  title?: string;
+  description?: string;
+  confirmLabel?: string;
 }
 
-export function DeletePostConfirmDialog({ onConfirm, onCancel }: DeletePostConfirmDialogProps) {
+export function DeletePostConfirmDialog({
+  onConfirm,
+  onCancel,
+  title = "Supprimer ce post ?",
+  description = "Cette action est irréversible. Le post et tous ses commentaires seront définitivement supprimés.",
+  confirmLabel = "Supprimer",
+}: DeletePostConfirmDialogProps) {
   const { stateClass, overlayOpen, requestClose } = useModalTransition();
 
   return createPortal(
@@ -68,10 +80,10 @@ export function DeletePostConfirmDialog({ onConfirm, onCancel }: DeletePostConfi
         {/* Text */}
         <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 6 }}>
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--color-text-primary)" }}>
-            Supprimer ce post ?
+            {title}
           </h3>
           <p style={{ margin: 0, fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-            Cette action est irréversible. Le post et tous ses commentaires seront définitivement supprimés.
+            {description}
           </p>
         </div>
 
@@ -93,23 +105,22 @@ export function DeletePostConfirmDialog({ onConfirm, onCancel }: DeletePostConfi
             }}
             className="hover:opacity-90"
           >
-            Supprimer
+            {confirmLabel}
           </button>
+          {/* Bouton secondaire : motif canonique `.nc-btn-secondary` (fond
+              surface-raised contrasté), jamais transparent — sinon il reprenait
+              la surface de la modale (--color-surface-card) et devenait
+              invisible en dark. Cf. règle DA racine dans globals.css. */}
           <button
             type="button"
             onClick={() => requestClose(onCancel)}
+            className="nc-btn-secondary"
             style={{
               padding: "11px 20px",
-              background: "transparent",
-              color: "var(--color-text-secondary)",
-              border: "1px solid var(--color-border-default)",
               borderRadius: 12,
               fontSize: 14,
               fontWeight: 500,
-              cursor: "pointer",
-              transition: "background var(--nc-duration-xfast) var(--nc-ease)",
             }}
-            className="hover:bg-[rgba(0,0,0,0.04)] dark:hover:bg-[rgba(255,255,255,0.06)]"
           >
             Annuler
           </button>

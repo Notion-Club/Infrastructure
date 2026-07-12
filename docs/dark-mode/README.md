@@ -347,6 +347,29 @@ style={{ background: "#ffffff" }}
 style={{ background: "#fff" }}
 ```
 
+### Bouton secondaire / d'annulation — contraste GARANTI (règle racine)
+
+> Un bouton ne doit **jamais** reprendre la couleur de fond de la surface qui le
+> porte : sinon il devient invisible (surtout en dark, ex. le « Annuler » d'une
+> modale sur `--color-surface-card`). Le motif de référence est le bouton
+> « Se déconnecter » de la `DangerZone`.
+
+```tsx
+// ✅ Classe racine dédiée (globals.css) — fond `surface-raised` (un cran SOUS
+//    la carte `surface-card`) + bordure. Contraste assuré en light ET dark.
+<button className="nc-btn-secondary" style={{ padding: "11px 20px", borderRadius: 12 }}>
+  Annuler
+</button>
+
+// ❌ À ne jamais faire pour un bouton secondaire posé dans une carte/modale
+style={{ background: "transparent" }}          // hérite visuellement de la surface
+style={{ background: "var(--color-surface-card)" }} // = fond de la modale en dark
+```
+
+Pour un **dropdown/menu** posé sur une carte de même surface (feed = carte
+`surface-card`, menu = `surface-card`), ajouter `.nc-dropdown-elevated` au
+panneau : la bordure est renforcée en dark pour le délimiter clairement.
+
 ### Bouton CTA sombre (ex. "Réserver", "Dupliquer")
 
 ```tsx
@@ -434,6 +457,18 @@ style={{
 **Cause** : `background: "#000"` / `"#18181b"` sur fond `#141211` → indiscernables.
 
 **Fix** : token `--nc-btn-dark-bg` qui s'inverse (`#1a1a1a` → `#ede9e6` en dark).
+
+### Bouton d'annulation invisible en dark (même couleur que le fond)
+
+**Cause** : un bouton secondaire (« Annuler » de `DeletePostConfirmDialog`, items
+de dropdown, etc.) en `background: transparent` reprend visuellement la surface
+qui le porte — sur `--color-surface-card` en dark, il devient invisible. Le
+`background: "white"` inline écrasait aussi la classe `dark:bg-*` (spécificité).
+
+**Fix** : classe racine `.nc-btn-secondary` (fond `--color-surface-raised`
+contrasté + bordure), motif du bouton « Se déconnecter ». Règle documentée en §7.
+Pour les menus flottants sur carte de même surface : `.nc-dropdown-elevated`
+(bordure renforcée en dark).
 
 ### Texte blanc sur fond blanc (widget feedback)
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, type RefObject } from "react";
+import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import type { Post, PostCursor, PostTag } from "../../types/post.types";
 import type { User } from "../../types/user.types";
@@ -8,6 +9,7 @@ import type { DevRole } from "../../hooks/useDevRoleToggle";
 import { loadMorePosts } from "../../server/actions";
 import { PostCard } from "./PostCard";
 import { FeedEmptyState } from "./FeedEmptyState";
+import { FeedSkeletonState } from "./FeedSkeletonState";
 
 interface FeedPostListProps {
   // 1re page paginée (keyset) streamée par le serveur — tag "all". Sert d'état
@@ -48,6 +50,17 @@ export function FeedPostList({
   });
   const [isLoading, setIsLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  // Chargement d'un CANAL (changement de tag) → skeleton animé à la place de
+  // l'ancienne liste + molette. `switching` = un load "replace" est en vol.
+  const [switching, setSwitching] = useState(false);
+
+  // Suppression de post : `removingIds` = en cours d'animation de sortie
+  // (collapse), `removedIds` = définitivement retirés de l'affichage (couvre
+  // aussi les posts optimistes, gérés par le parent).
+  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
 
   // Tag que reflètent actuellement `feed.items` (le serveur pagine par tag).
   const loadedTagRef = useRef<PostTag | "all">("all");
@@ -66,6 +79,8 @@ export function FeedPostList({
       const reqId = ++reqIdRef.current;
       loadingRef.current = true;
       setIsLoading(true);
+      // Un « replace » = chargement d'un canal → on bascule sur le skeleton.
+      if (mode === "replace") setSwitching(true);
       loadMorePosts(cursor, tag)
         .then((page) => {
           if (reqId !== reqIdRef.current) return;
@@ -84,14 +99,46 @@ export function FeedPostList({
           });
           loadingRef.current = false;
           setIsLoading(false);
+          setSwitching(false);
         })
         .catch(() => {
           if (reqId !== reqIdRef.current) return;
           loadingRef.current = false;
           setIsLoading(false);
+          setSwitching(false);
         });
     },
     [],
+  );
+
+  // Suppression optimiste animée : on marque le post « en sortie » (collapse),
+  // puis après l'animation on le retire réellement de l'affichage et on
+  // resynchronise le serveur. Le repositionnement des posts suivants est fluide
+  // (hauteur de la carte animée à 0 via grid-template-rows).
+  const handleRequestRemove = useCallback(
+    (id: string) => {
+      setRemovingIds((prev) => {
+        if (prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      setTimeout(() => {
+        setRemovedIds((prev) => {
+          const next = new Set(prev);
+          next.add(id);
+          return next;
+        });
+        setRemovingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        setFeed((prev) => ({ ...prev, items: prev.items.filter((p) => p.id !== id) }));
+        router.refresh();
+      }, 320);
+    },
+    [router],
   );
 
   // Resync depuis les props quand la 1re page « all » change (router.refresh
@@ -142,30 +189,55 @@ export function FeedPostList({
   const display: Post[] = [];
   for (const p of optimisticPosts) {
     if (activeTag !== "all" && p.tag !== activeTag) continue;
+    if (removedIds.has(p.id)) continue;
     if (seen.has(p.id)) continue;
     seen.add(p.id);
     display.push(p);
   }
   for (const p of feed.items) {
     if (activeTag !== "all" && p.tag !== activeTag) continue;
+    if (removedIds.has(p.id)) continue;
     if (seen.has(p.id)) continue;
     seen.add(p.id);
     display.push(p);
   }
 
+  // Chargement d'un canal → skeleton (remplace toute la liste + molette).
+  if (switching) return <FeedSkeletonState />;
+
   if (display.length === 0 && !isLoading) return <FeedEmptyState />;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {display.map((post) => (
-        <PostCard
-          key={post.id}
-          post={post}
-          currentUser={currentUser}
-          devRole={devRole}
-          pinned={post.pinned}
-        />
-      ))}
+      {display.map((post) => {
+        const removing = removingIds.has(post.id);
+        return (
+          // Wrapper de collapse : à la suppression, la hauteur de la carte est
+          // animée à 0 (grid-template-rows 1fr → 0fr) + fondu, ce qui fait
+          // remonter en douceur les posts suivants.
+          <div
+            key={post.id}
+            style={{
+              display: "grid",
+              gridTemplateRows: removing ? "0fr" : "1fr",
+              opacity: removing ? 0 : 1,
+              transform: removing ? "translateY(-4px)" : "none",
+              transition:
+                "grid-template-rows 300ms var(--nc-ease), opacity 260ms ease, transform 300ms var(--nc-ease)",
+            }}
+          >
+            <div style={{ overflow: "hidden", minHeight: 0 }}>
+              <PostCard
+                post={post}
+                currentUser={currentUser}
+                devRole={devRole}
+                pinned={post.pinned}
+                onRequestRemove={handleRequestRemove}
+              />
+            </div>
+          </div>
+        );
+      })}
 
       {/* Sentinelle du scroll infini (déclenche loadMore à 200px). */}
       {feed.hasMore && <div ref={sentinelRef} style={{ height: 1 }} />}
