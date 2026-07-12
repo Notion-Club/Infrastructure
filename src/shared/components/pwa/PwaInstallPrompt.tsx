@@ -54,6 +54,21 @@ function isStandalone(): boolean {
   return Boolean(mql || iosStandalone);
 }
 
+// Le pop-up « ajouter à l'écran d'accueil » n'a de sens QUE sur mobile : la
+// marche à suivre affichée (Partager → Sur l'écran d'accueil) est celle des
+// navigateurs mobiles, et installer la PWA sur un desktop n'apporte rien ici.
+// On gate donc l'ouverture sur un user agent mobile.
+function isMobileUserAgent(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  if (/Android|iPhone|iPad|iPod|IEMobile|BlackBerry|Opera Mini|Mobile/i.test(ua)) {
+    return true;
+  }
+  // iPadOS 13+ se présente comme un Mac desktop dans l'UA : on le rattrape via
+  // le tactile (un vrai Mac n'a pas d'écran tactile multipoints).
+  return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+}
+
 export function PwaInstallPrompt() {
   // `mounted` = présent dans le DOM ; `visible` = data-open=true (transition).
   const [mounted, setMounted] = useState(false);
@@ -124,6 +139,7 @@ export function PwaInstallPrompt() {
   // Décision d'ouverture auto, une fois côté client.
   useEffect(() => {
     if (isStandalone()) return; // déjà installé → rien à proposer
+    if (!isMobileUserAgent()) return; // desktop → pas de pop-up « écran d'accueil »
     let alreadySeen = false;
     try {
       alreadySeen = window.localStorage.getItem(SEEN_KEY) === "1";

@@ -7,6 +7,7 @@ import type { User } from "../../types/user.types";
 import type { DevRole } from "../../hooks/useDevRoleToggle";
 import type { Conversation, Message } from "../../types/conversation.types";
 import { useConversationsRealtime } from "../../hooks/useConversationsRealtime";
+import { clearPushNotifications } from "@/shared/lib/push/clearNotifications";
 import { ConversationList } from "./ConversationList";
 import { ConversationThread } from "./ConversationThread";
 import { MessagesEmptyState } from "./MessagesEmptyState";
@@ -132,6 +133,11 @@ export function MessagesLayout({
       prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)),
     );
     setMobileView("thread");
+
+    // La conversation est LUE → on retire la notif push « nouveau message »
+    // correspondante du centre de notifications. L'URL doit être identique à
+    // celle posée par notifyPush(new_dm) : `/communaute/messages/<conversationId>`.
+    clearPushNotifications(`/communaute/messages/${id}`);
 
     // Skip si déjà chargé dans cette session — render instantané.
     if (loadedConvIds.current.has(id)) {
@@ -268,6 +274,13 @@ export function MessagesLayout({
     void (async () => {
       const isActive = activeIdRef.current === conversationId;
       const current = conversationsRef.current.find((c) => c.id === conversationId);
+
+      // Message reçu dans la conversation DÉJÀ OUVERTE → il est lu à l'instant :
+      // on retire aussitôt la notif push correspondante (l'utilisateur n'a pas
+      // besoin d'être notifié de ce qu'il est en train de lire).
+      if (isActive) {
+        clearPushNotifications(`/communaute/messages/${conversationId}`);
+      }
 
       // Conv inconnue ou jamais chargée → full-load (cas rare : 1ʳᵉ réception,
       // ou conv absente du state). Bon marché car premier accès.

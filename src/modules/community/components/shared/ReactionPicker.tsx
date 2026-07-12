@@ -88,7 +88,9 @@ export function ReactionPicker({
             position: "absolute",
             bottom: "calc(100% + 6px)",
             left: 0,
-            background: "var(--color-surface-card)",
+            // Popover posé au-dessus d'une carte (surface-card) → surface-raised
+            // pour contraster, jamais ton-sur-ton. Cf. règle `.nc-btn-on-card`.
+            background: "var(--color-surface-raised)",
             border: "1px solid var(--color-border-default)",
             borderRadius: 12,
             boxShadow: "var(--nc-shadow-3)",

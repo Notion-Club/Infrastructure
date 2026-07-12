@@ -460,6 +460,10 @@ export function CallDetailModal({
           >
             <div
               ref={scrollRef}
+              // `.nc-selectable` : le contenu des onglets (Plan d'actions +
+              // Transcription) doit être sélectionnable/copiable, y compris en
+              // PWA standalone où html/body passent en user-select:none.
+              className="nc-selectable"
               style={{
                 padding: "20px 28px 16px",
                 overflowY: "auto",

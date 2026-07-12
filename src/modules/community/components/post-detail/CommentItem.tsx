@@ -224,7 +224,7 @@ export function CommentItem({ postId, comment, devRole, currentUser, highlightId
               </div>
             )}
             <div
-              className={`nc-composer-underlay ${editOpen ? "is-hidden" : ""}`}
+              className={`nc-composer-underlay nc-selectable ${editOpen ? "is-hidden" : ""}`}
               style={{ fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}
             >
               {renderBodyRich(displayBody, commentData.mentions)}

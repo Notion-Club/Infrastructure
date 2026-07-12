@@ -122,9 +122,32 @@ self.addEventListener("fetch", (event) => {
 // Permet à la page d'envoyer un message `{ type: "SKIP_WAITING" }` pour
 // activer une nouvelle version du SW sans attendre que tous les onglets
 // soient fermés.
+//
+// `{ type: "CLEAR_NOTIFICATIONS", url }` : la page demande de FERMER les
+// notifications push déjà affichées qui pointent vers `url` (deep-link). Sert
+// à retirer la notif « nouveau message » du centre de notifications dès que
+// l'utilisateur a LU la conversation correspondante (ouverture / message reçu
+// dans la conv active). Sans `url`, on ferme toutes les notifications.
 self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
+  const data = event.data;
+  if (!data) return;
+  if (data.type === "SKIP_WAITING") {
     self.skipWaiting();
+    return;
+  }
+  if (data.type === "CLEAR_NOTIFICATIONS") {
+    event.waitUntil(
+      (async () => {
+        const notifs = await self.registration.getNotifications();
+        for (const n of notifs) {
+          // Ferme si aucune URL ciblée, ou si la notif pointe vers la même
+          // URL que la conversation lue (n.data.url posé par le handler push).
+          if (!data.url || (n.data && n.data.url === data.url)) {
+            n.close();
+          }
+        }
+      })(),
+    );
   }
 });
 

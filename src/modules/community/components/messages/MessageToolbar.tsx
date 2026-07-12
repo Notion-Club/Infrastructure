@@ -160,7 +160,13 @@ export function MessageToolbar({
         display: "flex",
         alignItems: "center",
         gap: 2,
-        background: "var(--color-surface-card)",
+        // Règle DA racine (globals.css §« bouton/contrôle posé SUR une carte ») :
+        // la barre d'actions et ses popovers flottent AU-DESSUS de la
+        // conversation, elle-même en `--color-surface-card` → un fond
+        // `surface-card` serait ton-sur-ton (invisible, surtout en dark). On
+        // remonte d'un cran en `--color-surface-raised`, qui contraste dans les
+        // deux thèmes. Cf. `.nc-btn-on-card`.
+        background: "var(--color-surface-raised)",
         border: "1px solid var(--color-border-default)",
         borderRadius: 9999,
         padding: "3px 5px",
@@ -206,7 +212,9 @@ export function MessageToolbar({
               bottom: window.innerHeight - pickerPos.top,
               [align === "right" ? "right" : "left"]:
                 align === "right" ? pickerPos.right : pickerPos.left,
-              background: "var(--color-surface-card)",
+              // Surface-raised (pas surface-card) → contraste sur la
+              // conversation surface-card. Cf. règle `.nc-btn-on-card`.
+              background: "var(--color-surface-raised)",
               border: "1px solid var(--color-border-default)",
               borderRadius: 12,
               boxShadow: "var(--nc-shadow-3)",
@@ -291,7 +299,9 @@ export function MessageToolbar({
               top: menuPos.top,
               [align === "right" ? "right" : "left"]:
                 align === "right" ? menuPos.right : menuPos.left,
-              background: "var(--color-surface-card)",
+              // Surface-raised (pas surface-card) → contraste sur la
+              // conversation surface-card. Cf. règle `.nc-btn-on-card`.
+              background: "var(--color-surface-raised)",
               border: "1px solid var(--color-border-default)",
               borderRadius: 12,
               boxShadow: "var(--nc-shadow-3)",

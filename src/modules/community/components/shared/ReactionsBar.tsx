@@ -263,7 +263,9 @@ function ReactionPill({ reaction, compact, onReact, allReactions }: ReactionPill
               bottom: "calc(100% + 6px)",
               left: "50%",
               transform: "translateX(-50%)",
-              background: "var(--color-surface-card)",
+              // Tooltip flottant au-dessus d'une carte (surface-card) →
+              // surface-raised pour contraster. Cf. règle `.nc-btn-on-card`.
+              background: "var(--color-surface-raised)",
               border: "1px solid var(--color-border-default)",
               borderRadius: 12,
               boxShadow: "var(--nc-shadow-2)",
@@ -400,7 +402,9 @@ function GroupedReactionsPill({
             position: "absolute",
             bottom: "calc(100% + 6px)",
             left: 0,
-            background: "var(--color-surface-card)",
+            // Tooltip flottant au-dessus d'une carte (surface-card) →
+            // surface-raised pour contraster. Cf. règle `.nc-btn-on-card`.
+            background: "var(--color-surface-raised)",
             border: "1px solid var(--color-border-default)",
             borderRadius: 12,
             boxShadow: "var(--nc-shadow-2)",

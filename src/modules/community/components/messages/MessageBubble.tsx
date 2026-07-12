@@ -482,7 +482,7 @@ function MessageBubbleInner({
           ) : (
             <>
               {message.type === "text" && (
-                <span style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
+                <span className="nc-selectable" style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
               )}
               {message.type === "image" && message.fileUrl && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -522,7 +522,7 @@ function MessageBubbleInner({
                   </button>
                   {/* Body texte optionnel accompagnant l'image */}
                   {message.body && (
-                    <span style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
+                    <span className="nc-selectable" style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
                   )}
                 </div>
               )}
@@ -582,7 +582,7 @@ function MessageBubbleInner({
               )}
               {/* Body texte optionnel accompagnant le fichier non-image */}
               {message.type === "pdf" && message.body && (
-                <span style={{ whiteSpace: "pre-wrap", marginTop: 6, display: "block" }}>
+                <span className="nc-selectable" style={{ whiteSpace: "pre-wrap", marginTop: 6, display: "block" }}>
                   {linkify(message.body)}
                 </span>
               )}
@@ -605,38 +605,44 @@ function MessageBubbleInner({
             </div>
           )}
         </div>
-      </div>
 
-      {/* Toolbar hover — OVERLAY absolu flottant À CÔTÉ de la bulle (et non plus
-          au-dessus), hors du flux : message REÇU → barre à DROITE ; message
-          ENVOYÉ → barre à GAUCHE. Verticalement centrée sur la bulle. Le padding
-          latéral côté bulle sert de PONT DE SURVOL (zone contiguë bulle ↔ barre,
-          pas de trou qui couperait le hover). Entrée animée par .nc-mode-in. */}
-      {(showToolbar || isThisLocked) && !editing && !isPending && (
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            transform: "translateY(-50%)",
-            // À droite de la bulle pour un message reçu, à gauche pour un envoyé.
-            [isSelf ? "right" : "left"]: "100%",
-            [isSelf ? "paddingRight" : "paddingLeft"]: 6,
-            zIndex: 3,
-          }}
-        >
-          <MessageToolbar
-            align={isSelf ? "right" : "left"}
-            reactedEmojis={myReactions}
-            onReact={handleReact}
-            onReply={() => onReply(message)}
-            onCopy={handleCopy}
-            onEdit={canEdit ? () => setEditing(true) : undefined}
-            onDelete={canDelete ? () => setShowDeleteConfirm(true) : undefined}
-            onForward={canForward ? () => setShowForwardModal(true) : undefined}
-            onOpenChange={(open) => onLockChange(open ? message.id : null)}
-          />
-        </div>
-      )}
+        {/* Toolbar hover — OVERLAY absolu flottant À CÔTÉ de la bulle (et non plus
+            au-dessus), hors du flux : message REÇU → barre à DROITE ; message
+            ENVOYÉ → barre à GAUCHE.
+
+            Rendue À L'INTÉRIEUR du wrapper de la bulle (et non plus au niveau de
+            la colonne complète) : son bloc de référence est donc la bulle SEULE,
+            si bien que `top: 50%` la centre verticalement sur la BULLE. Avant,
+            elle était ancrée sur la colonne entière (bulle + pastilles de
+            réaction + horodatage) → son centre tombait trop BAS, « aligné sur le
+            bas du message ». Le padding latéral côté bulle sert de PONT DE SURVOL
+            (zone contiguë bulle ↔ barre). Entrée animée par .nc-mode-in. */}
+        {(showToolbar || isThisLocked) && !editing && !isPending && (
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              transform: "translateY(-50%)",
+              // À droite de la bulle pour un message reçu, à gauche pour un envoyé.
+              [isSelf ? "right" : "left"]: "100%",
+              [isSelf ? "paddingRight" : "paddingLeft"]: 6,
+              zIndex: 3,
+            }}
+          >
+            <MessageToolbar
+              align={isSelf ? "right" : "left"}
+              reactedEmojis={myReactions}
+              onReact={handleReact}
+              onReply={() => onReply(message)}
+              onCopy={handleCopy}
+              onEdit={canEdit ? () => setEditing(true) : undefined}
+              onDelete={canDelete ? () => setShowDeleteConfirm(true) : undefined}
+              onForward={canForward ? () => setShowForwardModal(true) : undefined}
+              onOpenChange={(open) => onLockChange(open ? message.id : null)}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Pastilles réactions sous la bulle */}
       {Object.keys(grouped).length > 0 && (
@@ -688,7 +694,13 @@ function MessageBubbleInner({
           onConfirm={handleDelete}
           onCancel={() => setShowDeleteConfirm(false)}
           title="Supprimer ce message ?"
-          description="Ce message sera supprimé pour tout le monde. Cette action est irréversible."
+          description={
+            <>
+              Ce message sera supprimé pour tout le monde.
+              <br />
+              Cette action est irréversible.
+            </>
+          }
         />
       )}
 

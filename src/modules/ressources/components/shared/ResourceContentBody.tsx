@@ -22,10 +22,15 @@ export function ResourceContentBody({ resource }: { resource: Resource }) {
         // alors un wrapper vide plutôt que le message « pas de corps » de
         // NotionRenderer — parité exacte avec l'ancien `[].map(renderBlock)`.
         resource.content.length > 0 ? (
-          <NotionRenderer
-            blocks={resource.content}
-            label="Corps Notion · Page ressource"
-          />
+          // `.nc-selectable` : le corps de la ressource doit rester
+          // sélectionnable/copiable, y compris en PWA standalone (où html/body
+          // passent en user-select:none). Cf. globals.css.
+          <div className="nc-selectable">
+            <NotionRenderer
+              blocks={resource.content}
+              label="Corps Notion · Page ressource"
+            />
+          </div>
         ) : (
           <div data-fb-label="Corps Notion · Page ressource" />
         )

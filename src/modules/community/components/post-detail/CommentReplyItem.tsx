@@ -181,7 +181,7 @@ export function CommentReplyItem({ postId, reply, devRole, currentUser, highligh
               disabled={updating}
             />
           ) : (
-            <div style={{ margin: "4px 0", fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+            <div className="nc-selectable" style={{ margin: "4px 0", fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
               {renderBodyRich(
                 displayBody,
                 // Source primaire : comment_reply_mentions (mig. 022) qui

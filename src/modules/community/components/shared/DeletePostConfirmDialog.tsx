@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Trash } from "@/shared/components/icons";
 import { useModalTransition } from "@/shared/lib/hooks/useModalTransition";
@@ -9,9 +10,10 @@ interface DeletePostConfirmDialogProps {
   onCancel: () => void;
   // Textes surchargeables — permettent de réutiliser cette modale pour d'autres
   // suppressions (ex. un message privé : « supprimé pour tout le monde »).
-  // Défauts = suppression d'un post.
+  // Défauts = suppression d'un post. `description` accepte un ReactNode pour
+  // permettre un retour à la ligne (`<br/>`) entre les phrases.
   title?: string;
-  description?: string;
+  description?: ReactNode;
   confirmLabel?: string;
 }
 

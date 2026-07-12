@@ -410,7 +410,9 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
                 padding: "6px 14px",
                 borderRadius: 999,
                 border: "1px solid var(--color-border-default)",
-                background: "var(--color-surface-card)",
+                // Bouton posé sur la liste des messages (surface-card) →
+                // surface-raised pour contraster. Cf. règle `.nc-btn-on-card`.
+                background: "var(--color-surface-raised)",
                 fontSize: 13,
                 color: "var(--color-text-secondary)",
                 cursor: isLoadingOlder ? "default" : "pointer",
