@@ -319,7 +319,7 @@ export function CommentComposer({
             borderRadius: 12,
             overflow: "hidden",
             background: "var(--color-surface-raised)",
-            transition: "border-color 150ms ease",
+            transition: "border-color var(--nc-duration-xfast) var(--nc-ease)",
           }}
           onFocusCapture={() => setEditorFocused(true)}
           onBlurCapture={() => setEditorFocused(false)}
@@ -337,7 +337,7 @@ export function CommentComposer({
                 title={title}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => { document.execCommand(cmd, false); editorRef.current?.focus(); syncEmpty(); }}
-                style={{ width: 26, height: 26, borderRadius: 5, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", transition: "background 100ms ease" }}
+                style={{ width: 26, height: 26, borderRadius: 5, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", transition: "background 100ms var(--nc-ease)" }}
                 className="hover:bg-[var(--nc-nav-hover-bg)]"
               >
                 <Icon size={13} />
@@ -349,7 +349,7 @@ export function CommentComposer({
               title="Lien (sélectionne du texte d'abord)"
               onMouseDown={(e) => e.preventDefault()}
               onClick={handleLinkClick}
-              style={{ width: 26, height: 26, borderRadius: 5, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", transition: "background 100ms ease" }}
+              style={{ width: 26, height: 26, borderRadius: 5, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", transition: "background 100ms var(--nc-ease)" }}
               className="hover:bg-[rgba(0,0,0,0.06)]"
             >
               <Link size={13} />
@@ -400,7 +400,7 @@ export function CommentComposer({
                 display: "flex", alignItems: "center", justifyContent: "center",
                 color: "var(--color-text-muted)",
                 opacity: uploadingImage ? 0.5 : 1,
-                transition: "background 100ms ease",
+                transition: "background 100ms var(--nc-ease)",
               }}
               className={uploadingImage ? "" : "hover:bg-[rgba(0,0,0,0.06)]"}
             >
@@ -497,7 +497,7 @@ export function CommentComposer({
 
         {/* URL input flottant */}
         {urlVisible && (
-          <div style={{ position: "fixed", top: urlPos.top, left: urlPos.left, background: "var(--color-surface-card)", border: "1px solid var(--color-border-default)", borderRadius: 12, boxShadow: "var(--nc-shadow-3)", padding: "8px 10px", display: "flex", alignItems: "center", gap: 6, zIndex: 500, animation: "nc-mode-in 150ms var(--nc-ease) both" }}>
+          <div style={{ position: "fixed", top: urlPos.top, left: urlPos.left, background: "var(--color-surface-card)", border: "1px solid var(--color-border-default)", borderRadius: 12, boxShadow: "var(--nc-shadow-3)", padding: "8px 10px", display: "flex", alignItems: "center", gap: 6, zIndex: 500, animation: "nc-mode-in var(--nc-duration-xfast) var(--nc-ease) both" }}>
             <input
               autoFocus
               type="url"
@@ -538,7 +538,7 @@ export function CommentComposer({
               fontSize: 13,
               fontWeight: 600,
               cursor: (!editorEmpty || pendingImageUrl) && !disabled ? "pointer" : "not-allowed",
-              transition: "all 150ms ease",
+              transition: "all var(--nc-duration-xfast) var(--nc-ease)",
               opacity: disabled ? 0.7 : 1,
             }}
           >

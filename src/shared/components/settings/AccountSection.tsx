@@ -177,7 +177,7 @@ export function AccountSection({
                 fontSize: 14,
                 cursor: saving ? "not-allowed" : "pointer",
                 opacity: saving ? 0.6 : 1,
-                transition: "opacity 150ms ease",
+                transition: "opacity var(--nc-duration-xfast) var(--nc-ease)",
                 boxShadow: "0 6px 18px -8px rgba(224,98,90,0.55)",
               }}
             >

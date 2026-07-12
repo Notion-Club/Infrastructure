@@ -161,7 +161,7 @@ export function MobileTopActions() {
                 border: "none",
                 cursor: "pointer",
                 borderRadius: 10,
-                transition: "background 150ms ease",
+                transition: "background var(--nc-duration-xfast) var(--nc-ease)",
               }}
               className="hover:bg-[var(--color-surface-raised)]"
             >
@@ -182,7 +182,7 @@ export function MobileTopActions() {
                 color: "var(--color-text-primary)",
                 textDecoration: "none",
                 borderRadius: 10,
-                transition: "background 150ms ease",
+                transition: "background var(--nc-duration-xfast) var(--nc-ease)",
               }}
               className="hover:bg-[var(--color-surface-raised)]"
             >
@@ -208,7 +208,7 @@ export function MobileTopActions() {
                 cursor: signingOut ? "wait" : "pointer",
                 opacity: signingOut ? 0.6 : 1,
                 borderRadius: 10,
-                transition: "background 150ms ease",
+                transition: "background var(--nc-duration-xfast) var(--nc-ease)",
               }}
               className="hover:bg-[var(--color-surface-raised)]"
             >

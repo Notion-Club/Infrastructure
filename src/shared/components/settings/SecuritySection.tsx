@@ -132,7 +132,7 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
           cursor: "pointer",
           width: "100%",
           textAlign: "left",
-          transition: "border-color 150ms ease",
+          transition: "border-color var(--nc-duration-xfast) var(--nc-ease)",
         }}
       >
         <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
@@ -182,7 +182,7 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
           size={16}
           style={{
             color: "var(--color-text-muted)",
-            transition: "transform 220ms ease",
+            transition: "transform 220ms var(--nc-ease)",
             transform: open ? "rotate(180deg)" : "rotate(0deg)",
           }}
         />
@@ -192,7 +192,7 @@ function PasswordChangeBlock({ isMocked }: { isMocked: boolean }) {
         style={{
           overflow: "hidden",
           transition:
-            "max-height 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease",
+            "max-height 260ms var(--nc-ease), opacity 180ms var(--nc-ease)",
           maxHeight: open ? innerHeight + 8 : 0,
           opacity: open ? 1 : 0,
         }}
@@ -350,7 +350,7 @@ function PasswordChangeForm({
             fontSize: 13,
             cursor: canSubmit ? "pointer" : "not-allowed",
             opacity: canSubmit ? 1 : 0.5,
-            transition: "opacity 150ms ease",
+            transition: "opacity var(--nc-duration-xfast) var(--nc-ease)",
             boxShadow: "0 6px 18px -8px rgba(224,98,90,0.55)",
           }}
         >

@@ -21,7 +21,7 @@ export function ProgressBar({ percent, from, to }: ProgressBarProps) {
             width: `${percent}%`,
             background: "var(--color-brand)",
             borderRadius: 9999,
-            transition: "width 0.6s cubic-bezier(0.22, 1, 0.36, 1)",
+            transition: "width 0.6s var(--nc-ease)",
           }}
         />
       </div>

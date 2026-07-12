@@ -67,7 +67,7 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
             fontWeight: 600,
             cursor: signingOut ? "wait" : "pointer",
             opacity: signingOut ? 0.6 : 1,
-            transition: "background 150ms ease",
+            transition: "background var(--nc-duration-xfast) var(--nc-ease)",
           }}
           className="hover:bg-[var(--color-surface-card)]"
         >
@@ -95,7 +95,7 @@ export function DangerZone({ isMocked }: DangerZoneProps) {
             fontSize: 13,
             fontWeight: 600,
             cursor: "pointer",
-            transition: "background 150ms ease",
+            transition: "background var(--nc-duration-xfast) var(--nc-ease)",
           }}
           className="hover:bg-[rgba(224,98,90,0.06)]"
         >

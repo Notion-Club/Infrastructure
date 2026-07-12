@@ -67,7 +67,7 @@ export function FilloutModal({ isOpen, onClose, type }: FilloutModalProps) {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '20px 16px',
-        transition: `background ${TRANSITION_MS}ms ease, backdrop-filter ${TRANSITION_MS}ms ease`,
+        transition: `background ${TRANSITION_MS}ms var(--nc-ease), backdrop-filter ${TRANSITION_MS}ms var(--nc-ease)`,
       }}
     >
       <div
@@ -84,7 +84,7 @@ export function FilloutModal({ isOpen, onClose, type }: FilloutModalProps) {
             '0 0 0 0.5px rgba(0,0,0,0.12), 0 8px 32px rgba(0,0,0,0.18), 0 32px 80px rgba(0,0,0,0.22)',
           opacity: visible ? 1 : 0,
           transform: visible ? 'scale(1) translateY(0)' : 'scale(0.96) translateY(12px)',
-          transition: `opacity ${TRANSITION_MS}ms ease, transform ${TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+          transition: `opacity ${TRANSITION_MS}ms var(--nc-ease), transform ${TRANSITION_MS}ms var(--nc-ease)`,
         }}
       >
         {/* macOS title bar */}
@@ -119,7 +119,7 @@ export function FilloutModal({ isOpen, onClose, type }: FilloutModalProps) {
               justifyContent: 'center',
               fontSize: 8,
               color: 'rgba(0,0,0,0)',
-              transition: 'color 100ms ease',
+              transition: 'color 100ms var(--nc-ease)',
             }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(80,0,0,0.55)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(0,0,0,0)'; }}

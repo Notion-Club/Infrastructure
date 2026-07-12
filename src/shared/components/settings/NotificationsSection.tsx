@@ -281,7 +281,7 @@ export function NotificationsSection({
             fontSize: 14,
             cursor: saving ? "not-allowed" : "pointer",
             opacity: saving ? 0.6 : 1,
-            transition: "opacity 150ms ease",
+            transition: "opacity var(--nc-duration-xfast) var(--nc-ease)",
             boxShadow: "0 6px 18px -8px rgba(224,98,90,0.55)",
           }}
         >
@@ -443,7 +443,7 @@ function NotificationsMatrix({
                   justifyContent: "center",
                   padding: 8,
                   opacity: channelOff ? 0.4 : 1,
-                  transition: "opacity 200ms ease",
+                  transition: "opacity var(--nc-duration-fast) var(--nc-ease)",
                 }}
               >
                 <SwitchToggle
@@ -516,7 +516,7 @@ function ChannelHeaderButton({
         color: active ? "var(--color-brand)" : "var(--color-text-muted)",
         cursor: "pointer",
         transition:
-          "background 200ms var(--nc-ease), color 200ms ease, border-color 200ms ease",
+          "background var(--nc-duration-fast) var(--nc-ease), color var(--nc-duration-fast) var(--nc-ease), border-color var(--nc-duration-fast) var(--nc-ease)",
         minHeight: 48,
         outline: "none",
         fontFamily: "inherit",
@@ -582,7 +582,7 @@ function SwitchToggle({
         border: "none",
         cursor: disabled ? "not-allowed" : "pointer",
         position: "relative",
-        transition: "background 200ms ease",
+        transition: "background var(--nc-duration-fast) var(--nc-ease)",
         flexShrink: 0,
         padding: 0,
       }}
@@ -602,7 +602,7 @@ function SwitchToggle({
           // animation fluide sur mobile (Safari iOS / Chrome Android
           // saccadaient avec `left` à cause des reflows).
           transform: `translateX(${checked ? knobTravel : 0}px)`,
-          transition: "transform 200ms ease",
+          transition: "transform var(--nc-duration-fast) var(--nc-ease)",
           willChange: "transform",
         }}
       />

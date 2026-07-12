@@ -180,7 +180,7 @@ export function CountrySelect({
             style={{
               color: "var(--color-text-muted)",
               flexShrink: 0,
-              transition: "transform 150ms ease",
+              transition: "transform var(--nc-duration-xfast) var(--nc-ease)",
               transform: open ? "rotate(180deg)" : "none",
             }}
           />

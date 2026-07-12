@@ -459,7 +459,7 @@ export function MessageComposer({
             background: "var(--color-surface-raised)", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
             color: "var(--color-text-muted)", flexShrink: 0,
-            transition: "background 150ms ease",
+            transition: "background var(--nc-duration-xfast) var(--nc-ease)",
           }}
           className="hover:bg-[var(--nc-nav-hover-bg)]"
           aria-label="Joindre un fichier"
@@ -494,7 +494,7 @@ export function MessageComposer({
             lineHeight: 1.5,
             background: "var(--color-surface-raised)",
             color: "var(--color-text-primary)",
-            transition: "border-color 150ms ease, height 150ms ease",
+            transition: "border-color var(--nc-duration-xfast) var(--nc-ease), height var(--nc-duration-xfast) var(--nc-ease)",
             overflow: "hidden",
           }}
           onFocus={(e) => (e.target.style.borderColor = "var(--color-brand)")}
@@ -513,7 +513,7 @@ export function MessageComposer({
             display: "flex", alignItems: "center", justifyContent: "center",
             color: canSend ? "#fff" : "var(--nc-btn-disabled-text)",
             flexShrink: 0,
-            transition: "all 150ms ease",
+            transition: "all var(--nc-duration-xfast) var(--nc-ease)",
           }}
           aria-label="Envoyer"
         >
@@ -620,7 +620,7 @@ function FileLightbox({
           cursor: "pointer",
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
-          transition: "background 150ms ease",
+          transition: "background var(--nc-duration-xfast) var(--nc-ease)",
         }}
         className="hover:bg-white/25"
       >

@@ -50,7 +50,7 @@ export function TemplatePageFooter({
             fontWeight: 600,
             textDecoration: 'none',
             borderBottom: hasRelated ? '1px solid var(--color-border-default)' : 'none',
-            transition: 'opacity 150ms ease',
+            transition: 'opacity var(--nc-duration-xfast) var(--nc-ease)',
           }}
           className="hover:opacity-85"
         >

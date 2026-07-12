@@ -57,7 +57,7 @@ export function ResourceCard({ resource, currentCapability }: ResourceCardProps)
           flexDirection: 'column',
           gap: 12,
           cursor: 'pointer',
-          transition: 'border-color 350ms cubic-bezier(0.22, 1, 0.36, 1)',
+          transition: 'border-color 350ms var(--nc-ease)',
           position: 'relative',
           overflow: 'hidden',
         }}

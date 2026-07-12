@@ -89,7 +89,7 @@ export function DeletePostConfirmDialog({ onConfirm, onCancel }: DeletePostConfi
               fontSize: 14,
               fontWeight: 600,
               cursor: "pointer",
-              transition: "opacity 150ms ease",
+              transition: "opacity var(--nc-duration-xfast) var(--nc-ease)",
             }}
             className="hover:opacity-90"
           >
@@ -107,7 +107,7 @@ export function DeletePostConfirmDialog({ onConfirm, onCancel }: DeletePostConfi
               fontSize: 14,
               fontWeight: 500,
               cursor: "pointer",
-              transition: "background 150ms ease",
+              transition: "background var(--nc-duration-xfast) var(--nc-ease)",
             }}
             className="hover:bg-[rgba(0,0,0,0.04)] dark:hover:bg-[rgba(255,255,255,0.06)]"
           >

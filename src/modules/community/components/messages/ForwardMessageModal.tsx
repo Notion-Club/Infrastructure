@@ -389,7 +389,7 @@ export function ForwardMessageModal({
                     borderRadius: 10,
                     cursor: "pointer",
                     textAlign: "left",
-                    transition: "background 120ms ease",
+                    transition: "background 120ms var(--nc-ease)",
                   }}
                   className="hover:bg-[rgba(0,0,0,0.04)]"
                 >
@@ -426,7 +426,7 @@ export function ForwardMessageModal({
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
-                      transition: "all 150ms ease",
+                      transition: "all var(--nc-duration-xfast) var(--nc-ease)",
                     }}
                   >
                     {isSelected && <Check size={14} color="#fff" />}

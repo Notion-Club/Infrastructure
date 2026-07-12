@@ -172,7 +172,7 @@ export function UserHoverCard({ user, devRole, children }: UserHoverCardProps) {
                     fontSize: 13,
                     fontWeight: 600,
                     cursor: "pointer",
-                    transition: "opacity 150ms ease",
+                    transition: "opacity var(--nc-duration-xfast) var(--nc-ease)",
                   }}
                   className="hover:opacity-85"
                 >

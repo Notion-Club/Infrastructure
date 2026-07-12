@@ -214,7 +214,7 @@ export function NotificationPopover({
                 cursor: "pointer",
                 position: "relative",
                 flexShrink: 0,
-                transition: "background 150ms ease",
+                transition: "background var(--nc-duration-xfast) var(--nc-ease)",
               }
         }
       >
@@ -419,7 +419,7 @@ export function NotificationPopover({
                     borderBottom: "1px solid var(--color-border-default)",
                     cursor: "pointer",
                     textAlign: "left",
-                    transition: "background 150ms ease",
+                    transition: "background var(--nc-duration-xfast) var(--nc-ease)",
                   }}
                 >
                   <div style={{ position: "relative", flexShrink: 0 }}>

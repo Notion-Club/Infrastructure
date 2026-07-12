@@ -197,7 +197,7 @@ function MessageBubbleInner({
         // Halo brand-tinted qui s'estompe en 1.8s via transition.
         boxShadow: highlighted ? "0 0 0 3px rgba(224,98,90,0.35)" : "none",
         borderRadius: highlighted ? 16 : undefined,
-        transition: "box-shadow 600ms ease",
+        transition: "box-shadow 600ms var(--nc-ease)",
         // Quand le menu / picker est ouvert sur ce message, on monte la bulle
         // au-dessus des suivantes — sinon le dropdown (z-index local) est
         // recouvert par la bulle voisine qui crée son propre stacking
@@ -455,7 +455,7 @@ function MessageBubbleInner({
                     color: "inherit",
                     textDecoration: "none",
                     maxWidth: 320,
-                    transition: "background 150ms ease",
+                    transition: "background var(--nc-duration-xfast) var(--nc-ease)",
                   }}
                 >
                   <FileText size={28} style={{ flexShrink: 0, opacity: 0.85 }} />
@@ -578,7 +578,7 @@ function MessageBubbleInner({
                 gap: 4,
                 color: data.mine ? "var(--color-brand)" : "var(--color-text-secondary)",
                 fontWeight: data.mine ? 600 : 500,
-                transition: "all 120ms ease",
+                transition: "all 120ms var(--nc-ease)",
               }}
             >
               {emoji} {data.count}

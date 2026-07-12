@@ -84,7 +84,7 @@ export function ImageLightbox({ url, alt = "", onClose }: ImageLightboxProps) {
           cursor: "pointer",
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
-          transition: "background 150ms ease",
+          transition: "background var(--nc-duration-xfast) var(--nc-ease)",
         }}
         className="hover:bg-white/25"
       >

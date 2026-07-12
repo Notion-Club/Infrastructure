@@ -267,7 +267,7 @@ export function FilloutModal({
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-          animation: "nc-modal-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both",
+          animation: "nc-modal-in var(--nc-duration-fast) var(--nc-ease) both",
         }}
       >
         <MacOSWindowBar onClose={onClose} />
@@ -284,7 +284,7 @@ export function FilloutModal({
               width: "100%",
               height: contentHeight ?? FALLBACK_HEIGHT,
               border: "none",
-              transition: "height 240ms cubic-bezier(0.22, 1, 0.36, 1)",
+              transition: "height 240ms var(--nc-ease)",
             }}
             title="Formulaire de réservation"
           />

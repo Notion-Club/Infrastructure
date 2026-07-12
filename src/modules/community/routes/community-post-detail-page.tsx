@@ -131,7 +131,7 @@ export function CommunityPostDetailPage({
           color: "var(--color-text-secondary)",
           cursor: "pointer",
           width: "fit-content",
-          transition: "all 150ms ease",
+          transition: "all var(--nc-duration-xfast) var(--nc-ease)",
         }}
         className="hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)]"
       >

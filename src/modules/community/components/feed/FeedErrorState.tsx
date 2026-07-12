@@ -34,7 +34,7 @@ export function FeedErrorState({ onRetry }: FeedErrorStateProps) {
           fontSize: 14,
           fontWeight: 600,
           cursor: "pointer",
-          transition: "opacity 150ms ease",
+          transition: "opacity var(--nc-duration-xfast) var(--nc-ease)",
         }}
         className="hover:opacity-80"
       >

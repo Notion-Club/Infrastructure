@@ -148,7 +148,7 @@ export function ThemeToggle({
                 boxShadow: active ? "var(--nc-shadow-3)" : "none",
                 position: "relative",
                 zIndex: 1,
-                transition: "background 150ms ease, box-shadow 150ms ease, color 150ms ease",
+                transition: "background var(--nc-duration-xfast) var(--nc-ease), box-shadow var(--nc-duration-xfast) var(--nc-ease), color var(--nc-duration-xfast) var(--nc-ease)",
               }}
             >
               <Icon size={14} />
@@ -175,7 +175,7 @@ export function ThemeToggle({
         border: "none",
         cursor: "pointer",
         position: "relative",
-        transition: "background 200ms ease",
+        transition: "background var(--nc-duration-fast) var(--nc-ease)",
         flexShrink: 0,
       }}
     >
@@ -193,7 +193,7 @@ export function ThemeToggle({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          transition: "left 200ms ease",
+          transition: "left var(--nc-duration-fast) var(--nc-ease)",
           color: "var(--color-text-secondary)",
         }}
       >

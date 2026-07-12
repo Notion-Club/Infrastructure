@@ -72,7 +72,7 @@ export function ReactionPicker({
           lineHeight: 1,
           color: "var(--color-text-secondary)",
           cursor: "pointer",
-          transition: "background 150ms ease, border-color 150ms ease",
+          transition: "background var(--nc-duration-xfast) var(--nc-ease), border-color var(--nc-duration-xfast) var(--nc-ease)",
         }}
         className="nc-btn-on-card hover:border-[rgba(0,0,0,0.15)]"
       >
@@ -115,7 +115,7 @@ export function ReactionPicker({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                transition: "background 100ms ease",
+                transition: "background 100ms var(--nc-ease)",
               }}
               className="hover:bg-[var(--nc-nav-hover-bg)]"
             >

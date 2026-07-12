@@ -103,7 +103,7 @@ const NotionIcon = () => (
 function DuplicateButton({ url }: { url: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10, marginTop: 24 }}>
-      <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '12px 24px', borderRadius: 9999, background: 'var(--nc-btn-dark-bg)', color: 'var(--nc-btn-dark-text)', fontSize: 15, fontWeight: 600, textDecoration: 'none', transition: 'opacity 150ms ease' }} className="hover:opacity-80">
+      <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '12px 24px', borderRadius: 9999, background: 'var(--nc-btn-dark-bg)', color: 'var(--nc-btn-dark-text)', fontSize: 15, fontWeight: 600, textDecoration: 'none', transition: 'opacity var(--nc-duration-xfast) var(--nc-ease)' }} className="hover:opacity-80">
         <NotionIcon />
         Dupliquer ce template
       </a>
@@ -119,7 +119,7 @@ function DuplicateButton({ url }: { url: string }) {
 // keyframe global `nc-skeleton-pulse`.
 function ResourceBodySkeleton() {
   const pulse: CSSProperties = {
-    animation: 'nc-skeleton-pulse 1.6s ease-in-out infinite',
+    animation: 'nc-skeleton-pulse 1.4s var(--nc-ease) infinite',
     background: 'var(--color-surface-raised)',
     borderRadius: 8,
   };
@@ -229,7 +229,7 @@ function EncContent({ item, body, startedEmpty, contentIn, reduced, visible, enc
                     transform: contentIn ? 'none' : 'translateY(12px)',
                     filter: contentIn ? 'blur(0px)' : 'blur(3px)',
                     transition:
-                      'opacity 600ms cubic-bezier(0.22, 1, 0.36, 1), transform 600ms cubic-bezier(0.22, 1, 0.36, 1), filter 600ms cubic-bezier(0.22, 1, 0.36, 1)',
+                      'opacity 600ms var(--nc-ease), transform 600ms var(--nc-ease), filter 600ms var(--nc-ease)',
                     willChange: 'opacity, transform, filter',
                   }
                 : undefined
@@ -1127,7 +1127,7 @@ export function ResourceMorphOverlay({ source, items, initialIndex, onClose }: O
                 type="button"
                 onClick={() => startClose()}
                 aria-label="Fermer"
-                style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 18, lineHeight: 1, zIndex: 2, opacity: interactive ? 1 : 0, pointerEvents: interactive ? 'auto' : 'none', transition: 'opacity 160ms ease' }}
+                style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: '1px solid var(--color-border-default)', background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 18, lineHeight: 1, zIndex: 2, opacity: interactive ? 1 : 0, pointerEvents: interactive ? 'auto' : 'none', transition: 'opacity 160ms var(--nc-ease)' }}
               >
                 ✕
               </button>
@@ -1196,7 +1196,7 @@ export function ResourceMorphOverlay({ source, items, initialIndex, onClose }: O
           pointerEvents: 'none',
           zIndex: 1,
           opacity: interactive ? 1 : 0,
-          transition: 'opacity 200ms ease',
+          transition: 'opacity var(--nc-duration-fast) var(--nc-ease)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           WebkitMaskImage: 'linear-gradient(to bottom, #000 35%, transparent 100%)',

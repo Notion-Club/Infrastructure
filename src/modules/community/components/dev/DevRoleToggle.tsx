@@ -70,7 +70,7 @@ export function DevRoleToggle({ role, onRoleChange, feedState, onFeedStateChange
               fontSize: 11,
               fontWeight: role === r.value ? 700 : 400,
               cursor: "pointer",
-              transition: "all 150ms ease",
+              transition: "all var(--nc-duration-xfast) var(--nc-ease)",
             }}
           >
             {r.label}
@@ -97,7 +97,7 @@ export function DevRoleToggle({ role, onRoleChange, feedState, onFeedStateChange
               fontSize: 11,
               fontWeight: feedState === s.value ? 700 : 400,
               cursor: "pointer",
-              transition: "all 150ms ease",
+              transition: "all var(--nc-duration-xfast) var(--nc-ease)",
             }}
           >
             {s.label}

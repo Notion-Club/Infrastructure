@@ -6,7 +6,7 @@
 // dans SettingsClient). L'animation réutilise le keyframe `nc-skeleton-pulse`.
 
 const pulse: React.CSSProperties = {
-  animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
+  animation: "nc-skeleton-pulse 1.4s var(--nc-ease) infinite",
   background: "var(--color-surface-raised)",
   borderRadius: "var(--nc-radius-xs)",
 };

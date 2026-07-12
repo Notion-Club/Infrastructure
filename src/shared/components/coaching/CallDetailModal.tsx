@@ -558,7 +558,7 @@ export function CallDetailModal({
                   color: "var(--color-text-primary)",
                   textDecoration: "none",
                   transition:
-                    "background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
+                    "background 180ms var(--nc-ease), border-color 180ms var(--nc-ease), box-shadow 180ms var(--nc-ease)",
                 }}
                 className="hover:bg-[#f0fdf4] hover:border-[#86efac] hover:shadow-[0_2px_8px_rgba(34,197,94,0.12)] dark:hover:bg-[rgba(34,197,94,0.07)] dark:hover:border-[rgba(134,239,172,0.2)] dark:hover:shadow-none"
               >
@@ -592,7 +592,7 @@ export function CallDetailModal({
                   color: "var(--color-text-primary)",
                   textDecoration: "none",
                   transition:
-                    "background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
+                    "background 180ms var(--nc-ease), border-color 180ms var(--nc-ease), box-shadow 180ms var(--nc-ease)",
                 }}
                 className="hover:bg-[#fff8f7] hover:border-[rgba(224,98,90,0.35)] hover:shadow-[0_2px_8px_rgba(224,98,90,0.12)] dark:hover:bg-[rgba(224,98,90,0.07)] dark:hover:border-[rgba(224,98,90,0.28)] dark:hover:shadow-none"
               >
@@ -845,7 +845,7 @@ function SkeletonLines() {
             marginTop: line.gapTop ?? 0,
             borderRadius: 6,
             background: "var(--color-surface-raised)",
-            animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
+            animation: "nc-skeleton-pulse 1.4s var(--nc-ease) infinite",
             animationDelay: `${i * 90}ms`,
           }}
         />
@@ -932,7 +932,7 @@ function CopyTranscriptButton({ transcriptUrl }: { transcriptUrl: string }) {
         boxShadow: copied
           ? "0 4px 16px rgba(224,98,90,0.22)"
           : "0 2px 10px rgba(0,0,0,0.08)",
-        transition: `padding ${morph}, background 360ms var(--nc-ease), border-color 360ms var(--nc-ease), color 300ms var(--nc-ease), box-shadow 420ms var(--nc-ease)`,
+        transition: `padding ${morph}, background 360ms var(--nc-ease), border-color 360ms var(--nc-ease), color var(--nc-duration-slow) var(--nc-ease), box-shadow 420ms var(--nc-ease)`,
       }}
     >
       {/* Icône — wrapper qui s'élargit (16 → 36) pour centrer l'icône dans le

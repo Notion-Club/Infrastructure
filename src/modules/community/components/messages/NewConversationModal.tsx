@@ -16,7 +16,7 @@ import { useModalTransition } from "@/shared/lib/hooks/useModalTransition";
 // saut de hauteur quand les membres arrivent.
 const SKEL_PULSE = {
   background: "var(--color-surface-raised)",
-  animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
+  animation: "nc-skeleton-pulse 1.4s var(--nc-ease) infinite",
 } as const;
 
 function MemberRowSkeleton() {
@@ -275,7 +275,7 @@ export function NewConversationModal({ currentUser, onClose, onSelect }: NewConv
                 background: "transparent",
                 cursor: "pointer",
                 textAlign: "left",
-                transition: "background 150ms ease",
+                transition: "background var(--nc-duration-xfast) var(--nc-ease)",
               }}
               className="hover:bg-[rgba(0,0,0,0.04)]"
             >

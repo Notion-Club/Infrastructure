@@ -364,7 +364,7 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
                 fontSize: 14,
                 cursor: saving ? "not-allowed" : "pointer",
                 opacity: saving ? 0.6 : 1,
-                transition: "opacity 150ms ease",
+                transition: "opacity var(--nc-duration-xfast) var(--nc-ease)",
                 boxShadow: "0 6px 18px -8px rgba(224,98,90,0.55)",
               }}
             >
@@ -507,7 +507,7 @@ function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
     <div
       style={{
         overflow: "hidden",
-        transition: "max-height 220ms ease, opacity 180ms ease",
+        transition: "max-height 220ms var(--nc-ease), opacity 180ms var(--nc-ease)",
         maxHeight: open ? height + 8 : 0,
         opacity: open ? 1 : 0,
       }}
@@ -554,7 +554,7 @@ function BillingCheckbox({
           alignItems: "center",
           justifyContent: "center",
           color: "white",
-          transition: "all 150ms ease",
+          transition: "all var(--nc-duration-xfast) var(--nc-ease)",
           flexShrink: 0,
         }}
       >

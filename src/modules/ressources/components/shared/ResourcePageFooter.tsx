@@ -58,7 +58,7 @@ export function ResourcePageFooter({ relatedResources, currentCapability }: Reso
           border: 'none',
           borderBottom: hasRelated ? '1px solid var(--color-border-default)' : 'none',
           cursor: seen ? 'default' : 'pointer',
-          transition: 'opacity 150ms ease',
+          transition: 'opacity var(--nc-duration-xfast) var(--nc-ease)',
         }}
       >
         {seen && seenAt

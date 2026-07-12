@@ -353,7 +353,7 @@ export function CommunityPage({
                     cursor: "pointer",
                     position: "relative",
                     zIndex: 1,
-                    transition: "background 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease), color 200ms ease",
+                    transition: "background var(--nc-duration-fast) var(--nc-ease), box-shadow var(--nc-duration-fast) var(--nc-ease), color var(--nc-duration-fast) var(--nc-ease)",
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -609,7 +609,7 @@ function MessagesContent({
 // ── Fallbacks Suspense — occupent la zone de contenu le temps que les données
 //    streament. Le cadre (switcher/filtres) reste, lui, déjà affiché.
 const skPulse: React.CSSProperties = {
-  animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
+  animation: "nc-skeleton-pulse 1.4s var(--nc-ease) infinite",
   background: "var(--color-surface-raised)",
   borderRadius: "var(--nc-radius-xs)",
 };

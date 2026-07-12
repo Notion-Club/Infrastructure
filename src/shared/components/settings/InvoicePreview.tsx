@@ -44,7 +44,7 @@ function Skel({
         height: h,
         borderRadius: 3,
         background: LINE,
-        animation: "nc-skeleton-pulse 1.6s ease-in-out infinite",
+        animation: "nc-skeleton-pulse 1.4s var(--nc-ease) infinite",
       }}
     />
   );

@@ -185,7 +185,7 @@ function SwitchButton({
         cursor: "pointer",
         position: "relative",
         zIndex: 1,
-        transition: "background 200ms var(--nc-ease), box-shadow 200ms var(--nc-ease), color 200ms ease",
+        transition: "background var(--nc-duration-fast) var(--nc-ease), box-shadow var(--nc-duration-fast) var(--nc-ease), color var(--nc-duration-fast) var(--nc-ease)",
       }}
     >
       <span style={{ flexShrink: 0, display: "inline-flex" }}>{icon}</span>
@@ -340,7 +340,7 @@ function ResourcesPanel({ items }: { items: LessonResourceLink[] }) {
               padding: "14px 18px",
               textDecoration: "none",
               borderTop: i === 0 ? "none" : "1px solid var(--color-border-default)",
-              transition: "background 200ms var(--nc-ease)",
+              transition: "background var(--nc-duration-fast) var(--nc-ease)",
             }}
           >
             <span
@@ -487,7 +487,7 @@ function RichTextNotes({ courseId, initialNote }: { courseId: string; initialNot
             alignItems: "center",
             gap: 4,
             opacity: saved ? 1 : 0,
-            transition: "opacity 200ms ease",
+            transition: "opacity var(--nc-duration-fast) var(--nc-ease)",
           }}
         >
           <Check size={12} /> Sauvegardé
@@ -560,7 +560,7 @@ function ToolbarButton({
         alignItems: "center",
         justifyContent: "center",
         cursor: "pointer",
-        transition: "background 150ms ease",
+        transition: "background var(--nc-duration-xfast) var(--nc-ease)",
       }}
       className="hover:bg-[var(--color-border-default)]"
     >

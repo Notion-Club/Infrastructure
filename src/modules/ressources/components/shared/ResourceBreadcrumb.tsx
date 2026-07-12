@@ -35,7 +35,7 @@ export function ResourceBreadcrumb({ items }: ResourceBreadcrumbProps) {
           color: 'var(--color-text-secondary)',
           cursor: 'pointer',
           width: 'fit-content',
-          transition: 'all 150ms ease',
+          transition: 'all var(--nc-duration-xfast) var(--nc-ease)',
         }}
         className="hover:bg-[#eaeaea] hover:text-[var(--color-text-primary)]"
       >
@@ -79,7 +79,7 @@ export function ResourceBreadcrumb({ items }: ResourceBreadcrumbProps) {
                       fontSize: 13,
                       color: 'var(--color-text-muted)',
                       textDecoration: 'none',
-                      transition: 'color 150ms ease',
+                      transition: 'color var(--nc-duration-xfast) var(--nc-ease)',
                     }}
                     className="hover:text-[var(--color-text-secondary)]"
                   >
