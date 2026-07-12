@@ -523,11 +523,13 @@ function MessageBubbleInner({
           style={{
             position: "absolute",
             bottom: "100%",
-            left: 0,
-            right: 0,
+            // Ancré à UN seul côté (celui du hover) et dimensionné à SON contenu.
+            // Avant : `left:0; right:0` étirait le conteneur à la largeur de la
+            // bulle → sur un message court, la barre (flex) était contrainte /
+            // rognée en largeur (« se coupe dans sa longueur »). En n'ancrant
+            // qu'un côté, la barre garde toujours sa largeur naturelle.
+            [isSelf ? "right" : "left"]: 0,
             paddingBottom: 6,
-            display: "flex",
-            justifyContent: isSelf ? "flex-end" : "flex-start",
             zIndex: 3,
           }}
         >

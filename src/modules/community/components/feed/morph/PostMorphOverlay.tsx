@@ -390,21 +390,14 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
     surf.style.overflow = "hidden";
     enc.style.width = `${flowRect.width}px`;
 
-    const surfFrom: Keyframe = {
-      transform: `translate(${dx}px, ${dy}px)`,
-      width: `${c.width}px`,
-      height: `${c.height}px`,
-      borderRadius: "16px",
-    };
-    const surfTo: Keyframe = {
-      transform: "none",
-      width: `${flowRect.width}px`,
-      height: `${openH}px`,
-      borderRadius: "16px",
-    };
-    Object.assign(surf.style, surfFrom);
-
-    // Géométrie du titre continu (hero) — seulement si le post a un titre.
+    // Géométrie du titre continu (hero) — MESURÉE MAINTENANT, tant que la
+    // surface est encore à sa position/largeur DÉVELOPPÉE (fixed à flowRect,
+    // width inchangée, AUCUN surfFrom appliqué). Avant : `encTitle.getBoundingClientRect()`
+    // était appelé APRÈS `Object.assign(surf.style, surfFrom)` — la surface
+    // était alors repliée à la taille de la carte (width c.width + translate),
+    // donc le rect du titre était faux → le hero démarrait à sa position/taille
+    // CIBLE (posée au feed) puis sautait brutalement à destination au lieu de
+    // voyager. On mesure d'abord, on applique surfFrom ensuite.
     let heroFrom = "none";
     let heroTop = 0;
     let heroLeft = 0;
@@ -419,6 +412,25 @@ export function PostMorphOverlay({ source, currentUser, devRole, onClose }: Over
       heroTop = encTitleRect.top;
       heroLeft = encTitleRect.left;
       heroW = encTitleRect.width;
+    }
+
+    const surfFrom: Keyframe = {
+      transform: `translate(${dx}px, ${dy}px)`,
+      width: `${c.width}px`,
+      height: `${c.height}px`,
+      borderRadius: "16px",
+    };
+    const surfTo: Keyframe = {
+      transform: "none",
+      width: `${flowRect.width}px`,
+      height: `${openH}px`,
+      borderRadius: "16px",
+    };
+    Object.assign(surf.style, surfFrom);
+
+    // Point de départ du hero posé APRÈS surfFrom (les valeurs sont déjà
+    // mesurées dans l'état développé, donc correctes).
+    if (hasTitle && hero) {
       hero.style.top = `${heroTop}px`;
       hero.style.left = `${heroLeft}px`;
       hero.style.width = `${heroW}px`;

@@ -320,6 +320,134 @@ function ReactionPill({ reaction, compact, onReact, allReactions }: ReactionPill
   );
 }
 
+// Lot cumulé (> 3 emojis) : un seul bouton « emojis + total ». Il ouvre la
+// feuille complète au clic ET affiche, comme les pastilles individuelles, un
+// hover popover listant les utilisateurs ayant réagi (tous emojis confondus).
+// Avant : ce lot n'avait AUCUN hover → au survol, rien ne s'affichait alors que
+// les pastilles simples montraient bien la liste.
+function GroupedReactionsPill({
+  reactions,
+  compact,
+  total,
+  userHasReacted,
+  onOpen,
+}: {
+  reactions: Reaction[];
+  compact: boolean;
+  total: number;
+  userHasReacted: boolean;
+  onOpen: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const allReactors = getAllReactors(reactions);
+
+  const onEnter = useCallback(() => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    showTimer.current = setTimeout(() => setHovered(true), 150);
+  }, []);
+  const onLeave = useCallback(() => {
+    if (showTimer.current) clearTimeout(showTimer.current);
+    hideTimer.current = setTimeout(() => setHovered(false), 200);
+  }, []);
+
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      // Clic sur le LOT cumulé → ouvre le menu listant toutes les réactions
+      // (le retrait éventuel se fait depuis « Retirer ma réaction » du menu).
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      data-fb-label="Lot de réactions · Barre de réactions"
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        fontSize: compact ? 12 : 13,
+        color: userHasReacted ? "var(--color-brand)" : "var(--color-text-secondary)",
+        fontWeight: userHasReacted ? 600 : 500,
+        cursor: "pointer",
+        padding: compact ? "2px 9px" : "3px 11px",
+        borderRadius: 9999,
+        background: userHasReacted ? "rgba(224,98,90,0.08)" : "var(--color-surface-raised)",
+        border: `1px solid ${userHasReacted ? "rgba(224,98,90,0.25)" : "var(--color-border-default)"}`,
+        transition: "border-color 150ms ease, background 150ms ease",
+        userSelect: "none",
+      }}
+      className="hover:border-[rgba(0,0,0,0.15)]"
+    >
+      <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+        {reactions.slice(0, 3).map((r) => <span key={r.emoji}>{r.emoji}</span>)}
+      </span>
+      <span style={{ fontWeight: 600 }}>{total}</span>
+
+      {hovered && allReactors.length > 0 && (
+        <div
+          onMouseEnter={onEnter}
+          onMouseLeave={onLeave}
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 6px)",
+            left: 0,
+            background: "var(--color-surface-card)",
+            border: "1px solid var(--color-border-default)",
+            borderRadius: 12,
+            boxShadow: "var(--nc-shadow-2)",
+            padding: "8px 10px",
+            minWidth: 180,
+            zIndex: 200,
+            animation: "nc-mode-in 150ms var(--nc-ease) both",
+            pointerEvents: "auto",
+          }}
+        >
+          <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {total} réaction{total !== 1 ? "s" : ""}
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            {allReactors.slice(0, 5).map((r, i) => (
+              <div key={`${r.id}-${i}`} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <AvatarDot reactor={r} />
+                <span style={{ fontSize: 12, color: "var(--color-text-primary)", fontWeight: 500, flex: 1 }}>{r.name}</span>
+                <span style={{ fontSize: 13 }}>{r.emoji}</span>
+              </div>
+            ))}
+            {allReactors.length > 5 && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onOpen(); }}
+                style={{
+                  marginTop: 2,
+                  padding: "4px 0",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "var(--color-brand)",
+                  textAlign: "left",
+                }}
+              >
+                Voir {allReactors.length - 5} de plus
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </span>
+  );
+}
+
 interface ReactionsBarProps {
   reactions: Reaction[];
   commentCount?: number;
@@ -365,44 +493,13 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
                 />
               ))
             ) : (
-              <span
-                role="button"
-                tabIndex={0}
-                // Clic sur le LOT cumulé → ouvre le menu listant toutes les
-                // réactions (au lieu de retirer la réaction de l'utilisateur).
-                // Le retrait éventuel se fait depuis « Retirer ma réaction » dans
-                // ce menu (cf. BottomSheet).
-                onClick={() => setShowGroupSheet(true)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setShowGroupSheet(true);
-                  }
-                }}
-                data-fb-label="Lot de réactions · Barre de réactions"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: compact ? 12 : 13,
-                  color: userHasReacted ? "var(--color-brand)" : "var(--color-text-secondary)",
-                  fontWeight: userHasReacted ? 600 : 500,
-                  cursor: "pointer",
-                  padding: compact ? "2px 9px" : "3px 11px",
-                  borderRadius: 9999,
-                  // Idem : surface-raised hors état « réagi » pour contraster sur la carte.
-                  background: userHasReacted ? "rgba(224,98,90,0.08)" : "var(--color-surface-raised)",
-                  border: `1px solid ${userHasReacted ? "rgba(224,98,90,0.25)" : "var(--color-border-default)"}`,
-                  transition: "border-color 150ms ease, background 150ms ease",
-                  userSelect: "none",
-                }}
-                className="hover:border-[rgba(0,0,0,0.15)]"
-              >
-                <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                  {nonEmpty.slice(0, 3).map((r) => <span key={r.emoji}>{r.emoji}</span>)}
-                </span>
-                <span style={{ fontWeight: 600 }}>{total}</span>
-              </span>
+              <GroupedReactionsPill
+                reactions={nonEmpty}
+                compact={compact}
+                total={total}
+                userHasReacted={userHasReacted}
+                onOpen={() => setShowGroupSheet(true)}
+              />
             )}
             {/* Des réactions existent → pastille ronde icône-seule à la suite,
                 pour inciter l'utilisateur à ajouter la sienne. */}

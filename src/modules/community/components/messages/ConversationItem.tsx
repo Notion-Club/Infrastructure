@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useState, type ReactNode } from "react";
 import type { Conversation } from "../../types/conversation.types";
 import { shortDate } from "../../utils/date-helpers";
 import { UserAvatar } from "../shared/UserAvatar";
@@ -15,6 +17,10 @@ interface ConversationItemProps {
 }
 
 export function ConversationItem({ conversation, active, onClick, onPrefetch }: ConversationItemProps) {
+  // Hover piloté en JS : le fond `transparent` inline l'emportait sur la classe
+  // `hover:bg-*` (style inline > feuille de style) → aucun survol visible.
+  // Même correctif que le menu ⋅⋅⋅ des posts.
+  const [hovered, setHovered] = useState(false);
   // Source primaire : lastMessagePreview hydraté par listConversations
   // (mig. queries — preview tronqué côté serveur, libellé symbolique pour
   // image/pdf). Fallback : on regarde conversation.messages au cas où on a
@@ -51,7 +57,8 @@ export function ConversationItem({ conversation, active, onClick, onPrefetch }: 
     <button
       type="button"
       onClick={onClick}
-      onMouseEnter={onPrefetch}
+      onMouseEnter={() => { setHovered(true); onPrefetch?.(); }}
+      onMouseLeave={() => setHovered(false)}
       onFocus={onPrefetch}
       data-fb-label={`Carte conversation « ${conversation.participant.name} » · Liste conversations`}
       style={{
@@ -62,12 +69,15 @@ export function ConversationItem({ conversation, active, onClick, onPrefetch }: 
         padding: "10px 12px",
         borderRadius: 12,
         border: "none",
-        background: active ? "rgba(224,98,90,0.08)" : "transparent",
+        background: active
+          ? "rgba(224,98,90,0.08)"
+          : hovered
+            ? "var(--nc-nav-hover-bg)"
+            : "transparent",
         cursor: "pointer",
         textAlign: "left",
         transition: "background 150ms ease",
       }}
-      className={!active ? "hover:bg-[var(--nc-nav-hover-bg)]" : ""}
     >
       <div style={{ position: "relative", flexShrink: 0 }}>
         <UserAvatar user={conversation.participant} size={44} />
