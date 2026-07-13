@@ -86,6 +86,37 @@ export function wasEdited(createdAt: string, updatedAt: string | undefined): boo
   return updated - created > 2000;
 }
 
+// Libellé « quand le message a été envoyé » affiché en en-tête du menu ⋅⋅⋅
+// d'un message privé (« A été envoyé <label> »). Renvoie uniquement la partie
+// variable. Règles (en français) :
+//   • aujourd'hui        → "aujourd'hui, à HH:mm"
+//   • hier               → "hier, à HH:mm"
+//   • < 7 jours          → "Mardi, à HH:mm"            (jour de semaine)
+//   • ≥ 7 jours          → "Lundi 13 Juillet, à HH:mm" (jour + date + mois)
+// Le calcul « aujourd'hui / hier » se fait en JOURS CALENDAIRES (minuit→minuit),
+// pas en tranches de 24 h, pour coller à la perception utilisateur.
+export function messageSentLabel(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const time = date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
+  const startOfDay = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86_400_000);
+
+  if (diffDays <= 0) return `aujourd'hui, à ${time}`;
+  if (diffDays === 1) return `hier, à ${time}`;
+
+  const weekday = cap(date.toLocaleDateString("fr-FR", { weekday: "long" }));
+  if (diffDays < 7) return `${weekday}, à ${time}`;
+
+  const day = date.toLocaleDateString("fr-FR", { day: "numeric" });
+  const month = cap(date.toLocaleDateString("fr-FR", { month: "long" }));
+  return `${weekday} ${day} ${month}, à ${time}`;
+}
+
 export function shortDate(dateStr: string): string {
   const now = new Date();
   const date = new Date(dateStr);

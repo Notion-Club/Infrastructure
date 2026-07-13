@@ -185,6 +185,10 @@ export function NotificationsSection({
             "Permission refusée. Active les notifications dans les réglages de ton navigateur.",
           );
         } else {
+          // La cause d'un échec push est CÔTÉ CLIENT (subscribe() qui throw,
+          // clé VAPID manquante, POST non-2xx…) → invisible dans les logs
+          // serveur. On la loggue en console pour pouvoir diagnostiquer.
+          console.error("[push] échec d'activation:", result.reason);
           toast.error("Impossible de mettre à jour la souscription push.");
         }
       } else if (turningOn) {

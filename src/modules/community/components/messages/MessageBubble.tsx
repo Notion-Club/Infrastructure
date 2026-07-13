@@ -4,7 +4,7 @@ import { memo, useEffect, useRef, useState, useTransition } from "react";
 import { FileText, Forward, Check, X, Reply } from "lucide-react";
 import { toast } from "sonner";
 import type { Message } from "../../types/conversation.types";
-import { timeAgo, fullDateTime } from "../../utils/date-helpers";
+import { fullDateTime, messageSentLabel } from "../../utils/date-helpers";
 import { linkify } from "../../utils/linkify";
 import { prefetchMembersList } from "../../hooks/useMembersList";
 import {
@@ -495,19 +495,29 @@ function MessageBubbleInner({
                       chargement « en 3 temps » (petite bulle → agrandissement
                       brutal → pop de l'image). Click → lightbox globale
                       (ImageLightboxRoot via 'nc-image-open'). */}
-                  <PostImage
-                    src={message.fileUrl}
-                    alt={message.fileName ?? ""}
-                    maxWidth={280}
-                    onOpen={() =>
-                      window.dispatchEvent(
-                        new CustomEvent("nc-image-open", {
-                          detail: { url: message.fileUrl },
-                        }),
-                      )
-                    }
-                    fbLabel="Image · Bulle de message"
-                  />
+                  {/* Largeur DÉFINIE indispensable : la bulle est en
+                      `width: fit-content`, or PostImage se dimensionne en
+                      `min(280px, 100%)` + `aspect-ratio`. Sans conteneur à
+                      largeur définie, le `100%` se résout contre une largeur
+                      indéfinie → la boîte s'effondre (image quasi invisible,
+                      « on ne voyait qu'un caractère »). On fixe donc ici une
+                      largeur concrète, bornée au viewport pour les petits
+                      écrans. */}
+                  <div style={{ width: "min(280px, 66vw)" }}>
+                    <PostImage
+                      src={message.fileUrl}
+                      alt={message.fileName ?? ""}
+                      maxWidth={280}
+                      onOpen={() =>
+                        window.dispatchEvent(
+                          new CustomEvent("nc-image-open", {
+                            detail: { url: message.fileUrl },
+                          }),
+                        )
+                      }
+                      fbLabel="Image · Bulle de message"
+                    />
+                  </div>
                   {/* Body texte optionnel accompagnant l'image */}
                   {message.body && (
                     <span className="nc-selectable" style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
@@ -620,6 +630,7 @@ function MessageBubbleInner({
             <MessageToolbar
               align={isSelf ? "right" : "left"}
               reactedEmojis={myReactions}
+              sentLabel={messageSentLabel(message.createdAt)}
               onReact={handleReact}
               onReply={() => onReply(message)}
               onCopy={handleCopy}
@@ -672,10 +683,8 @@ function MessageBubbleInner({
         </div>
       )}
 
-      {/* Timestamp */}
-      <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 3 }}>
-        {timeAgo(message.createdAt)}
-      </span>
+      {/* Plus d'horodatage sous la bulle : la date d'envoi est désormais
+          affichée en en-tête du menu ⋅⋅⋅ (« A été envoyé … »), cf. MessageToolbar. */}
 
       {showDeleteConfirm && (
         <DeletePostConfirmDialog

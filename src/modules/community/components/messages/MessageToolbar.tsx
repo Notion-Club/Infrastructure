@@ -20,6 +20,10 @@ interface MessageToolbarProps {
   // Set des emojis sur lesquels le caller a déjà réagi pour ce message —
   // utilisé pour highlight l'état "on" dans le picker.
   reactedEmojis: Set<string>;
+  // Libellé de la date d'envoi (« aujourd'hui, à 14:32 », « Lundi 13 Juillet,
+  // à 09:05 »…) affiché en en-tête du menu ⋅⋅⋅ (« A été envoyé <sentLabel> »).
+  // Remplace l'horodatage qui était sous chaque bulle.
+  sentLabel: string;
   // Callback réaction : appelée pour chaque emoji (toggle côté parent).
   onReact: (emoji: string) => void;
   // Quote-reply : ouvre le composer en mode "réponse à ce message". Déplacé
@@ -42,6 +46,7 @@ interface MessageToolbarProps {
 export function MessageToolbar({
   align,
   reactedEmojis,
+  sentLabel,
   onReact,
   onReply,
   onCopy,
@@ -64,7 +69,13 @@ export function MessageToolbar({
   const pickerBtnRef = useRef<HTMLButtonElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const [pickerPos, setPickerPos] = useState<{ top: number; left: number; right: number } | null>(null);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number; right: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<{
+    placement: "up" | "down";
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  } | null>(null);
   const [mounted, setMounted] = useState(false);
 
   // Hydratation côté client (createPortal nécessite document, qui n'existe
@@ -121,13 +132,26 @@ export function MessageToolbar({
   useEffect(() => {
     if (!menuOpen || !menuBtnRef.current) return;
     const rect = menuBtnRef.current.getBoundingClientRect();
+    // Détection de la safe zone : le menu (en-tête « A été envoyé … » + jusqu'à
+    // 5 items) peut être long. Sur le DERNIER message d'une conversation,
+    // l'espace sous le bouton est insuffisant → ouvert vers le bas, le menu
+    // déborderait sous le viewport et serait coupé. On l'ouvre alors vers le
+    // HAUT. Hauteur estimée d'après le nombre d'items réellement affichés.
+    const itemCount = 2 + (onEdit ? 1 : 0) + (onForward ? 1 : 0) + (onDelete ? 1 : 0);
+    const estHeight = 52 /* en-tête */ + itemCount * 38 + 8 /* padding */;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp = spaceBelow < estHeight + 12;
     setMenuPos({
-      // Top du popover = bottom du trigger + 6px (popover en-dessous)
+      placement: openUp ? "up" : "down",
+      // Ancre BAS (ouverture vers le bas) = bottom du trigger + 6px.
       top: rect.bottom + 6,
+      // Ancre HAUT (ouverture vers le haut) = top du trigger - 6px, exprimé en
+      // `bottom` depuis le bas du viewport.
+      bottom: window.innerHeight - rect.top + 6,
       left: rect.left,
       right: window.innerWidth - rect.right,
     });
-  }, [menuOpen]);
+  }, [menuOpen, onEdit, onForward, onDelete]);
 
   // Si la fenêtre est scrollée pendant que le popover est ouvert, on le
   // ferme — éviter qu'il "flotte" hors de son bouton trigger. Plus simple
@@ -296,7 +320,11 @@ export function MessageToolbar({
             className="nc-dropdown-elevated"
             style={{
               position: "fixed",
-              top: menuPos.top,
+              // Safe zone : ouverture vers le haut (ancre `bottom`) quand
+              // l'espace sous le bouton est insuffisant, sinon vers le bas.
+              ...(menuPos.placement === "up"
+                ? { bottom: menuPos.bottom }
+                : { top: menuPos.top }),
               [align === "right" ? "right" : "left"]:
                 align === "right" ? menuPos.right : menuPos.left,
               // Surface-raised (pas surface-card) → contraste sur la
@@ -314,6 +342,22 @@ export function MessageToolbar({
               animation: "nc-mode-in var(--nc-duration-xfast) var(--nc-ease) both",
             }}
           >
+            {/* En-tête : date d'envoi du message (remplace l'horodatage retiré
+                de sous la bulle). */}
+            {sentLabel && (
+              <div
+                style={{
+                  padding: "6px 12px 8px",
+                  marginBottom: 4,
+                  borderBottom: "1px solid var(--color-border-default)",
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                A été envoyé {sentLabel}
+              </div>
+            )}
             <MenuItem
               icon={<Reply size={14} />}
               label="Répondre"

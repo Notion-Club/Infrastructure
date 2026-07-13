@@ -54,6 +54,24 @@ function urlBase64ToArrayBuffer(base64: string): ArrayBuffer {
   return buffer;
 }
 
+// Vrai si la souscription existante a été créée avec la MÊME clé VAPID que la
+// clé courante. Sinon (rotation de clé, ou souscription fantôme laissée par une
+// MISE À JOUR DU SERVICE WORKER — WebKit/iOS invalide l'abonnement push quand le
+// SW change) il faut la révoquer et en recréer une propre, sans quoi
+// `subscribe()` échoue ou l'endpoint pointe dans le vide.
+function subscriptionMatchesKey(
+  sub: PushSubscription,
+  desiredKey: ArrayBuffer,
+): boolean {
+  const existing = sub.options?.applicationServerKey;
+  if (!existing) return false;
+  const a = new Uint8Array(existing);
+  const b = new Uint8Array(desiredKey);
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 export function usePushSubscription() {
   const [support, setSupport] = useState<SupportState>({
     supported: false,
@@ -113,15 +131,40 @@ export function usePushSubscription() {
 
     try {
       const reg = await navigator.serviceWorker.ready;
-      // Réutilise une souscription existante si présente — un endpoint
-      // déjà actif ne doit pas être re-créé inutilement.
-      const existing = await reg.pushManager.getSubscription();
-      const subscription =
-        existing ??
-        (await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToArrayBuffer(publicKey),
-        }));
+      const desiredKey = urlBase64ToArrayBuffer(publicKey);
+
+      // Réutilise une souscription existante SEULEMENT si sa clé VAPID
+      // correspond encore. Après une mise à jour du service worker, iOS/WebKit
+      // laisse parfois une souscription périmée (endpoint mort / clé
+      // incohérente) : la réutiliser telle quelle faisait échouer l'activation
+      // (« Impossible de mettre à jour la souscription push »). On la révoque
+      // alors avant d'en recréer une.
+      let existing = await reg.pushManager.getSubscription();
+      if (existing && !subscriptionMatchesKey(existing, desiredKey)) {
+        await existing.unsubscribe().catch(() => {});
+        existing = null;
+      }
+
+      let subscription: PushSubscription;
+      if (existing) {
+        subscription = existing;
+      } else {
+        try {
+          subscription = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: desiredKey,
+          });
+        } catch {
+          // Rare mais réel sur iOS PWA : un abonnement résiduel bloque la
+          // recréation. On purge tout ce qui traîne puis on retente UNE fois.
+          const stale = await reg.pushManager.getSubscription();
+          if (stale) await stale.unsubscribe().catch(() => {});
+          subscription = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: desiredKey,
+          });
+        }
+      }
 
       const res = await fetch("/api/push/subscribe", {
         method: "POST",
