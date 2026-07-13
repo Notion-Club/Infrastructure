@@ -84,10 +84,6 @@ interface MessageComposerProps {
   // payload sendMessageAction.
   replyContext?: ReplyContext;
   onCancelReply?: () => void;
-  // Appelé quand le champ de saisie prend le focus (= le clavier s'ouvre sur
-  // mobile). Le parent (ConversationThread) s'en sert pour épingler la
-  // conversation en bas → le dernier message reste visible pendant la saisie.
-  onInputFocus?: () => void;
 }
 
 // Détection navigateur Mac — sur Mac on remplace le mot "Entrée" par
@@ -107,7 +103,6 @@ export function MessageComposer({
   disabledMessage,
   replyContext,
   onCancelReply,
-  onInputFocus,
 }: MessageComposerProps) {
   const [value, setValue] = useState("");
   const [dragging, setDragging] = useState(false);
@@ -505,14 +500,7 @@ export function MessageComposer({
             transition: "border-color var(--nc-duration-xfast) var(--nc-ease), height var(--nc-duration-xfast) var(--nc-ease)",
             overflow: "hidden",
           }}
-          // Le masquage BottomNav/frost pendant la saisie est géré GLOBALEMENT
-          // par KeyboardChromeWatcher (focusin/focusout document) — plus de
-          // câblage individuel ici. onInputFocus notifie le thread pour qu'il
-          // s'épingle en bas (dernier message visible malgré le clavier).
-          onFocus={(e) => {
-            e.target.style.borderColor = "var(--color-brand)";
-            onInputFocus?.();
-          }}
+          onFocus={(e) => (e.target.style.borderColor = "var(--color-brand)")}
           onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
         />
 

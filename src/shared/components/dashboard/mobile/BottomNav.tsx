@@ -166,11 +166,6 @@ export function BottomNav() {
     <nav
       aria-label="Navigation principale"
       data-fb-label="Barre de navigation"
-      // Masquée quand le clavier logiciel est actif (body.nc-typing, posée par
-      // KeyboardChromeWatcher). ⚠️ Le display:flex ci-dessous est INLINE : la
-      // règle CSS de masquage doit rester en `display: none !important`
-      // (globals.css) pour le battre.
-      className="nc-bottom-nav"
       // `background` thème-aware sans backdrop-filter → se repeint au
       // changement de mode (pas de flou figé). Pilule simple et performante.
       style={{
