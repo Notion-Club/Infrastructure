@@ -1,16 +1,18 @@
 "use client";
 
-import { useCallback, useState, useEffect, useLayoutEffect, useMemo, useRef, useTransition } from "react";
+import { Fragment, useCallback, useState, useEffect, useLayoutEffect, useMemo, useRef, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { ArrowReturn } from "@/shared/components/icons";
 import { SkeletonReveal } from "@/shared/components/SkeletonReveal";
 import type { Conversation, Message } from "../../types/conversation.types";
 import type { User } from "../../types/user.types";
 import { REPLY_SNIPPET_MAX } from "../../lib/validation";
+import { isSameLocalDay } from "../../utils/date-helpers";
 import { loadOlderMessagesAction } from "../../server/actions";
 import { useTypingPresence } from "../../hooks/useTypingPresence";
 import { MessageBubble } from "./MessageBubble";
 import { MessageBubbleSkeleton } from "./MessageBubbleSkeleton";
+import { MessageDaySeparator } from "./MessageDaySeparator";
 import { MessageComposer, type ReplyContext } from "./MessageComposer";
 import { TypingIndicator } from "./TypingIndicator";
 import { ConversationEmptyState } from "./MessagesEmptyState";
@@ -99,14 +101,19 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
   // Fin de groupe (style iMessage) : un message est le dernier de son groupe
   // consécutif si le prochain message VISIBLE (non supprimé — un « Message
   // supprimé » ne rend pas de bulle et ne doit pas voler la queue) change
-  // d'expéditeur, ou s'il clôt la liste. Pilote la queue des bulles sorties
-  // (.nc-imsg-tail) et l'espacement inter-groupes dans MessageBubble.
+  // d'expéditeur OU tombe un autre jour (un séparateur de jour s'intercale →
+  // le groupe se clôt, la queue réapparaît). Pilote la queue des bulles
+  // sorties (.nc-imsg-tail) et l'espacement inter-groupes dans MessageBubble.
   const lastInGroup = useMemo(() => {
     const flags = new Array<boolean>(messages.length).fill(false);
     let prevVisible = -1;
     for (let i = 0; i < messages.length; i++) {
       if (messages[i]!.deleted) continue;
-      if (prevVisible >= 0 && messages[prevVisible]!.senderId !== messages[i]!.senderId) {
+      if (
+        prevVisible >= 0 &&
+        (messages[prevVisible]!.senderId !== messages[i]!.senderId ||
+          !isSameLocalDay(messages[prevVisible]!.createdAt, messages[i]!.createdAt))
+      ) {
         flags[prevVisible] = true;
       }
       prevVisible = i;
@@ -423,16 +430,25 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
             <ConversationEmptyState />
           ) : (
             messages.map((msg, i) => (
-              <MessageBubble
-                key={msg.id}
-                message={msg}
-                isSelf={msg.senderId === currentUser.id}
-                currentUser={currentUser}
-                onReply={handleReply}
-                lockedMessageId={lockedMessageId}
-                onLockChange={setLockedMessageId}
-                isLastInGroup={lastInGroup[i] ?? true}
-              />
+              <Fragment key={msg.id}>
+                {/* Séparateur de chronologie avant le premier message de
+                    chaque jour calendaire (et en tête de l'historique
+                    chargé). Recalculé au prepend pagination : le jour du
+                    1er message affiché porte toujours son séparateur. */}
+                {(i === 0 ||
+                  !isSameLocalDay(messages[i - 1]!.createdAt, msg.createdAt)) && (
+                  <MessageDaySeparator dateStr={msg.createdAt} />
+                )}
+                <MessageBubble
+                  message={msg}
+                  isSelf={msg.senderId === currentUser.id}
+                  currentUser={currentUser}
+                  onReply={handleReply}
+                  lockedMessageId={lockedMessageId}
+                  onLockChange={setLockedMessageId}
+                  isLastInGroup={lastInGroup[i] ?? true}
+                />
+              </Fragment>
             ))
           )}
         </SkeletonReveal>
