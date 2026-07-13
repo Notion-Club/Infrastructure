@@ -184,8 +184,9 @@ html {
      contenu jamais visible derrière (en PWA comme en navigateur). */
   --nc-bottom-nav-bg: #ffffff;
   --nc-bottom-nav-border: rgba(229, 231, 235, 0.9);
-  /* Bulle de message sortante — bleu iMessage iOS light (#007AFF). */
-  --nc-imsg-blue: #007aff;
+  /* Bulle de message sortante — bleu iMessage #0A84FF (valeur de référence du
+     redesign Communauté, identique en light et dark). */
+  --nc-imsg-blue: #0a84ff;
   /* Dots pattern hover sur resource/template cards */
   --nc-card-dot-color: rgba(224, 98, 90, 0.28);
   /* Overlay de contenu verrouillé (FreeTeaserPanel) */
@@ -1667,25 +1668,26 @@ html {
 .nc-imsg-tail {
   border-bottom-right-radius: 6px;
 }
-/* Extension bleue du crochet — chevauche le coin de 7px vers l'intérieur
-   (aucune jointure visible) et déborde de 6px au-delà du bord droit. Le petit
-   radius bas-droit (2px) adoucit la pointe du crochet. */
+/* Extension bleue du crochet — chevauche le coin de 6px vers l'intérieur
+   (aucune jointure visible) et déborde de 6px au-delà du bord droit. Le radius
+   bas-droit (4px) émousse la pointe : un crochet courbe, jamais une pique. */
 .nc-imsg-tail::after {
   content: "";
   position: absolute;
   z-index: 0;
   bottom: 0;
   right: -6px;
-  width: 13px;
-  height: 11px;
+  width: 12px;
+  height: 13px;
   background: var(--nc-imsg-blue);
-  border-bottom-right-radius: 2px;
+  border-bottom-right-radius: 4px;
 }
 /* Masque concave — ne couvre QUE la zone débordante (x ∈ [0, 6px] au-delà du
    bord droit), légèrement plus haut que l'extension pour en cacher le sommet.
-   Son arc elliptique (6px × 10px) laisse apparaître le croissant du crochet.
-   Valeurs calées visuellement (screenshots Chromium 6x) : la concavité démarre
-   à ~10px du bas — plus haut, le crochet redevient un pointeur générique. */
+   Son arc elliptique (6px × 12px) laisse apparaître le croissant du crochet.
+   Valeurs calées visuellement (comparatif 4 variantes de crochet, screenshots
+   Chromium 10x) : concavité profonde + pointe émoussée = crochet Apple ; plus
+   court ou plus pointu, il redevient un pointeur de chat générique. */
 .nc-imsg-tail::before {
   content: "";
   position: absolute;
@@ -1693,9 +1695,9 @@ html {
   bottom: 0;
   right: -6px;
   width: 6px;
-  height: 12px;
+  height: 14px;
   background: var(--color-surface-card);
-  border-bottom-left-radius: 6px 10px;
+  border-bottom-left-radius: 6px 12px;
 }
 
 /* Entrée en fondu flou — transition douce vers un bloc skeleton (états vides

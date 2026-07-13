@@ -411,13 +411,13 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
         {/* Reveal skeleton → messages (transitions.dev 14) au premier chargement
             de la conversation. contentStyle reprend le gap des bulles (le wrapper
             de contenu n'impose sinon aucune mise en page). */}
-        {/* gap 4px = espacement INTRA-groupe (bulles serrées, style iMessage) ;
+        {/* gap 5px = espacement INTRA-groupe (bulles serrées, style iMessage) ;
             la fin de groupe ajoute son propre marginBottom (8px) dans
-            MessageBubble → 12px inter-groupes. */}
+            MessageBubble → 13px inter-groupes. */}
         <SkeletonReveal
           loading={Boolean(loading) && messages.length === 0}
           skeleton={<MessageBubbleSkeleton />}
-          contentStyle={{ display: "flex", flexDirection: "column", gap: 4 }}
+          contentStyle={{ display: "flex", flexDirection: "column", gap: 5 }}
         >
           {messages.length === 0 ? (
             <ConversationEmptyState />
