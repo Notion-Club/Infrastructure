@@ -96,6 +96,25 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
     return out;
   }, [olderMessages, conversation.messages, optimisticMessages]);
 
+  // Fin de groupe (style iMessage) : un message est le dernier de son groupe
+  // consécutif si le prochain message VISIBLE (non supprimé — un « Message
+  // supprimé » ne rend pas de bulle et ne doit pas voler la queue) change
+  // d'expéditeur, ou s'il clôt la liste. Pilote la queue des bulles sorties
+  // (.nc-imsg-tail) et l'espacement inter-groupes dans MessageBubble.
+  const lastInGroup = useMemo(() => {
+    const flags = new Array<boolean>(messages.length).fill(false);
+    let prevVisible = -1;
+    for (let i = 0; i < messages.length; i++) {
+      if (messages[i]!.deleted) continue;
+      if (prevVisible >= 0 && messages[prevVisible]!.senderId !== messages[i]!.senderId) {
+        flags[prevVisible] = true;
+      }
+      prevVisible = i;
+    }
+    if (prevVisible >= 0) flags[prevVisible] = true;
+    return flags;
+  }, [messages]);
+
   // Saut INSTANTANÉ tout en bas à l'OUVERTURE d'une conversation (changement
   // d'id). useLayoutEffect + double rAF : on attend que les bulles soient
   // peintes avant de mesurer scrollHeight (sinon on s'ancre trop haut). Pas de
@@ -408,15 +427,17 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
         {/* Reveal skeleton → messages (transitions.dev 14) au premier chargement
             de la conversation. contentStyle reprend le gap des bulles (le wrapper
             de contenu n'impose sinon aucune mise en page). */}
+        {/* gap 6px = espacement INTRA-groupe ; la fin de groupe ajoute son
+            propre marginBottom (8px) dans MessageBubble → 14px inter-groupes. */}
         <SkeletonReveal
           loading={Boolean(loading) && messages.length === 0}
           skeleton={<MessageBubbleSkeleton />}
-          contentStyle={{ display: "flex", flexDirection: "column", gap: 4 }}
+          contentStyle={{ display: "flex", flexDirection: "column", gap: 6 }}
         >
           {messages.length === 0 ? (
             <ConversationEmptyState />
           ) : (
-            messages.map((msg) => (
+            messages.map((msg, i) => (
               <MessageBubble
                 key={msg.id}
                 message={msg}
@@ -425,6 +446,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
                 onReply={handleReply}
                 lockedMessageId={lockedMessageId}
                 onLockChange={setLockedMessageId}
+                isLastInGroup={lastInGroup[i] ?? true}
               />
             ))
           )}

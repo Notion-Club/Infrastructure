@@ -103,6 +103,8 @@ html {
      scroll, le contenu ne doit jamais transparaître derrière la pilule). */
   --nc-bottom-nav-bg: #1c1917;
   --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
+  /* Bulle de message sortante — bleu iMessage iOS dark (#0A84FF). */
+  --nc-imsg-blue: #0a84ff;
 }
 
 @theme inline {
@@ -182,6 +184,8 @@ html {
      contenu jamais visible derrière (en PWA comme en navigateur). */
   --nc-bottom-nav-bg: #ffffff;
   --nc-bottom-nav-border: rgba(229, 231, 235, 0.9);
+  /* Bulle de message sortante — bleu iMessage iOS light (#007AFF). */
+  --nc-imsg-blue: #007aff;
   /* Dots pattern hover sur resource/template cards */
   --nc-card-dot-color: rgba(224, 98, 90, 0.28);
   /* Overlay de contenu verrouillé (FreeTeaserPanel) */
@@ -1632,6 +1636,48 @@ html {
   .t-page-slide .t-page {
     transition: none !important;
   }
+}
+
+/* ── Bulle de message SORTANTE — pilule iMessage (thread de messages) ────────
+   Réplique de la bulle bleue Apple : pilule très arrondie, texte blanc, et
+   « queue » (petit crochet courbe) en bas à droite UNIQUEMENT sur le dernier
+   message d'un groupe consécutif du même expéditeur (classe .nc-imsg-tail,
+   posée par ConversationThread via isLastInGroup).
+
+   Technique de la queue, 100 % pseudo-éléments (pas de markup) :
+   - ::before : pavé bleu qui déborde de 8px à droite de la bulle, avec un
+     border-bottom-left-radius qui le raccorde en douceur au bas de la bulle.
+   - ::after  : pavé couleur du fond de conversation (--color-surface-card,
+     suit le thème light/dark) posé PAR-DESSUS, dont le coin bas-gauche arrondi
+     « sculpte » la découpe concave → il ne reste du bleu qu'un croissant
+     effilé pointant vers le bas-droite, comme le crochet iMessage. */
+.nc-imsg-bubble {
+  background: var(--nc-imsg-blue);
+  color: #fff;
+  padding: 11px 18px;
+  border-radius: 22px;
+}
+.nc-imsg-tail::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  bottom: 0;
+  right: -8px;
+  width: 20px;
+  height: 14px;
+  background: var(--nc-imsg-blue);
+  border-bottom-left-radius: 14px;
+}
+.nc-imsg-tail::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  bottom: 0;
+  right: -8px;
+  width: 8px;
+  height: 16px;
+  background: var(--color-surface-card);
+  border-bottom-left-radius: 8px;
 }
 
 /* Entrée en fondu flou — transition douce vers un bloc skeleton (états vides
