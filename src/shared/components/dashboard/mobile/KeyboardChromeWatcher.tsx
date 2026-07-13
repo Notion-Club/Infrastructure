@@ -53,27 +53,27 @@ export function KeyboardChromeWatcher() {
     // Purge du DÉCALAGE RÉSIDUEL laissé par iOS après fermeture du clavier :
     // pendant la saisie, WebKit scrolle/décale le viewport pour garder le champ
     // visible, et il arrive qu'il ne restaure PAS cette position à la fermeture
-    // (surtout en PWA standalone) → la page reste « remontée » (BottomNav
-    // décalée vers le haut, carte rétrécie) jusqu'à une navigation. On remet le
-    // scroll à zéro immédiatement PUIS après l'animation de fermeture (~350 ms),
-    // le temps que le viewport ait réellement retrouvé sa taille.
+    // (surtout en PWA standalone) → la page reste « remontée » jusqu'à une
+    // navigation. On remet le scroll à zéro immédiatement PUIS après
+    // l'animation de fermeture (~350 ms), et on re-mesure les variables
+    // viewport (cf. updateViewportVars) au même rythme.
     //
-    // GARDE : uniquement mobile ET uniquement quand le document N'EST PAS censé
-    // scroller (pages verrouillées au viewport : /communaute, /coaching — tout
-    // scrollY y est un résidu). Sur une page scrollable (réglages, dashboard),
-    // un scrollTo(0,0) au blur téléporterait l'utilisateur en haut de page.
+    // GARDE : uniquement mobile ET uniquement sur les pages VERROUILLÉES au
+    // viewport (/communaute, /coaching — tout scrollY y est un résidu). Sur une
+    // page scrollable (réglages, dashboard), un scrollTo(0,0) au blur
+    // téléporterait l'utilisateur en haut de page.
     const purgeResidualScroll = () => {
       if (window.innerWidth >= 768) return;
-      const doc = document.documentElement;
-      if (doc.scrollHeight <= window.innerHeight + 1) {
-        window.scrollTo(0, 0);
-      }
+      if (!document.querySelector(".nc-community-shell, .nc-coaching-shell")) return;
+      window.scrollTo(0, 0);
     };
     const settleViewport = () => {
       purgeResidualScroll();
+      updateViewportVars();
       if (settleTimer) clearTimeout(settleTimer);
       settleTimer = setTimeout(() => {
         purgeResidualScroll();
+        updateViewportVars();
         settleTimer = null;
       }, 350);
     };
@@ -101,32 +101,51 @@ export function KeyboardChromeWatcher() {
     document.addEventListener("focusout", onFocusOut);
     sync();
 
-    // ── Mesure PASSIVE du recouvrement clavier → variable CSS `--nc-kb` ─────
-    // Sur iOS, `100dvh` ne se réduit PAS quand le clavier s'affiche (le clavier
-    // RECOUVRE le layout viewport) → une hauteur en dvh laisse le bas de page
-    // (composer) derrière le clavier. On expose donc le recouvrement réel
-    // (layout viewport - visualViewport - défilement iOS) en variable CSS ; les
-    // zones concernées (cf. .nc-messages-embed en globals.css) le soustraient
-    // pour se caler au-dessus du clavier. Android : le layout viewport se
-    // réduit nativement → recouvrement ≈ 0, la variable est neutre.
+    // ── Mesure PASSIVE du viewport RÉEL → variables CSS ─────────────────────
+    // Le visualViewport est la SEULE source fiable sur iOS : `100dvh` ne se
+    // réduit pas quand le clavier s'affiche (Safari : le clavier RECOUVRE la
+    // page), et pire, en PWA standalone le layout viewport peut rester FIGÉ à
+    // la taille « clavier ouvert » après fermeture (bug WebKit) → BottomNav
+    // (fixed bottom) remontée + 100dvh trop petit jusqu'à une navigation. On
+    // expose donc :
+    //   • `--nc-vvh` = bas de la zone réellement visible en coordonnées
+    //     document (pageTop + height) → hauteur des shells verrouillés
+    //     (.nc-community-shell), insensible au dvh/ICB figés ;
+    //   • `--nc-icb-drift` = de combien le layout viewport figé est PLUS COURT
+    //     que le viewport réel → translation corrective des éléments fixed
+    //     ancrés en bas (BottomNav, frost), qui suivent l'ICB figé.
     // LECTURE SEULE (listeners passifs + setProperty) : aucun preventDefault,
     // aucun déplacement de focus → zéro impact sur l'autofill / le natif.
     const vv = window.visualViewport;
     let lastKb = 0;
-    const updateKb = () => {
+    function updateViewportVars() {
       if (!vv) return;
+      const root = document.documentElement;
+      root.style.setProperty(
+        "--nc-vvh",
+        `${Math.round(vv.pageTop + vv.height)}px`,
+      );
+      root.style.setProperty(
+        "--nc-icb-drift",
+        `${Math.max(0, Math.round(vv.height + vv.offsetTop - window.innerHeight))}px`,
+      );
+      // Retombée du clavier détectée côté viewport (couvre la fermeture par
+      // swipe-down iOS, qui NE blur PAS le champ → le chemin focusout ne
+      // suffit pas) → purge du décalage résiduel + re-mesure différée.
+      // `lastKb` est mis à jour AVANT le déclenchement : settleViewport
+      // rappelle updateViewportVars, le garde évite toute récursion.
       const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      document.documentElement.style.setProperty("--nc-kb", `${Math.round(kb)}px`);
-      // Retombée du clavier détectée côté viewport (couvre aussi la fermeture
-      // par swipe-down iOS, qui NE blur PAS le champ → le chemin focusout ne
-      // suffit pas) → même purge du décalage résiduel.
-      if (lastKb > 40 && kb <= 1) settleViewport();
+      const wasKb = lastKb;
       lastKb = kb;
-    };
+      if (wasKb > 40 && kb <= 1) settleViewport();
+    }
     if (vv) {
-      vv.addEventListener("resize", updateKb);
-      vv.addEventListener("scroll", updateKb);
-      updateKb();
+      vv.addEventListener("resize", updateViewportVars);
+      vv.addEventListener("scroll", updateViewportVars);
+      // innerHeight peut se restaurer TARDIVEMENT (dé-figement de l'ICB) sans
+      // événement visualViewport → on ré-évalue aussi sur window.resize.
+      window.addEventListener("resize", updateViewportVars);
+      updateViewportVars();
     }
 
     return () => {
@@ -136,10 +155,12 @@ export function KeyboardChromeWatcher() {
       if (settleTimer) clearTimeout(settleTimer);
       body.classList.remove(TYPING_CLASS);
       if (vv) {
-        vv.removeEventListener("resize", updateKb);
-        vv.removeEventListener("scroll", updateKb);
+        vv.removeEventListener("resize", updateViewportVars);
+        vv.removeEventListener("scroll", updateViewportVars);
+        window.removeEventListener("resize", updateViewportVars);
       }
-      document.documentElement.style.removeProperty("--nc-kb");
+      document.documentElement.style.removeProperty("--nc-vvh");
+      document.documentElement.style.removeProperty("--nc-icb-drift");
     };
   }, []);
 

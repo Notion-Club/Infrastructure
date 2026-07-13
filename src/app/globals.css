@@ -3579,9 +3579,27 @@ html.dark .nc-lt-scrim {
 }
 @media (max-width: 767px) {
   .nc-community-shell {
-    height: 100dvh;
+    /* Hauteur = viewport RÉELLEMENT visible (--nc-vvh, mesuré en continu par
+       KeyboardChromeWatcher via visualViewport), PAS 100dvh : sur iOS PWA le
+       layout viewport (et donc dvh) peut rester FIGÉ à la taille « clavier
+       ouvert » après fermeture du clavier (bug WebKit) → carte réduite + nav
+       remontée jusqu'à une navigation. --nc-vvh reste exact dans tous les cas
+       (100dvh = simple fallback pré-hydratation). Bonus : pendant la saisie,
+       --nc-vvh exclut déjà le clavier → le shell se rétrécit et le composer se
+       cale au-dessus du clavier, Safari Web comme PWA. */
+    height: var(--nc-vvh, 100dvh);
     min-height: 0;
     overflow: hidden;
+  }
+  /* Compense la DÉRIVE du layout viewport figé (--nc-icb-drift > 0 uniquement
+     dans l'état bogué décrit ci-dessus) : les éléments fixed ancrés en bas
+     suivent l'ICB figé → on les redescend d'autant. No-op (0px) en temps
+     normal. */
+  .nc-bottom-nav {
+    transform: translateY(var(--nc-icb-drift, 0px));
+  }
+  .nc-pwa-bottom-frost > div {
+    transform: translateY(var(--nc-icb-drift, 0px));
   }
   .nc-community-shell > main {
     /* Haut : le halo (.nc-page-halo) porte déjà le safe-area-inset-top ; la
@@ -3622,12 +3640,10 @@ html.dark .nc-lt-scrim {
    (aucune interception du clavier / du viewport → autofill et natifs intacts) :
    • on MASQUE la BottomNav pendant la saisie (elle recouvrait le champ) ;
    • on MASQUE le frost de bas d'écran (.nc-pwa-bottom-frost) ;
-   • le padding bas du shell (réservation BottomNav) est remplacé par le
-     RECOUVREMENT réel du clavier (--nc-kb, mesuré passivement) + 8px de marge →
-     la carte se rétrécit en flex et le composer se cale juste au-dessus du
-     clavier. Sur iOS, 100dvh ne se réduit pas quand le clavier apparaît (il
-     RECOUVRE la page) → sans --nc-kb le composer restait derrière. Android :
-     le viewport se réduit nativement → --nc-kb ≈ 0, neutre.
+   • le padding bas du shell (réservation BottomNav) tombe à 8px : la hauteur
+     du shell étant déjà calée sur la zone visible AU-DESSUS du clavier
+     (--nc-vvh, cf. .nc-community-shell), la carte se rétrécit en flex et le
+     composer se cale à 8px du clavier — Safari Web comme PWA.
    ⚠️ `!important` OBLIGATOIRE sur display : la BottomNav pose `display: flex`
    en style INLINE — sans !important, une règle de feuille de style perd
    toujours face au style inline. */
@@ -3637,7 +3653,7 @@ html.dark .nc-lt-scrim {
     display: none !important;
   }
   body.nc-typing .nc-community-shell > main {
-    padding-bottom: calc(var(--nc-kb, 0px) + 8px);
+    padding-bottom: 8px;
   }
 }
 
