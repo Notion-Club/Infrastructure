@@ -267,6 +267,22 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
     [currentUser.id, currentUser.name, conversation.participant.name],
   );
 
+  // Épingle le fil EN BAS quand le composer prend le focus (ouverture du
+  // clavier mobile) : la zone messages se rétrécit (hauteur recalée au-dessus
+  // du clavier, cf. .nc-messages-embed en saisie dans globals.css) → sans
+  // ré-ancrage, le dernier message sortait du champ de vision. Boucle rAF
+  // bornée à ~700 ms : absorbe l'animation d'ouverture du clavier + le reflow
+  // de hauteur, sans lutter durablement contre un scroll utilisateur.
+  const pinBottomOnFocus = useCallback(() => {
+    const start = performance.now();
+    const pin = () => {
+      const el = scrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+      if (performance.now() - start < 700) requestAnimationFrame(pin);
+    };
+    requestAnimationFrame(pin);
+  }, []);
+
   async function handleSend(
     body: string,
     type: "text" | "pdf" | "image" = "text",
@@ -479,6 +495,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
         disabledMessage={disabledMsg}
         replyContext={replyContext ?? undefined}
         onCancelReply={() => setReplyContext(null)}
+        onInputFocus={pinBottomOnFocus}
       />
     </div>
   );

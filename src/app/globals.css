@@ -3598,8 +3598,13 @@ html.dark .nc-lt-scrim {
   body.nc-typing .nc-pwa-bottom-frost {
     display: none !important;
   }
+  /* Hauteur en saisie = viewport - chrome haut (104px) - RECOUVREMENT DU
+     CLAVIER (--nc-kb, mesuré passivement par KeyboardChromeWatcher) - 8px de
+     marge. Sur iOS, 100dvh ne se réduit pas quand le clavier apparaît (il
+     RECOUVRE la page) : sans --nc-kb, le composer restait derrière le clavier.
+     Sur Android le viewport se réduit nativement → --nc-kb ≈ 0, neutre. */
   body.nc-typing .nc-messages-embed {
-    height: calc(100dvh - 104px);
+    height: calc(100dvh - 104px - var(--nc-kb, 0px) - 8px);
   }
 }
 @media (min-width: 768px) {

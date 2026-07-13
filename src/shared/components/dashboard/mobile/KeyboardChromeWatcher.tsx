@@ -68,11 +68,38 @@ export function KeyboardChromeWatcher() {
     document.addEventListener("focusout", onFocusOut);
     sync();
 
+    // ── Mesure PASSIVE du recouvrement clavier → variable CSS `--nc-kb` ─────
+    // Sur iOS, `100dvh` ne se réduit PAS quand le clavier s'affiche (le clavier
+    // RECOUVRE le layout viewport) → une hauteur en dvh laisse le bas de page
+    // (composer) derrière le clavier. On expose donc le recouvrement réel
+    // (layout viewport - visualViewport - défilement iOS) en variable CSS ; les
+    // zones concernées (cf. .nc-messages-embed en globals.css) le soustraient
+    // pour se caler au-dessus du clavier. Android : le layout viewport se
+    // réduit nativement → recouvrement ≈ 0, la variable est neutre.
+    // LECTURE SEULE (listeners passifs + setProperty) : aucun preventDefault,
+    // aucun déplacement de focus → zéro impact sur l'autofill / le natif.
+    const vv = window.visualViewport;
+    const updateKb = () => {
+      if (!vv) return;
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty("--nc-kb", `${Math.round(kb)}px`);
+    };
+    if (vv) {
+      vv.addEventListener("resize", updateKb);
+      vv.addEventListener("scroll", updateKb);
+      updateKb();
+    }
+
     return () => {
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);
       if (timer) clearTimeout(timer);
       body.classList.remove(TYPING_CLASS);
+      if (vv) {
+        vv.removeEventListener("resize", updateKb);
+        vv.removeEventListener("scroll", updateKb);
+      }
+      document.documentElement.style.removeProperty("--nc-kb");
     };
   }, []);
 
