@@ -32,6 +32,10 @@ interface MessageBubbleProps {
   // pour être partagé entre toutes les bulles.
   lockedMessageId: string | null;
   onLockChange: (messageId: string | null) => void;
+  // true si ce message est le DERNIER d'un groupe consécutif du même
+  // expéditeur (calculé par ConversationThread). Pilote la queue iMessage
+  // des bulles sorties (.nc-imsg-tail) et l'espacement inter-groupes.
+  isLastInGroup: boolean;
 }
 
 function MessageBubbleInner({
@@ -41,6 +45,7 @@ function MessageBubbleInner({
   onReply,
   lockedMessageId,
   onLockChange,
+  isLastInGroup,
 }: MessageBubbleProps) {
   const [showToolbar, setShowToolbar] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -249,7 +254,10 @@ function MessageBubbleInner({
         alignSelf: isSelf ? "flex-end" : "flex-start",
         width: "fit-content",
         maxWidth: "100%",
-        margin: "2px 0",
+        // Espacement style iMessage : les bulles d'un même groupe restent
+        // serrées (le gap 6px du conteneur suffit) ; la FIN d'un groupe ajoute
+        // 8px → 14px entre deux groupes d'expéditeurs différents.
+        marginBottom: isLastInGroup ? 8 : 0,
         position: "relative",
         // Quand le menu / picker est ouvert sur ce message, on monte la bulle
         // au-dessus des suivantes — sinon le dropdown (z-index local) est
@@ -319,20 +327,29 @@ function MessageBubbleInner({
           </div>
         )}
 
-        {/* Bulle */}
+        {/* Bulle. Sortante : pilule bleue iMessage (.nc-imsg-bubble, cf.
+            globals.css) + queue ::before/::after (.nc-imsg-tail) uniquement sur
+            le dernier message d'un groupe consécutif. Reçue : style existant. */}
         <div
           data-fb-label="Bulle de message · Thread de messages"
+          className={
+            isSelf ? `nc-imsg-bubble${isLastInGroup ? " nc-imsg-tail" : ""}` : undefined
+          }
           style={{
             maxWidth: 360,
-            padding: "10px 14px",
-            borderRadius: isSelf ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-            background: isSelf ? "var(--color-brand)" : "var(--color-surface-raised)",
-            color: isSelf ? "#fff" : "var(--color-text-primary)",
-            border: isSelf ? "none" : "1px solid var(--color-border-default)",
             fontSize: 14,
             lineHeight: 1.5,
             wordBreak: "break-word",
             position: "relative",
+            ...(isSelf
+              ? null
+              : {
+                  padding: "10px 14px",
+                  borderRadius: "16px 16px 16px 4px",
+                  background: "var(--color-surface-raised)",
+                  color: "var(--color-text-primary)",
+                  border: "1px solid var(--color-border-default)",
+                }),
           }}
         >
           {/* Badge Forwarded (mig. 028) */}
