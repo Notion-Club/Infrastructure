@@ -124,16 +124,6 @@ export function MessageComposer({
     setIsMac(detectMac());
   }, []);
 
-  // Filet de sécurité : si le composer est démonté alors que le champ était
-  // encore focus (navigation, fermeture de conversation), le `blur` peut ne pas
-  // se déclencher → on retire la classe de saisie au démontage pour ne pas
-  // laisser la BottomNav masquée ailleurs dans l'app.
-  useEffect(() => {
-    return () => {
-      document.body.classList.remove("nc-composer-typing");
-    };
-  }, []);
-
   async function handleSend() {
     if (disabled || sending) return;
     if (pendingFile) {
@@ -510,18 +500,11 @@ export function MessageComposer({
             transition: "border-color var(--nc-duration-xfast) var(--nc-ease), height var(--nc-duration-xfast) var(--nc-ease)",
             overflow: "hidden",
           }}
-          onFocus={(e) => {
-            e.target.style.borderColor = "var(--color-brand)";
-            // Recalibration layout mobile : masque la BottomNav + descend la
-            // zone messages juste au-dessus du clavier (cf. body.nc-composer-typing
-            // dans globals.css). Pure classe CSS → aucun impact sur le clavier
-            // natif / l'autofill.
-            document.body.classList.add("nc-composer-typing");
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = "var(--color-border-default)";
-            document.body.classList.remove("nc-composer-typing");
-          }}
+          // Le masquage BottomNav/frost pendant la saisie est géré GLOBALEMENT
+          // par KeyboardChromeWatcher (focusin/focusout document) — plus de
+          // câblage individuel ici.
+          onFocus={(e) => (e.target.style.borderColor = "var(--color-brand)")}
+          onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
         />
 
         <button

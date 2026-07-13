@@ -12,6 +12,7 @@ import { Topbar } from "@/shared/components/dashboard/Topbar";
 import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
 import { MobileBrandLogo } from "@/shared/components/dashboard/mobile/MobileBrandLogo";
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
+import { KeyboardChromeWatcher } from "@/shared/components/dashboard/mobile/KeyboardChromeWatcher";
 import { DevToolboxProvider } from "@/shared/components/dev/DevToolbox";
 import { AdminPushRegistrar } from "@/shared/components/dev/admin-push/AdminPushRegistrar";
 import { ProfileModalProvider } from "@/shared/components/profile/ProfileModalProvider";
@@ -79,6 +80,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <MobileBrandLogo />
             <MobileTopActions />
             <BottomNav />
+            {/* Watcher clavier : pose body.nc-typing quand un champ éditable a
+                le focus → masque BottomNav + frost bas (cf. globals.css). */}
+            <KeyboardChromeWatcher />
           </div>
           {children}
           <FeedbackWidgetLoader />
