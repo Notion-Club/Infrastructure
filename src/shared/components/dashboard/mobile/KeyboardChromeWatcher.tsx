@@ -48,11 +48,44 @@ export function KeyboardChromeWatcher() {
   useEffect(() => {
     const body = document.body;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Purge du DÉCALAGE RÉSIDUEL laissé par iOS après fermeture du clavier :
+    // pendant la saisie, WebKit scrolle/décale le viewport pour garder le champ
+    // visible, et il arrive qu'il ne restaure PAS cette position à la fermeture
+    // (surtout en PWA standalone) → la page reste « remontée » (BottomNav
+    // décalée vers le haut, carte rétrécie) jusqu'à une navigation. On remet le
+    // scroll à zéro immédiatement PUIS après l'animation de fermeture (~350 ms),
+    // le temps que le viewport ait réellement retrouvé sa taille.
+    //
+    // GARDE : uniquement mobile ET uniquement quand le document N'EST PAS censé
+    // scroller (pages verrouillées au viewport : /communaute, /coaching — tout
+    // scrollY y est un résidu). Sur une page scrollable (réglages, dashboard),
+    // un scrollTo(0,0) au blur téléporterait l'utilisateur en haut de page.
+    const purgeResidualScroll = () => {
+      if (window.innerWidth >= 768) return;
+      const doc = document.documentElement;
+      if (doc.scrollHeight <= window.innerHeight + 1) {
+        window.scrollTo(0, 0);
+      }
+    };
+    const settleViewport = () => {
+      purgeResidualScroll();
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => {
+        purgeResidualScroll();
+        settleTimer = null;
+      }, 350);
+    };
 
     // Source de vérité unique : l'élément actuellement focus. Idempotent →
-    // safe à rappeler sur chaque événement.
+    // safe à rappeler sur chaque événement. À la SORTIE de saisie, on purge le
+    // décalage résiduel du viewport (cf. settleViewport).
     const sync = () => {
-      body.classList.toggle(TYPING_CLASS, isEditable(document.activeElement));
+      const typing = isEditable(document.activeElement);
+      const wasTyping = body.classList.contains(TYPING_CLASS);
+      body.classList.toggle(TYPING_CLASS, typing);
+      if (wasTyping && !typing) settleViewport();
     };
 
     const onFocusIn = () => {
@@ -79,10 +112,16 @@ export function KeyboardChromeWatcher() {
     // LECTURE SEULE (listeners passifs + setProperty) : aucun preventDefault,
     // aucun déplacement de focus → zéro impact sur l'autofill / le natif.
     const vv = window.visualViewport;
+    let lastKb = 0;
     const updateKb = () => {
       if (!vv) return;
       const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       document.documentElement.style.setProperty("--nc-kb", `${Math.round(kb)}px`);
+      // Retombée du clavier détectée côté viewport (couvre aussi la fermeture
+      // par swipe-down iOS, qui NE blur PAS le champ → le chemin focusout ne
+      // suffit pas) → même purge du décalage résiduel.
+      if (lastKb > 40 && kb <= 1) settleViewport();
+      lastKb = kb;
     };
     if (vv) {
       vv.addEventListener("resize", updateKb);
@@ -94,6 +133,7 @@ export function KeyboardChromeWatcher() {
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);
       if (timer) clearTimeout(timer);
+      if (settleTimer) clearTimeout(settleTimer);
       body.classList.remove(TYPING_CLASS);
       if (vv) {
         vv.removeEventListener("resize", updateKb);

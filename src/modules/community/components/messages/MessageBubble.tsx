@@ -25,9 +25,6 @@ interface MessageBubbleProps {
   // Le parent gère le composer en mode quote-reply : clic sur Répondre →
   // setReplyContext({...}) côté ConversationThread, qui le passe au composer.
   onReply: (message: Message) => void;
-  // true quand un résultat de recherche pointe vers ce message — affiche un
-  // halo brand quelques secondes pour aider l'utilisateur à le repérer.
-  highlighted?: boolean;
   // ID du message dont la toolbar est verrouillée ouverte (picker ou kebab
   // menu déployé). Quand non-null et différent de ce message : on n'affiche
   // PAS la toolbar même au hover, pour éviter qu'elle vienne masquer celle
@@ -42,7 +39,6 @@ function MessageBubbleInner({
   isSelf,
   currentUser,
   onReply,
-  highlighted,
   lockedMessageId,
   onLockChange,
 }: MessageBubbleProps) {
@@ -242,7 +238,6 @@ function MessageBubbleInner({
 
   return (
     <div
-      id={`nc-msg-${message.id}`}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -256,11 +251,6 @@ function MessageBubbleInner({
         maxWidth: "100%",
         margin: "2px 0",
         position: "relative",
-        // Highlight déclenché par un clic sur un résultat de recherche.
-        // Halo brand-tinted qui s'estompe en 1.8s via transition.
-        boxShadow: highlighted ? "0 0 0 3px rgba(224,98,90,0.35)" : "none",
-        borderRadius: highlighted ? 16 : undefined,
-        transition: "box-shadow 600ms var(--nc-ease)",
         // Quand le menu / picker est ouvert sur ce message, on monte la bulle
         // au-dessus des suivantes — sinon le dropdown (z-index local) est
         // recouvert par la bulle voisine qui crée son propre stacking

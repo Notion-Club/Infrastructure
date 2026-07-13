@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState, useEffect, useLayoutEffect, useMemo, useRef, useTransition } from "react";
-import { Loader2, Search } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ArrowReturn } from "@/shared/components/icons";
 import { SkeletonReveal } from "@/shared/components/SkeletonReveal";
 import type { Conversation, Message } from "../../types/conversation.types";
@@ -12,7 +12,6 @@ import { useTypingPresence } from "../../hooks/useTypingPresence";
 import { MessageBubble } from "./MessageBubble";
 import { MessageBubbleSkeleton } from "./MessageBubbleSkeleton";
 import { MessageComposer, type ReplyContext } from "./MessageComposer";
-import { MessageSearchBar } from "./MessageSearchBar";
 import { TypingIndicator } from "./TypingIndicator";
 import { ConversationEmptyState } from "./MessagesEmptyState";
 import { UserAvatar } from "../shared/UserAvatar";
@@ -54,12 +53,6 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
   const [olderMessages, setOlderMessages] = useState<Message[]>([]);
   const [hasMore, setHasMore] = useState<boolean>(conversation.hasMore ?? false);
   const [isLoadingOlder, startLoadOlder] = useTransition();
-  // Recherche dans la conv — ouverte/fermée via le bouton loupe du header.
-  // Quand un résultat est cliqué, on highlight le message ciblé pendant
-  // HIGHLIGHT_MS pour aider l'utilisateur à le repérer après le scroll.
-  const HIGHLIGHT_MS = 1800;
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [highlightedId, setHighlightedId] = useState<string | null>(null);
   // ID du message dont la toolbar est verrouillée (kebab menu ou picker emoji
   // déployé). Partagé entre TOUTES les bulles pour qu'une seule toolbar à la
   // fois soit interactive — sinon les hovers se chevauchent et l'user clique
@@ -84,11 +77,10 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
   // Pas de reset effect : ConversationThread est monté avec key={conv.id} par
   // MessagesLayout → changer de conversation REMONTE le composant, ce qui
   // réinitialise naturellement tout l'état local (optimistic, olderMessages,
-  // recherche, reply, highlight). Avantages : pas de setState-in-effect (règle
-  // du repo), et un re-fetch de la conv courante (envoi, realtime) ne vide PLUS
-  // l'historique paginé ni la recherche (le composant n'est pas remonté tant
-  // que conv.id ne change pas). Les messages serveur à jour sont pris via le
-  // merge dédupliqué ci-dessous.
+  // reply). Avantages : pas de setState-in-effect (règle du repo), et un
+  // re-fetch de la conv courante (envoi, realtime) ne vide PLUS l'historique
+  // paginé (le composant n'est pas remonté tant que conv.id ne change pas).
+  // Les messages serveur à jour sont pris via le merge dédupliqué ci-dessous.
 
   // Merge older (pagination) + serveur + optimistic, DÉDUPLIQUÉ PAR ID. La
   // dédup est essentielle : un re-fetch serveur ou un event realtime peut
@@ -226,16 +218,6 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
     };
   }, [olderMessages]);
 
-  function handleJumpToMessage(messageId: string) {
-    const el = document.getElementById(`nc-msg-${messageId}`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    setHighlightedId(messageId);
-    window.setTimeout(() => {
-      setHighlightedId((current) => (current === messageId ? null : current));
-    }, HIGHLIGHT_MS);
-  }
-
   const isDeleted = conversation.participant.deleted;
   const disabledMsg = isDeleted
     ? "Cet utilisateur n'est plus membre du Notion Club"
@@ -365,37 +347,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
             : null
           }
         </div>
-        <button
-          type="button"
-          onClick={() => setSearchOpen((v) => !v)}
-          data-fb-label="Bouton Rechercher · Thread de messages"
-          aria-label={searchOpen ? "Fermer la recherche" : "Rechercher dans la conversation"}
-          aria-pressed={searchOpen}
-          style={{
-            width: 36, height: 36, borderRadius: "50%",
-            border: "none",
-            background: searchOpen ? "rgba(224,98,90,0.08)" : "transparent",
-            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            color: searchOpen ? "var(--color-brand)" : "var(--color-text-secondary)",
-            flexShrink: 0,
-            transition: "background 120ms var(--nc-ease)",
-          }}
-          className="hover:bg-[rgba(0,0,0,0.06)]"
-        >
-          <Search size={16} />
-        </button>
       </div>
-
-      {/* Barre de recherche (optionnelle) — au-dessus du flux de messages */}
-      {searchOpen && (
-        <MessageSearchBar
-          conversationId={conversation.id}
-          currentUser={currentUser}
-          participant={conversation.participant}
-          onJumpToMessage={handleJumpToMessage}
-          onClose={() => setSearchOpen(false)}
-        />
-      )}
 
       {/* Messages */}
       <div
@@ -471,7 +423,6 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
                 isSelf={msg.senderId === currentUser.id}
                 currentUser={currentUser}
                 onReply={handleReply}
-                highlighted={highlightedId === msg.id}
                 lockedMessageId={lockedMessageId}
                 onLockChange={setLockedMessageId}
               />

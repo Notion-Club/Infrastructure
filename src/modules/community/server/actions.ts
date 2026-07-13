@@ -49,9 +49,7 @@ import {
   listPostsPage,
   loadOlderMessages,
   mapProfileMember,
-  searchMessagesInConversation,
   type CommunityMember,
-  type SearchMessageHit,
 } from "./queries";
 import type { Conversation, Message } from "../types/conversation.types";
 import type { PostCursor, PostsPage, PostTag } from "../types/post.types";
@@ -1653,24 +1651,6 @@ export async function loadOlderMessagesAction(
     };
   }
   return { ok: true, messages: result.messages, hasMore: result.hasMore };
-}
-
-// ============================================================================
-// searchMessagesAction — recherche dans une conv unique
-// ============================================================================
-// Caller doit être participant de la conv (couvert par RLS). Renvoie au max
-// SEARCH_MAX_RESULTS hits, ordre chronologique ASC. Retourne tableau vide si
-// query < SEARCH_QUERY_MIN ou erreur SQL.
-export type SearchMessagesResult = {
-  hits: SearchMessageHit[];
-};
-
-export async function searchMessagesAction(
-  conversationId: string,
-  query: string,
-): Promise<SearchMessagesResult> {
-  const hits = await searchMessagesInConversation(conversationId, query);
-  return { hits };
 }
 
 // ============================================================================
