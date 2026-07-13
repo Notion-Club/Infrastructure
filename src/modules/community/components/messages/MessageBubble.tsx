@@ -253,10 +253,15 @@ function MessageBubbleInner({
         // sensible »). Maintenant, seul le survol de la colonne-bulle l'arme.
         alignSelf: isSelf ? "flex-end" : "flex-start",
         width: "fit-content",
-        maxWidth: "100%",
+        // Largeur max style iMessage : ~75 % de la largeur de la conversation,
+        // avec un plancher de respiration de 32px face au bord opposé. Posée
+        // ICI (flex item de la colonne pleine largeur → le % se résout) et non
+        // sur la bulle (dont le parent hug son contenu → % cyclique). Les
+        // messages longs replient donc proprement, sans jamais déborder.
+        maxWidth: "min(75%, calc(100% - 32px))",
         // Espacement style iMessage : les bulles d'un même groupe restent
-        // serrées (le gap 4px du conteneur suffit) ; la FIN d'un groupe ajoute
-        // 8px → 12px entre deux groupes d'expéditeurs différents.
+        // serrées (le gap 5px du conteneur suffit) ; la FIN d'un groupe ajoute
+        // 8px → 13px entre deux groupes d'expéditeurs différents.
         marginBottom: isLastInGroup ? 8 : 0,
         position: "relative",
         // Quand le menu / picker est ouvert sur ce message, on monte la bulle
@@ -336,7 +341,9 @@ function MessageBubbleInner({
             isSelf ? `nc-imsg-bubble${isLastInGroup ? " nc-imsg-tail" : ""}` : undefined
           }
           style={{
-            maxWidth: 360,
+            // La largeur est bornée par le conteneur-colonne (min(75 %, …)) —
+            // plus de 360px fixe qui pouvait déborder des threads étroits.
+            maxWidth: "100%",
             fontSize: 14,
             wordBreak: "break-word",
             position: "relative",
