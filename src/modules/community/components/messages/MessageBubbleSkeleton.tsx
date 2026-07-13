@@ -40,8 +40,8 @@ export function MessageBubbleSkeleton() {
             style={{
               width: shape.width,
               height: 36,
-              // Sorties = pilule iMessage (cf. .nc-imsg-bubble), reçues = style existant.
-              borderRadius: shape.isSelf ? 22 : "16px 16px 16px 4px",
+              // Sorties = bulle iMessage compacte (cf. .nc-imsg-bubble), reçues = style existant.
+              borderRadius: shape.isSelf ? 18 : "16px 16px 16px 4px",
               background: "var(--color-surface-raised)",
               border: shape.isSelf ? "none" : "1px solid var(--color-border-default)",
             }}

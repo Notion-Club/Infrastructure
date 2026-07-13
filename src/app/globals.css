@@ -1638,46 +1638,64 @@ html {
   }
 }
 
-/* ── Bulle de message SORTANTE — pilule iMessage (thread de messages) ────────
-   Réplique de la bulle bleue Apple : pilule très arrondie, texte blanc, et
+/* ── Bulle de message SORTANTE — style iMessage (thread de messages) ─────────
+   Réplique de la bulle bleue Apple : rectangle arrondi COMPACT (padding
+   vertical minimal, radius contrôlé — pas une pilule ovale), texte blanc, et
    « queue » (petit crochet courbe) en bas à droite UNIQUEMENT sur le dernier
    message d'un groupe consécutif du même expéditeur (classe .nc-imsg-tail,
    posée par ConversationThread via isLastInGroup).
 
-   Technique de la queue, 100 % pseudo-éléments (pas de markup) :
-   - ::before : pavé bleu qui déborde de 8px à droite de la bulle, avec un
-     border-bottom-left-radius qui le raccorde en douceur au bas de la bulle.
-   - ::after  : pavé couleur du fond de conversation (--color-surface-card,
-     suit le thème light/dark) posé PAR-DESSUS, dont le coin bas-gauche arrondi
-     « sculpte » la découpe concave → il ne reste du bleu qu'un croissant
-     effilé pointant vers le bas-droite, comme le crochet iMessage. */
+   Technique de la queue, 100 % pseudo-éléments (pas de markup). Pour une
+   fusion SANS couture ni décroché, le crochet REMPLACE le coin bas-droit :
+   - .nc-imsg-tail réduit border-bottom-right-radius à 6px — ce petit coin est
+     intégralement recouvert par l'extension bleue, donc invisible ;
+   - ::after : extension bleue à cheval sur le coin (déborde de 7px à droite),
+     collée au bas de la bulle (même bord inférieur, même couleur → continue) ;
+   - ::before : masque couleur du fond de conversation (--color-surface-card,
+     suit le thème light/dark) posé PAR-DESSUS la partie débordante, dont le
+     coin bas-gauche elliptique « sculpte » la découpe concave → il ne reste
+     du bleu qu'un petit croissant effilé qui part du bord inférieur droit et
+     pointe légèrement bas-droite, comme le crochet Apple. Sans ce masque, la
+     queue serait pleine (pointeur générique de chat). */
 .nc-imsg-bubble {
   background: var(--nc-imsg-blue);
   color: #fff;
-  padding: 11px 18px;
-  border-radius: 22px;
+  padding: 5px 13px 6px;
+  line-height: 1.22;
+  border-radius: 18px;
 }
-.nc-imsg-tail::before {
+.nc-imsg-tail {
+  border-bottom-right-radius: 6px;
+}
+/* Extension bleue du crochet — chevauche le coin de 7px vers l'intérieur
+   (aucune jointure visible) et déborde de 6px au-delà du bord droit. Le petit
+   radius bas-droit (2px) adoucit la pointe du crochet. */
+.nc-imsg-tail::after {
   content: "";
   position: absolute;
   z-index: 0;
   bottom: 0;
-  right: -8px;
-  width: 20px;
-  height: 14px;
+  right: -6px;
+  width: 13px;
+  height: 11px;
   background: var(--nc-imsg-blue);
-  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 2px;
 }
-.nc-imsg-tail::after {
+/* Masque concave — ne couvre QUE la zone débordante (x ∈ [0, 6px] au-delà du
+   bord droit), légèrement plus haut que l'extension pour en cacher le sommet.
+   Son arc elliptique (6px × 10px) laisse apparaître le croissant du crochet.
+   Valeurs calées visuellement (screenshots Chromium 6x) : la concavité démarre
+   à ~10px du bas — plus haut, le crochet redevient un pointeur générique. */
+.nc-imsg-tail::before {
   content: "";
   position: absolute;
   z-index: 1;
   bottom: 0;
-  right: -8px;
-  width: 8px;
-  height: 16px;
+  right: -6px;
+  width: 6px;
+  height: 12px;
   background: var(--color-surface-card);
-  border-bottom-left-radius: 8px;
+  border-bottom-left-radius: 6px 10px;
 }
 
 /* Entrée en fondu flou — transition douce vers un bloc skeleton (états vides
