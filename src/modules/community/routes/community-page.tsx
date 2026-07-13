@@ -586,10 +586,11 @@ function MessagesContent({
   conversationUsername: string | null;
 }) {
   const initialConversations = use(conversationsPromise);
-  // Mobile : hauteur DÉFINIE (chat à scroll interne, cf. .nc-messages-embed).
-  // Desktop : on REMPLIT la carte (flex-1) au lieu d'une hauteur calc fixe plus
-  // courte que la carte → fini la bande grise (fond de carte) sous le panneau
-  // messages, qui laissait apparaître les coins arrondis vides en bas.
+  // Mobile COMME desktop : la zone messages REMPLIT la carte en flex
+  // (.nc-messages-embed, cf. globals.css) — plus aucun calc de hauteur
+  // concurrent. La hauteur descend du shell verrouillé (.nc-community-shell,
+  // 100dvh sur mobile) → carte → embed → MessagesLayout (height:100%) ; le
+  // chat scrolle en interne et il n'y a plus de bande grise sous le panneau.
   return (
     <div className="nc-messages-embed">
       <MessagesLayout
@@ -602,10 +603,6 @@ function MessagesContent({
     </div>
   );
 }
-
-// La hauteur de la zone Messages embarquée vit désormais dans `.nc-messages-embed`
-// (globals.css) : hauteur calc fixe sur mobile (chat à scroll interne), flex-1
-// sur desktop (remplit la carte → plus de bande grise).
 
 // ── Fallbacks Suspense — occupent la zone de contenu le temps que les données
 //    streament. Le cadre (switcher/filtres) reste, lui, déjà affiché.

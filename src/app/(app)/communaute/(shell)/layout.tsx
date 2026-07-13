@@ -34,17 +34,18 @@ export default function CommunauteLayout({
   const postsPromise = listPostsPage({ limit: 50 });
   const conversationsPromise = listConversations();
 
-  // Scroll-DOCUMENT (et non plus `h-dvh overflow-hidden` à scroll interne) : un
-  // shell à hauteur fixe empêche le document de scroller → sur iOS Safari la barre
-  // d'outils ne se rétracte jamais → `dvh` reste petit → contenu du feed raccourci.
-  // En laissant le document scroller (`minHeight: 100lvh`, comme dashboard/
-  // ressources), Safari replie sa barre et le contenu descend pleinement, comme en
-  // PWA. La vue Messages garde, elle, une hauteur fixe explicite (cf.
-  // MessagesContent dans community-page).
+  // MOBILE : page NON scrollable — même patron que /coaching (.nc-coaching-shell).
+  // Le shell est verrouillé au viewport (100dvh + overflow hidden, cf.
+  // .nc-community-shell dans globals.css) et la carte Feed/Messages remplit TOUT
+  // l'espace entre la rangée d'actions du haut et la BottomNav ; le scroll est
+  // exclusivement INTERNE (liste du feed, fil de conversation). Les paddings
+  // mobiles vivent dans le CSS de .nc-community-shell > main — ici on ne garde
+  // que les paddings desktop (md:*), où le scroll-document est conservé
+  // (min-height: 100lvh porté par la classe).
   return (
-    <div className="nc-page-halo flex flex-col" style={{ minHeight: "100lvh" }}>
+    <div className="nc-page-halo nc-community-shell flex flex-col">
       <main
-        className="flex flex-col flex-1 w-full mx-auto px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8"
+        className="flex flex-col flex-1 w-full mx-auto px-4 md:px-10 md:pt-[104px] md:pb-8"
         style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
       >
         <CommunityPage
