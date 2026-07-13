@@ -3576,21 +3576,22 @@ html.dark .nc-lt-scrim {
   overflow: hidden;
 }
 
-/* Clavier logiciel ouvert (mobile) — piloté par body.nc-keyboard-open +
-   --nc-vvh (hauteur du visualViewport), posés par useKeyboardInset dans la
-   messagerie. Objectif : le composer se cale JUSTE au-dessus du clavier, on
-   récupère l'espace qui était réservé à la BottomNav.
-   • On MASQUE la BottomNav (inutile pendant la saisie).
-   • On recalcule la hauteur de la zone messages sur la hauteur RÉELLEMENT
-     visible (`--nc-vvh`, robuste iOS ET Android) moins le chrome haut (~104px =
-     pt-64 + switcher), au lieu de `100dvh` qui, sur iOS, ne se réduit pas quand
-     le clavier apparaît. */
+/* Rédaction d'un message sur mobile — pilotée par `body.nc-composer-typing`,
+   posée par le composer au focus (cf. MessageComposer). C'est une RECALIBRATION
+   de layout PURE (aucune interception du clavier / du viewport → autofill et
+   comportements natifs intacts) :
+   • on MASQUE la BottomNav pendant la saisie (inutile, elle mangeait l'espace) ;
+   • on retire sa réservation (~120px) de la hauteur de la zone messages : le
+     composer descend dans l'espace récupéré, et le scroll-into-view natif du
+     navigateur le cale juste au-dessus du clavier.
+   224px = 104 (chrome haut : pt-64 + switcher) + 120 (BottomNav). En saisie, on
+   ne retranche plus que les 104px du haut. */
 @media (max-width: 767px) {
-  body.nc-keyboard-open .nc-bottom-nav {
+  body.nc-composer-typing .nc-bottom-nav {
     display: none;
   }
-  body.nc-keyboard-open .nc-messages-embed {
-    height: calc(var(--nc-vvh, 100dvh) - 104px);
+  body.nc-composer-typing .nc-messages-embed {
+    height: calc(100dvh - 104px);
   }
 }
 @media (min-width: 768px) {

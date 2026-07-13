@@ -8,7 +8,6 @@ import type { DevRole } from "../../hooks/useDevRoleToggle";
 import type { Conversation, Message } from "../../types/conversation.types";
 import { useConversationsRealtime } from "../../hooks/useConversationsRealtime";
 import { clearPushNotifications } from "@/shared/lib/push/clearNotifications";
-import { useKeyboardInset } from "@/shared/lib/hooks/useKeyboardInset";
 import { ConversationList } from "./ConversationList";
 import { ConversationThread } from "./ConversationThread";
 import { MessagesEmptyState } from "./MessagesEmptyState";
@@ -52,10 +51,6 @@ export function MessagesLayout({
   embedded,
 }: MessagesLayoutProps) {
   const router = useRouter();
-  // Clavier mobile : cale la zone messages au-dessus du clavier + masque la
-  // BottomNav pendant la saisie (récupère l'espace perdu). Cf. useKeyboardInset
-  // + body.nc-keyboard-open / --nc-vvh dans globals.css.
-  useKeyboardInset();
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
