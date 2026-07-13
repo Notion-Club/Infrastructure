@@ -166,6 +166,9 @@ export function BottomNav() {
     <nav
       aria-label="Navigation principale"
       data-fb-label="Barre de navigation"
+      // Masquée quand le clavier logiciel est ouvert (cf. body.nc-keyboard-open,
+      // piloté par la messagerie mobile) → on récupère la place sous le composer.
+      className="nc-bottom-nav"
       // `background` thème-aware sans backdrop-filter → se repeint au
       // changement de mode (pas de flou figé). Pilule simple et performante.
       style={{

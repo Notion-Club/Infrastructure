@@ -1586,6 +1586,16 @@ html {
 .t-page-slide {
   position: relative;
 }
+/* Slide de la messagerie mobile (liste ↔ conversation) : on RALENTIT et on
+   AMPLIFIE le mouvement par rapport au réglage par défaut (8px / 200ms, trop
+   subtil et trop rapide → « on ne voit pas le mouvement »). Scopé à ce modifieur
+   pour ne pas toucher les autres `.t-page-slide` (auth, paiements, feedback,
+   admin-push) qui gardent le réglage discret. */
+.nc-msg-page-slide {
+  --page-slide-dur: 360ms;
+  --page-fade-dur: 300ms;
+  --page-slide-distance: 26px;
+}
 .t-page-slide .t-page[data-page-id="1"] {
   --t-page-from-x: calc(var(--page-slide-distance) * -1);
 }
@@ -3564,6 +3574,24 @@ html.dark .nc-lt-scrim {
 .nc-messages-embed {
   height: calc(100dvh - 224px - env(safe-area-inset-bottom, 0px));
   overflow: hidden;
+}
+
+/* Clavier logiciel ouvert (mobile) — piloté par body.nc-keyboard-open +
+   --nc-vvh (hauteur du visualViewport), posés par useKeyboardInset dans la
+   messagerie. Objectif : le composer se cale JUSTE au-dessus du clavier, on
+   récupère l'espace qui était réservé à la BottomNav.
+   • On MASQUE la BottomNav (inutile pendant la saisie).
+   • On recalcule la hauteur de la zone messages sur la hauteur RÉELLEMENT
+     visible (`--nc-vvh`, robuste iOS ET Android) moins le chrome haut (~104px =
+     pt-64 + switcher), au lieu de `100dvh` qui, sur iOS, ne se réduit pas quand
+     le clavier apparaît. */
+@media (max-width: 767px) {
+  body.nc-keyboard-open .nc-bottom-nav {
+    display: none;
+  }
+  body.nc-keyboard-open .nc-messages-embed {
+    height: calc(var(--nc-vvh, 100dvh) - 104px);
+  }
 }
 @media (min-width: 768px) {
   .nc-messages-embed {

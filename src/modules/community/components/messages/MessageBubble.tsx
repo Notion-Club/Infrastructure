@@ -15,6 +15,7 @@ import {
 import { MessageToolbar } from "./MessageToolbar";
 import { ForwardMessageModal } from "./ForwardMessageModal";
 import { DeletePostConfirmDialog } from "../shared/DeletePostConfirmDialog";
+import { PostImage } from "../shared/PostImage";
 import type { User } from "../../types/user.types";
 
 interface MessageBubbleProps {
@@ -486,40 +487,27 @@ function MessageBubbleInner({
               )}
               {message.type === "image" && message.fileUrl && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {/* Slack-like : image taille modérée, click ouvre lightbox
-                      globale (cf. ImageLightboxRoot via 'nc-image-open'). */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
+                  {/* Chargement fluide via PostImage (même reveal racine que le
+                      feed, transitions.dev · 14) : le type "image" est connu
+                      instantanément → la boîte réserve TOUT DE SUITE la forme du
+                      média (skeleton pulsant à ratio réservé), puis l'image
+                      apparaît en fondu/déflou une fois décodée. Fini le
+                      chargement « en 3 temps » (petite bulle → agrandissement
+                      brutal → pop de l'image). Click → lightbox globale
+                      (ImageLightboxRoot via 'nc-image-open'). */}
+                  <PostImage
+                    src={message.fileUrl}
+                    alt={message.fileName ?? ""}
+                    maxWidth={280}
+                    onOpen={() =>
                       window.dispatchEvent(
                         new CustomEvent("nc-image-open", {
                           detail: { url: message.fileUrl },
                         }),
-                      );
-                    }}
-                    style={{
-                      padding: 0,
-                      border: "none",
-                      background: "transparent",
-                      cursor: "zoom-in",
-                      display: "inline-block",
-                    }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={message.fileUrl}
-                      alt={message.fileName ?? ""}
-                      style={{
-                        maxWidth: 320,
-                        maxHeight: 320,
-                        borderRadius: 8,
-                        display: "block",
-                        objectFit: "cover",
-                      }}
-                      loading="lazy"
-                    />
-                  </button>
+                      )
+                    }
+                    fbLabel="Image · Bulle de message"
+                  />
                   {/* Body texte optionnel accompagnant l'image */}
                   {message.body && (
                     <span className="nc-selectable" style={{ whiteSpace: "pre-wrap" }}>{linkify(message.body)}</span>
