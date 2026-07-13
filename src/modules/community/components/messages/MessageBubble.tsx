@@ -255,8 +255,8 @@ function MessageBubbleInner({
         width: "fit-content",
         maxWidth: "100%",
         // Espacement style iMessage : les bulles d'un même groupe restent
-        // serrées (le gap 6px du conteneur suffit) ; la FIN d'un groupe ajoute
-        // 8px → 14px entre deux groupes d'expéditeurs différents.
+        // serrées (le gap 4px du conteneur suffit) ; la FIN d'un groupe ajoute
+        // 8px → 12px entre deux groupes d'expéditeurs différents.
         marginBottom: isLastInGroup ? 8 : 0,
         position: "relative",
         // Quand le menu / picker est ouvert sur ce message, on monte la bulle
@@ -338,13 +338,15 @@ function MessageBubbleInner({
           style={{
             maxWidth: 360,
             fontSize: 14,
-            lineHeight: 1.5,
             wordBreak: "break-word",
             position: "relative",
+            // Sortante : géométrie (padding, radius, line-height compact) portée
+            // par .nc-imsg-bubble — pas de line-height inline qui l'écraserait.
             ...(isSelf
               ? null
               : {
                   padding: "10px 14px",
+                  lineHeight: 1.5,
                   borderRadius: "16px 16px 16px 4px",
                   background: "var(--color-surface-raised)",
                   color: "var(--color-text-primary)",
