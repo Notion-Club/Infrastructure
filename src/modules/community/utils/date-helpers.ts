@@ -117,6 +117,32 @@ export function messageSentLabel(dateStr: string): string {
   return `${weekday} ${day} ${month}, à ${time}`;
 }
 
+// Libellé de jour des séparateurs de chronologie du thread de messages privés
+// — « Lundi 13 Juillet 2026 » (jour de semaine et mois capitalisés, jour sans
+// zéro initial : même convention que messageSentLabel ci-dessus).
+export function dayLabel(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "";
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const weekday = cap(date.toLocaleDateString("fr-FR", { weekday: "long" }));
+  const day = date.toLocaleDateString("fr-FR", { day: "numeric" });
+  const month = cap(date.toLocaleDateString("fr-FR", { month: "long" }));
+  return `${weekday} ${day} ${month} ${date.getFullYear()}`;
+}
+
+// true si deux timestamps tombent le même JOUR CALENDAIRE local (minuit→minuit,
+// fuseau du navigateur) — pilote l'insertion des séparateurs de jour et la
+// rupture des groupes de bulles dans ConversationThread.
+export function isSameLocalDay(a: string, b: string): boolean {
+  const da = new Date(a);
+  const db = new Date(b);
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
+}
+
 export function shortDate(dateStr: string): string {
   const now = new Date();
   const date = new Date(dateStr);
