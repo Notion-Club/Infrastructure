@@ -103,8 +103,8 @@ html {
      scroll, le contenu ne doit jamais transparaître derrière la pilule). */
   --nc-bottom-nav-bg: #1c1917;
   --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
-  /* Bulle de message sortante — bleu iMessage iOS dark (#0A84FF). */
-  --nc-imsg-blue: #0a84ff;
+  /* Bulle de message sortante — iMessage iOS dark (#0A84FF). */
+  --nc-imsg-blue: #e0625a;
 }
 
 @theme inline {
