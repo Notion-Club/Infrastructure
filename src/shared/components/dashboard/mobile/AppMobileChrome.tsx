@@ -6,22 +6,29 @@ import { MobileTopActions } from "./MobileTopActions";
 import { BottomNav } from "./BottomNav";
 import { PwaBottomFrost } from "./PwaBottomFrost";
 
-// Chrome mobile FIXE (logo, actions, BottomNav, frost bas) — rendu pour toutes
-// les routes app SAUF /communaute*.
+// Chrome mobile FIXE. Le split ne concerne plus que la TOPBAR :
 //
-// Sur /communaute, ce même chrome est rendu DANS le ViewportFrame (règle
-// d'unicité du référentiel §2.1) : il suit alors la zone visible quand WebKit
-// décale le viewport au clavier. usePathname garantit une SEULE instance
-// simultanée — ici OU dans le frame, jamais les deux (pas de duplication). Le
-// prix assumé : ces composants se remontent en entrant/sortant de /communaute
-// (la pilule de nav se re-snap au mount, comportement déjà existant à la nav).
+// • Topbar (logo + actions) — VISIBLE pendant la saisie → sur /communaute elle
+//   doit suivre le pan WebKit, donc elle est rendue DANS le ViewportFrame (pas
+//   ici). usePathname l'exclut ici sur /communaute pour éviter la double
+//   instance. Ailleurs, elle est rendue ici, ancrée à l'ICB.
+//
+// • BottomNav + frost — TOUJOURS rendus ici, sur TOUTES les routes (/communaute
+//   comprise), ancrés à l'ICB comme partout ailleurs. Une seule instance,
+//   jamais remontée → une position unique, identique sur toutes les pages. Sur
+//   /communaute ils sont MASQUÉS au clavier (body.nc-kb-open → transform+opacity)
+//   donc le pan WebKit ne peut jamais les trahir ; ils n'ont donc pas besoin du
+//   frame et ne sont plus esclaves de --nc-vvh (contracté à 894 en PWA).
 export function AppMobileChrome() {
-  const pathname = usePathname();
-  if (pathname.startsWith("/communaute")) return null;
+  const onCommunaute = usePathname().startsWith("/communaute");
   return (
     <div className="md:hidden">
-      <MobileBrandLogo />
-      <MobileTopActions />
+      {!onCommunaute && (
+        <>
+          <MobileBrandLogo />
+          <MobileTopActions />
+        </>
+      )}
       <BottomNav />
       <PwaBottomFrost />
     </div>

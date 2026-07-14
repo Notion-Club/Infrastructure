@@ -3,8 +3,6 @@ import { CommunityPage } from "@/modules/community/routes/community-page";
 import { ViewportFrame } from "@/shared/components/dashboard/mobile/ViewportFrame";
 import { MobileBrandLogo } from "@/shared/components/dashboard/mobile/MobileBrandLogo";
 import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
-import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
-import { PwaBottomFrost } from "@/shared/components/dashboard/mobile/PwaBottomFrost";
 
 // Layout PARTAGÉ de /communaute/* (feed, messages, messages/[username]).
 //
@@ -39,24 +37,22 @@ export default function CommunauteLayout({
   const postsPromise = listPostsPage({ limit: 50 });
   const conversationsPromise = listConversations();
 
-  // ── Chantier clavier v2 : tout /communaute vit dans un ViewportFrame ────────
-  // Sur mobile, le frame (position:fixed, suit --nc-vvh/--nc-vvot) se superpose
-  // à la zone RÉELLEMENT visible et crée un containing block : TOUT le chrome
-  // fixed (logo, actions, nav, frost) rendu DEDANS se cale sur cette zone, y
-  // compris quand le clavier décale le viewport. Sur desktop, le frame est en
-  // `display: contents` → transparent, layout inchangé (scroll-document via
-  // `.nc-community-shell { min-height: 100lvh }`). Le chrome mobile est rendu ICI
-  // (et NON dans (app)/layout via AppMobileChrome) sur cette route — une seule
-  // instance simultanée (règle d'unicité §2.1). Les paddings/hauteurs mobiles
-  // vivent dans `.nc-community-shell` (globals.css).
+  // ── Chantier clavier v2 : le frame porte le contenu + la SEULE topbar ───────
+  // Sur mobile, le frame (position:fixed, suit --nc-vvh/--nc-vvot) se superpose à
+  // la zone RÉELLEMENT visible et crée un containing block. Seule la TOPBAR
+  // (logo + actions) est rendue DEDANS : elle reste VISIBLE pendant la saisie,
+  // donc elle DOIT suivre le pan WebKit au focus (hors frame elle serait emportée
+  // hors écran — régression Safari de c7db323). La BottomNav + le frost sont
+  // rendus GLOBALEMENT par AppMobileChrome, ancrés à l'ICB comme sur toutes les
+  // routes : ils sont MASQUÉS au clavier (body.nc-kb-open) donc le pan ne peut
+  // pas les trahir, et l'ICB est le référentiel qui les place correctement au
+  // repos. Desktop : frame en `display: contents` → transparent.
   return (
     <>
       <ViewportFrame>
         <div className="md:hidden">
           <MobileBrandLogo />
           <MobileTopActions />
-          <BottomNav />
-          <PwaBottomFrost />
         </div>
         <div className="nc-page-halo nc-community-shell flex flex-col">
           <main
