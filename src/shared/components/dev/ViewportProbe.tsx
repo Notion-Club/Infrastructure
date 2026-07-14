@@ -104,6 +104,9 @@ export function ViewportProbe() {
           top: "calc(env(safe-area-inset-top, 0px) + 116px)",
           left: 4,
           right: 4,
+          // Suit le pan du viewport visuel (comme le shell) pour rester lisible
+          // clavier ouvert — sinon le panneau fixed disparaît vers le haut.
+          transform: "translateY(var(--nc-vvot, 0px))",
           zIndex: 2147483647,
           background: "rgba(0,0,0,0.72)",
           color: "#0f0",

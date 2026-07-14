@@ -3702,6 +3702,13 @@ html.dark .nc-lt-scrim {
 @media (max-width: 767px) {
   .nc-community-shell {
     height: var(--nc-vvh, 100dvh);
+    /* Clavier ouvert, iOS « pan » le viewport visuel (offsetTop > 0) pour remonter
+       le champ → sans compensation le shell flotte vers le haut avec un vide en
+       dessous. On le translate de --nc-vvot (posé par CommunityKeyboardViewport)
+       pour qu'il colle à la zone visible. Élément NON-fixed → n'affecte ni la nav
+       (sœur) ni la safe-area. Au repos --nc-vvot absente → translateY(0). PAS de
+       transition : le shell doit snapper à chaque frame sur le clavier. */
+    transform: translateY(var(--nc-vvot, 0px));
     min-height: 0;
     overflow: hidden;
     display: flex;

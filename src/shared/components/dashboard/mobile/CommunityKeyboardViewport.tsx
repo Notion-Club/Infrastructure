@@ -82,8 +82,10 @@ export function CommunityKeyboardViewport() {
     const closeKb = () => {
       clearNet();
       body.classList.remove("nc-kb-open");
-      // Retrait de --nc-vvh → le shell reprend son fallback (100lvh en PWA).
+      // Retrait de --nc-vvh / --nc-vvot → le shell reprend son fallback (100lvh en
+      // PWA) et sa translation revient à 0.
       root.style.removeProperty("--nc-vvh");
+      root.style.removeProperty("--nc-vvot");
     };
     const openKbAnticipate = () => {
       if (body.classList.contains("nc-kb-open")) return;
@@ -133,9 +135,18 @@ export function CommunityKeyboardViewport() {
         }
       }
 
-      // Clavier ouvert → poser la hauteur visible (le shell rétrécit dessus).
+      // Clavier ouvert : on pose la géométrie du viewport VISIBLE, que le shell
+      // suit (height + translateY) pour rester calé dans la zone visible.
+      //  • --nc-vvh  = hauteur visible → le shell rétrécit dessus ;
+      //  • --nc-vvot = offsetTop du visual viewport → iOS « pan » le viewport pour
+      //    remonter le champ ; sans le suivre, le shell flotte vers le haut et
+      //    laisse un vide en dessous. On translate le shell de cette valeur pour
+      //    qu'il colle EXACTEMENT à la zone visible (haut du fil ↔ bas au ras du
+      //    clavier). translateY sur un élément NON-fixed → n'affecte pas la nav
+      //    (sœur, pas descendante) ni la safe-area.
       if (body.classList.contains("nc-kb-open")) {
         root.style.setProperty("--nc-vvh", `${Math.round(h)}px`);
+        root.style.setProperty("--nc-vvot", `${Math.round(vv.offsetTop)}px`);
       }
     };
     // Coalescé : au plus une écriture par frame.
@@ -167,6 +178,7 @@ export function CommunityKeyboardViewport() {
       clearNet();
       body.classList.remove("nc-kb-open");
       root.style.removeProperty("--nc-vvh");
+      root.style.removeProperty("--nc-vvot");
     };
   }, []);
 
