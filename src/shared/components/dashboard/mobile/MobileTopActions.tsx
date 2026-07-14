@@ -48,6 +48,9 @@ export function MobileTopActions() {
 
   return (
     <div
+      // `nc-mobile-top-actions` : cible CSS pour masquer la rangée d'actions quand
+      // le clavier est actif dans /communaute (body.nc-kb-open, cf. globals.css).
+      className="nc-mobile-top-actions"
       style={{
         // `position: absolute` (et non `fixed`) : les boutons sont ancrés au
         // HAUT DE LA PAGE, pas au viewport → ils défilent AVEC le contenu et

@@ -166,6 +166,12 @@ export function BottomNav() {
     <nav
       aria-label="Navigation principale"
       data-fb-label="Barre de navigation"
+      // `nc-bottom-nav` : cible CSS du masquage clavier. Au focus du champ de
+      // saisie DM, MessageComposer pose `nc-kb-open` sur <body> → la barre glisse
+      // hors écran (transform/opacity, cf. globals.css). La POSITION reste inline,
+      // le masquage n'agit que sur transform/opacity → aucun conflit, et la barre
+      // est strictement identique sur toutes les routes (aucun frame ne la touche).
+      className="nc-bottom-nav"
       // `background` thème-aware sans backdrop-filter → se repeint au
       // changement de mode (pas de flou figé). Pilule simple et performante.
       style={{

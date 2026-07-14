@@ -103,8 +103,8 @@ html {
      scroll, le contenu ne doit jamais transparaître derrière la pilule). */
   --nc-bottom-nav-bg: #1c1917;
   --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
-  /* Bulle de message sortante — iMessage iOS dark (#0A84FF). */
-  --nc-imsg-blue: #e0625a;
+  /* Bulle de message sortante — rouge brand Notion Club (#e0625a). */
+  --nc-imsg-out: #e0625a;
 }
 
 @theme inline {
@@ -184,9 +184,9 @@ html {
      contenu jamais visible derrière (en PWA comme en navigateur). */
   --nc-bottom-nav-bg: #ffffff;
   --nc-bottom-nav-border: rgba(229, 231, 235, 0.9);
-  /* Bulle de message sortante — bleu iMessage #0A84FF (valeur de référence du
-     redesign Communauté, identique en light et dark). */
-  --nc-imsg-blue: #0a84ff;
+  /* Bulle de message sortante — rouge brand Notion Club (#e0625a), identique en
+     light et dark (avant : bleu iMessage #0A84FF). */
+  --nc-imsg-out: #e0625a;
   /* Dots pattern hover sur resource/template cards */
   --nc-card-dot-color: rgba(224, 98, 90, 0.28);
   /* Overlay de contenu verrouillé (FreeTeaserPanel) */
@@ -313,6 +313,68 @@ html {
 }
 @media (prefers-reduced-motion: reduce) {
   .nc-nav-pill { transition: none !important; }
+}
+
+/* ── BottomNav : masquage au clavier (saisie d'un message privé) ──────────────
+   Quand l'utilisateur écrit un DM dans /communaute, le clavier iOS monte et la
+   barre de nav doit DISPARAÎTRE pour dégager la vue sur le fil. MessageComposer
+   pose `nc-kb-open` sur <body> au focus du champ (retire au blur / démontage) ;
+   la barre glisse alors sous le bord bas de l'écran.
+   translateY = 100% (sa hauteur) + son offset bas (10px + safe-area) + marge →
+   elle sort totalement, home indicator compris. Masquage en CSS pur : aucun
+   re-render React, transform composé GPU. On agit UNIQUEMENT sur transform/opacity
+   — jamais sur la position (qui reste la même sur toutes les routes) ni via
+   display:none (casserait la pilule active mesurée par offsetWidth). */
+.nc-bottom-nav {
+  transition:
+    transform 240ms var(--nc-ease),
+    opacity 200ms ease;
+}
+body.nc-kb-open .nc-bottom-nav {
+  transform: translateY(calc(100% + 10px + env(safe-area-inset-bottom, 0px) + 24px));
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-bottom-nav { transition: opacity 200ms ease; }
+}
+
+/* Clavier actif dans /communaute (body.nc-kb-open, posée par
+   CommunityKeyboardViewport) : on masque AUSSI
+   • le frost du BAS (.nc-pwa-bottom-frost) — il n'existe que pour flouter le
+     contenu sous la BottomNav flottante ; la nav étant masquée, il ne reste
+     qu'une bande floue parasite au-dessus du clavier → on le retire ;
+   • la topbar mobile (logo + rangée d'actions) — la carte occupe alors toute la
+     hauteur (cf. padding réduit du shell), sans marge perdue en haut.
+   Ces classes ne portent que sur /communaute : body.nc-kb-open n'y est jamais
+   posée ailleurs (watcher monté uniquement dans ce layout). */
+body.nc-kb-open .nc-pwa-bottom-frost {
+  display: none;
+}
+body.nc-kb-open .nc-mobile-logo,
+body.nc-kb-open .nc-mobile-top-actions {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Compensation du viewport CONTRACTÉ iOS PWA (après clavier) ───────────────
+   Mesuré sur device : après la 1re ouverture de clavier en PWA installée, WebKit
+   contracte le layout viewport PAR LE BAS et ne le restaure jamais —
+   `innerHeight`/`100dvh` tombent de 956 → 894 (exactement `safe-top` = 62px),
+   tandis que `100lvh` RESTE 956. La BottomNav étant `position: fixed; bottom:…`
+   (ancrée au viewport contracté) remonte donc de 62px, avec un vide en dessous.
+   `100lvh` ne se contractant pas, la dérive vaut exactement `100lvh − 100dvh`
+   (= 0 au repos, ≈ 62 après clavier) : on la RETRANCHE du `bottom` → la barre
+   revient à sa vraie position écran, sans JS, sans dé-figement. `!important` bat
+   le `bottom` inline du composant.
+   Standalone UNIQUEMENT : en Safari navigateur, `100lvh − 100dvh` = la barre
+   d'outils (comportement normal, pas un bug) → on n'y touche pas. */
+@media (display-mode: standalone) {
+  .nc-bottom-nav {
+    bottom: calc(
+      10px + env(safe-area-inset-bottom, 0px) - (100lvh - 100dvh)
+    ) !important;
+  }
 }
 
 /* ── Pill Topbar ── */
@@ -1659,7 +1721,7 @@ html {
      pointe légèrement bas-droite, comme le crochet Apple. Sans ce masque, la
      queue serait pleine (pointeur générique de chat). */
 .nc-imsg-bubble {
-  background: var(--nc-imsg-blue);
+  background: var(--nc-imsg-out);
   color: #fff;
   padding: 5px 13px 6px;
   line-height: 1.22;
@@ -1679,7 +1741,7 @@ html {
   right: -6px;
   width: 12px;
   height: 13px;
-  background: var(--nc-imsg-blue);
+  background: var(--nc-imsg-out);
   border-bottom-right-radius: 4px;
 }
 /* Masque concave — ne couvre QUE la zone débordante (x ∈ [0, 6px] au-delà du
@@ -3643,67 +3705,119 @@ html.dark .nc-lt-scrim {
   }
 }
 
-/* Zone Messages embarquée dans la carte /communaute.
-   • Mobile : hauteur DÉFINIE (chat à scroll interne, façon messagerie). C'est la
-     SEULE source de vérité de la hauteur du panneau messages — MessagesLayout la
-     remplit en `height:100%` (plus de second `calc` concurrent).
-     `100dvh - 224px` ≈ chrome haut (pt-64) + switcher + marge basse. On soustrait
-     EN PLUS `env(safe-area-inset-bottom)` : la BottomNav est ancrée à
-     `calc(10px + env(safe-area-inset-bottom))`, donc sur PWA/Safari iOS (safe-area
-     ≈ 34px) sans cette soustraction la carte débordait SOUS la barre de nav, et le
-     bas de la conversation (derniers messages + composer) passait hors écran — d'où
-     « je ne suis pas tout en bas » et « le contenant dépasse la barre ». La
-     soustraction garantit un écart constant au-dessus de la BottomNav, quelle que
-     soit la safe-area.
-   • Desktop : on REMPLIT la carte (flex-1) au lieu d'une hauteur fixe plus
-     courte que la carte → la bande grise (fond de carte) sous le panneau et les
-     coins arrondis vides en bas disparaissent ; le panneau messages va jusqu'en
-     bas de l'encadré. */
-.nc-messages-embed {
-  height: calc(100dvh - 224px - env(safe-area-inset-bottom, 0px));
-  overflow: hidden;
+/* ── Shell /communaute — hauteur = viewport VISIBLE (rétrécit au clavier) ─────
+   Desktop : min-height 100lvh (scroll-document, inchangé).
+   Mobile : `height: var(--nc-vvh, 100dvh); overflow: hidden` → la PAGE ne scrolle
+   pas (seule la carte scrolle en interne), et l'ensemble RÉTRÉCIT au clavier :
+   CommunityKeyboardViewport pose `--nc-vvh` = hauteur visible tant que le clavier
+   est ouvert, et la RETIRE à la fermeture (fallback 100dvh, robuste contre le
+   getter vv.height figé à ~894 en PWA). AUCUN `position: fixed` ici → la safe-area
+   iOS n'est jamais reflowée → la BottomNav globale garde sa position (identique à
+   /accueil), contrairement à l'ancien ViewportFrame. */
+.nc-community-shell {
+  min-height: 100lvh;
 }
-@media (min-width: 768px) {
-  .nc-messages-embed {
-    height: auto;
-    flex: 1 1 auto;
+@media (max-width: 767px) {
+  .nc-community-shell {
+    height: var(--nc-vvh, 100dvh);
+    /* Clavier ouvert, iOS « pan » le viewport visuel (offsetTop > 0) pour remonter
+       le champ → sans compensation le shell flotte vers le haut avec un vide en
+       dessous. On le translate de --nc-vvot (posé par CommunityKeyboardViewport)
+       pour qu'il colle à la zone visible. Élément NON-fixed → n'affecte ni la nav
+       (sœur) ni la safe-area. Au repos --nc-vvot absente → translateY(0). */
+    transform: translateY(var(--nc-vvot, 0px));
+    /* Card-resize (transitions.dev 01-card-resize) : iOS n'émet le resize du
+       viewport qu'en paliers (pas image par image) → le shell sautait sèchement
+       entre les deux tailles. On tween `height` ET `transform` ensemble (mêmes
+       durée/ease → taille et position calée-clavier restent synchro) avec les
+       tokens de motion du projet (--nc-ease = cubic-bezier(0.22,1,0.36,1)).
+       Durée = --nc-duration-normal (250ms) et NON slow (300ms) : le clavier iOS
+       s'anime en ~250ms et arrive en paliers ; un tween plus long que le clavier
+       recompose plusieurs paliers → traîne/dérive après que le clavier a fini.
+       250ms colle au timing du clavier → suivi net, sans à-coup. Guard
+       reduced-motion ci-dessous. */
+    transition:
+      height var(--nc-duration-normal) var(--nc-ease),
+      transform var(--nc-duration-normal) var(--nc-ease);
+    will-change: height, transform;
     min-height: 0;
-    /* Conteneur flex-col : la grille messages (flex:1 en embedded) remplit
-       toute la hauteur → plus de bande grise (fond d'encadré) sous le panneau. */
+    overflow: hidden;
     display: flex;
     flex-direction: column;
   }
-}
-
-/* Onglet Messages (desktop) : l'encadré prend une hauteur DÉFINIE = zone visible
-   du viewport (chrome du shell déduit : md pt-104px + pb-8=32px). Cela BORNE la
-   chaîne flex → une conversation longue scrolle EN INTERNE (ConversationThread)
-   au lieu d'allonger l'encadré et de faire défiler la page. Le feed conserve son
-   scroll-document (flex-1). Mobile inchangé : .nc-messages-embed y est déjà en
-   hauteur fixe. Double classe pour battre en spécificité l'utilitaire .flex-1. */
-@media (min-width: 768px) {
+  @media (prefers-reduced-motion: reduce) {
+    .nc-community-shell {
+      transition: none;
+    }
+  }
+  /* PWA : même bug de contraction que la nav — après clavier, 100dvh tombe à 894
+     (100lvh reste 956). Le fallback (clavier fermé) passe donc à 100lvh pour que
+     le shell NE rétrécisse PAS de 62px après une saisie (sinon vide sous la
+     carte). Clavier ouvert, --nc-vvh est posée → ce fallback est ignoré. En Safari
+     navigateur on garde 100dvh (lvh = sous la barre d'outils). */
+  @media (display-mode: standalone) {
+    .nc-community-shell {
+      height: var(--nc-vvh, 100lvh);
+    }
+  }
+  .nc-community-shell > main {
+    /* Haut : 64px (le halo porte déjà le safe-top ; la rangée d'actions finit à
+       ~50px + safe-top → écart visible ≈ 14px). */
+    padding-top: 64px;
+    /* Bas : haut de la BottomNav (66px + safe-bottom) + ~14px d'écart. */
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    min-height: 0;
+    /* Le padding bascule (64/114 → 8/8) quand nav + topbar se masquent au clavier
+       : on le tween sur les mêmes durée/ease que le shell (250ms) → tout le resize
+       bouge d'un seul tenant, sans à-coup. */
+    transition:
+      padding-top var(--nc-duration-normal) var(--nc-ease),
+      padding-bottom var(--nc-duration-normal) var(--nc-ease);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .nc-community-shell > main {
+      transition: none;
+    }
+  }
+  /* Clavier ouvert : nav ET topbar masquées → la carte comble TOUTE la hauteur
+     visible. On tombe le padding haut (réservé à la topbar) et le padding bas
+     (réservé à la nav) à un léger écart ; la safe-area haute reste portée par
+     `.nc-page-halo` (padding-top: env(safe-area-inset-top)). */
+  body.nc-kb-open .nc-community-shell > main {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  /* La carte REMPLIT le main — identique Feed et Messages (double classe pour
+     battre .flex-1 ; height:auto neutralise les hauteurs desktop). Plus aucun
+     `calc(100dvh − …)` concurrent : la hauteur descend shell → carte → embed. */
+  .nc-community-card.nc-community-card--fixed,
   .nc-community-card.nc-community-card--messages {
-    height: calc(100dvh - 136px);
-    flex: none;
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 }
 
-/* Onglet Feed — hauteur DÉFINIE (règle demandée : l'encadré ne s'allonge plus
-   avec le contenu, il reste à la même position fixe que Messages et la liste
-   scrolle EN INTERNE, cf. .nc-feed-scroll).
-   • Mobile : chrome haut (pt-64) + bas (pb-120) = 184px, plus la safe-area (la
-     BottomNav est ancrée à calc(10px + env(safe-area-inset-bottom))).
-   • Desktop : md pt-104 + pb-8=32 = 136px.
-   Compromis assumé : comme Messages, le document ne scrolle plus sur cette page
-   → en navigateur Safari iOS (hors PWA) la barre d'outils ne se replie plus.
-   Double classe pour battre l'utilitaire .flex-1 en spécificité. */
-.nc-community-card.nc-community-card--fixed {
-  height: calc(100dvh - 184px - env(safe-area-inset-bottom, 0px));
-  flex: none;
+/* Zone Messages embarquée — REMPLIT la carte en flex, mobile COMME desktop
+   (MessagesLayout la remplit en height:100%). Plus de bande grise, plus de
+   divergence Feed/Messages. */
+.nc-messages-embed {
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
+
+/* Desktop : hauteurs DÉFINIES = zone visible (md pt-104 + pb-8 = 136px) → la
+   carte scrolle EN INTERNE. Sur mobile la hauteur vient du shell. Double classe
+   → spécificité > .flex-1. */
 @media (min-width: 768px) {
+  .nc-community-card.nc-community-card--messages,
   .nc-community-card.nc-community-card--fixed {
     height: calc(100dvh - 136px);
+    flex: none;
   }
 }
 
