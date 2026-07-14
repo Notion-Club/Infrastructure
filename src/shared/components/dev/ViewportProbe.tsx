@@ -21,7 +21,6 @@ type Metrics = Record<string, number | string>;
 
 export function ViewportProbe() {
   const [m, setM] = useState<Metrics>({});
-  const [frozen, setFrozen] = useState<Metrics | null>(null);
   // Probes CSS (hauteurs résolues) — mesurées via getBoundingClientRect.
   const dvhRef = useRef<HTMLDivElement>(null);
   const lvhRef = useRef<HTMLDivElement>(null);
@@ -84,7 +83,7 @@ export function ViewportProbe() {
 
   if (!FORCE_DEBUG) return null;
 
-  const rows = Object.entries(frozen ?? m);
+  const rows = Object.entries(m);
 
   return (
     <>
@@ -95,15 +94,18 @@ export function ViewportProbe() {
       <div ref={safeBRef} style={{ position: "fixed", height: "env(safe-area-inset-bottom)", width: 0, top: 0, left: 0, visibility: "hidden", pointerEvents: "none" }} aria-hidden />
       <div ref={safeTRef} style={{ position: "fixed", height: "env(safe-area-inset-top)", width: 0, top: 0, left: 0, visibility: "hidden", pointerEvents: "none" }} aria-hidden />
 
-      {/* Panneau lisible, ancré en HAUT (le clavier occupe le bas). */}
+      {/* Panneau lisible. `pointer-events: none` → il NE bloque JAMAIS les taps
+          (switcher, champ…), tout passe au travers. Ancré SOUS les onglets (au-
+          dessus de la liste), visible dans les 3 états. Dans l'état figé iOS les
+          valeurs sont statiques → l'affichage live suffit pour screenshot. */}
       <div
         style={{
           position: "fixed",
-          top: "calc(env(safe-area-inset-top, 0px) + 4px)",
+          top: "calc(env(safe-area-inset-top, 0px) + 116px)",
           left: 4,
           right: 4,
           zIndex: 2147483647,
-          background: "rgba(0,0,0,0.82)",
+          background: "rgba(0,0,0,0.72)",
           color: "#0f0",
           font: "600 11px/1.35 ui-monospace, monospace",
           padding: "6px 8px",
@@ -111,9 +113,9 @@ export function ViewportProbe() {
           display: "grid",
           gridTemplateColumns: "repeat(3, 1fr)",
           gap: "1px 10px",
-          pointerEvents: "auto",
+          pointerEvents: "none",
         }}
-        onClick={() => setFrozen((f) => (f ? null : { ...m }))}
+        aria-hidden
       >
         {rows.map(([k, v]) => (
           <div key={k} style={{ whiteSpace: "nowrap" }}>
@@ -121,9 +123,6 @@ export function ViewportProbe() {
             <span style={{ color: v === "YES" ? "#fd0" : "#0f0" }}>{String(v)}</span>
           </div>
         ))}
-        <div style={{ gridColumn: "1 / -1", color: "#fa0", marginTop: 2 }}>
-          {frozen ? "❄️ FIGÉ (tap pour reprendre)" : "tap = figer l'instantané"}
-        </div>
       </div>
     </>
   );
