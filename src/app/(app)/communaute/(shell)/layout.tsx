@@ -1,5 +1,6 @@
 import { listConversations, listPostsPage } from "@/modules/community/server/queries";
 import { CommunityPage } from "@/modules/community/routes/community-page";
+import { ViewportDebugOverlay } from "@/shared/components/dev/ViewportDebugOverlay";
 
 // Layout PARTAGÉ de /communaute/* (feed, messages, messages/[username]).
 //
@@ -55,6 +56,9 @@ export default function CommunauteLayout({
       {/* children = pages-marqueurs (return null), requis par Next pour que la
           route enfant soit valide, mais sans rendu visible. */}
       {children}
+      {/* TEMPORAIRE (chantier clavier v2) : overlay de mesures viewport —
+          à retirer en Phase 6 avant la PR. */}
+      <ViewportDebugOverlay />
     </div>
   );
 }
