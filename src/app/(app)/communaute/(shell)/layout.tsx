@@ -5,7 +5,6 @@ import { MobileBrandLogo } from "@/shared/components/dashboard/mobile/MobileBran
 import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
 import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { PwaBottomFrost } from "@/shared/components/dashboard/mobile/PwaBottomFrost";
-import { ViewportDebugOverlay } from "@/shared/components/dev/ViewportDebugOverlay";
 
 // Layout PARTAGÉ de /communaute/* (feed, messages, messages/[username]).
 //
@@ -74,10 +73,6 @@ export default function CommunauteLayout({
           {children}
         </div>
       </ViewportFrame>
-      {/* TEMPORAIRE (chantier clavier v2) : overlay de mesures viewport — rendu
-          HORS du frame (ancré à l'ICB) pour mesurer indépendamment. À retirer
-          en Phase 6 avant la PR. */}
-      <ViewportDebugOverlay />
     </>
   );
 }

@@ -3659,6 +3659,20 @@ html.dark .nc-lt-scrim {
 .nc-vv-frame {
   display: contents;
 }
+/* Sonde ICB (chantier v2) : boîte `fixed` pleine hauteur, mesurée en JS par
+   ViewportFrame. Ancrée à l'ICB (aucun ancêtre transformé) → sa hauteur = le
+   viewport réellement peignable, même quand visualViewport.height ment (webview
+   réparé mais getter figé, PWA post-clavier). visibility:hidden, PAS
+   display:none : il faut une boîte layoutée pour getBoundingClientRect. */
+.nc-vv-probe {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
 /* Verrou du canal scrollY (§1.2), posé par ViewportFrame (html.nc-vv-lock). */
 html.nc-vv-lock,
 html.nc-vv-lock body {

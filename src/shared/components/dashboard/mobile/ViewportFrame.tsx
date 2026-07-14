@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 // ============================================================================
 // ViewportFrame — le « frame qui suit le viewport visuel » (chantier v2).
@@ -59,6 +59,11 @@ function isEditable(el: Element | null): boolean {
 }
 
 export function ViewportFrame({ children }: { children: ReactNode }) {
+  // Sonde ICB : mesure la hauteur du viewport au mètre CSS (le MÊME référentiel
+  // qui place la nav d'/accueil). Rendue en FRÈRE du frame — jamais dedans : le
+  // transform du frame changerait son containing block. Cf. write().
+  const probeRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const root = document.documentElement;
     const body = document.body;
@@ -95,6 +100,10 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
     // rendrait le déficit invisible. On mémorise le vrai max par largeur pour que
     // la graine reste fiable ; `if (h > baseline) baseline = h` apprend par-dessus.
     const maxByWidth = new Map<number, number>();
+    // La sonde ICB ne sert QU'en PWA installée : en Safari Web les `fixed`
+    // s'ancrent au GRAND viewport (toolbars exclues) → la sonde lirait trop grand
+    // et pousserait la nav sous la toolbar. Safari Web est sain, on n'y touche pas.
+    const standaloneMq = window.matchMedia("(display-mode: standalone)");
     let sawKeyboard = false;
     let netTimer: ReturnType<typeof setTimeout> | null = null;
     const clearNet = () => {
@@ -224,12 +233,27 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
         }
       }
 
-      // HAUTEUR du frame : PUR SUIVI de vv.height. La stratégie de compensation
-      // (réécrire baseline dans l'« état déficit ») a été FALSIFIÉE sur appareil :
-      // les 62px hors vv.height ne sont pas peignables pour du CONTENU (seul le
-      // canvas/background y peint). On vit donc dans le monde 894, cohérent comme
-      // /accueil — on ne récupère pas les pixels, on reste synchrone.
-      root.style.setProperty("--nc-vvh", `${Math.round(h)}px`);
+      // HAUTEUR du frame. vv.height MENT après réparation du webview (standalone,
+      // post-clavier) : WebKit restaure le viewport réel — c'est lui qui place la
+      // nav CSS d'/accueil — mais visualViewport.height continue de répondre 894
+      // sans jamais émettre d'événement. On ne mesure donc plus avec ce seul
+      // getter : la sonde ICB (même référentiel CSS que la nav d'/accueil) sert
+      // de PLANCHER. Peinture = ICB (prouvé par [CLIP]) → la sonde ne dépasse
+      // jamais le peignable → max() ne coupe JAMAIS la nav.
+      // Bornes strictes (§1.5, 3e extension : height détecte, offsetTop
+      // positionne, sonde plafonne — aucun ne se mélange) :
+      //  • standalone uniquement (Safari Web ancre au grand viewport → trop grand) ;
+      //  • !kbClass uniquement (clavier ouvert : l'ICB ne rétrécit pas → la sonde
+      //    dirait ~894/956 et casserait le calage au-dessus du clavier ; le
+      //    rétrécissement clavier reste piloté par vv.height BRUT).
+      let effH = h;
+      if (standaloneMq.matches && !kbClass && probeRef.current) {
+        effH = Math.max(
+          h,
+          Math.round(probeRef.current.getBoundingClientRect().height),
+        );
+      }
+      root.style.setProperty("--nc-vvh", `${Math.round(effH)}px`);
     };
     // Écriture COALESCÉE : au plus une par frame (resize + scroll peuvent tirer
     // plusieurs events par frame → un seul rAF planifié).
@@ -295,5 +319,14 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  return <div className="nc-vv-frame">{children}</div>;
+  return (
+    <>
+      {/* Sonde ICB — FRÈRE du frame (jamais dedans : un ancêtre transformé
+          changerait son containing block). Boîte fixed pleine hauteur, mesurée
+          en JS ; visibility:hidden (PAS display:none — il faut une boîte
+          layoutée). */}
+      <div ref={probeRef} className="nc-vv-probe" aria-hidden="true" />
+      <div className="nc-vv-frame">{children}</div>
+    </>
+  );
 }

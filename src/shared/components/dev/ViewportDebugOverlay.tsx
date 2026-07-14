@@ -132,6 +132,12 @@ export function ViewportDebugOverlay() {
         `vvhCSS=${css("--nc-vvh")}`,
         `vvotCSS=${css("--nc-vvot")}`,
         `active=${(document.activeElement?.tagName ?? "?").toLowerCase()}`,
+        // Sonde ICB : hauteur du viewport peignable (peut dépasser vv.height si
+        // le getter ment après réparation du webview).
+        `probeH=${(() => {
+          const el = document.querySelector(".nc-vv-probe");
+          return el ? fmt(el.getBoundingClientRect().height) : "absent";
+        })()}`,
         // Où sont réellement les boîtes (coords écran) — le frame est la clé v2 :
         `frame=${rectOf(".nc-vv-frame")}`,
         `shell=${rectOf(".nc-community-shell")}`,

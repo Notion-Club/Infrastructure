@@ -15,6 +15,7 @@ import { AdminPushRegistrar } from "@/shared/components/dev/admin-push/AdminPush
 import { ProfileModalProvider } from "@/shared/components/profile/ProfileModalProvider";
 import { PwaInstallPrompt } from "@/shared/components/pwa/PwaInstallPrompt";
 import { NotificationPermissionPrompt } from "@/shared/components/pwa/NotificationPermissionPrompt";
+import { ViewportDebugOverlay } from "@/shared/components/dev/ViewportDebugOverlay";
 
 // Layout commun à toutes les pages connectées (dashboard, settings, communaute,
 // coaching, ressources). Server Component : on pré-fetch l'identity de l'user
@@ -84,6 +85,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               secondes après l'ouverture de l'app INSTALLÉE (standalone), une
               fois, pour activer le push natif iOS/Android. */}
           <NotificationPermissionPrompt />
+          {/* TEMPORAIRE (chantier clavier v2) : overlay de mesures viewport,
+              monté sur TOUTES les routes app pour comparer /communaute ↔ autres.
+              Hors /communaute, les champs frame/shell/card affichent "absent".
+              À retirer en Phase 6. */}
+          <ViewportDebugOverlay />
         </ProfileModalProvider>
       </DevToolboxProvider>
     </ProfileIdentityProvider>
