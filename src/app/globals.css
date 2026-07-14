@@ -315,6 +315,28 @@ html {
   .nc-nav-pill { transition: none !important; }
 }
 
+/* ── BottomNav : masquage au clavier (saisie d'un message privé) ──
+   Quand l'utilisateur écrit un DM dans /communaute, le clavier iOS monte et la
+   barre de nav doit DISPARAÎTRE pour dégager la vue sur le fil. `MessageComposer`
+   pose la classe `nc-kb-open` sur <html> au focus du champ et la retire au blur ;
+   la barre glisse alors sous le bord bas de l'écran.
+   translateY = 100% (sa propre hauteur) + son offset `bottom` (10px + safe-area)
+   + marge → elle sort totalement, home indicator compris. Masquage en CSS pur :
+   aucun re-render React, transform composé sur le GPU (pas de reflow). */
+.nc-bottom-nav {
+  transition:
+    transform 240ms var(--nc-ease),
+    opacity 200ms ease;
+}
+html.nc-kb-open .nc-bottom-nav {
+  transform: translateY(calc(100% + 10px + env(safe-area-inset-bottom, 0px) + 24px));
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-bottom-nav { transition: opacity 200ms ease; }
+}
+
 /* ── Pill Topbar ── */
 .nc-topbar-pill {
   background: var(--color-surface-card);

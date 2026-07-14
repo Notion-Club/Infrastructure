@@ -166,6 +166,11 @@ export function BottomNav() {
     <nav
       aria-label="Navigation principale"
       data-fb-label="Barre de navigation"
+      // `nc-bottom-nav` : cible CSS pour masquer la barre quand le clavier est
+      // actif (saisie d'un DM). La classe `nc-kb-open` posée sur <html> par
+      // MessageComposer déclenche le glissement hors écran (cf. globals.css).
+      // Masquage en CSS pur → aucun re-render React, zéro jank.
+      className="nc-bottom-nav"
       // `background` thème-aware sans backdrop-filter → se repeint au
       // changement de mode (pas de flou figé). Pilule simple et performante.
       style={{

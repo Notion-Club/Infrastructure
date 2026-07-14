@@ -124,6 +124,13 @@ export function MessageComposer({
     setIsMac(detectMac());
   }, []);
 
+  // Filet de sécurité : si le composer se démonte alors que le champ était
+  // encore focalisé (retour à la liste, changement de conversation, navigation),
+  // on retire `nc-kb-open` — sinon la BottomNav resterait masquée hors de Messages.
+  useEffect(() => {
+    return () => document.documentElement.classList.remove("nc-kb-open");
+  }, []);
+
   async function handleSend() {
     if (disabled || sending) return;
     if (pendingFile) {
@@ -500,8 +507,16 @@ export function MessageComposer({
             transition: "border-color var(--nc-duration-xfast) var(--nc-ease), height var(--nc-duration-xfast) var(--nc-ease)",
             overflow: "hidden",
           }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--color-brand)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
+          onFocus={(e) => {
+            e.target.style.borderColor = "var(--color-brand)";
+            // Clavier actif → on masque la BottomNav (glissement CSS hors écran,
+            // cf. globals.css / .nc-bottom-nav) pour dégager la vue sur le fil.
+            document.documentElement.classList.add("nc-kb-open");
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = "var(--color-border-default)";
+            document.documentElement.classList.remove("nc-kb-open");
+          }}
         />
 
         <button
