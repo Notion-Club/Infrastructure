@@ -3724,13 +3724,28 @@ html.dark .nc-lt-scrim {
        le champ → sans compensation le shell flotte vers le haut avec un vide en
        dessous. On le translate de --nc-vvot (posé par CommunityKeyboardViewport)
        pour qu'il colle à la zone visible. Élément NON-fixed → n'affecte ni la nav
-       (sœur) ni la safe-area. Au repos --nc-vvot absente → translateY(0). PAS de
-       transition : le shell doit snapper à chaque frame sur le clavier. */
+       (sœur) ni la safe-area. Au repos --nc-vvot absente → translateY(0). */
     transform: translateY(var(--nc-vvot, 0px));
+    /* Card-resize (transitions.dev 01-card-resize) : iOS n'émet le resize du
+       viewport qu'en paliers (pas image par image) → le shell sautait sèchement
+       entre les deux tailles. On tween `height` ET `transform` ensemble (mêmes
+       durée/ease → taille et position calée-clavier restent synchro) avec les
+       tokens de motion du projet (--nc-ease = cubic-bezier(0.22,1,0.36,1),
+       --nc-duration-slow = 300ms, identiques au snippet card-resize). Guard
+       reduced-motion ci-dessous. */
+    transition:
+      height var(--nc-duration-slow) var(--nc-ease),
+      transform var(--nc-duration-slow) var(--nc-ease);
+    will-change: height, transform;
     min-height: 0;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .nc-community-shell {
+      transition: none;
+    }
   }
   /* PWA : même bug de contraction que la nav — après clavier, 100dvh tombe à 894
      (100lvh reste 956). Le fallback (clavier fermé) passe donc à 100lvh pour que
@@ -3749,6 +3764,17 @@ html.dark .nc-lt-scrim {
     /* Bas : haut de la BottomNav (66px + safe-bottom) + ~14px d'écart. */
     padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
     min-height: 0;
+    /* Le padding bascule (64/114 → 8/8) quand nav + topbar se masquent au clavier
+       : on le tween sur les mêmes durée/ease que le shell → tout le resize bouge
+       d'un seul tenant, sans à-coup. */
+    transition:
+      padding-top var(--nc-duration-slow) var(--nc-ease),
+      padding-bottom var(--nc-duration-slow) var(--nc-ease);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .nc-community-shell > main {
+      transition: none;
+    }
   }
   /* Clavier ouvert : nav ET topbar masquées → la carte comble TOUTE la hauteur
      visible. On tombe le padding haut (réservé à la topbar) et le padding bas
