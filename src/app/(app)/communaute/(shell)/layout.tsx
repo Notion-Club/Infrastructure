@@ -1,6 +1,7 @@
 import { listConversations, listPostsPage } from "@/modules/community/server/queries";
 import { CommunityPage } from "@/modules/community/routes/community-page";
 import { CommunityKeyboardViewport } from "@/shared/components/dashboard/mobile/CommunityKeyboardViewport";
+import { ViewportProbe } from "@/shared/components/dev/ViewportProbe";
 
 // Layout PARTAGÉ de /communaute/* (feed, messages, messages/[username]).
 //
@@ -51,6 +52,9 @@ export default function CommunauteLayout({
       {/* Contrôleur clavier (client) : pose --nc-vvh + body.nc-kb-open. Lecture
           seule, aucun position:fixed/transform → la nav n'est jamais déplacée. */}
       <CommunityKeyboardViewport />
+      {/* TEMPORAIRE — sonde de mesure viewport (chantier nav/clavier PWA). À
+          retirer une fois le bug compris. Gate FORCE_DEBUG dans le composant. */}
+      <ViewportProbe />
       <main
         className="flex flex-col flex-1 w-full mx-auto px-4 md:px-10 md:pt-[104px] md:pb-8"
         style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
