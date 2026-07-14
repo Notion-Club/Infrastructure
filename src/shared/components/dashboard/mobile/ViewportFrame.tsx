@@ -68,20 +68,30 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     const body = document.body;
 
-    // Verrou du canal `scrollY` (§1.2) : overflow:hidden sur html+body. Le canal
-    // offsetTop, lui, n'est pas neutralisable — on le SUIT via le frame. GATÉ
-    // MOBILE (le frame n'existe qu'en < 768px ; sur desktop le verrou violerait
-    // le « diff nul »). Le franchissement du seuil en cours de session pose/
-    // retire le verrou en conséquence. Les écritures --nc-vvh/--nc-vvot restent
-    // inconditionnelles (inoffensives, frame en display:contents desktop).
     const mq = window.matchMedia("(max-width: 767px)");
+    // La sonde ICB ne sert QU'en PWA installée : en Safari Web les `fixed`
+    // s'ancrent au GRAND viewport (toolbars exclues) → la sonde lirait trop grand
+    // et pousserait la nav sous la toolbar. Safari Web est sain, on n'y touche pas.
+    const standaloneMq = window.matchMedia("(display-mode: standalone)");
+    // Verrou du canal `scrollY` (§1.2) : overflow:hidden + height:100% sur
+    // html/body. En NAVIGATEUR il est nécessaire et sain (Safari Web OK). En
+    // STANDALONE il est INUTILE (aucune toolbar, aucun document à scroller : le
+    // frame est position:fixed, hors flux) et TOXIQUE : il contracte le viewport
+    // de la zone status bar (~62px — mesuré : ih/vvH/dvh tombent à 894 dès
+    // l'arrivée sur la route, sans clavier), ce qui remonte la nav (rendue dans
+    // le frame, dont le transform est son containing block) ET aveugle la sonde
+    // ICB, qui mesure précisément l'ICB contracté. → jamais posé en standalone.
+    // (En standalone, l'anti-scroll résiduel = overscroll-behavior:none sur
+    // .nc-vv-frame, PAS sur html/body.)
     const applyLock = () => {
-      root.classList.toggle(LOCK_CLASS, mq.matches);
+      root.classList.toggle(LOCK_CLASS, mq.matches && !standaloneMq.matches);
     };
     applyLock();
     mq.addEventListener("change", applyLock);
+    standaloneMq.addEventListener("change", applyLock);
     const unlock = () => {
       mq.removeEventListener("change", applyLock);
+      standaloneMq.removeEventListener("change", applyLock);
       root.classList.remove(LOCK_CLASS);
     };
 
@@ -100,10 +110,8 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
     // rendrait le déficit invisible. On mémorise le vrai max par largeur pour que
     // la graine reste fiable ; `if (h > baseline) baseline = h` apprend par-dessus.
     const maxByWidth = new Map<number, number>();
-    // La sonde ICB ne sert QU'en PWA installée : en Safari Web les `fixed`
-    // s'ancrent au GRAND viewport (toolbars exclues) → la sonde lirait trop grand
-    // et pousserait la nav sous la toolbar. Safari Web est sain, on n'y touche pas.
-    const standaloneMq = window.matchMedia("(display-mode: standalone)");
+    // standaloneMq est déclaré plus haut (gate du verrou) et réutilisé par la
+    // sonde ICB dans write().
     let sawKeyboard = false;
     let netTimer: ReturnType<typeof setTimeout> | null = null;
     const clearNet = () => {

@@ -3691,6 +3691,10 @@ html.nc-vv-lock body {
     height: var(--nc-vvh, 100dvh);
     transform: translateY(var(--nc-vvot, 0px));
     overflow: hidden;
+    /* Anti-scroll résiduel en STANDALONE (où le verrou html/body est désormais
+       gaté OFF pour ne pas contracter le viewport) : contient l'élastique sur le
+       frame lui-même, sans toucher html/body. */
+    overscroll-behavior: none;
     /* Halo RÉPLIQUÉ dans le frame (§3b) : .nc-app-bg est ancré à l'ICB, il ne
        peut donc PAS suivre la zone visible. On reproduit FIDÈLEMENT ses 2 taches
        latérales ici (mêmes valeurs) → le halo suit le frame ; surface unie en
