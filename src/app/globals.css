@@ -3666,6 +3666,15 @@ html.nc-vv-lock body {
   height: 100%;
   overscroll-behavior: none;
 }
+/* TEST debug [CLIP] : lève le clip propagé au viewport (l'overflow:hidden du
+   root clippe le contenu à la hauteur ICB=894 dans l'état coincé, d'où la nav
+   compensée tranchée à y=894 alors que le fond, lui, est peint dessous). Le
+   frame étant position:fixed (hors flux), lever le clip ne devrait réveiller
+   aucun scroll. `height: 100%` conservé. À retirer en Phase 6. */
+html.nc-vv-lock.nc-vv-noclip,
+html.nc-vv-lock.nc-vv-noclip body {
+  overflow: visible;
+}
 @media (max-width: 767px) {
   .nc-vv-frame {
     display: flex;

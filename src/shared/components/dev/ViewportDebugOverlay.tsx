@@ -147,6 +147,11 @@ export function ViewportDebugOverlay() {
         `base=${css("--nc-vvbase")}`,
         `screenH=${fmt(window.screen.height)}`,
         `outerH=${fmt(window.outerHeight)}`,
+        // Test [CLIP] : le clip levé réveille-t-il un scroll ? (docSH/bodySH doivent
+        // rester = viewport, scrollY = 0).
+        `clip=${document.documentElement.classList.contains("nc-vv-noclip") ? 0 : 1}`,
+        `docSH=${fmt(document.documentElement.scrollHeight)}`,
+        `bodySH=${fmt(document.body.scrollHeight)}`,
       ].join(" ");
 
     // Journal : entrée ajoutée UNIQUEMENT quand les valeurs changent (ou sur
@@ -459,6 +464,20 @@ export function ViewportDebugOverlay() {
           }}
         >
           COMP
+        </button>
+        {/* [CLIP] : lève le clip viewport (html.nc-vv-noclip) — teste si le
+            tranchage à y=894 vient de notre overflow:hidden root (§ hypothèse).
+            Émet nc-vv-recompute comme [COMP]. Instrument de test, aucun autre effet. */}
+        <button
+          type="button"
+          style={btnStyle}
+          onClick={(e) => {
+            const on = document.documentElement.classList.toggle("nc-vv-noclip");
+            window.dispatchEvent(new Event("nc-vv-recompute"));
+            e.currentTarget.textContent = on ? "CLIP ✓" : "CLIP";
+          }}
+        >
+          CLIP
         </button>
       </div>
       {/* Plan C si la copie programmatique échoue : journal affiché plein
