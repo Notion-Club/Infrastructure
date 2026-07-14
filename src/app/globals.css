@@ -339,6 +339,24 @@ body.nc-kb-open .nc-bottom-nav {
   .nc-bottom-nav { transition: opacity 200ms ease; }
 }
 
+/* Clavier actif dans /communaute (body.nc-kb-open, posée par
+   CommunityKeyboardViewport) : on masque AUSSI
+   • le frost du BAS (.nc-pwa-bottom-frost) — il n'existe que pour flouter le
+     contenu sous la BottomNav flottante ; la nav étant masquée, il ne reste
+     qu'une bande floue parasite au-dessus du clavier → on le retire ;
+   • la topbar mobile (logo + rangée d'actions) — la carte occupe alors toute la
+     hauteur (cf. padding réduit du shell), sans marge perdue en haut.
+   Ces classes ne portent que sur /communaute : body.nc-kb-open n'y est jamais
+   posée ailleurs (watcher monté uniquement dans ce layout). */
+body.nc-kb-open .nc-pwa-bottom-frost {
+  display: none;
+}
+body.nc-kb-open .nc-mobile-logo,
+body.nc-kb-open .nc-mobile-top-actions {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ── Compensation du viewport CONTRACTÉ iOS PWA (après clavier) ───────────────
    Mesuré sur device : après la 1re ouverture de clavier en PWA installée, WebKit
    contracte le layout viewport PAR LE BAS et ne le restaure jamais —
@@ -3732,9 +3750,12 @@ html.dark .nc-lt-scrim {
     padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
     min-height: 0;
   }
-  /* Clavier ouvert : la nav est masquée → on ne réserve plus que 8px sous la
-     carte, le composer se cale juste au-dessus du clavier. */
+  /* Clavier ouvert : nav ET topbar masquées → la carte comble TOUTE la hauteur
+     visible. On tombe le padding haut (réservé à la topbar) et le padding bas
+     (réservé à la nav) à un léger écart ; la safe-area haute reste portée par
+     `.nc-page-halo` (padding-top: env(safe-area-inset-top)). */
   body.nc-kb-open .nc-community-shell > main {
+    padding-top: 8px;
     padding-bottom: 8px;
   }
   /* La carte REMPLIT le main — identique Feed et Messages (double classe pour
