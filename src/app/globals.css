@@ -3736,6 +3736,24 @@ body.nc-kb-open .nc-pwa-bottom-frost {
   }
 }
 
+/* ── VERROU DUR de la position de la BottomNav ───────────────────────────────
+   RÈGLE ABSOLUE : la nav a UNE seule position, identique sur TOUTES les routes,
+   qui ne varie jamais. Elle est rendue GLOBALEMENT (AppMobileChrome), hors de
+   tout frame/transform, et ancrée au bas via la safe-area — exactement comme sur
+   /accueil, /coaching, /formation. Ce bloc rend cette position AUTORITAIRE
+   (`!important` bat le style inline et toute cascade future : frame, --nc-vvh,
+   containing block…) → plus AUCUN mécanisme ne peut la déplacer. Seul le
+   masquage clavier ci-dessus agit dessus, et uniquement via transform/opacity
+   (jamais la position). */
+.nc-bottom-nav {
+  position: fixed !important;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+  left: 12px !important;
+  right: 12px !important;
+  top: auto !important;
+  z-index: 50 !important;
+}
+
 /* ── Shell /communaute (DANS le frame en mobile) ─────────────────────────────
    Desktop : min-height 100lvh (scroll-document, le frame est en display:contents
    → aucun changement). Mobile : la hauteur vient du FRAME (= zone visible) ; le
