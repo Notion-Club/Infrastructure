@@ -332,7 +332,7 @@ function MessageBubbleInner({
           </div>
         )}
 
-        {/* Bulle. Sortante : pilule bleue iMessage (.nc-imsg-bubble, cf.
+        {/* Bulle. Sortante : pilule rouge brand (.nc-imsg-bubble, cf.
             globals.css) + queue ::before/::after (.nc-imsg-tail) uniquement sur
             le dernier message d'un groupe consécutif. Reçue : style existant. */}
         <div

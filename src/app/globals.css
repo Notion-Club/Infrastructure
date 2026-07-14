@@ -103,8 +103,8 @@ html {
      scroll, le contenu ne doit jamais transparaître derrière la pilule). */
   --nc-bottom-nav-bg: #1c1917;
   --nc-bottom-nav-border: rgba(55, 50, 47, 0.9);
-  /* Bulle de message sortante — iMessage iOS dark (#0A84FF). */
-  --nc-imsg-blue: #e0625a;
+  /* Bulle de message sortante — rouge brand Notion Club (#e0625a). */
+  --nc-imsg-out: #e0625a;
 }
 
 @theme inline {
@@ -184,9 +184,9 @@ html {
      contenu jamais visible derrière (en PWA comme en navigateur). */
   --nc-bottom-nav-bg: #ffffff;
   --nc-bottom-nav-border: rgba(229, 231, 235, 0.9);
-  /* Bulle de message sortante — bleu iMessage #0A84FF (valeur de référence du
-     redesign Communauté, identique en light et dark). */
-  --nc-imsg-blue: #0a84ff;
+  /* Bulle de message sortante — rouge brand Notion Club (#e0625a), identique en
+     light et dark (avant : bleu iMessage #0A84FF). */
+  --nc-imsg-out: #e0625a;
   /* Dots pattern hover sur resource/template cards */
   --nc-card-dot-color: rgba(224, 98, 90, 0.28);
   /* Overlay de contenu verrouillé (FreeTeaserPanel) */
@@ -1721,7 +1721,7 @@ body.nc-kb-open .nc-mobile-top-actions {
      pointe légèrement bas-droite, comme le crochet Apple. Sans ce masque, la
      queue serait pleine (pointeur générique de chat). */
 .nc-imsg-bubble {
-  background: var(--nc-imsg-blue);
+  background: var(--nc-imsg-out);
   color: #fff;
   padding: 5px 13px 6px;
   line-height: 1.22;
@@ -1741,7 +1741,7 @@ body.nc-kb-open .nc-mobile-top-actions {
   right: -6px;
   width: 12px;
   height: 13px;
-  background: var(--nc-imsg-blue);
+  background: var(--nc-imsg-out);
   border-bottom-right-radius: 4px;
 }
 /* Masque concave — ne couvre QUE la zone débordante (x ∈ [0, 6px] au-delà du
