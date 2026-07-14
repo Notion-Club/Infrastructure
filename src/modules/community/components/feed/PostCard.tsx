@@ -307,11 +307,24 @@ export function PostCard({ post, currentUser, devRole, pinned = false, onRequest
           />
         )}
 
-        {video && <VideoEmbed match={video} label="Vidéo du post · Carte post" />}
+        {video && (
+          <VideoEmbed
+            match={video}
+            label="Vidéo du post · Carte post"
+            // Carte du feed : couper la lecture quand une publication s'ouvre
+            // par-dessus (morph overlay) — sinon la vidéo continue en fond.
+            suspendOnDetailOpen
+          />
+        )}
       </div>
 
-      {/* Footer */}
-      <div data-fb-label="Barre de réactions · Carte post" onClick={(e) => e.stopPropagation()}>
+      {/* Footer — PAS de stopPropagation en bloc ici : sinon toute la zone de la
+          barre (dont l'espace vide entre les réactions et le compteur de
+          commentaires, en `justify-content: space-between`) avale le clic et
+          n'ouvre pas le post. Le stopPropagation est porté par chaque élément
+          interactif de ReactionsBar (pastilles, lot, compteur, sélecteur) → seul
+          un vrai bouton stoppe la bulle ; l'espace inerte remonte vers la carte. */}
+      <div data-fb-label="Barre de réactions · Carte post">
         <ReactionsBar
           reactions={reactions}
           commentCount={postData.commentCount}

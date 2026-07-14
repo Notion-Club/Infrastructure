@@ -140,14 +140,17 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
     didOpenJumpRef.current = true;
 
     let cancelled = false;
+    const el0 = scrollRef.current;
     const start = performance.now();
+    const toBottom = () => {
+      const el = scrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    };
     const pin = () => {
       if (cancelled) return;
-      const el = scrollRef.current;
-      if (!el) return;
-      el.scrollTop = el.scrollHeight;
+      toBottom();
       // Re-épingle brièvement (≤ 500 ms) pour absorber les reflows tardifs
-      // (images/embeds qui finissent de peindre) sans lutter durablement
+      // (bulles/embeds qui finissent de peindre) sans lutter durablement
       // contre un scroll utilisateur.
       if (performance.now() - start < 500) {
         openJumpRafRef.current = requestAnimationFrame(pin);
@@ -158,9 +161,28 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
       openJumpRafRef.current = requestAnimationFrame(pin);
     });
     openJumpRafRef.current = id1;
+
+    // Cas des IMAGES en dernier message : elles finissent de décoder APRÈS la
+    // fenêtre rAF de 500 ms → leur hauteur s'ajoute alors et repousse le fil vers
+    // le haut, l'utilisateur n'atterrit pas tout en bas. On ré-épingle donc au bas
+    // à CHAQUE `load` d'image du conteneur (capture : le `load` d'un <img> ne bulle
+    // pas), tant que l'utilisateur est resté collé au bas (stickToBottomRef) — s'il
+    // a scrollé lire l'historique entre-temps, on ne l'arrache pas. Fenêtre bornée
+    // (4 s) pour ne jamais ré-épingler indéfiniment.
+    const onImgLoad = (e: Event) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.tagName === "IMG" && stickToBottomRef.current) toBottom();
+    };
+    el0?.addEventListener("load", onImgLoad, true);
+    const stopImgWatch = window.setTimeout(() => {
+      el0?.removeEventListener("load", onImgLoad, true);
+    }, 4000);
+
     return () => {
       cancelled = true;
       if (openJumpRafRef.current) cancelAnimationFrame(openJumpRafRef.current);
+      el0?.removeEventListener("load", onImgLoad, true);
+      clearTimeout(stopImgWatch);
     };
   }, [messages.length]);
 
@@ -389,12 +411,8 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
           <div style={{ fontSize: 15, fontWeight: 600, color: isDeleted ? "var(--color-text-muted)" : "var(--color-text-primary)" }}>
             {conversation.participant.name}
           </div>
-          {conversation.participant.role === "admin" || conversation.participant.role === "mentor"
-            ? <div style={{ fontSize: 12, color: "var(--color-brand)" }}>
-                {conversation.participant.role === "admin" ? "Admin" : "Mentor"}
-              </div>
-            : null
-          }
+          {/* Mentions Admin/Mentor volontairement retirées de l'en-tête du thread
+              (demande produit) : le rôle reste visible ailleurs (feed, profil). */}
         </div>
       </div>
 

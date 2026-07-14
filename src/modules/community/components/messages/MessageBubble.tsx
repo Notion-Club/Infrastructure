@@ -241,6 +241,15 @@ function MessageBubbleInner({
   const canDelete = isSelf && !isPending;
   const canForward = !isPending;
 
+  // Message image : PAS de bulle colorée. L'image (coins arrondis par PostImage)
+  // EST la bulle → on retire le fond/liseré (rouge en sortant, gris en reçu) qui
+  // détourait la photo. Conséquence : les libellés qui viraient au blanc SUR la
+  // bulle colorée (badge transféré, quote de réponse, « modifié ») doivent rester
+  // FONCÉS quand c'est une image → on décide via `onBrand` (= sur bulle colorée)
+  // plutôt que `isSelf` seul.
+  const isImage = message.type === "image";
+  const onBrand = isSelf && !isImage;
+
   return (
     <div
       style={{
@@ -338,7 +347,9 @@ function MessageBubbleInner({
         <div
           data-fb-label="Bulle de message · Thread de messages"
           className={
-            isSelf ? `nc-imsg-bubble${isLastInGroup ? " nc-imsg-tail" : ""}` : undefined
+            // Bulle colorée (queue iMessage comprise) UNIQUEMENT pour un message
+            // sortant NON-image. Une image se passe de la pilule (cf. style).
+            onBrand ? `nc-imsg-bubble${isLastInGroup ? " nc-imsg-tail" : ""}` : undefined
           }
           style={{
             // La largeur est bornée par le conteneur-colonne (min(75 %, …)) —
@@ -347,18 +358,28 @@ function MessageBubbleInner({
             fontSize: 14,
             wordBreak: "break-word",
             position: "relative",
-            // Sortante : géométrie (padding, radius, line-height compact) portée
-            // par .nc-imsg-bubble — pas de line-height inline qui l'écraserait.
-            ...(isSelf
-              ? null
-              : {
-                  padding: "10px 14px",
-                  lineHeight: 1.5,
-                  borderRadius: "16px 16px 16px 4px",
-                  background: "var(--color-surface-raised)",
+            // Image : aucun cadre ni fond — l'image (arrondie par PostImage) EST la
+            // bulle, plus de liseré coloré autour de la photo. Texte (légende
+            // éventuelle) en couleur par défaut.
+            ...(isImage
+              ? {
+                  padding: 0,
+                  background: "transparent",
+                  border: "none",
                   color: "var(--color-text-primary)",
-                  border: "1px solid var(--color-border-default)",
-                }),
+                }
+              : // Sortante non-image : géométrie (padding, radius, line-height)
+                // portée par .nc-imsg-bubble — pas de line-height inline.
+                isSelf
+                ? null
+                : {
+                    padding: "10px 14px",
+                    lineHeight: 1.5,
+                    borderRadius: "16px 16px 16px 4px",
+                    background: "var(--color-surface-raised)",
+                    color: "var(--color-text-primary)",
+                    border: "1px solid var(--color-border-default)",
+                  }),
           }}
         >
           {/* Badge Forwarded (mig. 028) */}
@@ -372,7 +393,7 @@ function MessageBubbleInner({
                 fontStyle: "italic",
                 opacity: 0.8,
                 marginBottom: 6,
-                color: isSelf ? "rgba(255,255,255,0.85)" : "var(--color-text-muted)",
+                color: onBrand ? "rgba(255,255,255,0.85)" : "var(--color-text-muted)",
               }}
             >
               <Forward size={11} />
@@ -389,9 +410,9 @@ function MessageBubbleInner({
                 gap: 8,
                 marginBottom: 6,
                 padding: "6px 10px",
-                background: isSelf ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.04)",
+                background: onBrand ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.04)",
                 borderRadius: 8,
-                borderLeft: `3px solid ${isSelf ? "rgba(255,255,255,0.6)" : "var(--color-brand)"}`,
+                borderLeft: `3px solid ${onBrand ? "rgba(255,255,255,0.6)" : "var(--color-brand)"}`,
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -399,7 +420,7 @@ function MessageBubbleInner({
                   style={{
                     fontSize: 11,
                     fontWeight: 600,
-                    color: isSelf ? "rgba(255,255,255,0.9)" : "var(--color-brand)",
+                    color: onBrand ? "rgba(255,255,255,0.9)" : "var(--color-brand)",
                     marginBottom: 2,
                   }}
                 >
@@ -408,7 +429,7 @@ function MessageBubbleInner({
                 <div
                   style={{
                     fontSize: 12,
-                    color: isSelf ? "rgba(255,255,255,0.8)" : "var(--color-text-secondary)",
+                    color: onBrand ? "rgba(255,255,255,0.8)" : "var(--color-text-secondary)",
                     lineHeight: 1.4,
                     whiteSpace: "nowrap",
                     overflow: "hidden",
@@ -611,7 +632,7 @@ function MessageBubbleInner({
                 fontStyle: "italic",
                 opacity: 0.7,
                 marginTop: 2,
-                color: isSelf ? "rgba(255,255,255,0.8)" : "var(--color-text-muted)",
+                color: onBrand ? "rgba(255,255,255,0.8)" : "var(--color-text-muted)",
               }}
               title={`Modifié le ${fullDateTime(message.editedAt)}`}
             >

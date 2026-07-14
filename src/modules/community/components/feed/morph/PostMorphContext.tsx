@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
   type ReactNode,
 } from "react";
@@ -11,6 +12,7 @@ import type { Post } from "../../../types/post.types";
 import type { User } from "../../../types/user.types";
 import type { DevRole } from "../../../hooks/useDevRoleToggle";
 import { PostMorphOverlay } from "./PostMorphOverlay";
+import { pushVideoDetailOpen, popVideoDetailOpen } from "../../shared/VideoEmbed";
 
 // Contrôleur du morph d'ouverture/fermeture des cartes du FEED (posts). Repris
 // du mécanisme validé du module Ressources (règle d'isolation : duplication, pas
@@ -54,6 +56,15 @@ export function PostMorphProvider({
   // Démontage réel APRÈS l'animation de fermeture : l'overlay appelle onClose une
   // fois le morph de sortie terminé → la fermeture a le temps de jouer.
   const handleClosed = useCallback(() => setSource(null), []);
+
+  // Détail de post ouvert → suspendre les vidéos du FEED en arrière-plan (elles
+  // continuaient de jouer sous la publication ouverte). Push à l'ouverture, pop à
+  // la fermeture (cleanup) → le compteur module de VideoEmbed pilote la coupure.
+  useEffect(() => {
+    if (!source) return;
+    pushVideoDetailOpen();
+    return () => popVideoDetailOpen();
+  }, [source]);
 
   return (
     <PostMorphContext.Provider value={{ open, source }}>

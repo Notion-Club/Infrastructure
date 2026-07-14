@@ -226,7 +226,9 @@ function ReactionPill({ reaction, compact, onReact, allReactions }: ReactionPill
       <span
         onMouseEnter={onEnter}
         onMouseLeave={onLeave}
-        onClick={onReact}
+        // stopPropagation : la pastille est posée sur une carte cliquable (feed) →
+        // réagir ne doit PAS aussi ouvrir le post.
+        onClick={(e) => { e.stopPropagation(); onReact?.(); }}
         onPointerDown={onPressDown}
         onPointerUp={onPressUp}
         onPointerCancel={onPressUp}
@@ -363,7 +365,8 @@ function GroupedReactionsPill({
       onMouseLeave={onLeave}
       // Clic sur le LOT cumulé → ouvre le menu listant toutes les réactions
       // (le retrait éventuel se fait depuis « Retirer ma réaction » du menu).
-      onClick={onOpen}
+      // stopPropagation : ne pas ouvrir le post de la carte sous-jacente.
+      onClick={(e) => { e.stopPropagation(); onOpen(); }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -482,7 +485,10 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
           // et qu'un handler existe). Sinon rien, comme avant.
           showAddReaction && onReact ? (
             // Libellé par défaut « + Réagir » = même CTA que la page du post.
-            <ReactionPicker onSelect={onReact} compact={compact} />
+            // Span stopPropagation : ouvrir le sélecteur n'ouvre pas le post.
+            <span onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex" }}>
+              <ReactionPicker onSelect={onReact} compact={compact} />
+            </span>
           ) : null
         ) : (
           <>
@@ -508,7 +514,9 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
             {/* Des réactions existent → pastille ronde icône-seule à la suite,
                 pour inciter l'utilisateur à ajouter la sienne. */}
             {showAddReaction && onReact && (
-              <ReactionPicker onSelect={onReact} variant="icon" compact={compact} />
+              <span onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex" }}>
+                <ReactionPicker onSelect={onReact} variant="icon" compact={compact} />
+              </span>
             )}
           </>
         )}
@@ -518,7 +526,9 @@ export function ReactionsBar({ reactions, commentCount, compact = false, onReact
         onCommentClick ? (
           <button
             type="button"
-            onClick={onCommentClick}
+            // stopPropagation : le compteur ouvre le détail (commentaires), il ne
+            // doit pas laisser la carte déclencher un second open en parallèle.
+            onClick={(e) => { e.stopPropagation(); onCommentClick(); }}
             data-fb-label="Compteur commentaires · Barre de réactions"
             style={{
               display: "inline-flex",
