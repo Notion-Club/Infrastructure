@@ -3730,12 +3730,15 @@ html.dark .nc-lt-scrim {
        viewport qu'en paliers (pas image par image) → le shell sautait sèchement
        entre les deux tailles. On tween `height` ET `transform` ensemble (mêmes
        durée/ease → taille et position calée-clavier restent synchro) avec les
-       tokens de motion du projet (--nc-ease = cubic-bezier(0.22,1,0.36,1),
-       --nc-duration-slow = 300ms, identiques au snippet card-resize). Guard
+       tokens de motion du projet (--nc-ease = cubic-bezier(0.22,1,0.36,1)).
+       Durée = --nc-duration-normal (250ms) et NON slow (300ms) : le clavier iOS
+       s'anime en ~250ms et arrive en paliers ; un tween plus long que le clavier
+       recompose plusieurs paliers → traîne/dérive après que le clavier a fini.
+       250ms colle au timing du clavier → suivi net, sans à-coup. Guard
        reduced-motion ci-dessous. */
     transition:
-      height var(--nc-duration-slow) var(--nc-ease),
-      transform var(--nc-duration-slow) var(--nc-ease);
+      height var(--nc-duration-normal) var(--nc-ease),
+      transform var(--nc-duration-normal) var(--nc-ease);
     will-change: height, transform;
     min-height: 0;
     overflow: hidden;
@@ -3765,11 +3768,11 @@ html.dark .nc-lt-scrim {
     padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
     min-height: 0;
     /* Le padding bascule (64/114 → 8/8) quand nav + topbar se masquent au clavier
-       : on le tween sur les mêmes durée/ease que le shell → tout le resize bouge
-       d'un seul tenant, sans à-coup. */
+       : on le tween sur les mêmes durée/ease que le shell (250ms) → tout le resize
+       bouge d'un seul tenant, sans à-coup. */
     transition:
-      padding-top var(--nc-duration-slow) var(--nc-ease),
-      padding-bottom var(--nc-duration-slow) var(--nc-ease);
+      padding-top var(--nc-duration-normal) var(--nc-ease),
+      padding-bottom var(--nc-duration-normal) var(--nc-ease);
   }
   @media (prefers-reduced-motion: reduce) {
     .nc-community-shell > main {

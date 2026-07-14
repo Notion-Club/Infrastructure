@@ -185,6 +185,45 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
     prevNewestRef.current = newestCount;
   }, [newestCount, otherIsTyping]);
 
+  // Épinglage au bas lors d'un REDIMENSIONNEMENT du conteneur (ouverture/fermeture
+  // du clavier iOS, croissance du composer multi-lignes, rotation). Sans cela,
+  // quand la zone de messages rétrécit, l'ancrage de scroll natif du navigateur
+  // fige le HAUT du contenu → les derniers messages passent SOUS le pli et
+  // disparaissent (bug « le fil remonte au clavier »). On mémorise en continu, via
+  // le scroll, si l'utilisateur est « collé en bas », puis on ré-épingle à CHAQUE
+  // frame du resize tant que la condition tient → le dernier message reste calé au
+  // bas pendant toute l'animation de resize (300ms shell). Le ResizeObserver
+  // n'observe QUE la boîte du conteneur (flex) → il ne se déclenche PAS sur un
+  // simple changement de hauteur de contenu (images qui chargent, prepend
+  // pagination) : aucune interférence avec le ré-ancrage haut de handleLoadOlder.
+  const stickToBottomRef = useRef(true);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    // Seuil un peu plus large que l'auto-scroll (120) : quand l'utilisateur tape,
+    // il est au bas → on veut l'y maintenir même s'il a très légèrement remonté.
+    const STICK_THRESHOLD = 150;
+    const onScroll = () => {
+      stickToBottomRef.current =
+        el.scrollHeight - el.scrollTop - el.clientHeight < STICK_THRESHOLD;
+    };
+    onScroll(); // état initial (après le jump d'ouverture → collé en bas)
+    el.addEventListener("scroll", onScroll, { passive: true });
+
+    // Ré-épinglage instantané (pas de 'smooth' : il lutterait contre le tween de
+    // hauteur du shell). Poser scrollTop ne change pas la taille de la boîte
+    // observée → aucune boucle ResizeObserver.
+    const ro = new ResizeObserver(() => {
+      if (stickToBottomRef.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(el);
+
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      ro.disconnect();
+    };
+  }, []);
+
   async function handleLoadOlder() {
     if (!messages.length || isLoadingOlder || !hasMore) return;
     const cursorId = messages[0]!.id;
