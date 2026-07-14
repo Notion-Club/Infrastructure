@@ -74,7 +74,10 @@ export function BottomNav() {
   const moveTo = useCallback((idx: number, animate: boolean) => {
     const el   = itemRefs.current[idx];
     const pill = pillRef.current;
-    if (!el || !pill) return;
+    // Garde `!el.offsetWidth` : un élément non rendu (nav masquée/hors frame)
+    // renvoie offsetLeft/offsetWidth = 0 → sans ça un snap écraserait la pilule
+    // à largeur 0 et position 0.
+    if (!el || !pill || !el.offsetWidth) return;
 
     if (!animate) {
       const prev = pill.style.transition;

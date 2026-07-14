@@ -9,9 +9,7 @@ import {
 } from "@/shared/components/identity/ProfileIdentityProvider";
 import FeedbackWidgetLoader from "@/shared/components/feedback-widget/FeedbackWidgetLoader";
 import { Topbar } from "@/shared/components/dashboard/Topbar";
-import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
-import { MobileBrandLogo } from "@/shared/components/dashboard/mobile/MobileBrandLogo";
-import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
+import { AppMobileChrome } from "@/shared/components/dashboard/mobile/AppMobileChrome";
 import { DevToolboxProvider } from "@/shared/components/dev/DevToolbox";
 import { AdminPushRegistrar } from "@/shared/components/dev/admin-push/AdminPushRegistrar";
 import { ProfileModalProvider } from "@/shared/components/profile/ProfileModalProvider";
@@ -72,14 +70,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <ProfileModalProvider>
           <AdminPushRegistrar />
           <Topbar />
-          <div className="md:hidden">
-            {/* Chrome mobile. Le fondu de couleur du bord vient du fond de page
-                (`.nc-app-bg`) et le léger flou du haut de `GradualBlurOverlay`
-                (root layout) — plus de calques « bande » par-dessus le contenu. */}
-            <MobileBrandLogo />
-            <MobileTopActions />
-            <BottomNav />
-          </div>
+          {/* Chrome mobile (logo, actions, nav, frost bas) — rendu ici pour
+              toutes les routes SAUF /communaute*, où il est rendu DANS le
+              ViewportFrame (règle d'unicité du référentiel §2.1). Une seule
+              instance simultanée (cf. AppMobileChrome). */}
+          <AppMobileChrome />
           {children}
           <FeedbackWidgetLoader />
           {/* Pop-up d'incitation à installer la PWA — s'ouvre auto quelques

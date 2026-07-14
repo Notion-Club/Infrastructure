@@ -1,5 +1,10 @@
 import { listConversations, listPostsPage } from "@/modules/community/server/queries";
 import { CommunityPage } from "@/modules/community/routes/community-page";
+import { ViewportFrame } from "@/shared/components/dashboard/mobile/ViewportFrame";
+import { MobileBrandLogo } from "@/shared/components/dashboard/mobile/MobileBrandLogo";
+import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
+import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
+import { PwaBottomFrost } from "@/shared/components/dashboard/mobile/PwaBottomFrost";
 import { ViewportDebugOverlay } from "@/shared/components/dev/ViewportDebugOverlay";
 
 // Layout PARTAGÉ de /communaute/* (feed, messages, messages/[username]).
@@ -35,30 +40,44 @@ export default function CommunauteLayout({
   const postsPromise = listPostsPage({ limit: 50 });
   const conversationsPromise = listConversations();
 
-  // Scroll-DOCUMENT (et non plus `h-dvh overflow-hidden` à scroll interne) : un
-  // shell à hauteur fixe empêche le document de scroller → sur iOS Safari la barre
-  // d'outils ne se rétracte jamais → `dvh` reste petit → contenu du feed raccourci.
-  // En laissant le document scroller (`minHeight: 100lvh`, comme dashboard/
-  // ressources), Safari replie sa barre et le contenu descend pleinement, comme en
-  // PWA. La vue Messages garde, elle, une hauteur fixe explicite (cf.
-  // MessagesContent dans community-page).
+  // ── Chantier clavier v2 : tout /communaute vit dans un ViewportFrame ────────
+  // Sur mobile, le frame (position:fixed, suit --nc-vvh/--nc-vvot) se superpose
+  // à la zone RÉELLEMENT visible et crée un containing block : TOUT le chrome
+  // fixed (logo, actions, nav, frost) rendu DEDANS se cale sur cette zone, y
+  // compris quand le clavier décale le viewport. Sur desktop, le frame est en
+  // `display: contents` → transparent, layout inchangé (scroll-document via
+  // `.nc-community-shell { min-height: 100lvh }`). Le chrome mobile est rendu ICI
+  // (et NON dans (app)/layout via AppMobileChrome) sur cette route — une seule
+  // instance simultanée (règle d'unicité §2.1). Les paddings/hauteurs mobiles
+  // vivent dans `.nc-community-shell` (globals.css).
   return (
-    <div className="nc-page-halo flex flex-col" style={{ minHeight: "100lvh" }}>
-      <main
-        className="flex flex-col flex-1 w-full mx-auto px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8"
-        style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
-      >
-        <CommunityPage
-          postsPromise={postsPromise}
-          conversationsPromise={conversationsPromise}
-        />
-      </main>
-      {/* children = pages-marqueurs (return null), requis par Next pour que la
-          route enfant soit valide, mais sans rendu visible. */}
-      {children}
-      {/* TEMPORAIRE (chantier clavier v2) : overlay de mesures viewport —
-          à retirer en Phase 6 avant la PR. */}
+    <>
+      <ViewportFrame>
+        <div className="md:hidden">
+          <MobileBrandLogo />
+          <MobileTopActions />
+          <BottomNav />
+          <PwaBottomFrost />
+        </div>
+        <div className="nc-page-halo nc-community-shell flex flex-col">
+          <main
+            className="flex flex-col flex-1 w-full mx-auto px-4 md:px-10 md:pt-[104px] md:pb-8"
+            style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
+          >
+            <CommunityPage
+              postsPromise={postsPromise}
+              conversationsPromise={conversationsPromise}
+            />
+          </main>
+          {/* children = pages-marqueurs (return null), requis par Next pour que
+              la route enfant soit valide, mais sans rendu visible. */}
+          {children}
+        </div>
+      </ViewportFrame>
+      {/* TEMPORAIRE (chantier clavier v2) : overlay de mesures viewport — rendu
+          HORS du frame (ancré à l'ICB) pour mesurer indépendamment. À retirer
+          en Phase 6 avant la PR. */}
       <ViewportDebugOverlay />
-    </div>
+    </>
   );
 }

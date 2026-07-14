@@ -3643,67 +3643,107 @@ html.dark .nc-lt-scrim {
   }
 }
 
-/* Zone Messages embarquée dans la carte /communaute.
-   • Mobile : hauteur DÉFINIE (chat à scroll interne, façon messagerie). C'est la
-     SEULE source de vérité de la hauteur du panneau messages — MessagesLayout la
-     remplit en `height:100%` (plus de second `calc` concurrent).
-     `100dvh - 224px` ≈ chrome haut (pt-64) + switcher + marge basse. On soustrait
-     EN PLUS `env(safe-area-inset-bottom)` : la BottomNav est ancrée à
-     `calc(10px + env(safe-area-inset-bottom))`, donc sur PWA/Safari iOS (safe-area
-     ≈ 34px) sans cette soustraction la carte débordait SOUS la barre de nav, et le
-     bas de la conversation (derniers messages + composer) passait hors écran — d'où
-     « je ne suis pas tout en bas » et « le contenant dépasse la barre ». La
-     soustraction garantit un écart constant au-dessus de la BottomNav, quelle que
-     soit la safe-area.
-   • Desktop : on REMPLIT la carte (flex-1) au lieu d'une hauteur fixe plus
-     courte que la carte → la bande grise (fond de carte) sous le panneau et les
-     coins arrondis vides en bas disparaissent ; le panneau messages va jusqu'en
-     bas de l'encadré. */
-.nc-messages-embed {
-  height: calc(100dvh - 224px - env(safe-area-inset-bottom, 0px));
-  overflow: hidden;
+/* ── Frame qui suit le viewport visuel (chantier clavier v2) ─────────────────
+   Desktop / SSR / sans JS : `display: contents` → le frame ne génère AUCUNE
+   boîte, ses enfants (chrome mobile + shell) participent au flux comme si le
+   wrapper n'existait pas → /communaute DESKTOP strictement inchangé.
+   Mobile (< 768px) : conteneur `position: fixed` recalé en continu sur la zone
+   RÉELLEMENT visible via --nc-vvh (hauteur) et --nc-vvot (translateY), posés
+   image par image par ViewportFrame. Son `transform` crée un CONTAINING BLOCK :
+   tout `position: fixed` DEDANS (BottomNav, actions, logo, frost) se résout
+   contre le frame = contre la zone visible réelle, plus contre l'ICB corrompu.
+   AUCUNE transition ici : le frame DOIT snapper à chaque frame (§2) — une
+   transition le ferait traîner derrière le clavier. Fond propre (§2.3) :
+   .nc-app-bg est ancré à l'ICB, hors du frame ; dans l'état bogué la zone
+   visible peut le déborder → bande non peinte. */
+.nc-vv-frame {
+  display: contents;
 }
-@media (min-width: 768px) {
-  .nc-messages-embed {
-    height: auto;
-    flex: 1 1 auto;
-    min-height: 0;
-    /* Conteneur flex-col : la grille messages (flex:1 en embedded) remplit
-       toute la hauteur → plus de bande grise (fond d'encadré) sous le panneau. */
+/* Verrou du canal scrollY (§1.2), posé par ViewportFrame (html.nc-vv-lock). */
+html.nc-vv-lock,
+html.nc-vv-lock body {
+  overflow: hidden;
+  height: 100%;
+  overscroll-behavior: none;
+}
+@media (max-width: 767px) {
+  .nc-vv-frame {
     display: flex;
     flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--nc-vvh, 100dvh);
+    transform: translateY(var(--nc-vvot, 0px));
+    overflow: hidden;
+    background: var(--color-surface-page);
   }
 }
 
-/* Onglet Messages (desktop) : l'encadré prend une hauteur DÉFINIE = zone visible
-   du viewport (chrome du shell déduit : md pt-104px + pb-8=32px). Cela BORNE la
-   chaîne flex → une conversation longue scrolle EN INTERNE (ConversationThread)
-   au lieu d'allonger l'encadré et de faire défiler la page. Le feed conserve son
-   scroll-document (flex-1). Mobile inchangé : .nc-messages-embed y est déjà en
-   hauteur fixe. Double classe pour battre en spécificité l'utilitaire .flex-1. */
+/* ── Shell /communaute (DANS le frame en mobile) ─────────────────────────────
+   Desktop : min-height 100lvh (scroll-document, le frame est en display:contents
+   → aucun changement). Mobile : la hauteur vient du FRAME (= zone visible) ; le
+   shell REMPLIT le frame en flex, le chrome fixed (nav, actions) étant hors flux
+   ne prend pas d'espace. Une seule source de hauteur → plus de calc(100dvh − …)
+   concurrent (fin de la bande grise et de la divergence Feed/Messages). */
+.nc-community-shell {
+  min-height: 100lvh;
+}
+@media (max-width: 767px) {
+  .nc-community-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .nc-community-shell > main {
+    /* Haut : 64px (le halo porte déjà le safe-top ; la rangée d'actions finit à
+       ~50px + safe-top → écart visible ≈ 14px). */
+    padding-top: 64px;
+    /* Bas : haut de la BottomNav = 66px + safe-bottom, + le même écart 14px. */
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    min-height: 0;
+  }
+  /* Clavier ouvert : la nav est masquée → on ne réserve plus que 8px sous la
+     carte (le composer se cale à 8px au-dessus du clavier). Posée en Phase 3. */
+  body.nc-kb-open .nc-community-shell > main {
+    padding-bottom: 8px;
+  }
+  /* La carte remplit le main — IDENTIQUE Feed et Messages (double classe pour
+     battre .flex-1 ; height:auto neutralise les hauteurs desktop). */
+  .nc-community-card.nc-community-card--fixed,
+  .nc-community-card.nc-community-card--messages {
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+}
+
+/* Zone Messages embarquée — REMPLIT la carte en flex, mobile COMME desktop.
+   Plus aucun calc(100dvh − …) : la hauteur descend frame → shell → carte →
+   embed → MessagesLayout (height:100%). */
+.nc-messages-embed {
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Desktop : hauteurs DÉFINIES = zone visible (md pt-104 + pb-8 = 136px) → la
+   carte scrolle EN INTERNE. Sur mobile la hauteur vient du frame. Double classe
+   → spécificité > .flex-1. */
 @media (min-width: 768px) {
   .nc-community-card.nc-community-card--messages {
     height: calc(100dvh - 136px);
     flex: none;
   }
-}
-
-/* Onglet Feed — hauteur DÉFINIE (règle demandée : l'encadré ne s'allonge plus
-   avec le contenu, il reste à la même position fixe que Messages et la liste
-   scrolle EN INTERNE, cf. .nc-feed-scroll).
-   • Mobile : chrome haut (pt-64) + bas (pb-120) = 184px, plus la safe-area (la
-     BottomNav est ancrée à calc(10px + env(safe-area-inset-bottom))).
-   • Desktop : md pt-104 + pb-8=32 = 136px.
-   Compromis assumé : comme Messages, le document ne scrolle plus sur cette page
-   → en navigateur Safari iOS (hors PWA) la barre d'outils ne se replie plus.
-   Double classe pour battre l'utilitaire .flex-1 en spécificité. */
-.nc-community-card.nc-community-card--fixed {
-  height: calc(100dvh - 184px - env(safe-area-inset-bottom, 0px));
-  flex: none;
-}
-@media (min-width: 768px) {
   .nc-community-card.nc-community-card--fixed {
     height: calc(100dvh - 136px);
+    flex: none;
   }
 }
 
