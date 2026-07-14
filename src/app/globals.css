@@ -357,6 +357,22 @@ body.nc-kb-open .nc-mobile-top-actions {
   pointer-events: none;
 }
 
+/* ── Clavier ouvert : verrouiller le scroll du DOCUMENT ──────────────────────
+   Au repos, la page /communaute est tenue FIXE par le shell (height = viewport,
+   overflow:hidden) : rien ne déborde, le document ne scrolle pas. Dès que le
+   clavier monte, le shell rétrécit à --nc-vvh → le document redevient plus court
+   que la zone de saisie et iOS le rend scrollable (rubber-band sur le halo
+   derrière la carte, « le fond de page bouge »). On réplique le verrou « page
+   fixe » tant que nc-kb-open est posée, en coupant l'overflow du document (html
+   = élément scrollant sur iOS, d'où le `:has`). La carte garde son scroll
+   interne : c'est un conteneur overflow:auto IMBRIQUÉ, non affecté par le verrou
+   du document. overscroll-behavior:none tue aussi le rebond élastique. */
+html:has(body.nc-kb-open),
+body.nc-kb-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* ── Compensation du viewport CONTRACTÉ iOS PWA (après clavier) ───────────────
    Mesuré sur device : après la 1re ouverture de clavier en PWA installée, WebKit
    contracte le layout viewport PAR LE BAS et ne le restaure jamais —
