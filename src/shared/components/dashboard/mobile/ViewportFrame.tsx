@@ -31,10 +31,6 @@ import { useEffect, type ReactNode } from "react";
 
 const LOCK_CLASS = "nc-vv-lock";
 const KB_CLASS = "nc-kb-open";
-// Compensation viewport standalone — PRÉ-CÂBLÉE, activée UNIQUEMENT via cette
-// classe posée à la main par le bouton [COMP] de l'overlay debug (§1). Aucune
-// activation auto dans ce commit : c'est un instrument de mesure.
-const COMP_CLASS = "nc-vv-comp";
 // Pinch-zoom : Safari ignore user-scalable=no. Hors échelle ~1, geler les
 // variables (sinon le frame se réduit à la taille de la loupe → UI inutilisable).
 const SCALE_EPS = 0.01;
@@ -99,8 +95,6 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
     // rendrait le déficit invisible. On mémorise le vrai max par largeur pour que
     // la graine reste fiable ; `if (h > baseline) baseline = h` apprend par-dessus.
     const maxByWidth = new Map<number, number>();
-    // La compensation ne s'applique QU'en PWA installée (Safari Web est sain).
-    const standaloneMq = window.matchMedia("(display-mode: standalone)");
     let sawKeyboard = false;
     let netTimer: ReturnType<typeof setTimeout> | null = null;
     const clearNet = () => {
@@ -230,28 +224,12 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
         }
       }
 
-      // HAUTEUR du frame. Défaut = vv.height BRUT (la détection ci-dessus a lu h
-      // brut ; la compensation ne pollue JAMAIS la détection, §1.5 étendu).
-      // COMPENSATION (debug, INACTIVE par défaut — activée par body.nc-vv-comp) :
-      // en PWA, après une session clavier, le WEBVIEW se rétrécit de ~62px et vv
-      // reste cohérent avec l'ICB coincé → « état déficit ». On réécrit alors
-      // --nc-vvh = baseline (hauteur pleine) pour rendre le vrai bas d'écran.
-      // Bornes : standalone ET classe absente ET 0 < baseline − h < KB_MIN
-      // (62 ∈ ]0,120[ ; un clavier fait ≥ ~350px ET pose la classe → jamais dans
-      // ces bornes).
-      const deficit =
-        standaloneMq.matches &&
-        !kbClass &&
-        baseline > 0 &&
-        h < baseline &&
-        baseline - h < KB_MIN;
-      const compEnabled = body.classList.contains(COMP_CLASS);
-      root.style.setProperty(
-        "--nc-vvh",
-        `${Math.round(compEnabled && deficit ? baseline : h)}px`,
-      );
-      // Expose baseline pour l'overlay debug — retiré en Phase 6 avec l'overlay.
-      root.style.setProperty("--nc-vvbase", `${Math.round(baseline)}px`);
+      // HAUTEUR du frame : PUR SUIVI de vv.height. La stratégie de compensation
+      // (réécrire baseline dans l'« état déficit ») a été FALSIFIÉE sur appareil :
+      // les 62px hors vv.height ne sont pas peignables pour du CONTENU (seul le
+      // canvas/background y peint). On vit donc dans le monde 894, cohérent comme
+      // /accueil — on ne récupère pas les pixels, on reste synchrone.
+      root.style.setProperty("--nc-vvh", `${Math.round(h)}px`);
     };
     // Écriture COALESCÉE : au plus une par frame (resize + scroll peuvent tirer
     // plusieurs events par frame → un seul rAF planifié).
@@ -266,27 +244,54 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
       schedule();
     };
 
+    // RESYNCHRONISATION événementielle. Le watcher ne réécrit que sur
+    // vv.resize/vv.scroll ; pendant une transition de page (SPA) ou un passage en
+    // arrière-plan, le rAF peut être gelé et la DERNIÈRE écriture rester périmée
+    // (ex. un transitoire 956 figé) — et le silence d'événements de l'état coincé
+    // fait qu'elle n'est JAMAIS corrigée. On replanifie donc une écriture au
+    // retour au premier plan / bfcache / focus. write() est idempotent → sans
+    // risque. (Toujours événementiel, aucun timer.)
+    const onResync = () => schedule();
     vv.addEventListener("resize", schedule);
     vv.addEventListener("scroll", schedule);
     document.addEventListener("focusin", onFocusIn);
-    // Le bouton [COMP] de l'overlay (debug) toggle body.nc-vv-comp SANS event
-    // viewport → il émet aussi nc-vv-recompute pour forcer un recalcul immédiat.
+    document.addEventListener("visibilitychange", onResync);
+    window.addEventListener("pageshow", onResync);
+    window.addEventListener("focus", onResync);
+    // Conservé pour l'outillage debug (nc-vv-recompute).
     window.addEventListener("nc-vv-recompute", schedule);
+
     write(); // valeur initiale synchrone
+    // Seconde écriture POST-transition : au remount (nav SPA), un transitoire
+    // (ex. 956) peut être écrit puis figé (rAF gelé + silence). Un DOUBLE rAF
+    // capte la valeur stabilisée une fois la transition de page terminée.
+    let mountRaf1: number | null = null;
+    let mountRaf2: number | null = null;
+    mountRaf1 = requestAnimationFrame(() => {
+      mountRaf1 = null;
+      mountRaf2 = requestAnimationFrame(() => {
+        mountRaf2 = null;
+        write();
+      });
+    });
 
     return () => {
       vv.removeEventListener("resize", schedule);
       vv.removeEventListener("scroll", schedule);
       document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("visibilitychange", onResync);
+      window.removeEventListener("pageshow", onResync);
+      window.removeEventListener("focus", onResync);
       window.removeEventListener("nc-vv-recompute", schedule);
       if (rafId != null) cancelAnimationFrame(rafId);
+      if (mountRaf1 != null) cancelAnimationFrame(mountRaf1);
+      if (mountRaf2 != null) cancelAnimationFrame(mountRaf2);
       clearNet();
       detachTouch();
       body.classList.remove(KB_CLASS);
       unlock();
       root.style.removeProperty("--nc-vvh");
       root.style.removeProperty("--nc-vvot");
-      root.style.removeProperty("--nc-vvbase");
     };
   }, []);
 

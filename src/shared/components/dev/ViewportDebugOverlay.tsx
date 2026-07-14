@@ -142,16 +142,9 @@ export function ViewportDebugOverlay() {
         // Compteurs cumulés d'événements (départage silence vs valeur mensongère).
         `rC=${vvResizeCount}`,
         `sC=${vvScrollCount}`,
-        // Compensation debug + probes de restauration (§2).
-        `comp=${document.body.classList.contains("nc-vv-comp") ? 1 : 0}`,
-        `base=${css("--nc-vvbase")}`,
+        // Probes de restauration (durée de vie de l'état coincé).
         `screenH=${fmt(window.screen.height)}`,
         `outerH=${fmt(window.outerHeight)}`,
-        // Test [CLIP] : le clip levé réveille-t-il un scroll ? (docSH/bodySH doivent
-        // rester = viewport, scrollY = 0).
-        `clip=${document.documentElement.classList.contains("nc-vv-noclip") ? 0 : 1}`,
-        `docSH=${fmt(document.documentElement.scrollHeight)}`,
-        `bodySH=${fmt(document.body.scrollHeight)}`,
       ].join(" ");
 
     // Journal : entrée ajoutée UNIQUEMENT quand les valeurs changent (ou sur
@@ -450,34 +443,6 @@ export function ViewportDebugOverlay() {
           onClick={() => void apiRef.current?.send()}
         >
           📤 Envoyer
-        </button>
-        {/* [COMP] : toggle la compensation viewport standalone (body.nc-vv-comp)
-            + émet nc-vv-recompute pour forcer ViewportFrame à recalculer sans
-            event viewport. Instrument de test (§1/§2), aucune activation auto. */}
-        <button
-          type="button"
-          style={btnStyle}
-          onClick={(e) => {
-            const on = document.body.classList.toggle("nc-vv-comp");
-            window.dispatchEvent(new Event("nc-vv-recompute"));
-            e.currentTarget.textContent = on ? "COMP ✓" : "COMP";
-          }}
-        >
-          COMP
-        </button>
-        {/* [CLIP] : lève le clip viewport (html.nc-vv-noclip) — teste si le
-            tranchage à y=894 vient de notre overflow:hidden root (§ hypothèse).
-            Émet nc-vv-recompute comme [COMP]. Instrument de test, aucun autre effet. */}
-        <button
-          type="button"
-          style={btnStyle}
-          onClick={(e) => {
-            const on = document.documentElement.classList.toggle("nc-vv-noclip");
-            window.dispatchEvent(new Event("nc-vv-recompute"));
-            e.currentTarget.textContent = on ? "CLIP ✓" : "CLIP";
-          }}
-        >
-          CLIP
         </button>
       </div>
       {/* Plan C si la copie programmatique échoue : journal affiché plein
