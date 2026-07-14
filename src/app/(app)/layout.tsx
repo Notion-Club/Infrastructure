@@ -9,13 +9,14 @@ import {
 } from "@/shared/components/identity/ProfileIdentityProvider";
 import FeedbackWidgetLoader from "@/shared/components/feedback-widget/FeedbackWidgetLoader";
 import { Topbar } from "@/shared/components/dashboard/Topbar";
-import { AppMobileChrome } from "@/shared/components/dashboard/mobile/AppMobileChrome";
+import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
+import { MobileBrandLogo } from "@/shared/components/dashboard/mobile/MobileBrandLogo";
+import { BottomNav } from "@/shared/components/dashboard/mobile/BottomNav";
 import { DevToolboxProvider } from "@/shared/components/dev/DevToolbox";
 import { AdminPushRegistrar } from "@/shared/components/dev/admin-push/AdminPushRegistrar";
 import { ProfileModalProvider } from "@/shared/components/profile/ProfileModalProvider";
 import { PwaInstallPrompt } from "@/shared/components/pwa/PwaInstallPrompt";
 import { NotificationPermissionPrompt } from "@/shared/components/pwa/NotificationPermissionPrompt";
-import { ViewportDebugOverlay } from "@/shared/components/dev/ViewportDebugOverlay";
 
 // Layout commun à toutes les pages connectées (dashboard, settings, communaute,
 // coaching, ressources). Server Component : on pré-fetch l'identity de l'user
@@ -71,11 +72,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <ProfileModalProvider>
           <AdminPushRegistrar />
           <Topbar />
-          {/* Chrome mobile (logo, actions, nav, frost bas) — rendu ici pour
-              toutes les routes SAUF /communaute*, où il est rendu DANS le
-              ViewportFrame (règle d'unicité du référentiel §2.1). Une seule
-              instance simultanée (cf. AppMobileChrome). */}
-          <AppMobileChrome />
+          <div className="md:hidden">
+            {/* Chrome mobile. Le fondu de couleur du bord vient du fond de page
+                (`.nc-app-bg`) et le léger flou du haut de `GradualBlurOverlay`
+                (root layout) — plus de calques « bande » par-dessus le contenu. */}
+            <MobileBrandLogo />
+            <MobileTopActions />
+            <BottomNav />
+          </div>
           {children}
           <FeedbackWidgetLoader />
           {/* Pop-up d'incitation à installer la PWA — s'ouvre auto quelques
@@ -85,11 +89,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               secondes après l'ouverture de l'app INSTALLÉE (standalone), une
               fois, pour activer le push natif iOS/Android. */}
           <NotificationPermissionPrompt />
-          {/* TEMPORAIRE (chantier clavier v2) : overlay de mesures viewport,
-              monté sur TOUTES les routes app pour comparer /communaute ↔ autres.
-              Hors /communaute, les champs frame/shell/card affichent "absent".
-              À retirer en Phase 6. */}
-          <ViewportDebugOverlay />
         </ProfileModalProvider>
       </DevToolboxProvider>
     </ProfileIdentityProvider>

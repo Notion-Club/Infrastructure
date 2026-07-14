@@ -1,8 +1,5 @@
 import { listConversations, listPostsPage } from "@/modules/community/server/queries";
 import { CommunityPage } from "@/modules/community/routes/community-page";
-import { ViewportFrame } from "@/shared/components/dashboard/mobile/ViewportFrame";
-import { MobileBrandLogo } from "@/shared/components/dashboard/mobile/MobileBrandLogo";
-import { MobileTopActions } from "@/shared/components/dashboard/mobile/MobileTopActions";
 
 // Layout PARTAGÉ de /communaute/* (feed, messages, messages/[username]).
 //
@@ -37,38 +34,27 @@ export default function CommunauteLayout({
   const postsPromise = listPostsPage({ limit: 50 });
   const conversationsPromise = listConversations();
 
-  // ── Chantier clavier v2 : le frame porte le contenu + la SEULE topbar ───────
-  // Sur mobile, le frame (position:fixed, suit --nc-vvh/--nc-vvot) se superpose à
-  // la zone RÉELLEMENT visible et crée un containing block. Seule la TOPBAR
-  // (logo + actions) est rendue DEDANS : elle reste VISIBLE pendant la saisie,
-  // donc elle DOIT suivre le pan WebKit au focus (hors frame elle serait emportée
-  // hors écran — régression Safari de c7db323). La BottomNav + le frost sont
-  // rendus GLOBALEMENT par AppMobileChrome, ancrés à l'ICB comme sur toutes les
-  // routes : ils sont MASQUÉS au clavier (body.nc-kb-open) donc le pan ne peut
-  // pas les trahir, et l'ICB est le référentiel qui les place correctement au
-  // repos. Desktop : frame en `display: contents` → transparent.
+  // Scroll-DOCUMENT (et non plus `h-dvh overflow-hidden` à scroll interne) : un
+  // shell à hauteur fixe empêche le document de scroller → sur iOS Safari la barre
+  // d'outils ne se rétracte jamais → `dvh` reste petit → contenu du feed raccourci.
+  // En laissant le document scroller (`minHeight: 100lvh`, comme dashboard/
+  // ressources), Safari replie sa barre et le contenu descend pleinement, comme en
+  // PWA. La vue Messages garde, elle, une hauteur fixe explicite (cf.
+  // MessagesContent dans community-page).
   return (
-    <>
-      <ViewportFrame>
-        <div className="md:hidden">
-          <MobileBrandLogo />
-          <MobileTopActions />
-        </div>
-        <div className="nc-page-halo nc-community-shell flex flex-col">
-          <main
-            className="flex flex-col flex-1 w-full mx-auto px-4 md:px-10 md:pt-[104px] md:pb-8"
-            style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
-          >
-            <CommunityPage
-              postsPromise={postsPromise}
-              conversationsPromise={conversationsPromise}
-            />
-          </main>
-          {/* children = pages-marqueurs (return null), requis par Next pour que
-              la route enfant soit valide, mais sans rendu visible. */}
-          {children}
-        </div>
-      </ViewportFrame>
-    </>
+    <div className="nc-page-halo flex flex-col" style={{ minHeight: "100lvh" }}>
+      <main
+        className="flex flex-col flex-1 w-full mx-auto px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8"
+        style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
+      >
+        <CommunityPage
+          postsPromise={postsPromise}
+          conversationsPromise={conversationsPromise}
+        />
+      </main>
+      {/* children = pages-marqueurs (return null), requis par Next pour que la
+          route enfant soit valide, mais sans rendu visible. */}
+      {children}
+    </div>
   );
 }

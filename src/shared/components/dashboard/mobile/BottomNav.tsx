@@ -74,10 +74,7 @@ export function BottomNav() {
   const moveTo = useCallback((idx: number, animate: boolean) => {
     const el   = itemRefs.current[idx];
     const pill = pillRef.current;
-    // Garde `!el.offsetWidth` : un élément non rendu (nav masquée/hors frame)
-    // renvoie offsetLeft/offsetWidth = 0 → sans ça un snap écraserait la pilule
-    // à largeur 0 et position 0.
-    if (!el || !pill || !el.offsetWidth) return;
+    if (!el || !pill) return;
 
     if (!animate) {
       const prev = pill.style.transition;
@@ -169,10 +166,11 @@ export function BottomNav() {
     <nav
       aria-label="Navigation principale"
       data-fb-label="Barre de navigation"
-      // `.nc-bottom-nav` : porte la transition + le masquage clavier (transform/
-      // opacity sous body.nc-kb-open, cf. globals.css). Le positionnement reste
-      // inline — aucun conflit (le masquage n'agit que sur transform/opacity,
-      // absents du style inline).
+      // `nc-bottom-nav` : cible CSS du masquage clavier. Au focus du champ de
+      // saisie DM, MessageComposer pose `nc-kb-open` sur <body> → la barre glisse
+      // hors écran (transform/opacity, cf. globals.css). La POSITION reste inline,
+      // le masquage n'agit que sur transform/opacity → aucun conflit, et la barre
+      // est strictement identique sur toutes les routes (aucun frame ne la touche).
       className="nc-bottom-nav"
       // `background` thème-aware sans backdrop-filter → se repeint au
       // changement de mode (pas de flou figé). Pilule simple et performante.

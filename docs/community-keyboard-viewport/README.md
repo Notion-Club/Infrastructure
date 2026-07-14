@@ -1,9 +1,30 @@
 # Chantier — Clavier mobile & viewport sur `/communaute`
 
-> **État : NON RÉSOLU.** Document de passation. Branche de travail :
-> `feature/community-keyboard-viewport`. Toutes les tentatives ci-dessous sont
-> poussées sur cette branche (pas mergées). La prod (`main`) n'est **pas**
-> affectée : elle est restée au revert `a5343a1` qui a annulé l'ancien chantier.
+> **État : ABANDONNÉ au profit du pattern natif (2026-07-14).**
+>
+> Le `ViewportFrame` (conteneur `position: fixed` + `transform` suivant le
+> viewport visuel) résolvait le resize au clavier MAIS **reflowait la safe-area
+> iOS**, ce qui déplaçait la BottomNav globale (trop haute en PWA, vide en
+> dessous) — insoluble au niveau CSS, en amont du `!important`. Après ~15
+> tentatives (§5), décision : **retirer tout le frame** et revenir au modèle
+> `main` (nav globale JAMAIS touchée par `/communaute` → position identique
+> partout, par construction). Le seul ajout net = **masquage de la BottomNav au
+> clavier en CSS pur** (`body.nc-kb-open`, posée par `MessageComposer` au focus).
+>
+> Fichiers supprimés : `ViewportFrame.tsx`, `ViewportDebugOverlay.tsx`,
+> `AppMobileChrome.tsx`, `PwaBottomFrost.tsx`, `api/vpdebug/route.ts`. Fichiers
+> ramenés à `main` : shell layout, `(app)/layout`, `app/layout`, `globals.css`,
+> `ConversationThread`, `BottomNav` (+ classe `nc-bottom-nav`).
+>
+> **Ce document est conservé pour ses données de mesure iOS (§6, ground truth)**
+> et l'historique des impasses — utile si le resize « composant au ras du
+> clavier » doit un jour être retenté SANS toucher la nav (piste : une seule
+> variable CSS de hauteur pour la carte Messages, jamais de frame/transform sur
+> le chrome). Voir §7 pistes 2 et 4.
+>
+> ---
+>
+> _Ci-dessous : le document de passation d'origine (chantier frame, abandonné)._
 
 ---
 

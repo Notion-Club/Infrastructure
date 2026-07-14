@@ -315,6 +315,30 @@ html {
   .nc-nav-pill { transition: none !important; }
 }
 
+/* ── BottomNav : masquage au clavier (saisie d'un message privé) ──────────────
+   Quand l'utilisateur écrit un DM dans /communaute, le clavier iOS monte et la
+   barre de nav doit DISPARAÎTRE pour dégager la vue sur le fil. MessageComposer
+   pose `nc-kb-open` sur <body> au focus du champ (retire au blur / démontage) ;
+   la barre glisse alors sous le bord bas de l'écran.
+   translateY = 100% (sa hauteur) + son offset bas (10px + safe-area) + marge →
+   elle sort totalement, home indicator compris. Masquage en CSS pur : aucun
+   re-render React, transform composé GPU. On agit UNIQUEMENT sur transform/opacity
+   — jamais sur la position (qui reste la même sur toutes les routes) ni via
+   display:none (casserait la pilule active mesurée par offsetWidth). */
+.nc-bottom-nav {
+  transition:
+    transform 240ms var(--nc-ease),
+    opacity 200ms ease;
+}
+body.nc-kb-open .nc-bottom-nav {
+  transform: translateY(calc(100% + 10px + env(safe-area-inset-bottom, 0px) + 24px));
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nc-bottom-nav { transition: opacity 200ms ease; }
+}
+
 /* ── Pill Topbar ── */
 .nc-topbar-pill {
   background: var(--color-surface-card);
@@ -3643,180 +3667,67 @@ html.dark .nc-lt-scrim {
   }
 }
 
-/* ── Frame qui suit le viewport visuel (chantier clavier v2) ─────────────────
-   Desktop / SSR / sans JS : `display: contents` → le frame ne génère AUCUNE
-   boîte, ses enfants (chrome mobile + shell) participent au flux comme si le
-   wrapper n'existait pas → /communaute DESKTOP strictement inchangé.
-   Mobile (< 768px) : conteneur `position: fixed` recalé en continu sur la zone
-   RÉELLEMENT visible via --nc-vvh (hauteur) et --nc-vvot (translateY), posés
-   image par image par ViewportFrame. Son `transform` crée un CONTAINING BLOCK :
-   tout `position: fixed` DEDANS (BottomNav, actions, logo, frost) se résout
-   contre le frame = contre la zone visible réelle, plus contre l'ICB corrompu.
-   AUCUNE transition ici : le frame DOIT snapper à chaque frame (§2) — une
-   transition le ferait traîner derrière le clavier. Fond propre (§2.3) :
-   .nc-app-bg est ancré à l'ICB, hors du frame ; dans l'état bogué la zone
-   visible peut le déborder → bande non peinte. */
-.nc-vv-frame {
-  display: contents;
-}
-/* Sonde ICB (chantier v2) : boîte `fixed` pleine hauteur, mesurée en JS par
-   ViewportFrame. Ancrée à l'ICB (aucun ancêtre transformé) → sa hauteur = le
-   viewport réellement peignable, même quand visualViewport.height ment (webview
-   réparé mais getter figé, PWA post-clavier). visibility:hidden, PAS
-   display:none : il faut une boîte layoutée pour getBoundingClientRect. */
-.nc-vv-probe {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-/* Verrou du canal scrollY (§1.2), posé par ViewportFrame (html.nc-vv-lock). */
-html.nc-vv-lock,
-html.nc-vv-lock body {
+/* Zone Messages embarquée dans la carte /communaute.
+   • Mobile : hauteur DÉFINIE (chat à scroll interne, façon messagerie). C'est la
+     SEULE source de vérité de la hauteur du panneau messages — MessagesLayout la
+     remplit en `height:100%` (plus de second `calc` concurrent).
+     `100dvh - 224px` ≈ chrome haut (pt-64) + switcher + marge basse. On soustrait
+     EN PLUS `env(safe-area-inset-bottom)` : la BottomNav est ancrée à
+     `calc(10px + env(safe-area-inset-bottom))`, donc sur PWA/Safari iOS (safe-area
+     ≈ 34px) sans cette soustraction la carte débordait SOUS la barre de nav, et le
+     bas de la conversation (derniers messages + composer) passait hors écran — d'où
+     « je ne suis pas tout en bas » et « le contenant dépasse la barre ». La
+     soustraction garantit un écart constant au-dessus de la BottomNav, quelle que
+     soit la safe-area.
+   • Desktop : on REMPLIT la carte (flex-1) au lieu d'une hauteur fixe plus
+     courte que la carte → la bande grise (fond de carte) sous le panneau et les
+     coins arrondis vides en bas disparaissent ; le panneau messages va jusqu'en
+     bas de l'encadré. */
+.nc-messages-embed {
+  height: calc(100dvh - 224px - env(safe-area-inset-bottom, 0px));
   overflow: hidden;
-  height: 100%;
-  overscroll-behavior: none;
 }
-@media (max-width: 767px) {
-  .nc-vv-frame {
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--nc-vvh, 100dvh);
-    transform: translateY(var(--nc-vvot, 0px));
-    overflow: hidden;
-    /* Anti-scroll résiduel en STANDALONE (où le verrou html/body est désormais
-       gaté OFF pour ne pas contracter le viewport) : contient l'élastique sur le
-       frame lui-même, sans toucher html/body. */
-    overscroll-behavior: none;
-    /* Halo RÉPLIQUÉ dans le frame (§3b) : .nc-app-bg est ancré à l'ICB, il ne
-       peut donc PAS suivre la zone visible. On reproduit FIDÈLEMENT ses 2 taches
-       latérales ici (mêmes valeurs) → le halo suit le frame ; surface unie en
-       fallback derrière. */
-    background:
-      radial-gradient(56% 50% at -8% 50%, rgba(224, 99, 90, 0.28) 0%, transparent 72%),
-      radial-gradient(56% 50% at 108% 50%, rgba(224, 99, 90, 0.26) 0%, transparent 72%),
-      var(--color-surface-page);
-  }
-  /* Dark : pas de taches (cf. .dark .nc-app-bg { background: none }) → surface
-     plate near-black. */
-  .dark .nc-vv-frame {
-    background: var(--color-surface-page);
-  }
-}
-
-/* ── Masquage de la BottomNav au clavier (chantier v2, Phase 3) ──────────────
-   `body.nc-kb-open` est posée par ViewportFrame au focus d'un champ éditable et
-   retirée quand la hauteur revient à la référence (jamais sur focusout). La nav
-   + le frost glissent hors du frame (clippés par son overflow:hidden) et
-   s'effacent. Dans le frame, ce transform s'ajoute au containing block — la nav
-   part bien vers le bas de la ZONE VISIBLE. Jamais display:none (casse
-   l'animation + la pilule mesurée via offsetWidth). Le seul `transform` animé
-   est celui de la nav, PAS celui du frame (§2). */
-.nc-bottom-nav {
-  transition:
-    transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 160ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-body.nc-kb-open .nc-bottom-nav,
-body.nc-kb-open .nc-pwa-bottom-frost {
-  transform: translateY(calc(100% + 24px));
-  opacity: 0;
-  pointer-events: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .nc-bottom-nav {
-    transition: none;
-  }
-}
-
-/* ── VERROU DUR de la position de la BottomNav ───────────────────────────────
-   RÈGLE ABSOLUE : la nav a UNE seule position, identique sur TOUTES les routes,
-   qui ne varie jamais. Elle est rendue GLOBALEMENT (AppMobileChrome), hors de
-   tout frame/transform, et ancrée au bas via la safe-area — exactement comme sur
-   /accueil, /coaching, /formation. Ce bloc rend cette position AUTORITAIRE
-   (`!important` bat le style inline et toute cascade future : frame, --nc-vvh,
-   containing block…) → plus AUCUN mécanisme ne peut la déplacer. Seul le
-   masquage clavier ci-dessus agit dessus, et uniquement via transform/opacity
-   (jamais la position). */
-.nc-bottom-nav {
-  position: fixed !important;
-  bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
-  left: 12px !important;
-  right: 12px !important;
-  top: auto !important;
-  z-index: 50 !important;
-}
-
-/* ── Shell /communaute (DANS le frame en mobile) ─────────────────────────────
-   Desktop : min-height 100lvh (scroll-document, le frame est en display:contents
-   → aucun changement). Mobile : la hauteur vient du FRAME (= zone visible) ; le
-   shell REMPLIT le frame en flex, le chrome fixed (nav, actions) étant hors flux
-   ne prend pas d'espace. Une seule source de hauteur → plus de calc(100dvh − …)
-   concurrent (fin de la bande grise et de la divergence Feed/Messages). */
-.nc-community-shell {
-  min-height: 100lvh;
-}
-@media (max-width: 767px) {
-  .nc-community-shell {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-  .nc-community-shell > main {
-    /* Haut : 64px (le halo porte déjà le safe-top ; la rangée d'actions finit à
-       ~50px + safe-top → écart visible ≈ 14px). */
-    padding-top: 64px;
-    /* Bas : haut de la BottomNav = 66px + safe-bottom, + le même écart 14px. */
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-    min-height: 0;
-  }
-  /* Clavier ouvert : la nav est masquée → on ne réserve plus que 8px sous la
-     carte (le composer se cale à 8px au-dessus du clavier). Posée en Phase 3. */
-  body.nc-kb-open .nc-community-shell > main {
-    padding-bottom: 8px;
-  }
-  /* La carte remplit le main — IDENTIQUE Feed et Messages (double classe pour
-     battre .flex-1 ; height:auto neutralise les hauteurs desktop). */
-  .nc-community-card.nc-community-card--fixed,
-  .nc-community-card.nc-community-card--messages {
+@media (min-width: 768px) {
+  .nc-messages-embed {
     height: auto;
     flex: 1 1 auto;
     min-height: 0;
+    /* Conteneur flex-col : la grille messages (flex:1 en embedded) remplit
+       toute la hauteur → plus de bande grise (fond d'encadré) sous le panneau. */
+    display: flex;
+    flex-direction: column;
   }
 }
 
-/* Zone Messages embarquée — REMPLIT la carte en flex, mobile COMME desktop.
-   Plus aucun calc(100dvh − …) : la hauteur descend frame → shell → carte →
-   embed → MessagesLayout (height:100%). */
-.nc-messages-embed {
-  height: auto;
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* Desktop : hauteurs DÉFINIES = zone visible (md pt-104 + pb-8 = 136px) → la
-   carte scrolle EN INTERNE. Sur mobile la hauteur vient du frame. Double classe
-   → spécificité > .flex-1. */
+/* Onglet Messages (desktop) : l'encadré prend une hauteur DÉFINIE = zone visible
+   du viewport (chrome du shell déduit : md pt-104px + pb-8=32px). Cela BORNE la
+   chaîne flex → une conversation longue scrolle EN INTERNE (ConversationThread)
+   au lieu d'allonger l'encadré et de faire défiler la page. Le feed conserve son
+   scroll-document (flex-1). Mobile inchangé : .nc-messages-embed y est déjà en
+   hauteur fixe. Double classe pour battre en spécificité l'utilitaire .flex-1. */
 @media (min-width: 768px) {
   .nc-community-card.nc-community-card--messages {
     height: calc(100dvh - 136px);
     flex: none;
   }
+}
+
+/* Onglet Feed — hauteur DÉFINIE (règle demandée : l'encadré ne s'allonge plus
+   avec le contenu, il reste à la même position fixe que Messages et la liste
+   scrolle EN INTERNE, cf. .nc-feed-scroll).
+   • Mobile : chrome haut (pt-64) + bas (pb-120) = 184px, plus la safe-area (la
+     BottomNav est ancrée à calc(10px + env(safe-area-inset-bottom))).
+   • Desktop : md pt-104 + pb-8=32 = 136px.
+   Compromis assumé : comme Messages, le document ne scrolle plus sur cette page
+   → en navigateur Safari iOS (hors PWA) la barre d'outils ne se replie plus.
+   Double classe pour battre l'utilitaire .flex-1 en spécificité. */
+.nc-community-card.nc-community-card--fixed {
+  height: calc(100dvh - 184px - env(safe-area-inset-bottom, 0px));
+  flex: none;
+}
+@media (min-width: 768px) {
   .nc-community-card.nc-community-card--fixed {
     height: calc(100dvh - 136px);
-    flex: none;
   }
 }
 
@@ -3828,9 +3739,6 @@ body.nc-kb-open .nc-pwa-bottom-frost {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  /* Empêche le scroll de chaîner vers le document/viewport en butée (renforce
-     le verrou tactile de ViewportFrame clavier ouvert). */
-  overscroll-behavior: contain;
 }
 
 /* ── Card resize (transitions.dev 01-card-resize) ────────────────────────────
