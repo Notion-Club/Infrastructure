@@ -98,6 +98,23 @@ export function CommunityKeyboardViewport() {
       }, NET_MS);
     };
 
+    // Verrou de scroll du DOCUMENT, clavier ouvert. Le shell est translaté de
+    // --nc-vvot (translateY) pour suivre le pan du viewport visuel iOS : ce
+    // transform crée une zone de débordement que WebKit laisse PANER au doigt
+    // (l'`overflow: hidden` CSS sur html/body n'est PAS respecté par iOS dans ce
+    // cas). Résultat : le « fond de page » scrollait derrière la carte. On
+    // ré-épingle donc le scroll du document à 0 tant que le clavier est CONFIRMÉ
+    // (sawKeyboard). Comme le composer reste visible via le translateY du shell,
+    // forcer scrollY=0 ne cache jamais le champ. Gate sawKeyboard → JAMAIS actif
+    // sur desktop (scroll-document légitime) ni pendant la fenêtre d'anticipation.
+    const pinScroll = () => {
+      if (!sawKeyboard || !body.classList.contains("nc-kb-open")) return;
+      if (window.scrollY !== 0) window.scrollTo(0, 0);
+      // Selon le webview, l'élément scrollant est window OU documentElement.
+      const se = document.scrollingElement as HTMLElement | null;
+      if (se && se.scrollTop !== 0) se.scrollTop = 0;
+    };
+
     let raf: number | null = null;
     const write = () => {
       raf = null;
@@ -147,6 +164,9 @@ export function CommunityKeyboardViewport() {
       if (body.classList.contains("nc-kb-open")) {
         root.style.setProperty("--nc-vvh", `${Math.round(h)}px`);
         root.style.setProperty("--nc-vvot", `${Math.round(vv.offsetTop)}px`);
+        // Re-verrouille le scroll du document à chaque frame (le listener scroll
+        // ci-dessous couvre les drags entre deux frames).
+        pinScroll();
       }
     };
     // Coalescé : au plus une écriture par frame.
@@ -163,6 +183,8 @@ export function CommunityKeyboardViewport() {
     vv.addEventListener("resize", schedule);
     vv.addEventListener("scroll", schedule);
     document.addEventListener("focusin", onFocusIn);
+    // Verrou de scroll : rattrape tout drag du fond entre deux frames rAF.
+    window.addEventListener("scroll", pinScroll, { passive: true });
     // Resync au retour premier plan / bfcache (le rAF a pu être gelé).
     window.addEventListener("pageshow", schedule);
     document.addEventListener("visibilitychange", schedule);
@@ -172,6 +194,7 @@ export function CommunityKeyboardViewport() {
       vv.removeEventListener("resize", schedule);
       vv.removeEventListener("scroll", schedule);
       document.removeEventListener("focusin", onFocusIn);
+      window.removeEventListener("scroll", pinScroll);
       window.removeEventListener("pageshow", schedule);
       document.removeEventListener("visibilitychange", schedule);
       if (raf != null) cancelAnimationFrame(raf);
