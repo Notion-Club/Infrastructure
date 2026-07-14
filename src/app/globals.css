@@ -339,6 +339,26 @@ body.nc-kb-open .nc-bottom-nav {
   .nc-bottom-nav { transition: opacity 200ms ease; }
 }
 
+/* ── Compensation du viewport CONTRACTÉ iOS PWA (après clavier) ───────────────
+   Mesuré sur device : après la 1re ouverture de clavier en PWA installée, WebKit
+   contracte le layout viewport PAR LE BAS et ne le restaure jamais —
+   `innerHeight`/`100dvh` tombent de 956 → 894 (exactement `safe-top` = 62px),
+   tandis que `100lvh` RESTE 956. La BottomNav étant `position: fixed; bottom:…`
+   (ancrée au viewport contracté) remonte donc de 62px, avec un vide en dessous.
+   `100lvh` ne se contractant pas, la dérive vaut exactement `100lvh − 100dvh`
+   (= 0 au repos, ≈ 62 après clavier) : on la RETRANCHE du `bottom` → la barre
+   revient à sa vraie position écran, sans JS, sans dé-figement. `!important` bat
+   le `bottom` inline du composant.
+   Standalone UNIQUEMENT : en Safari navigateur, `100lvh − 100dvh` = la barre
+   d'outils (comportement normal, pas un bug) → on n'y touche pas. */
+@media (display-mode: standalone) {
+  .nc-bottom-nav {
+    bottom: calc(
+      10px + env(safe-area-inset-bottom, 0px) - (100lvh - 100dvh)
+    ) !important;
+  }
+}
+
 /* ── Pill Topbar ── */
 .nc-topbar-pill {
   background: var(--color-surface-card);
@@ -3686,6 +3706,16 @@ html.dark .nc-lt-scrim {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+  }
+  /* PWA : même bug de contraction que la nav — après clavier, 100dvh tombe à 894
+     (100lvh reste 956). Le fallback (clavier fermé) passe donc à 100lvh pour que
+     le shell NE rétrécisse PAS de 62px après une saisie (sinon vide sous la
+     carte). Clavier ouvert, --nc-vvh est posée → ce fallback est ignoré. En Safari
+     navigateur on garde 100dvh (lvh = sous la barre d'outils). */
+  @media (display-mode: standalone) {
+    .nc-community-shell {
+      height: var(--nc-vvh, 100lvh);
+    }
   }
   .nc-community-shell > main {
     /* Haut : 64px (le halo porte déjà le safe-top ; la rangée d'actions finit à
