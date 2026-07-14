@@ -31,6 +31,10 @@ import { useEffect, type ReactNode } from "react";
 
 const LOCK_CLASS = "nc-vv-lock";
 const KB_CLASS = "nc-kb-open";
+// Compensation viewport standalone — PRÉ-CÂBLÉE, activée UNIQUEMENT via cette
+// classe posée à la main par le bouton [COMP] de l'overlay debug (§1). Aucune
+// activation auto dans ce commit : c'est un instrument de mesure.
+const COMP_CLASS = "nc-vv-comp";
 // Pinch-zoom : Safari ignore user-scalable=no. Hors échelle ~1, geler les
 // variables (sinon le frame se réduit à la taille de la loupe → UI inutilisable).
 const SCALE_EPS = 0.01;
@@ -89,7 +93,14 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
     // Détection clavier (§1.5 : vv.height DÉTECTE, vv.offsetTop POSITIONNE).
     // baseline = plus grande hauteur observée HORS saisie, réinit. à la rotation.
     let baseline = 0;
-    let baselineW = 0;
+    let baselineW = -1; // force la graine au 1er write
+    // Max de hauteur observé PAR LARGEUR (§3) : dans l'état coincé, innerHeight
+    // vaut 894 → une rotation A/R en état coincé écraserait 956 par 894 et
+    // rendrait le déficit invisible. On mémorise le vrai max par largeur pour que
+    // la graine reste fiable ; `if (h > baseline) baseline = h` apprend par-dessus.
+    const maxByWidth = new Map<number, number>();
+    // La compensation ne s'applique QU'en PWA installée (Safari Web est sain).
+    const standaloneMq = window.matchMedia("(display-mode: standalone)");
     let sawKeyboard = false;
     let netTimer: ReturnType<typeof setTimeout> | null = null;
     const clearNet = () => {
@@ -179,21 +190,19 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
       if (Math.abs(vv.scale - 1) > SCALE_EPS) return;
 
       const h = vv.height;
-      // POSITIONNEMENT du frame (suit le viewport, y compris offsetTop coincé).
-      root.style.setProperty("--nc-vvh", `${Math.round(h)}px`);
+      // POSITIONNEMENT : offsetTop toujours BRUT (on SUIT le viewport, §1.5).
       root.style.setProperty("--nc-vvot", `${Math.round(vv.offsetTop)}px`);
 
-      // DÉTECTION du clavier (hauteur seule). baseline SEMÉE par innerHeight
-      // (jamais 0) : en resizes-visual, l'ICB ne se redimensionne pas au clavier
-      // → innerHeight reste la hauteur PLEINE dans l'orientation courante = proxy
-      // fiable de « clavier fermé » (marge KB_MIN=120 absorbe la toolbar Safari).
-      // Sans ça, une rotation classe posée mettrait baseline=0 → la branche de
-      // retrait (if baseline<=0 return) meurt → nav bloquée cachée.
+      // baseline PAR LARGEUR (§3) : graine = max(innerHeight, max connu pour
+      // cette largeur) — jamais 0 (sinon retrait mort à la rotation) et jamais
+      // écrasée par 894 dans l'état coincé. `if (h > baseline) baseline = h`
+      // apprend par-dessus ; on persiste le max par largeur.
       if (window.innerWidth !== baselineW) {
         baselineW = window.innerWidth;
-        baseline = window.innerHeight;
+        baseline = Math.max(window.innerHeight, maxByWidth.get(baselineW) ?? 0);
       }
-      if (!body.classList.contains(KB_CLASS)) {
+      const kbClass = body.classList.contains(KB_CLASS);
+      if (!kbClass) {
         if (h > baseline) {
           baseline = h;
         } else if (
@@ -202,28 +211,47 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
           isEditable(document.activeElement)
         ) {
           // Le clavier peut (ré)apparaître SANS focusin : re-tap d'un champ
-          // DÉJÀ focus après un swipe-down (chemin d'usage le plus courant). Le
-          // focusin sert l'ANTICIPATION ; la hauteur reste la VÉRITÉ. On pose la
-          // classe directement (pas via addKb() qui remettrait sawKeyboard=false
-          // et armerait le filet pour rien) : le clavier est déjà vu.
+          // DÉJÀ focus après un swipe-down. Le focusin sert l'ANTICIPATION ; la
+          // hauteur reste la VÉRITÉ. Classe posée directement (pas via addKb()).
           body.classList.add(KB_CLASS);
           attachTouch();
           sawKeyboard = true;
           clearNet();
         }
-        return;
+        maxByWidth.set(baselineW, baseline);
+      } else if (baseline > 0) {
+        if (h < baseline - KB_MIN) {
+          // Clavier réellement présent pendant cette session de saisie.
+          sawKeyboard = true;
+        } else if (sawKeyboard && h > baseline - KB_MIN) {
+          // Réduction repassée SOUS le seuil → clavier fermé (bouton OU
+          // swipe-down). Marge 120px : en PWA vv.height ne remonte qu'à ~894.
+          removeKb();
+        }
       }
-      if (baseline <= 0) return;
-      if (h < baseline - KB_MIN) {
-        // Clavier réellement présent pendant cette session de saisie.
-        sawKeyboard = true;
-      } else if (sawKeyboard && h > baseline - KB_MIN) {
-        // Réduction repassée SOUS le seuil clavier → clavier fermé (bouton OU
-        // swipe-down, indifféremment — jamais piloté par focusout, absent au
-        // swipe-down). Marge de 120px : en PWA vv.height ne remonte qu'à ~894
-        // (= clientHeight, pas 956) ; 62 < 120 → le retrait passe.
-        removeKb();
-      }
+
+      // HAUTEUR du frame. Défaut = vv.height BRUT (la détection ci-dessus a lu h
+      // brut ; la compensation ne pollue JAMAIS la détection, §1.5 étendu).
+      // COMPENSATION (debug, INACTIVE par défaut — activée par body.nc-vv-comp) :
+      // en PWA, après une session clavier, le WEBVIEW se rétrécit de ~62px et vv
+      // reste cohérent avec l'ICB coincé → « état déficit ». On réécrit alors
+      // --nc-vvh = baseline (hauteur pleine) pour rendre le vrai bas d'écran.
+      // Bornes : standalone ET classe absente ET 0 < baseline − h < KB_MIN
+      // (62 ∈ ]0,120[ ; un clavier fait ≥ ~350px ET pose la classe → jamais dans
+      // ces bornes).
+      const deficit =
+        standaloneMq.matches &&
+        !kbClass &&
+        baseline > 0 &&
+        h < baseline &&
+        baseline - h < KB_MIN;
+      const compEnabled = body.classList.contains(COMP_CLASS);
+      root.style.setProperty(
+        "--nc-vvh",
+        `${Math.round(compEnabled && deficit ? baseline : h)}px`,
+      );
+      // Expose baseline pour l'overlay debug — retiré en Phase 6 avec l'overlay.
+      root.style.setProperty("--nc-vvbase", `${Math.round(baseline)}px`);
     };
     // Écriture COALESCÉE : au plus une par frame (resize + scroll peuvent tirer
     // plusieurs events par frame → un seul rAF planifié).
@@ -241,12 +269,16 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
     vv.addEventListener("resize", schedule);
     vv.addEventListener("scroll", schedule);
     document.addEventListener("focusin", onFocusIn);
+    // Le bouton [COMP] de l'overlay (debug) toggle body.nc-vv-comp SANS event
+    // viewport → il émet aussi nc-vv-recompute pour forcer un recalcul immédiat.
+    window.addEventListener("nc-vv-recompute", schedule);
     write(); // valeur initiale synchrone
 
     return () => {
       vv.removeEventListener("resize", schedule);
       vv.removeEventListener("scroll", schedule);
       document.removeEventListener("focusin", onFocusIn);
+      window.removeEventListener("nc-vv-recompute", schedule);
       if (rafId != null) cancelAnimationFrame(rafId);
       clearNet();
       detachTouch();
@@ -254,6 +286,7 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
       unlock();
       root.style.removeProperty("--nc-vvh");
       root.style.removeProperty("--nc-vvot");
+      root.style.removeProperty("--nc-vvbase");
     };
   }, []);
 

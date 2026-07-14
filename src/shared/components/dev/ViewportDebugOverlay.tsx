@@ -142,6 +142,11 @@ export function ViewportDebugOverlay() {
         // Compteurs cumulés d'événements (départage silence vs valeur mensongère).
         `rC=${vvResizeCount}`,
         `sC=${vvScrollCount}`,
+        // Compensation debug + probes de restauration (§2).
+        `comp=${document.body.classList.contains("nc-vv-comp") ? 1 : 0}`,
+        `base=${css("--nc-vvbase")}`,
+        `screenH=${fmt(window.screen.height)}`,
+        `outerH=${fmt(window.outerHeight)}`,
       ].join(" ");
 
     // Journal : entrée ajoutée UNIQUEMENT quand les valeurs changent (ou sur
@@ -312,6 +317,11 @@ export function ViewportDebugOverlay() {
       attributes: true,
       attributeFilter: ["class"],
     });
+
+    // Snapshot auto sur visibilitychange (§2) : l'app remise au premier plan
+    // restaure-t-elle les 956 ? → durée de vie de l'état coincé.
+    const onVisibility = () => autoPost(`visibility:${document.visibilityState}`);
+    document.addEventListener("visibilitychange", onVisibility);
     // focusin/focusout toujours consignés même à valeurs identiques : c'est la
     // CHRONOLOGIE focus↔resize qu'on cherche (le swipe-down n'émet pas de
     // focusout — le journal doit le montrer).
@@ -335,6 +345,7 @@ export function ViewportDebugOverlay() {
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);
       bodyObserver.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
       stopSampler();
       if (stopSamplerTimer) clearTimeout(stopSamplerTimer);
       if (afterCloseTimer) clearTimeout(afterCloseTimer);
@@ -434,6 +445,20 @@ export function ViewportDebugOverlay() {
           onClick={() => void apiRef.current?.send()}
         >
           📤 Envoyer
+        </button>
+        {/* [COMP] : toggle la compensation viewport standalone (body.nc-vv-comp)
+            + émet nc-vv-recompute pour forcer ViewportFrame à recalculer sans
+            event viewport. Instrument de test (§1/§2), aucune activation auto. */}
+        <button
+          type="button"
+          style={btnStyle}
+          onClick={(e) => {
+            const on = document.body.classList.toggle("nc-vv-comp");
+            window.dispatchEvent(new Event("nc-vv-recompute"));
+            e.currentTarget.textContent = on ? "COMP ✓" : "COMP";
+          }}
+        >
+          COMP
         </button>
       </div>
       {/* Plan C si la copie programmatique échoue : journal affiché plein
