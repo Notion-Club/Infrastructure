@@ -139,6 +139,9 @@ export function ViewportDebugOverlay() {
         `nav=${rectOf(".nc-bottom-nav")}`,
         `safeB=${fmt(safeProbe.getBoundingClientRect().height)}`,
         `dvh=${fmt(dvhProbe.getBoundingClientRect().height)}`,
+        // Compteurs cumulés d'événements (départage silence vs valeur mensongère).
+        `rC=${vvResizeCount}`,
+        `sC=${vvScrollCount}`,
       ].join(" ");
 
     // Journal : entrée ajoutée UNIQUEMENT quand les valeurs changent (ou sur
@@ -150,6 +153,12 @@ export function ViewportDebugOverlay() {
     let lastLine = "";
     let repeat = 0;
     let markCount = 0;
+    // Compteurs CUMULÉS d'événements depuis le mount : départagent, pour le
+    // symptôme B, (a) silence d'événement (compteurs figés après fermeture) vs
+    // (b) événement à valeur mensongère (compteurs qui avancent, vv.height
+    // retombé à clientHeight).
+    let vvResizeCount = 0;
+    let vvScrollCount = 0;
     const pushLog = (line: string) => {
       log.push(line);
       if (log.length > MAX_LOG_ENTRIES) log.shift();
@@ -194,6 +203,30 @@ export function ViewportDebugOverlay() {
       placeButtons();
     };
 
+    const buildText = (tag?: string) => {
+      const header = [
+        `# Relevé viewport /communaute${tag ? ` [auto:${tag}]` : ""} — ${new Date().toISOString()}`,
+        `standalone=${isStandalone()}`,
+        `innerWidth=${window.innerWidth} screen=${window.screen.width}x${window.screen.height}`,
+        `UA=${navigator.userAgent}`,
+        `légende: ih=innerHeight ch=clientHeight vvH=vv.height vvOT=vv.offsetTop vvPT=vv.pageTop rC/sC=compteurs vv.resize/scroll cumulés`,
+        "",
+      ].join("\n");
+      return header + log.join("\n");
+    };
+    // Auto-POST fire-and-forget (instrumentation §3) : consigne un snapshot forcé
+    // puis envoie le journal complet. Chaque appel = une entrée vpdebug distincte
+    // dans les logs Vercel.
+    const autoPost = (tag: string) => {
+      record(tag, true);
+      renderPanel(tag);
+      fetch("/api/vpdebug", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: buildText(tag) }),
+      }).catch(() => {});
+    };
+
     apiRef.current = {
       mark: () => {
         markCount += 1;
@@ -210,16 +243,7 @@ export function ViewportDebugOverlay() {
       // route temporaire /api/vpdebug qui l'écrit dans les logs runtime
       // Vercel, lus directement par l'agent. Zéro manipulation côté device.
       send: async () => {
-        const standalone = isStandalone();
-        const header = [
-          `# Relevé viewport /communaute — ${new Date().toISOString()}`,
-          `standalone=${standalone}`,
-          `innerWidth=${window.innerWidth} screen=${window.screen.width}x${window.screen.height}`,
-          `UA=${navigator.userAgent}`,
-          `légende: ih=innerHeight ch=clientHeight vvH=vv.height vvOT=vv.offsetTop vvPT=vv.pageTop safeB=safe-area-bottom dvh=100dvh résolu`,
-          "",
-        ].join("\n");
-        const text = header + log.join("\n");
+        const text = buildText();
         copyBtn.textContent = "⏳ envoi…";
         try {
           const res = await fetch("/api/vpdebug", {
@@ -245,9 +269,49 @@ export function ViewportDebugOverlay() {
       },
     };
 
-    const onVvResize = () => update("vv.resize");
-    const onVvScroll = () => update("vv.scroll");
+    const onVvResize = () => { vvResizeCount += 1; update("vv.resize"); };
+    const onVvScroll = () => { vvScrollCount += 1; update("vv.scroll"); };
     const onWinResize = () => update("win.resize");
+
+    // ── Instrumentation des transitions nc-kb-open (§3, diagnostic de B) ──────
+    // Auto-POST à chaque pose/retrait + snapshot différé ~1s après le retrait.
+    // Échantillonnage 500ms pendant l'état posé ET 3s après le retrait (timers
+    // AUTORISÉS ici : outillage debug, pas le watcher de prod). Les compteurs
+    // rC/sC dans chaque snapshot départagent silence d'événement vs valeur
+    // mensongère après fermeture.
+    let sampler: ReturnType<typeof setInterval> | null = null;
+    let stopSamplerTimer: ReturnType<typeof setTimeout> | null = null;
+    let afterCloseTimer: ReturnType<typeof setTimeout> | null = null;
+    const startSampler = () => {
+      if (sampler == null) sampler = setInterval(() => update("sample", true), 500);
+    };
+    const stopSampler = () => {
+      if (sampler != null) { clearInterval(sampler); sampler = null; }
+    };
+    let prevKb = document.body.classList.contains("nc-kb-open");
+    const onBodyClass = () => {
+      const kb = document.body.classList.contains("nc-kb-open");
+      if (kb === prevKb) return;
+      prevKb = kb;
+      if (kb) {
+        startSampler();
+        autoPost("kb-open");
+      } else {
+        autoPost("kb-close");
+        if (afterCloseTimer) clearTimeout(afterCloseTimer);
+        afterCloseTimer = setTimeout(() => autoPost("kb-close+1s"), 1000);
+        if (stopSamplerTimer) clearTimeout(stopSamplerTimer);
+        stopSamplerTimer = setTimeout(() => {
+          autoPost("kb-close+3s");
+          stopSampler();
+        }, 3000);
+      }
+    };
+    const bodyObserver = new MutationObserver(onBodyClass);
+    bodyObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
     // focusin/focusout toujours consignés même à valeurs identiques : c'est la
     // CHRONOLOGIE focus↔resize qu'on cherche (le swipe-down n'émet pas de
     // focusout — le journal doit le montrer).
@@ -270,6 +334,10 @@ export function ViewportDebugOverlay() {
       window.removeEventListener("resize", onWinResize);
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);
+      bodyObserver.disconnect();
+      stopSampler();
+      if (stopSamplerTimer) clearTimeout(stopSamplerTimer);
+      if (afterCloseTimer) clearTimeout(afterCloseTimer);
       dvhProbe.remove();
       safeProbe.remove();
       wrap.style.display = "none";

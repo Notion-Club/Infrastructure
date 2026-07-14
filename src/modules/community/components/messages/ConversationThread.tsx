@@ -394,6 +394,9 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
         style={{
           flex: 1,
           overflowY: "auto",
+          // Empêche le scroll de chaîner vers le document/viewport en butée
+          // (renforce le verrou tactile de ViewportFrame clavier ouvert).
+          overscrollBehavior: "contain",
           padding: "16px",
           display: "flex",
           flexDirection: "column",

@@ -3792,6 +3792,9 @@ body.nc-kb-open .nc-pwa-bottom-frost {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  /* Empêche le scroll de chaîner vers le document/viewport en butée (renforce
+     le verrou tactile de ViewportFrame clavier ouvert). */
+  overscroll-behavior: contain;
 }
 
 /* ── Card resize (transitions.dev 01-card-resize) ────────────────────────────

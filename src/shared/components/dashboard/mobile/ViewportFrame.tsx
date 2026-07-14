@@ -35,9 +35,11 @@ const KB_CLASS = "nc-kb-open";
 // variables (sinon le frame se réduit à la taille de la loupe → UI inutilisable).
 const SCALE_EPS = 0.01;
 // Un clavier logiciel fait ≥ ~250px ; 120 le sépare sans ambiguïté d'une simple
-// variation de chrome. 60 = tolérance « hauteur revenue à la référence ».
+// variation de chrome. SEUL seuil d'hystérésis : « clavier présent » = réduction
+// ≥ 120px, « clavier absent » = réduction < 120px. (Un KB_RESTORE=60 séparé
+// ratait le retrait pour 2px en PWA, où vv.height ne remonte qu'à ~894 =
+// clientHeight, pas 956 — cf. symptôme A.)
 const KB_MIN = 120;
-const KB_RESTORE = 60;
 // Filet : au-delà, si aucune réduction n'a été vue, on démasque (clavier
 // matériel Bluetooth, clavier flottant iPad, desktop en fenêtre étroite).
 const NET_MS = 700;
@@ -93,13 +95,75 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
     const clearNet = () => {
       if (netTimer) { clearTimeout(netTimer); netTimer = null; }
     };
+
+    // ── Verrou tactile du pan clavier-ouvert (symptôme C) ─────────────────────
+    // overflow:hidden neutralise scrollY mais PAS le pan du viewport VISUEL
+    // (canal non neutralisable en CSS, §1.2) → clavier ouvert, iOS laisse tirer
+    // le fond au doigt et le frame suit avec 1 frame de retard = saccades. On
+    // bloque le GESTE (pas le viewport, pas le focus, pas les variables) :
+    // touchmove non-passif actif UNIQUEMENT tant que nc-kb-open est posée. On
+    // laisse passer un geste qui scrolle réellement un conteneur interne dans sa
+    // direction, OU qui part du champ éditable focus (jamais casser caret/
+    // sélection) ; sinon preventDefault (dead zone / butée → pas de chaining
+    // vers le pan). Amendement assumé à la liste noire : politique de GESTE
+    // scopée à l'état clavier-ouvert, le positionnement reste en lecture seule.
+    let touchStartTarget: Node | null = null;
+    let touchStartY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartTarget = e.target as Node | null;
+      touchStartY = e.touches[0]?.clientY ?? 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!mq.matches || e.touches.length !== 1) return;
+      const dy = (e.touches[0]?.clientY ?? 0) - touchStartY;
+      const active = document.activeElement;
+      let node: Node | null = touchStartTarget;
+      while (node && node !== body) {
+        // Chaîne contenant le champ éditable focus → toujours laisser passer.
+        if (node === active) return;
+        if (node instanceof HTMLElement) {
+          const oy = getComputedStyle(node).overflowY;
+          if (
+            (oy === "auto" || oy === "scroll") &&
+            node.scrollHeight > node.clientHeight
+          ) {
+            const max = node.scrollHeight - node.clientHeight;
+            // doigt vers le bas (dy>0) → révèle le haut → scrollTop doit pouvoir
+            // baisser ; doigt vers le haut (dy<0) → scrollTop doit pouvoir monter.
+            if (dy > 0 && node.scrollTop > 0) return;
+            if (dy < 0 && node.scrollTop < max) return;
+            // Scrollable trouvé mais EN BUTÉE dans cette direction → on NE chaîne
+            // PAS vers le pan du viewport (sinon le fond se retire) : blocage.
+            break;
+          }
+        }
+        node = node.parentNode;
+      }
+      e.preventDefault();
+    };
+    let touchAttached = false;
+    const attachTouch = () => {
+      if (touchAttached) return;
+      touchAttached = true;
+      document.addEventListener("touchstart", onTouchStart, { passive: true });
+      document.addEventListener("touchmove", onTouchMove, { passive: false });
+    };
+    const detachTouch = () => {
+      if (!touchAttached) return;
+      touchAttached = false;
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+    };
+
     const removeKb = () => {
       clearNet();
+      detachTouch();
       body.classList.remove(KB_CLASS);
     };
     const addKb = () => {
       if (body.classList.contains(KB_CLASS)) return;
       body.classList.add(KB_CLASS);
+      attachTouch();
       sawKeyboard = false;
       clearNet();
       netTimer = setTimeout(() => {
@@ -143,6 +207,7 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
           // classe directement (pas via addKb() qui remettrait sawKeyboard=false
           // et armerait le filet pour rien) : le clavier est déjà vu.
           body.classList.add(KB_CLASS);
+          attachTouch();
           sawKeyboard = true;
           clearNet();
         }
@@ -152,9 +217,11 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
       if (h < baseline - KB_MIN) {
         // Clavier réellement présent pendant cette session de saisie.
         sawKeyboard = true;
-      } else if (sawKeyboard && h >= baseline - KB_RESTORE) {
-        // Hauteur revenue à la référence → clavier fermé (bouton OU swipe-down,
-        // indifféremment — jamais piloté par focusout, absent au swipe-down).
+      } else if (sawKeyboard && h > baseline - KB_MIN) {
+        // Réduction repassée SOUS le seuil clavier → clavier fermé (bouton OU
+        // swipe-down, indifféremment — jamais piloté par focusout, absent au
+        // swipe-down). Marge de 120px : en PWA vv.height ne remonte qu'à ~894
+        // (= clientHeight, pas 956) ; 62 < 120 → le retrait passe.
         removeKb();
       }
     };
@@ -182,6 +249,7 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
       document.removeEventListener("focusin", onFocusIn);
       if (rafId != null) cancelAnimationFrame(rafId);
       clearNet();
+      detachTouch();
       body.classList.remove(KB_CLASS);
       unlock();
       root.style.removeProperty("--nc-vvh");
