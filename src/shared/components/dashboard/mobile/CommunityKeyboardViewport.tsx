@@ -98,6 +98,63 @@ export function CommunityKeyboardViewport() {
       }, NET_MS);
     };
 
+    // ── Verrou de scroll du FOND, clavier ouvert ────────────────────────────────
+    // Clavier ouvert, le shell est translaté (translateY(--nc-vvot)) pour suivre le
+    // pan du viewport visuel iOS. Ce transform crée une zone de débordement que
+    // WebKit laisse PANER au doigt (« le fond de page scrolle derrière la carte »),
+    // et l'`overflow: hidden` CSS n'est PAS respecté par iOS dans ce cas.
+    //
+    // On NE force PAS le scroll à 0 (scrollTo en boucle = combat visible + flou de
+    // status bar révélé). On BLOQUE le geste à la source : `preventDefault` sur le
+    // `touchmove` quand il ne vient PAS d'un conteneur scrollable (= le fond), et
+    // uniquement AUX BORDS d'un conteneur scrollable (pour couper le chaînage vers
+    // le document). La carte (liste des messages, overflow:auto) garde donc son
+    // scroll interne complet ; seul le pan du fond est neutralisé. Aucun changement
+    // de layout ni de position → pas de tremblement. Pattern body-scroll-lock.
+    //
+    // Gate `sawKeyboard` → INERTE tant que le clavier logiciel n'est pas confirmé :
+    // jamais actif sur desktop (scroll-document légitime) ni en fenêtre d'anticip.
+    let touchStartY = 0;
+    let activeScroller: HTMLElement | null = null;
+    const scrollableAncestor = (target: EventTarget | null): HTMLElement | null => {
+      let node = target instanceof HTMLElement ? target : null;
+      while (node && node !== body) {
+        const oy = getComputedStyle(node).overflowY;
+        if ((oy === "auto" || oy === "scroll") && node.scrollHeight > node.clientHeight) {
+          return node;
+        }
+        node = node.parentElement;
+      }
+      return null;
+    };
+    const lockActive = () =>
+      sawKeyboard && body.classList.contains("nc-kb-open");
+    const onTouchStart = (e: TouchEvent) => {
+      if (!lockActive() || e.touches.length !== 1) {
+        activeScroller = null;
+        return;
+      }
+      activeScroller = scrollableAncestor(e.target);
+      touchStartY = e.touches[0]!.clientY;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!lockActive() || e.touches.length !== 1) return;
+      const s = activeScroller;
+      if (!s) {
+        // Geste hors conteneur scrollable = pan du fond → on bloque.
+        if (e.cancelable) e.preventDefault();
+        return;
+      }
+      // Dans un conteneur scrollable : on ne bloque qu'AUX BORDS (sinon le scroll
+      // interne fonctionne normalement, y.c. swipe-to-reply horizontal des bulles).
+      const dy = e.touches[0]!.clientY - touchStartY; // >0 : doigt vers le bas
+      const atTop = s.scrollTop <= 0;
+      const atBottom = s.scrollTop + s.clientHeight >= s.scrollHeight - 1;
+      if ((dy > 0 && atTop) || (dy < 0 && atBottom)) {
+        if (e.cancelable) e.preventDefault(); // au bord → coupe le chaînage document
+      }
+    };
+
     let raf: number | null = null;
     const write = () => {
       raf = null;
@@ -163,6 +220,9 @@ export function CommunityKeyboardViewport() {
     vv.addEventListener("resize", schedule);
     vv.addEventListener("scroll", schedule);
     document.addEventListener("focusin", onFocusIn);
+    // Verrou de scroll du fond (passive:false sur touchmove pour preventDefault).
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
     // Resync au retour premier plan / bfcache (le rAF a pu être gelé).
     window.addEventListener("pageshow", schedule);
     document.addEventListener("visibilitychange", schedule);
@@ -172,6 +232,8 @@ export function CommunityKeyboardViewport() {
       vv.removeEventListener("resize", schedule);
       vv.removeEventListener("scroll", schedule);
       document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("pageshow", schedule);
       document.removeEventListener("visibilitychange", schedule);
       if (raf != null) cancelAnimationFrame(raf);
