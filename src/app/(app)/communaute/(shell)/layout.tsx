@@ -1,5 +1,6 @@
 import { listConversations, listPostsPage } from "@/modules/community/server/queries";
 import { CommunityPage } from "@/modules/community/routes/community-page";
+import { CommunityKeyboardViewport } from "@/shared/components/dashboard/mobile/CommunityKeyboardViewport";
 
 // Layout PARTAGÉ de /communaute/* (feed, messages, messages/[username]).
 //
@@ -34,17 +35,24 @@ export default function CommunauteLayout({
   const postsPromise = listPostsPage({ limit: 50 });
   const conversationsPromise = listConversations();
 
-  // Scroll-DOCUMENT (et non plus `h-dvh overflow-hidden` à scroll interne) : un
-  // shell à hauteur fixe empêche le document de scroller → sur iOS Safari la barre
-  // d'outils ne se rétracte jamais → `dvh` reste petit → contenu du feed raccourci.
-  // En laissant le document scroller (`minHeight: 100lvh`, comme dashboard/
-  // ressources), Safari replie sa barre et le contenu descend pleinement, comme en
-  // PWA. La vue Messages garde, elle, une hauteur fixe explicite (cf.
-  // MessagesContent dans community-page).
+  // Shell `/communaute` — hauteur = viewport VISIBLE (cf. .nc-community-shell) :
+  //   • Desktop : min-height 100lvh (scroll-document, inchangé).
+  //   • Mobile : `height: var(--nc-vvh, 100dvh); overflow: hidden` → la PAGE ne
+  //     scrolle pas, seule la carte scrolle en interne, et l'ensemble RÉTRÉCIT au
+  //     clavier (--nc-vvh posée par CommunityKeyboardViewport) pour rester visible
+  //     en entier, composer au ras du clavier.
+  // AUCUN `position: fixed` ici (contrairement à l'ancien ViewportFrame) → la
+  // safe-area iOS n'est jamais reflowée → la BottomNav globale garde sa position,
+  // identique à toutes les autres routes. Le padding mobile (haut 64 / bas nav)
+  // est porté par `.nc-community-shell > main` (globals.css), pas par des classes
+  // ici, pour basculer à 8px quand le clavier masque la nav (body.nc-kb-open).
   return (
-    <div className="nc-page-halo flex flex-col" style={{ minHeight: "100lvh" }}>
+    <div className="nc-page-halo nc-community-shell flex flex-col">
+      {/* Contrôleur clavier (client) : pose --nc-vvh + body.nc-kb-open. Lecture
+          seule, aucun position:fixed/transform → la nav n'est jamais déplacée. */}
+      <CommunityKeyboardViewport />
       <main
-        className="flex flex-col flex-1 w-full mx-auto px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8"
+        className="flex flex-col flex-1 w-full mx-auto px-4 md:px-10 md:pt-[104px] md:pb-8"
         style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
       >
         <CommunityPage
