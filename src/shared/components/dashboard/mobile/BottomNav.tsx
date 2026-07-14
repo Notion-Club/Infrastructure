@@ -169,6 +169,11 @@ export function BottomNav() {
     <nav
       aria-label="Navigation principale"
       data-fb-label="Barre de navigation"
+      // `.nc-bottom-nav` : porte la transition + le masquage clavier (transform/
+      // opacity sous body.nc-kb-open, cf. globals.css). Le positionnement reste
+      // inline — aucun conflit (le masquage n'agit que sur transform/opacity,
+      // absents du style inline).
+      className="nc-bottom-nav"
       // `background` thème-aware sans backdrop-filter → se repeint au
       // changement de mode (pas de flou figé). Pilule simple et performante.
       style={{

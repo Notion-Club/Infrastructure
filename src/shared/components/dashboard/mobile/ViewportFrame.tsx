@@ -30,13 +30,36 @@ import { useEffect, type ReactNode } from "react";
 // ============================================================================
 
 const LOCK_CLASS = "nc-vv-lock";
+const KB_CLASS = "nc-kb-open";
 // Pinch-zoom : Safari ignore user-scalable=no. Hors échelle ~1, geler les
 // variables (sinon le frame se réduit à la taille de la loupe → UI inutilisable).
 const SCALE_EPS = 0.01;
+// Un clavier logiciel fait ≥ ~250px ; 120 le sépare sans ambiguïté d'une simple
+// variation de chrome. 60 = tolérance « hauteur revenue à la référence ».
+const KB_MIN = 120;
+const KB_RESTORE = 60;
+// Filet : au-delà, si aucune réduction n'a été vue, on démasque (clavier
+// matériel Bluetooth, clavier flottant iPad, desktop en fenêtre étroite).
+const NET_MS = 700;
+
+const NON_TEXT_INPUT_TYPES = new Set([
+  "button", "submit", "reset", "image", "checkbox", "radio",
+  "range", "file", "color", "hidden",
+]);
+function isEditable(el: Element | null): boolean {
+  if (!el || !(el instanceof HTMLElement)) return false;
+  if (el.isContentEditable) return true;
+  if (el.tagName === "TEXTAREA") return true;
+  if (el.tagName === "INPUT") {
+    return !NON_TEXT_INPUT_TYPES.has((el as HTMLInputElement).type);
+  }
+  return false;
+}
 
 export function ViewportFrame({ children }: { children: ReactNode }) {
   useEffect(() => {
     const root = document.documentElement;
+    const body = document.body;
 
     // Verrou du canal `scrollY` (§1.2) : overflow:hidden sur html+body. Le canal
     // offsetTop, lui, n'est pas neutralisable — on le SUIT via le frame.
@@ -48,13 +71,59 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
       return () => root.classList.remove(LOCK_CLASS);
     }
 
+    // Détection clavier (§1.5 : vv.height DÉTECTE, vv.offsetTop POSITIONNE).
+    // baseline = plus grande hauteur observée HORS saisie, réinit. à la rotation.
+    let baseline = 0;
+    let baselineW = 0;
+    let sawKeyboard = false;
+    let netTimer: ReturnType<typeof setTimeout> | null = null;
+    const clearNet = () => {
+      if (netTimer) { clearTimeout(netTimer); netTimer = null; }
+    };
+    const removeKb = () => {
+      clearNet();
+      body.classList.remove(KB_CLASS);
+    };
+    const addKb = () => {
+      if (body.classList.contains(KB_CLASS)) return;
+      body.classList.add(KB_CLASS);
+      sawKeyboard = false;
+      clearNet();
+      netTimer = setTimeout(() => {
+        netTimer = null;
+        if (!sawKeyboard) removeKb();
+      }, NET_MS);
+    };
+
     let rafId: number | null = null;
     const write = () => {
       rafId = null;
       // Garde pinch-zoom : geler les dernières valeurs saines hors échelle ~1.
       if (Math.abs(vv.scale - 1) > SCALE_EPS) return;
-      root.style.setProperty("--nc-vvh", `${Math.round(vv.height)}px`);
+
+      const h = vv.height;
+      // POSITIONNEMENT du frame (suit le viewport, y compris offsetTop coincé).
+      root.style.setProperty("--nc-vvh", `${Math.round(h)}px`);
       root.style.setProperty("--nc-vvot", `${Math.round(vv.offsetTop)}px`);
+
+      // DÉTECTION du clavier (hauteur seule).
+      if (window.innerWidth !== baselineW) {
+        baselineW = window.innerWidth;
+        baseline = 0;
+      }
+      if (!body.classList.contains(KB_CLASS)) {
+        if (h > baseline) baseline = h;
+        return;
+      }
+      if (baseline <= 0) return;
+      if (h < baseline - KB_MIN) {
+        // Clavier réellement présent pendant cette session de saisie.
+        sawKeyboard = true;
+      } else if (sawKeyboard && h >= baseline - KB_RESTORE) {
+        // Hauteur revenue à la référence → clavier fermé (bouton OU swipe-down,
+        // indifféremment — jamais piloté par focusout, absent au swipe-down).
+        removeKb();
+      }
     };
     // Écriture COALESCÉE : au plus une par frame (resize + scroll peuvent tirer
     // plusieurs events par frame → un seul rAF planifié).
@@ -62,14 +131,25 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
       if (rafId == null) rafId = requestAnimationFrame(write);
     };
 
+    // Masquer la nav DÈS le focus (anticipation = transition fluide), avant même
+    // que le clavier monte.
+    const onFocusIn = () => {
+      if (isEditable(document.activeElement)) addKb();
+      schedule();
+    };
+
     vv.addEventListener("resize", schedule);
     vv.addEventListener("scroll", schedule);
+    document.addEventListener("focusin", onFocusIn);
     write(); // valeur initiale synchrone
 
     return () => {
       vv.removeEventListener("resize", schedule);
       vv.removeEventListener("scroll", schedule);
+      document.removeEventListener("focusin", onFocusIn);
       if (rafId != null) cancelAnimationFrame(rafId);
+      clearNet();
+      body.classList.remove(KB_CLASS);
       root.classList.remove(LOCK_CLASS);
       root.style.removeProperty("--nc-vvh");
       root.style.removeProperty("--nc-vvot");

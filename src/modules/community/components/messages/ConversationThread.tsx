@@ -185,6 +185,34 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
     prevNewestRef.current = newestCount;
   }, [newestCount, otherIsTyping]);
 
+  // Ancrage bas au reflow (chantier clavier v2, Phase 5). Quand le conteneur du
+  // fil change de taille — clavier qui s'ouvre/ferme → le ViewportFrame
+  // rétrécit/rétablit → la carte et ce conteneur suivent — on RE-COLLE en bas
+  // UNIQUEMENT si l'utilisateur y était déjà (mesuré en continu au scroll). S'il
+  // lisait l'historique plus haut, on ne touche à rien. ResizeObserver pur : ni
+  // rAF, ni timer (seul mécanisme autorisé). `key={conv.id}` remonte le
+  // composant → l'observer se ré-attache au bon conteneur par conversation.
+  const atBottomRef = useRef(true);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const NEAR = 100;
+    const measure = () => {
+      atBottomRef.current =
+        el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR;
+    };
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const ro = new ResizeObserver(() => {
+      if (atBottomRef.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      ro.disconnect();
+    };
+  }, []);
+
   async function handleLoadOlder() {
     if (!messages.length || isLoadingOlder || !hasMore) return;
     const cursorId = messages[0]!.id;
