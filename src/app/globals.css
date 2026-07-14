@@ -3677,6 +3677,18 @@ html.nc-vv-lock body {
     height: var(--nc-vvh, 100dvh);
     transform: translateY(var(--nc-vvot, 0px));
     overflow: hidden;
+    /* Halo RÉPLIQUÉ dans le frame (§3b) : .nc-app-bg est ancré à l'ICB, il ne
+       peut donc PAS suivre la zone visible. On reproduit FIDÈLEMENT ses 2 taches
+       latérales ici (mêmes valeurs) → le halo suit le frame ; surface unie en
+       fallback derrière. */
+    background:
+      radial-gradient(56% 50% at -8% 50%, rgba(224, 99, 90, 0.28) 0%, transparent 72%),
+      radial-gradient(56% 50% at 108% 50%, rgba(224, 99, 90, 0.26) 0%, transparent 72%),
+      var(--color-surface-page);
+  }
+  /* Dark : pas de taches (cf. .dark .nc-app-bg { background: none }) → surface
+     plate near-black. */
+  .dark .nc-vv-frame {
     background: var(--color-surface-page);
   }
 }

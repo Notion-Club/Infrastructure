@@ -62,13 +62,26 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
     const body = document.body;
 
     // Verrou du canal `scrollY` (§1.2) : overflow:hidden sur html+body. Le canal
-    // offsetTop, lui, n'est pas neutralisable — on le SUIT via le frame.
-    root.classList.add(LOCK_CLASS);
+    // offsetTop, lui, n'est pas neutralisable — on le SUIT via le frame. GATÉ
+    // MOBILE (le frame n'existe qu'en < 768px ; sur desktop le verrou violerait
+    // le « diff nul »). Le franchissement du seuil en cours de session pose/
+    // retire le verrou en conséquence. Les écritures --nc-vvh/--nc-vvot restent
+    // inconditionnelles (inoffensives, frame en display:contents desktop).
+    const mq = window.matchMedia("(max-width: 767px)");
+    const applyLock = () => {
+      root.classList.toggle(LOCK_CLASS, mq.matches);
+    };
+    applyLock();
+    mq.addEventListener("change", applyLock);
+    const unlock = () => {
+      mq.removeEventListener("change", applyLock);
+      root.classList.remove(LOCK_CLASS);
+    };
 
     const vv = window.visualViewport;
     if (!vv) {
       // Sans visualViewport : le frame reste sur ses fallbacks CSS (100dvh, 0px).
-      return () => root.classList.remove(LOCK_CLASS);
+      return unlock;
     }
 
     // Détection clavier (§1.5 : vv.height DÉTECTE, vv.offsetTop POSITIONNE).
@@ -106,13 +119,33 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
       root.style.setProperty("--nc-vvh", `${Math.round(h)}px`);
       root.style.setProperty("--nc-vvot", `${Math.round(vv.offsetTop)}px`);
 
-      // DÉTECTION du clavier (hauteur seule).
+      // DÉTECTION du clavier (hauteur seule). baseline SEMÉE par innerHeight
+      // (jamais 0) : en resizes-visual, l'ICB ne se redimensionne pas au clavier
+      // → innerHeight reste la hauteur PLEINE dans l'orientation courante = proxy
+      // fiable de « clavier fermé » (marge KB_MIN=120 absorbe la toolbar Safari).
+      // Sans ça, une rotation classe posée mettrait baseline=0 → la branche de
+      // retrait (if baseline<=0 return) meurt → nav bloquée cachée.
       if (window.innerWidth !== baselineW) {
         baselineW = window.innerWidth;
-        baseline = 0;
+        baseline = window.innerHeight;
       }
       if (!body.classList.contains(KB_CLASS)) {
-        if (h > baseline) baseline = h;
+        if (h > baseline) {
+          baseline = h;
+        } else if (
+          baseline > 0 &&
+          h < baseline - KB_MIN &&
+          isEditable(document.activeElement)
+        ) {
+          // Le clavier peut (ré)apparaître SANS focusin : re-tap d'un champ
+          // DÉJÀ focus après un swipe-down (chemin d'usage le plus courant). Le
+          // focusin sert l'ANTICIPATION ; la hauteur reste la VÉRITÉ. On pose la
+          // classe directement (pas via addKb() qui remettrait sawKeyboard=false
+          // et armerait le filet pour rien) : le clavier est déjà vu.
+          body.classList.add(KB_CLASS);
+          sawKeyboard = true;
+          clearNet();
+        }
         return;
       }
       if (baseline <= 0) return;
@@ -150,7 +183,7 @@ export function ViewportFrame({ children }: { children: ReactNode }) {
       if (rafId != null) cancelAnimationFrame(rafId);
       clearNet();
       body.classList.remove(KB_CLASS);
-      root.classList.remove(LOCK_CLASS);
+      unlock();
       root.style.removeProperty("--nc-vvh");
       root.style.removeProperty("--nc-vvot");
     };
