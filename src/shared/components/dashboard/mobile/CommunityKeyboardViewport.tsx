@@ -72,16 +72,53 @@ export function CommunityKeyboardViewport() {
       if (netTimer) { clearTimeout(netTimer); netTimer = null; }
     };
 
+    // iOS PWA installée uniquement : c'est là que le layout viewport reste figé
+    // après le clavier (Safari Web n'a pas le bug — l'utilisateur l'a confirmé).
+    const standalone =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(display-mode: standalone)").matches;
+
+    // ── Dé-figement du viewport iOS PWA après fermeture du clavier ──────────────
+    // Symptôme : WebKit laisse le LAYOUT VIEWPORT (ICB) figé à la taille « clavier
+    // ouvert » → la BottomNav (fixed bottom, ancrée à l'ICB) reste TROP HAUTE, et
+    // 100dvh reste trop petit, jusqu'à une navigation. Un `scrollTo(0,0)` ne suffit
+    // pas (cf. commits 962c207 / ea1f802). Remède éprouvé : forcer un RELAYOUT
+    // synchrone — on masque puis restaure `body` DANS LA MÊME frame (aucun paint
+    // intermédiaire → zéro flash) ; ce toggle pousse WebKit à recomputer l'ICB,
+    // exactement comme le fait un changement de page. La nav (et 100dvh) redevient
+    // alors correcte SANS que la nav ait besoin de connaître ce mécanisme.
+    let relayoutTimers: ReturnType<typeof setTimeout>[] = [];
+    const clearRelayout = () => {
+      relayoutTimers.forEach(clearTimeout);
+      relayoutTimers = [];
+    };
+    const forceRelayout = () => {
+      const prev = body.style.display;
+      body.style.display = "none";
+      void body.offsetHeight; // flush synchrone du reflow
+      body.style.display = prev;
+    };
+    // Le dé-figement n'est pas toujours pris au 1er essai : rafale courte.
+    const scheduleUnfreeze = () => {
+      if (!standalone) return;
+      clearRelayout();
+      relayoutTimers = [120, 350, 700].map((d) => setTimeout(forceRelayout, d));
+      requestAnimationFrame(forceRelayout);
+    };
+
     const closeKb = () => {
       clearNet();
       body.classList.remove("nc-kb-open");
       // Retrait de --nc-vvh → le shell reprend 100dvh (ne dépend plus du getter
       // vv.height potentiellement figé).
       root.style.removeProperty("--nc-vvh");
+      // Répare l'ICB figé → la BottomNav retrouve sa position basse.
+      scheduleUnfreeze();
     };
     const openKbAnticipate = () => {
       if (body.classList.contains("nc-kb-open")) return;
       body.classList.add("nc-kb-open");
+      clearRelayout(); // pas de toggle display pendant une saisie active
       sawKeyboard = false;
       clearNet();
       netTimer = setTimeout(() => {
@@ -113,6 +150,7 @@ export function CommunityKeyboardViewport() {
           // Le clavier peut (ré)apparaître SANS focusin (re-tap d'un champ déjà
           // focus après swipe-down) : la hauteur est la vérité.
           body.classList.add("nc-kb-open");
+          clearRelayout(); // pas de toggle display pendant une saisie active
           sawKeyboard = true;
           clearNet();
         }
@@ -159,6 +197,7 @@ export function CommunityKeyboardViewport() {
       document.removeEventListener("visibilitychange", schedule);
       if (raf != null) cancelAnimationFrame(raf);
       clearNet();
+      clearRelayout();
       body.classList.remove("nc-kb-open");
       root.style.removeProperty("--nc-vvh");
     };
