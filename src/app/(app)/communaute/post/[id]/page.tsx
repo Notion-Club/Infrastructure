@@ -17,10 +17,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PostDetailPage({ params }: Props) {
   const { id } = await params;
-  const post = await getPostById(id);
+  // Post + commentaires en parallèle : listCommentsForPost ne dépend pas du
+  // post (même id). getPostById est mémoïsé (cache()) → réutilise le fetch déjà
+  // fait par generateMetadata, sans re-round-trip.
+  const [post, comments] = await Promise.all([
+    getPostById(id),
+    listCommentsForPost(id),
+  ]);
   if (!post) notFound();
-
-  const comments = await listCommentsForPost(id);
 
   return (
     <div className="nc-page-halo" style={{ minHeight: "100lvh" }}>

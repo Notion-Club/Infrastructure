@@ -1,4 +1,6 @@
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import { getAuthUser } from "@/shared/lib/supabase/cached";
 import type { Post, PostTag, PostCursor, PostsPage } from "../types/post.types";
 import type { Comment, CommentReply } from "../types/comment.types";
 import type { Conversation, Message, MessageType } from "../types/conversation.types";
@@ -420,14 +422,17 @@ export async function listPostsPage(
 ): Promise<PostsPage> {
   const { cursor = null, tag = "all", limit = 50 } = params;
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Auth mémoïsée (cache() par requête) : un seul getUser() réseau partagé par
+  // le layout + toutes les queries d'un même rendu. Cf. supabase/cached.ts.
+  const user = await getAuthUser();
   const viewerId = user?.id ?? null;
 
   // 1re page uniquement : les pinned actifs, en tête. Absents des pages
-  // suivantes (cursor non nul) pour ne pas les répéter.
-  let pinnedPosts: Post[] = [];
+  // suivantes (cursor non nul) pour ne pas les répéter. On récupère ici les
+  // LIGNES BRUTES et on les hydrate avec le flux en UN SEUL passage plus bas
+  // (une seule salve réactions/mentions/profils batchée sur l'ensemble, au
+  // lieu de deux passes séparées pinned puis flux).
+  let pinnedRows: PostRow[] = [];
   if (!cursor) {
     const nowIso = new Date().toISOString();
     let pinnedQuery = supabase
@@ -438,12 +443,11 @@ export async function listPostsPage(
       .order("created_at", { ascending: false })
       .order("id", { ascending: false });
     if (tag !== "all") pinnedQuery = pinnedQuery.eq("tag", tag);
-    const { data: pinnedRows, error: pinnedError } =
-      await pinnedQuery.returns<PostRow[]>();
+    const { data, error: pinnedError } = await pinnedQuery.returns<PostRow[]>();
     if (pinnedError) {
       console.error("[listPostsPage] pinned failed:", pinnedError.message);
     } else {
-      pinnedPosts = await hydratePosts(supabase, pinnedRows ?? [], viewerId);
+      pinnedRows = data ?? [];
     }
   }
 
@@ -470,23 +474,30 @@ export async function listPostsPage(
   const { data: fluxRows, error } = await query.returns<PostRow[]>();
   if (error) {
     console.error("[listPostsPage] flux failed:", error.message);
-    return { posts: pinnedPosts, nextCursor: null, hasMore: false };
+    // Erreur flux : on hydrate au moins les pinned déjà récupérés (page 1).
+    const pinnedOnly = await hydratePosts(supabase, pinnedRows, viewerId);
+    return { posts: pinnedOnly, nextCursor: null, hasMore: false };
   }
 
   const rows = fluxRows ?? [];
   const hasMore = rows.length > limit;
   const pageRows = hasMore ? rows.slice(0, limit) : rows;
-  const fluxPosts = await hydratePosts(supabase, pageRows, viewerId);
+
+  // Hydratation UNIQUE sur pinned + flux : ids disjoints (les pinned sont
+  // exclus du flux via `.eq("pinned", false)`), l'ordre [pinned…, flux…] est
+  // préservé par la concaténation, et mapPostRow filtre réactions/mentions par
+  // row.id → aucun risque de contamination croisée.
+  const posts = await hydratePosts(
+    supabase,
+    [...pinnedRows, ...pageRows],
+    viewerId,
+  );
 
   const last = pageRows[pageRows.length - 1];
   const nextCursor =
     hasMore && last ? { createdAt: last.created_at, id: last.id } : null;
 
-  return {
-    posts: [...pinnedPosts, ...fluxPosts],
-    nextCursor,
-    hasMore,
-  };
+  return { posts, nextCursor, hasMore };
 }
 
 // ============================================================================
@@ -524,11 +535,16 @@ async function fetchReactorProfiles(
 // ============================================================================
 // getPostById — détail d'un post (page /communaute/post/[id])
 // ============================================================================
-export async function getPostById(id: string): Promise<Post | null> {
+// Mémoïsé par requête (cache()) : la page post/[id] appelle getPostById DEUX
+// fois par rendu — une fois dans generateMetadata (titre) et une fois dans le
+// composant page — et sans cache() chaque appel refait tout le trio post +
+// réactions + mentions + profils reactors. cache() collapse ça en un seul
+// fetch partagé pour le rendu.
+export const getPostById = cache(async (id: string): Promise<Post | null> => {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Auth mémoïsée (cache() par requête) : un seul getUser() réseau partagé par
+  // le layout + toutes les queries d'un même rendu. Cf. supabase/cached.ts.
+  const user = await getAuthUser();
   const viewerId = user?.id ?? null;
 
   const { data: row, error } = await supabase
@@ -587,16 +603,16 @@ export async function getPostById(id: string): Promise<Post | null> {
     mentionsRes.data ?? [],
     reactorProfilesById,
   );
-}
+});
 
 // ============================================================================
 // listCommentsForPost — comments + replies + reactions
 // ============================================================================
 export async function listCommentsForPost(postId: string): Promise<Comment[]> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Auth mémoïsée (cache() par requête) : un seul getUser() réseau partagé par
+  // le layout + toutes les queries d'un même rendu. Cf. supabase/cached.ts.
+  const user = await getAuthUser();
   const viewerId = user?.id ?? null;
 
   const { data: comments, error } = await supabase
@@ -887,9 +903,9 @@ async function hydrateRecentMessages(
 
 export async function listConversations(): Promise<Conversation[]> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Auth mémoïsée (cache() par requête) : un seul getUser() réseau partagé par
+  // le layout + toutes les queries d'un même rendu. Cf. supabase/cached.ts.
+  const user = await getAuthUser();
   if (!user) return [];
   const viewerId = user.id;
 
@@ -979,9 +995,9 @@ export const MESSAGES_PAGE_SIZE = 50;
 
 export async function getConversation(id: string): Promise<Conversation | null> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Auth mémoïsée (cache() par requête) : un seul getUser() réseau partagé par
+  // le layout + toutes les queries d'un même rendu. Cf. supabase/cached.ts.
+  const user = await getAuthUser();
   if (!user) return null;
   const viewerId = user.id;
 
@@ -1044,9 +1060,9 @@ export async function loadOlderMessages(
   cursorMessageId: string,
 ): Promise<{ messages: Message[]; hasMore: boolean } | null> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Auth mémoïsée (cache() par requête) : un seul getUser() réseau partagé par
+  // le layout + toutes les queries d'un même rendu. Cf. supabase/cached.ts.
+  const user = await getAuthUser();
   if (!user) return null;
 
   // Récupère le created_at du cursor — la RLS coupe si non-participant.
@@ -1100,9 +1116,9 @@ export async function getMessagesSince(
   afterIso: string,
 ): Promise<Message[]> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Auth mémoïsée (cache() par requête) : un seul getUser() réseau partagé par
+  // le layout + toutes les queries d'un même rendu. Cf. supabase/cached.ts.
+  const user = await getAuthUser();
   if (!user) return [];
 
   const { data: rawMessages } = await supabase
