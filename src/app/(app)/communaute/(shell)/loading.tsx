@@ -6,41 +6,33 @@ const pulse: React.CSSProperties = {
 
 // Skeleton de chargement de /communaute (feed + messages).
 //
-// ⚠️ Ce skeleton CALQUE À L'IDENTIQUE la structure rendue par CommunityPage
-// (cf. community-page.tsx) : MÊME wrapper (flex/h-dvh/overflow-hidden), MÊME
-// grosse carte `surface-raised` arrondie, MÊME en-tête de switcher avec son
-// `borderBottom`, MÊME liste interne scrollable. C'est volontaire : le swap
-// skeleton → contenu devient PIXEL-ALIGNÉ.
-//   - Avant : le skeleton était une liste lâche (pills + cartes sans
-//     conteneur). Au chargement, la vraie carte apparaissait avec son
-//     `borderBottom` de switcher + ses bords → une « ligne » horizontale
-//     surgissait et la mise en page sautait en deux temps.
-//   - Maintenant : la carte (et son `borderBottom`) sont déjà présents dans le
-//     skeleton → rien n'« apparaît », aucune couture, aucun saut.
+// ⚠️ Ce skeleton CALQUE À L'IDENTIQUE la structure du vrai shell rendu par le
+// layout (cf. (shell)/layout.tsx + CommunityPage) : MÊME wrapper
+// `nc-page-halo nc-community-shell`, MÊME `<main>` (mêmes classes de padding /
+// maxWidth), MÊME carte `nc-community-card nc-community-card--fixed` en `flex-1`
+// qui REMPLIT le viewport, MÊME en-tête de switcher avec son `borderBottom`,
+// MÊME zone de liste scrollable interne. C'est volontaire et NÉCESSAIRE : comme
+// le wrapper et la carte sont pilotés par les MÊMES classes que le réel, la
+// position (offset haut via `.nc-community-shell > main`, hauteur de carte via
+// `--fixed`, safe-area via `.nc-page-halo`) est PIXEL-IDENTIQUE. Sans ça, le
+// skeleton apparaissait plus bas que sa cible puis « sautait » au swap.
 //
-// Padding / maxWidth alignés sur le <main> du layout (px-4 pt-[64px] pb-[120px]
-// md:px-10 md:pt-[104px] md:pb-8, maxWidth 1000). PAS de `.nc-page-halo` : le
-// fond opaque `surface-page` suffit et évite d'empiler un 2ᵉ dégradé radial
-// fixe pendant le swap (sinon bande de saturation, cf. fix précédent).
+// Note : on utilise bien `.nc-page-halo` — l'ancienne raison de l'éviter (un 2ᵉ
+// dégradé radial `::before`) est obsolète : le fond de marque vit désormais dans
+// `.nc-app-bg` (root layout) et `.nc-page-halo` est transparent (cf. globals.css).
 export default function CommunauteLoading() {
   return (
-    <div
-      className="flex flex-col"
-      style={{
-        minHeight: "100lvh",
-        backgroundColor: "var(--color-surface-page)",
-        // Parité avec `.nc-page-halo` (PWA standalone iOS) : sans ce padding,
-        // le skeleton remonterait de ~44px sous l'heure iPhone vs le contenu.
-        paddingTop: "env(safe-area-inset-top, 0px)",
-      }}
-    >
+    <div className="nc-page-halo nc-community-shell flex flex-col">
       <main
-        className="flex flex-col flex-1 w-full mx-auto px-4 pt-[64px] pb-[120px] md:px-10 md:pt-[104px] md:pb-8"
+        className="flex flex-col flex-1 w-full mx-auto px-4 md:px-10 md:pt-[104px] md:pb-8"
         style={{ position: "relative", zIndex: 1, maxWidth: 1000 }}
       >
-        {/* Carte globale — calque le conteneur de CommunityPage */}
+        {/* Carte globale — MÊMES classes que le conteneur de CommunityPage :
+            `--fixed` fixe la hauteur (remplit le viewport en mobile via flex-1,
+            `calc(100dvh - 136px)` en desktop) → le cadre du skeleton occupe
+            exactement la place du cadre réel. */}
         <div
-          className="flex flex-col"
+          className="flex flex-col flex-1 nc-community-card nc-community-card--fixed"
           style={{
             background: "var(--color-surface-raised)",
             border: "1px solid var(--color-border-default)",
@@ -101,10 +93,11 @@ export default function CommunauteLoading() {
             />
           </div>
 
-          {/* Liste de posts — flux naturel (scroll-document, comme le réel) */}
+          {/* Liste de posts — zone à scroll interne (flex-1 + min-h-0), MÊME
+              padding que `.nc-feed-scroll` du réel. */}
           <div
-            className="overflow-x-hidden"
-            style={{ padding: "0 16px 16px" }}
+            className="flex-1 overflow-hidden"
+            style={{ minHeight: 0, padding: "0 16px 16px" }}
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {Array.from({ length: 4 }, (_, i) => (

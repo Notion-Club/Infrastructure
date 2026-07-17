@@ -310,8 +310,22 @@ export function PostCard({ post, currentUser, devRole, pinned = false, onRequest
         {video && <VideoEmbed match={video} label="Vidéo du post · Carte post" />}
       </div>
 
-      {/* Footer */}
-      <div data-fb-label="Barre de réactions · Carte post" onClick={(e) => e.stopPropagation()}>
+      {/* Footer — comme le header, seuls les CONTRÔLES stoppent la propagation.
+          Un clic sur le VIDE de la barre (l'espace entre les réactions à gauche
+          et le compteur de commentaires à droite, dû au `justify-content:
+          space-between`) doit ouvrir le post comme le reste de la carte. On ne
+          stoppe donc QUE si le clic a atterri sur un contrôle réel (pastille de
+          réaction, sélecteur d'emoji, bouton commentaire) — jamais sur le
+          conteneur lui-même. */}
+      <div
+        data-fb-label="Barre de réactions · Carte post"
+        onClick={(e) => {
+          const hit = (e.target as HTMLElement).closest(
+            'button, [role="button"], [data-fb-label*="Barre de réactions"]',
+          );
+          if (hit && hit !== e.currentTarget) e.stopPropagation();
+        }}
+      >
         <ReactionsBar
           reactions={reactions}
           commentCount={postData.commentCount}
