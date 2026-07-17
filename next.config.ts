@@ -16,9 +16,16 @@ const nextConfig: NextConfig = {
     // refait un fetch RSC complet à CHAQUE navigation — même pour une page déjà
     // ouverte dans la session (et même au retour navigateur), puisque toutes les
     // pages (app)/ sont dynamiques (cookies Supabase). On garde le payload d'une
-    // route visitée 3 min en mémoire → revisite instantanée, sans re-skeleton.
-    // Les mutations (router.refresh / revalidatePath) continuent d'invalider.
-    staleTimes: { dynamic: 180, static: 300 },
+    // route visitée 30 min en mémoire → une page déjà chargée n'est JAMAIS
+    // rechargée tant qu'on reste dans la session (revisite instantanée, sans
+    // re-skeleton ni nouvel aller-retour serveur). C'est ce qui donne le ressenti
+    // « une fois chargé, ça reste chargé ».
+    //
+    // Fraîcheur préservée : les mutations locales (router.refresh /
+    // revalidatePath après un post/message) invalident l'entrée, et le module
+    // community rattrape les updates distants via ses souscriptions Realtime au
+    // remontage → le cache long n'affiche pas de données périmées à l'usage.
+    staleTimes: { dynamic: 1800, static: 300 },
     // Avatars sont upload-és via Server Action en FormData. La limite par
     // défaut de Next (1 MB) refuse le payload AVANT d'atteindre notre
     // validation métier (AVATAR_MAX_BYTES = 5 MB) et renvoie un message
