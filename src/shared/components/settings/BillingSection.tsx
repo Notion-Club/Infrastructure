@@ -391,7 +391,12 @@ export function BillingSection({ profile, company, isMocked }: BillingSectionPro
             </span>
           </span>
           <span className="nc-payments-cta__sub">
-            Tout l&apos;historique est centralisé avec les factures.
+            {/* Retour à la ligne forcé après « centralisé » : la colonne de
+                texte est plus étroite → l'aperçu de facture a plus de place à
+                droite et peut être agrandi / mieux positionné. */}
+            Tout l&apos;historique est centralisé
+            <br />
+            avec les factures.
           </span>
         </span>
         {/* Aperçu de facture (skeleton), clippé : seul le haut dépasse. */}

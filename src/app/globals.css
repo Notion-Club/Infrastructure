@@ -1052,9 +1052,12 @@ body.nc-kb-open {
 /* ── FAB "Nouveau post" mobile (feed communauté) ── */
 .nc-feed-fab {
   position: fixed;
+  /* Marges SYMÉTRIQUES : 20px depuis le bord droit ET 20px au-dessus de la
+     BottomNav. La nav occupe [10+safe ; 66+safe] depuis le bas (bottom:10+safe,
+     hauteur 56) → son bord haut est à 66+safe ; +20px d'écart = 86+safe. Avant,
+     le FAB était collé (14px au-dessus de la nav, contre le bord droit). */
   right: 20px;
-  /* au-dessus de la BottomNav (bottom:10 + height:56) + marge confort */
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 86px);
   z-index: 45;
   width: 56px;
   height: 56px;
@@ -2222,7 +2225,12 @@ body.nc-kb-open {
    none` car tout le bouton est déjà cliquable. */
 .nc-payments-cta__preview {
   position: absolute;
-  top: 12px;
+  /* Collé au BAS de l'encadré (demande explicite) : l'aperçu s'ancre sur le
+     bord inférieur au lieu de flotter dans la moitié haute. L'en-tête « Facture »
+     reste visible (la facture est épinglée en haut de la fenêtre de clip, plus
+     grande que la fenêtre → elle la remplit et se coupe net en bas, au ras du
+     bord du bouton). */
+  bottom: 0;
   right: 8px;
   width: 120px;
   height: 64px;
@@ -2253,10 +2261,13 @@ body.nc-kb-open {
     font-size: 18px;
   }
   .nc-payments-cta__preview {
-    top: 18px;
     right: 18px;
+    /* `bottom: 0` hérité de la base → collé au bas. Fenêtre un peu plus haute
+       (112 → 120) : le texte passant sur 2 lignes libère de la place, on montre
+       un peu plus de la facture sans la faire déborder du bouton (min-height
+       132). */
+    height: 120px;
     width: 208px;
-    height: 112px;
   }
   .nc-payments-cta__preview > * {
     transform: scale(0.8);
@@ -3702,6 +3713,15 @@ html.dark .nc-lt-scrim {
     height: 100dvh;
     min-height: 0;
     overflow: hidden;
+  }
+  /* Maillon manquant du bornage (parité avec `.nc-community-shell > main`) : sans
+     min-height:0, le <main> flex-1 garde min-height:auto → il ne peut pas
+     rétrécir sous la hauteur de son contenu, donc le scroll interne de slot2 ne
+     s'engage pas et la carte pousse SOUS la BottomNav. Avec min-height:0, la
+     chaîne flex (main → content → card → slot2) se contraint au viewport et la
+     carte s'arrête au même endroit que sur /communaute. */
+  .nc-coaching-shell > main {
+    min-height: 0;
   }
   .nc-coaching-content {
     /* Haut : 64px. Le halo (.nc-page-halo) porte déjà le safe-area-inset-top et
