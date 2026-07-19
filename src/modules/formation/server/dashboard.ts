@@ -13,6 +13,7 @@
 // 9 niveaux nommés indexés sur le nombre de modules entièrement terminés.
 
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import { getAuthUser } from "@/shared/lib/supabase/cached";
 import { getAccessiblePrograms } from "./queries";
 import type { ProgramSummary } from "../types";
 
@@ -120,9 +121,9 @@ export async function getDashboardProfilData(): Promise<DashboardProfilData | nu
   if (programs.length === 0) return null;
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getUser() mémoïsé (cache()) — même user que le layout, sans nouvel
+  // aller-retour réseau vers Supabase Auth au chargement du dashboard.
+  const user = await getAuthUser();
 
   // Récupère les ids des formations accessibles à l'user (via la même logique
   // que getAccessiblePrograms — déjà filtré par capabilities + access mode).

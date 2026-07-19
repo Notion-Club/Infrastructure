@@ -195,7 +195,12 @@ export default async function DashboardPage() {
             data-fb-label="Grille de widgets · Tableau de bord"
             className="grid grid-cols-1 md:grid-cols-2 gap-4"
           >
-            <EmailConfirmBanner />
+            {/* Bannière en Suspense (fallback null) : async server component,
+                elle ne doit PAS retenir le rendu du shell (greeting). Elle
+                stream et n'apparaît que si l'email n'est pas confirmé. */}
+            <Suspense fallback={null}>
+              <EmailConfirmBanner />
+            </Suspense>
             <Suspense
               fallback={
                 <>

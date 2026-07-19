@@ -1,6 +1,7 @@
 import { Mail } from "lucide-react";
 
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import { getAuthUser } from "@/shared/lib/supabase/cached";
 import { EmailConfirmBannerActions } from "./EmailConfirmBannerActions";
 
 // Server Component : lit le profile de l'user courant.
@@ -9,13 +10,13 @@ import { EmailConfirmBannerActions } from "./EmailConfirmBannerActions";
 // la PR #26 ; les actions (bouton Renvoyer) sont brick branchées sur
 // la vraie Server Action resendVerificationEmailAction.
 export async function EmailConfirmBanner() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Auth mémoïsée (cache() par requête) — réutilise le getUser() du layout au
+  // lieu d'un aller-retour réseau supplémentaire au chargement du dashboard.
+  const user = await getAuthUser();
 
   if (!user) return null;
 
+  const supabase = await createSupabaseServerClient();
   const { data: profile } = await supabase
     .from("profiles")
     .select("email_verified_at")

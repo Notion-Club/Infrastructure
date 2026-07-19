@@ -16,7 +16,12 @@
 // abonné, ils ne sont jamais appelés. Activer le push se fera dans une
 // PR séparée (cf. roadmap PWA — section "Notifications").
 
-const SW_VERSION = "v1";
+// v2 : stratégie de navigation bornée (fin de l'écran blanc ~60s au cold launch
+// PWA iOS). L'ancien networkFirst attendait `fetch(document)` SANS timeout →
+// sur réseau lent au démarrage, la requête restait pendante jusqu'au timeout
+// système. Désormais : réseau prioritaire MAIS borné, repli immédiat sur le
+// dernier shell en cache. Bump de version → purge des anciens caches à l'activate.
+const SW_VERSION = "v2";
 const STATIC_CACHE = `nc-static-${SW_VERSION}`;
 const DOCUMENT_CACHE = `nc-document-${SW_VERSION}`;
 
@@ -83,19 +88,54 @@ async function cacheFirst(request, cacheName) {
   }
 }
 
-async function networkFirst(request, cacheName) {
+// Délai au-delà duquel, si le réseau n'a pas répondu, on sert le shell en cache
+// plutôt que de laisser l'écran blanc. 3s = marge confortable pour un réseau
+// sain (contenu frais) sans jamais bloquer visuellement au-delà.
+const NAV_TIMEOUT_MS = 3000;
+const TIMEOUT = Symbol("nav-timeout");
+
+// Stratégie de NAVIGATION (documents App Router) — anti écran-blanc au cold
+// launch. Réseau prioritaire quand la connexion est saine (contenu frais), mais
+// BORNÉ : si le réseau stalle au-delà de NAV_TIMEOUT_MS, on rend immédiatement
+// le dernier shell mis en cache (paint quasi instantané) pendant que la requête
+// réseau se termine en arrière-plan et rafraîchit le cache pour la fois d'après.
+// `event.waitUntil` garde ce rafraîchissement en vie après le respondWith.
+async function navigationStrategy(event, request, cacheName) {
   const cache = await caches.open(cacheName);
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
+
+  const network = fetch(request).then((response) => {
+    if (response.ok && response.type === "basic") {
       cache.put(request, response.clone());
     }
     return response;
-  } catch (error) {
-    const cached = await cache.match(request);
-    if (cached) return cached;
-    throw error;
+  });
+  // Le fetch continue (et met à jour le cache) même si on répond depuis le cache.
+  event.waitUntil(network.catch(() => {}));
+
+  const cached = await cache.match(request);
+
+  if (!cached) {
+    // Aucun shell en cache (tout premier lancement) : on doit attendre le
+    // réseau. Borné à 15s en dernier recours pour ne jamais rester bloqué.
+    const winner = await Promise.race([
+      network.catch(() => TIMEOUT),
+      new Promise((resolve) => setTimeout(() => resolve(TIMEOUT), 15000)),
+    ]);
+    if (winner !== TIMEOUT) return winner;
+    try {
+      return await network;
+    } catch {
+      return Response.error();
+    }
   }
+
+  // Un shell existe : réseau prioritaire mais borné à NAV_TIMEOUT_MS ; sinon on
+  // sert le cache tout de suite (la MAJ réseau continue via waitUntil).
+  const winner = await Promise.race([
+    network.catch(() => TIMEOUT),
+    new Promise((resolve) => setTimeout(() => resolve(TIMEOUT), NAV_TIMEOUT_MS)),
+  ]);
+  return winner === TIMEOUT ? cached : winner;
 }
 
 self.addEventListener("fetch", (event) => {
@@ -115,7 +155,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isHtmlNavigation(request, url)) {
-    event.respondWith(networkFirst(request, DOCUMENT_CACHE));
+    event.respondWith(navigationStrategy(event, request, DOCUMENT_CACHE));
   }
 });
 
