@@ -19,7 +19,7 @@ import { useCallback, useEffect, useRef } from 'react';
  * sortie y sont ancrées en `position: absolute`).
  */
 
-type Mode = 'reflow' | 'tab';
+type Mode = 'reflow' | 'tab' | 'filter';
 
 interface AnimateOptions {
   mode?: Mode;
@@ -28,6 +28,9 @@ interface AnimateOptions {
 }
 
 const SLIDE = 42; // px — glissement latéral en mode onglet
+// Échelle de départ/sortie du mode `filter` (interior.dev filter-grid) : la
+// carte éclot / se rétracte depuis son centre. 0.82 = pop lisible sans être brutal.
+const FILTER_SCALE = 0.82;
 const CLEANUP_MS = 680; // > durée max d'une jambe (enter-dur + stagger max)
 
 interface Rect {
@@ -145,6 +148,10 @@ export function useGridChoreography(containerRef: React.RefObject<HTMLElement | 
         if (mode === 'tab') {
           el.style.transform = `translateX(${dir * SLIDE}px) scale(.985)`;
           el.style.filter = 'blur(2px)';
+        } else if (mode === 'filter') {
+          // interior.dev filter-grid : pop d'échelle centré, sans flou ni
+          // décalage directionnel — la carte apparaît à sa place.
+          el.style.transform = `scale(${FILTER_SCALE})`;
         } else {
           el.style.transform = 'scale(.97) translateY(6px)';
           el.style.filter = 'blur(4px)';
@@ -157,7 +164,9 @@ export function useGridChoreography(containerRef: React.RefObject<HTMLElement | 
       for (const el of survivors) last.set(el, relRect(el, base2));
 
       // INVERT — état de départ des survivors selon le mode.
-      // - reflow : FLIP (on les renvoie à leur ancienne place, puis ils glissent).
+      // - reflow / filter : FLIP (on les renvoie à leur ancienne place, puis ils
+      //   glissent vers la nouvelle) → les cartes qui restent se réorganisent
+      //   pour combler les trous, signature du filter-grid interior.dev.
       // - tab : panneau horizontal — pas de FLIP vertical, ils entrent depuis le
       //   côté `dir` comme le reste du nouveau set (évite tout saut vertical).
       for (const el of survivors) {
@@ -186,6 +195,11 @@ export function useGridChoreography(containerRef: React.RefObject<HTMLElement | 
               // Glisse horizontalement vers sa place, en cadence avec les entrants.
               const d = stag(i, 180, 22);
               el.style.transition = `transform var(--enter-dur) var(--ease-back) ${d}ms`;
+            } else if (mode === 'filter') {
+              // FLIP vers la nouvelle position avec settle spring, cadence douce
+              // en ordre de lecture → les cartes « se rangent » sans à-coup.
+              const d = stag(i, 140, 14);
+              el.style.transition = `transform var(--enter-dur) var(--ease-back) ${d}ms`;
             } else {
               el.style.transition = `transform var(--reflow-dur) var(--ease-fluid)`;
               el.style.transitionDelay = `${stag(i, 70, 7)}ms`;
@@ -200,6 +214,14 @@ export function useGridChoreography(containerRef: React.RefObject<HTMLElement | 
                 `opacity var(--enter-dur) var(--ease-out) ${d}ms,` +
                 `transform var(--enter-dur) var(--ease-back) ${d}ms,` +
                 `filter var(--enter-dur) var(--ease-out) ${d}ms`;
+            } else if (mode === 'filter') {
+              // Pop d'échelle centré (scale → 1) + fondu, settle spring. Aucune
+              // transition `filter` (pas de flou en mode filter) → plus fluide,
+              // notamment sur iOS Safari où l'anim de blur est coûteuse.
+              const d = stag(i, 160, 16);
+              el.style.transition =
+                `opacity var(--enter-dur) var(--ease-out) ${d}ms,` +
+                `transform var(--enter-dur) var(--ease-back) ${d}ms`;
             } else {
               const d = 110 + stag(i, 70, 14);
               el.style.transition =
@@ -209,10 +231,22 @@ export function useGridChoreography(containerRef: React.RefObject<HTMLElement | 
             }
             el.style.opacity = '1';
             el.style.transform = 'translateZ(0)';
+            // En mode filter aucune transition `filter` n'est posée → ce reset
+            // est instantané et invisible (la carte n'a jamais été floutée).
             el.style.filter = 'blur(0px)';
           });
 
           exiting.forEach((el) => {
+            if (mode === 'filter') {
+              // Rétraction d'échelle centrée + fondu, sur place (pas de flou,
+              // pas de glissement latéral) → la carte filtrée « se referme ».
+              el.style.transition =
+                `opacity var(--exit-dur) var(--ease-out),` +
+                `transform var(--exit-dur) var(--ease-out)`;
+              el.style.opacity = '0';
+              el.style.transform = `scale(${FILTER_SCALE})`;
+              return;
+            }
             el.style.transition =
               `opacity var(--exit-dur) var(--ease-out),` +
               `transform var(--exit-dur) var(--ease-in),` +

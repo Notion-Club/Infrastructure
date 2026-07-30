@@ -248,19 +248,20 @@ export function ResourcesGrid({ items }: ResourcesGridProps) {
     animateTo(buildVisibleIds('', primaryFilter, next), { mode: 'tab', direction: -1 });
   }
 
-  // Clic sur un onglet primaire (Tout / Ressources / Templates) → transition
-  // directionnelle « panneau ». Le sens dépend de la position de l'onglet cible
-  // dans la barre par rapport à l'onglet courant.
+  // Clic sur un onglet primaire (Tout / Ressources / Templates) → morph
+  // « filter-grid » (interior.dev) : les cartes qui restent se réorganisent en
+  // FLIP pour combler les trous, celles qui sortent se rétractent, celles qui
+  // entrent éclosent — sans direction imposée (remplace l'ancienne transition
+  // directionnelle « panneau »). L'animation d'ouverture de page (`reveal()`)
+  // n'est pas concernée : elle reste pilotée par le useLayoutEffect de montage.
   function onPrimaryFilter(filter: PrimaryFilter) {
-    const dir = (Math.sign(PRIMARY_FILTERS.indexOf(filter) - PRIMARY_FILTERS.indexOf(primaryFilter)) ||
-      1) as 1 | -1;
     const nextTypes = filter === 'Templates' ? new Set<ResourceMetierType>() : selectedTypes;
     setPrimaryFilter(filter);
     if (filter === 'Templates') {
       setSelectedTypes(new Set());
       setFilterOpen(false);
     }
-    animateTo(buildVisibleIds(searchQuery, filter, nextTypes), { mode: 'tab', direction: dir });
+    animateTo(buildVisibleIds(searchQuery, filter, nextTypes), { mode: 'filter' });
   }
 
   const showTypeFilter = primaryFilter === 'Tout' || primaryFilter === 'Ressources';
