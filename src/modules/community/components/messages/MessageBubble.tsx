@@ -36,6 +36,11 @@ interface MessageBubbleProps {
   // expéditeur (calculé par ConversationThread). Pilote la queue iMessage
   // des bulles sorties (.nc-imsg-tail) et l'espacement inter-groupes.
   isLastInGroup: boolean;
+  // true si ce message vient d'ARRIVER (reçu Realtime ou envoi optimiste) et
+  // doit jouer l'animation d'entrée « pop » (interior.dev). Faux pour
+  // l'historique déjà présent à l'ouverture et les messages plus anciens
+  // chargés en pagination — eux n'animent pas. cf. seenIdsRef côté parent.
+  animateIn: boolean;
 }
 
 function MessageBubbleInner({
@@ -46,6 +51,7 @@ function MessageBubbleInner({
   lockedMessageId,
   onLockChange,
   isLastInGroup,
+  animateIn,
 }: MessageBubbleProps) {
   const [showToolbar, setShowToolbar] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -92,6 +98,16 @@ function MessageBubbleInner({
   // Un message en cours de persistance porte un id "pending-…". Pas d'actions
   // destructives ni de réaction tant qu'on n'a pas le vrai UUID DB.
   const isPending = message.id.startsWith("pending-");
+
+  // Apparition animée (interior.dev) — jouée UNE fois au montage de la bulle.
+  // La bulle est keyée par msg.id → un vrai nouveau message monte une instance
+  // fraîche, donc capturer la valeur au montage via useState suffit (insensible
+  // aux re-renders ultérieurs). On n'anime PAS l'écho serveur de mon propre
+  // envoi (déjà animé côté optimiste) → condition (!isSelf || isPending), sinon
+  // un message envoyé « poperait » deux fois (pending puis ligne DB). Retiré à
+  // la fin de l'anim (onAnimationEnd) pour ne pas laisser de transform résiduel
+  // (stacking context) qui gênerait la superposition des toolbars voisines.
+  const [playEnter, setPlayEnter] = useState(animateIn && (!isSelf || isPending));
 
   if (message.deleted) {
     return (
@@ -243,10 +259,21 @@ function MessageBubbleInner({
 
   return (
     <div
+      className={playEnter ? "nc-msg-enter" : undefined}
+      onAnimationEnd={(e) => {
+        // Ne réagit qu'à NOTRE keyframe d'entrée (les animations infinies —
+        // skeleton d'image — émettent animationiteration, pas animationend, mais
+        // on garde le garde-fou par sécurité).
+        if (e.animationName === "nc-msg-in") setPlayEnter(false);
+      }}
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: isSelf ? "flex-end" : "flex-start",
+        // Origine du scale d'entrée : côté de l'expéditeur (bas-droite pour un
+        // message envoyé, bas-gauche pour un reçu) → la bulle « éclot » depuis
+        // son ancrage visuel, comme dans un fil iMessage.
+        transformOrigin: isSelf ? "right bottom" : "left bottom",
         // Le conteneur HUG son contenu (largeur de la bulle) et se cale à droite
         // (mes messages) / gauche (reçus) via alignSelf. Avant, il était pleine
         // largeur → survoler la gouttière vide déclenchait la toolbar (« trop

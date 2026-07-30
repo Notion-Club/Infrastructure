@@ -98,6 +98,33 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
     return out;
   }, [olderMessages, conversation.messages, optimisticMessages]);
 
+  // Apparition animée des NOUVEAUX messages (interior.dev). Seul un message qui
+  // APPARAÎT après l'ouverture (reçu Realtime ou envoi optimiste) ET ajouté EN
+  // BAS du fil reçoit l'animation d'entrée.
+  //   • Historique présent à l'ouverture : capturé UNE fois dans initialIds
+  //     (useState lazy, jamais réécrit) → n'anime pas (sinon toutes les bulles
+  //     « poperaient » à chaque ouverture, ce qui parasiterait aussi le saut-
+  //     en-bas initial). initialIds est un state constant : le lire au render
+  //     est sûr (contrairement à une ref) et ne déclenche aucun re-render.
+  //   • Messages plus anciens (prepend pagination) : exclus via olderIdsSet →
+  //     ils arrivent EN HAUT, ce ne sont pas de « nouveaux » messages.
+  // Un message qui « reste » dans animatedIds n'est pas rejoué : MessageBubble
+  // capture animateIn à SON montage (bulle keyée par msg.id → instance fraîche).
+  const [initialIds] = useState<Set<string>>(
+    () => new Set(conversation.messages.map((m) => m.id)),
+  );
+  const olderIdsSet = useMemo(
+    () => new Set(olderMessages.map((m) => m.id)),
+    [olderMessages],
+  );
+  const animatedIds = useMemo(() => {
+    const out = new Set<string>();
+    for (const m of messages) {
+      if (!initialIds.has(m.id) && !olderIdsSet.has(m.id)) out.add(m.id);
+    }
+    return out;
+  }, [messages, olderIdsSet, initialIds]);
+
   // Fin de groupe (style iMessage) : un message est le dernier de son groupe
   // consécutif si le prochain message VISIBLE (non supprimé — un « Message
   // supprimé » ne rend pas de bulle et ne doit pas voler la queue) change
@@ -486,6 +513,7 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
                   lockedMessageId={lockedMessageId}
                   onLockChange={setLockedMessageId}
                   isLastInGroup={lastInGroup[i] ?? true}
+                  animateIn={animatedIds.has(msg.id)}
                 />
               </Fragment>
             ))
@@ -494,9 +522,10 @@ export function ConversationThread({ conversation, currentUser, loading, onSendM
         {/* Indicateur "X écrit…" — affiché en bas, dans le flux des messages
             mais hors du tableau lui-même, pour qu'il n'ait pas besoin d'un
             faux ID stable. */}
-        {otherIsTyping && !isDeleted && (
-          <TypingIndicator authorName={conversation.participant.name} />
-        )}
+        <TypingIndicator
+          visible={otherIsTyping && !isDeleted}
+          authorName={conversation.participant.name}
+        />
         <div ref={bottomRef} />
       </div>
 
