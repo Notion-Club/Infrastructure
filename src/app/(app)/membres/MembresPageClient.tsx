@@ -1,9 +1,18 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import type { ComponentType } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Activity, CreditCard, Search, SearchX, Wallet, X } from "lucide-react";
 
+import {
+  CheckmarkSealText,
+  ClockArrowReverseDotted,
+  GraduationCap,
+  PersonBadgeMinus,
+  PersonCircleFill,
+} from "@/shared/components/icons";
 import type {
   AdminMemberDetail,
   AdminMemberRole,
@@ -15,6 +24,24 @@ import {
   setMemberBannedAction,
   setMemberRoleAction,
 } from "@/modules/admin/server/getMembersAdminAction";
+
+// ── Couleurs sémantiques de statut (centralisées — pas de hex dispersé) ───────
+// Les tokens de marque/surface viennent de globals.css ; ici on ne garde que
+// les 4 teintes sémantiques (succès / alerte / danger / neutre) qui n'ont pas
+// d'équivalent token, regroupées en un seul endroit modifiable.
+const SEMANTIC = {
+  success: "#22c55e",
+  successText: "#16a34a",
+  warning: "#f59e0b",
+  danger: "#ef4444",
+  neutral: "#94a3b8",
+} as const;
+const HALO = {
+  success: "rgba(34,197,94,.3)",
+  warning: "rgba(245,158,11,.3)",
+  danger: "rgba(239,68,68,.3)",
+  neutral: "rgba(148,163,184,.3)",
+} as const;
 
 // Page admin « Gestion des membres » — portage du design Claude Design
 // (« Membres Admin ») branché sur les vraies tables Supabase.
@@ -69,18 +96,18 @@ type Status = { key: StatusKey; label: string; color: string; halo: string };
 
 function statusOf(m: AdminMemberDetail): Status {
   if (m.isBanned)
-    return { key: "banned", label: "Banni", color: "#ef4444", halo: "rgba(239,68,68,.3)" };
+    return { key: "banned", label: "Banni", color: SEMANTIC.danger, halo: HALO.danger };
   if (m.membershipStatus !== "active")
     return {
       key: "expired",
       label: "Abonnement expiré",
-      color: "#94a3b8",
-      halo: "rgba(148,163,184,.3)",
+      color: SEMANTIC.neutral,
+      halo: HALO.neutral,
     };
   const d = daysUntil(m.expiresAt);
   if (d != null && d <= 21)
-    return { key: "expiring", label: "Expire bientôt", color: "#f59e0b", halo: "rgba(245,158,11,.3)" };
-  return { key: "active", label: "Actif", color: "#22c55e", halo: "rgba(34,197,94,.3)" };
+    return { key: "expiring", label: "Expire bientôt", color: SEMANTIC.warning, halo: HALO.warning };
+  return { key: "active", label: "Actif", color: SEMANTIC.success, halo: HALO.success };
 }
 
 function roleLabel(r: AdminMemberRole): string {
@@ -165,32 +192,38 @@ export default function MembresPageClient({
       {
         label: "Membres actifs",
         value: String(activeCount),
-        icon: "👥",
+        Icon: PersonCircleFill,
         color: "var(--color-text-primary)",
         delta: `/ ${members.length}`,
       },
       {
         label: "Revenu encaissé",
         value: eur(revenue),
-        icon: "💶",
+        Icon: Wallet,
         color: "var(--color-brand)",
         delta: "cumul",
       },
       {
         label: "Complétion moyenne",
         value: `${avgCompletion} %`,
-        icon: "🎓",
+        Icon: GraduationCap,
         color: "var(--color-text-primary)",
         delta: "formations",
       },
       {
         label: "À relancer (>30j)",
         value: String(inactive),
-        icon: "😴",
-        color: inactive > 0 ? "#f59e0b" : "var(--color-text-primary)",
+        Icon: ClockArrowReverseDotted,
+        color: inactive > 0 ? SEMANTIC.warning : "var(--color-text-primary)",
         delta: "inactifs",
       },
-    ];
+    ] satisfies Array<{
+      label: string;
+      value: string;
+      Icon: ComponentType<{ size?: number | string }>;
+      color: string;
+      delta: string;
+    }>;
   }, [members]);
 
   // ── Filtres + tri ─────────────────────────────────────────────────────────
@@ -310,7 +343,7 @@ export default function MembresPageClient({
         <main style={{ position: "relative", zIndex: 1 }}>
           <div
             className="px-4 pt-[96px] pb-[120px] md:px-10 md:pt-[148px] md:pb-12"
-            style={{ maxWidth: 1280, margin: "0 auto" }}
+            style={{ maxWidth: 1000, margin: "0 auto" }}
           >
             {/* En-tête */}
             <div
@@ -365,7 +398,7 @@ export default function MembresPageClient({
                     width: 7,
                     height: 7,
                     borderRadius: "50%",
-                    background: "#22c55e",
+                    background: SEMANTIC.success,
                   }}
                 />
                 {members.length} membre{members.length > 1 ? "s" : ""}
@@ -410,7 +443,15 @@ export default function MembresPageClient({
                     >
                       {k.label}
                     </span>
-                    <span style={{ fontSize: 15 }}>{k.icon}</span>
+                    <span
+                      aria-hidden
+                      style={{
+                        display: "inline-flex",
+                        color: "var(--color-text-muted)",
+                      }}
+                    >
+                      <k.Icon size={16} />
+                    </span>
                   </div>
                   <div
                     style={{
@@ -464,16 +505,18 @@ export default function MembresPageClient({
               >
                 <div style={{ position: "relative", flex: 1, minWidth: 220 }}>
                   <span
+                    aria-hidden
                     style={{
                       position: "absolute",
-                      left: 14,
+                      left: 13,
                       top: "50%",
                       transform: "translateY(-50%)",
                       color: "var(--color-text-muted)",
-                      fontSize: 15,
+                      display: "inline-flex",
+                      pointerEvents: "none",
                     }}
                   >
-                    ⌕
+                    <Search size={16} />
                   </span>
                   <input
                     value={search}
@@ -637,7 +680,17 @@ export default function MembresPageClient({
                   color: "var(--color-text-muted)",
                 }}
               >
-                <div style={{ fontSize: 34, marginBottom: 10 }}>🔍</div>
+                <div
+                  aria-hidden
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    marginBottom: 12,
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  <SearchX size={32} strokeWidth={1.5} />
+                </div>
                 <p style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>
                   Aucun membre ne correspond à ces critères.
                 </p>
@@ -921,7 +974,7 @@ function MemberDrawer({
           ? `Expire dans ${dUntil} j`
           : `Renouvelé dans ${dUntil ?? 0} j`;
 
-  const profileRows: Array<{ k: string; v: string }> = [
+  const profileRows: Array<{ k: string; v: React.ReactNode }> = [
     { k: "Email", v: m.email ?? "—" },
     ...(m.communicationEmail && m.communicationEmail !== m.email
       ? [{ k: "Email de contact", v: m.communicationEmail }]
@@ -929,7 +982,7 @@ function MemberDrawer({
     ...(m.phone ? [{ k: "Téléphone", v: m.phone }] : []),
     ...(m.company ? [{ k: "Entreprise", v: m.company }] : []),
     ...(m.city ? [{ k: "Ville", v: m.city }] : []),
-    { k: "Email vérifié", v: m.emailVerified ? "✓ Oui" : "✗ Non" },
+    { k: "Email vérifié", v: <EmailVerifiedBadge verified={m.emailVerified} /> },
     { k: "Inscrit le", v: fullDate(m.createdAt) },
   ];
 
@@ -941,19 +994,17 @@ function MemberDrawer({
     ? grantPick
     : (grantOptions[0]?.slug ?? "");
 
+  // Niveau 1 (journal d'activité) pas encore branché : on ne garde que les
+  // agrégats réels (dernière connexion, appels, no-shows). `lastActiveAt` n'est
+  // jamais alimenté → retiré de l'affichage (cf. activity-instrumentation-niveau1).
   const activityStats = [
     {
       label: "Dernière connexion",
       value: rel(daysSince(m.lastLoginAt)),
       color:
         (daysSince(m.lastLoginAt) ?? 9e9) > 30
-          ? "#f59e0b"
+          ? SEMANTIC.warning
           : "var(--color-text-primary)",
-    },
-    {
-      label: "Dernière activité",
-      value: rel(daysSince(m.lastActiveAt)),
-      color: "var(--color-text-primary)",
     },
     {
       label: "Appels coaching",
@@ -963,33 +1014,8 @@ function MemberDrawer({
     {
       label: "No-shows",
       value: String(m.noShowsCount),
-      color: m.noShowsCount > 0 ? "#ef4444" : "var(--color-text-primary)",
+      color: m.noShowsCount > 0 ? SEMANTIC.danger : "var(--color-text-primary)",
     },
-  ];
-
-  const timeline: Array<{ icon: string; text: string; when: string }> = [
-    ...(m.nextCallAt
-      ? [
-          {
-            icon: "📞",
-            text: "Appel coaching à venir",
-            when: fullDate(m.nextCallAt),
-          },
-        ]
-      : []),
-    { icon: "🔓", text: "Dernière connexion", when: rel(daysSince(m.lastLoginAt)) },
-    {
-      icon: "🎓",
-      text: "Progression formations",
-      when: `${m.avgCompletion} % en moyenne`,
-    },
-    m.noShowsCount > 0
-      ? {
-          icon: "⚠️",
-          text: `${m.noShowsCount} absence(s) en coaching`,
-          when: "à surveiller",
-        }
-      : { icon: "✅", text: "Assiduité coaching", when: `${m.callsCount} appels suivis` },
   ];
 
   const surface: React.CSSProperties = {
@@ -1061,7 +1087,6 @@ function MemberDrawer({
                 background: "rgba(255,255,255,.9)",
                 backdropFilter: "blur(6px)",
                 cursor: "pointer",
-                fontSize: 17,
                 color: "#52525b",
                 display: "flex",
                 alignItems: "center",
@@ -1069,7 +1094,7 @@ function MemberDrawer({
                 boxShadow: "0 4px 12px rgba(0,0,0,.18)",
               }}
             >
-              ✕
+              <X size={18} />
             </button>
           </div>
           <div
@@ -1152,7 +1177,7 @@ function MemberDrawer({
                       fontSize: 11,
                       fontWeight: 600,
                       color: "#fff",
-                      background: "#ef4444",
+                      background: SEMANTIC.danger,
                       padding: "3px 9px",
                       borderRadius: 100,
                     }}
@@ -1276,7 +1301,10 @@ function MemberDrawer({
 
           {/* Profil */}
           <div style={surface}>
-            <div style={sectionTitle}>👤 Profil</div>
+            <div style={sectionTitle}>
+              <PersonCircleFill size={15} aria-hidden />
+              Profil
+            </div>
             <div style={{ display: "flex", flexDirection: "column" }}>
               {profileRows.map((p, i) => (
                 <div
@@ -1326,7 +1354,10 @@ function MemberDrawer({
                 marginBottom: 14,
               }}
             >
-              <div style={{ ...sectionTitle, marginBottom: 0 }}>💳 Offres</div>
+              <div style={{ ...sectionTitle, marginBottom: 0 }}>
+                <CreditCard size={15} aria-hidden />
+                Offres
+              </div>
               <div style={{ textAlign: "right" }}>
                 <div
                   style={{
@@ -1398,7 +1429,7 @@ function MemberDrawer({
                             background: active
                               ? "rgba(34,197,94,.14)"
                               : "var(--color-border-default)",
-                            color: active ? "#16a34a" : "var(--color-text-muted)",
+                            color: active ? SEMANTIC.successText : "var(--color-text-muted)",
                           }}
                         >
                           {active
@@ -1436,7 +1467,7 @@ function MemberDrawer({
                         style={{
                           border: "1px solid var(--color-border-default)",
                           background: "var(--color-surface-card)",
-                          color: "#ef4444",
+                          color: SEMANTIC.danger,
                           borderRadius: 10,
                           padding: "6px 8px",
                           fontSize: 11,
@@ -1519,7 +1550,10 @@ function MemberDrawer({
                 marginBottom: 14,
               }}
             >
-              <div style={{ ...sectionTitle, marginBottom: 0 }}>🎓 Formations</div>
+              <div style={{ ...sectionTitle, marginBottom: 0 }}>
+                <GraduationCap size={15} aria-hidden />
+                Formations
+              </div>
               <span
                 style={{
                   fontSize: 12,
@@ -1541,7 +1575,7 @@ function MemberDrawer({
               {m.formations.map((f) => {
                 const c =
                   f.pct >= 100
-                    ? "#16a34a"
+                    ? SEMANTIC.successText
                     : f.pct > 0
                       ? "var(--color-brand)"
                       : "var(--color-text-muted)";
@@ -1583,7 +1617,7 @@ function MemberDrawer({
                         style={{
                           height: "100%",
                           borderRadius: 100,
-                          background: f.pct >= 100 ? "#22c55e" : "var(--color-brand)",
+                          background: f.pct >= 100 ? SEMANTIC.success : "var(--color-brand)",
                           width: `${f.pct}%`,
                           transition: "width .6s var(--nc-ease)",
                         }}
@@ -1610,11 +1644,14 @@ function MemberDrawer({
 
           {/* Activité */}
           <div style={surface}>
-            <div style={sectionTitle}>📊 Activité</div>
+            <div style={sectionTitle}>
+              <Activity size={15} aria-hidden />
+              Activité
+            </div>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
+                gridTemplateColumns: "repeat(3, 1fr)",
                 gap: 10,
                 marginBottom: 14,
               }}
@@ -1651,43 +1688,11 @@ function MemberDrawer({
                 </div>
               ))}
             </div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {timeline.map((t, i) => (
-                <div
-                  key={`${t.text}-${i}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 11,
-                    padding: "9px 0",
-                    borderTop:
-                      i === 0 ? "none" : "1px solid var(--color-border-default)",
-                  }}
-                >
-                  <span style={{ fontSize: 14, marginTop: 1 }}>{t.icon}</span>
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: "var(--color-text-primary)",
-                      }}
-                    >
-                      {t.text}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11.5,
-                        color: "var(--color-text-muted)",
-                        marginTop: 1,
-                      }}
-                    >
-                      {t.when}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {/* Journal d'activité — placeholder structuré pour la brique
+                Niveau 1 (activity_events). Quand la table existe, ce bloc est
+                remplacé par la liste réelle des sessions/events horodatés sans
+                retoucher le layout du drawer. */}
+            <ActivityJournalPlaceholder />
           </div>
 
           {/* Ban */}
@@ -1703,16 +1708,110 @@ function MemberDrawer({
               fontSize: 14,
               fontWeight: 600,
               cursor: pending ? "wait" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
               border: `1px solid ${m.isBanned ? "rgba(34,197,94,.4)" : "rgba(239,68,68,.35)"}`,
               background: m.isBanned ? "rgba(34,197,94,.1)" : "rgba(239,68,68,.08)",
-              color: m.isBanned ? "#16a34a" : "#ef4444",
+              color: m.isBanned ? SEMANTIC.successText : SEMANTIC.danger,
             }}
           >
+            <PersonBadgeMinus size={16} aria-hidden />
             {m.isBanned ? "Débannir ce membre" : "Bannir ce membre"}
           </button>
         </div>
       </aside>
     </>
+  );
+}
+
+// Badge « Email vérifié » (ticket 3c) — état vérifié distinct de non-vérifié.
+function EmailVerifiedBadge({ verified }: { verified: boolean }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        fontSize: 12,
+        fontWeight: 600,
+        padding: "3px 9px",
+        borderRadius: 100,
+        background: verified ? "rgba(34,197,94,.12)" : "var(--color-surface-raised)",
+        color: verified ? SEMANTIC.successText : "var(--color-text-muted)",
+      }}
+    >
+      {verified ? (
+        <CheckmarkSealText size={14} aria-hidden />
+      ) : (
+        <span
+          aria-hidden
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: "var(--color-text-muted)",
+          }}
+        />
+      )}
+      {verified ? "Vérifié" : "Non vérifié"}
+    </span>
+  );
+}
+
+// Placeholder de la section « Activité » (journal). La donnée Niveau 1
+// (table activity_events) n'existe pas encore : on pose un empty-state plateforme
+// avec une amorce de skeleton, prêt à être remplacé par la liste réelle.
+function ActivityJournalPlaceholder() {
+  return (
+    <div
+      style={{
+        border: "1px dashed var(--color-border-default)",
+        borderRadius: 12,
+        padding: "16px 16px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+        <span
+          aria-hidden
+          style={{ display: "inline-flex", color: "var(--color-text-muted)" }}
+        >
+          <Activity size={15} />
+        </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--color-text-primary)",
+            }}
+          >
+            Journal d&apos;activité
+          </span>
+          <span style={{ fontSize: 11.5, color: "var(--color-text-muted)" }}>
+            Bientôt disponible
+          </span>
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        {[78, 64, 52].map((w, i) => (
+          <div
+            key={w}
+            className="nc-skeleton"
+            style={{
+              height: 9,
+              width: `${w}%`,
+              borderRadius: 100,
+              animationDelay: `${i * 120}ms`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
