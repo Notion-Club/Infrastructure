@@ -241,7 +241,14 @@ function EncContent({ item, body, startedEmpty, contentIn, reduced, visible, enc
       {template && (
         <div style={{ marginTop: 24 }}>
           {template.urlTella && (
-            <div style={{ marginBottom: hasAccess ? 8 : 24 }}><TellaEmbed url={template.urlTella} /></div>
+            <div style={{ marginBottom: hasAccess ? 8 : 24 }}>
+              {/* iframe différée jusqu'à ce que l'encadré soit posé (`visible` =
+                  `interactive` pour la surface principale) → l'animation
+                  d'ouverture se déclenche instantanément la 1ʳᵉ fois (l'iframe ne
+                  bloque plus le montage) ; la vidéo se charge ensuite, skeleton au
+                  même ratio pendant le morph → aucun saut de layout. */}
+              <TellaEmbed url={template.urlTella} ready={visible} />
+            </div>
           )}
           {hasAccess ? (
             <DuplicateButton url={template.urlNotionPublicPage} />
